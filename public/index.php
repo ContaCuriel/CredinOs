@@ -28,8 +28,8 @@ require __DIR__.'/../vendor/autoload.php';
 // !! IMPORTANTE: Usa aquí los dominios REALES que configurarás en Ngrok !!
 $domainEnvMap = [
     // Dominios de producción/Ngrok
-    'credintegra.tunel-ngrok.io' => '.env.credintegra', // <--- CAMBIA ESTO por tu dominio real de Ngrok
-    'facturame.tunel-ngrok.io'   => '.env.facturame',   // <--- CAMBIA ESTO por tu dominio real de Ngrok
+    '1034-2806-2f0-9360-f346-a178-f435-2ed2-4ca6.ngrok-free.app' => '.env.credintegra', // <--- CAMBIA ESTO por tu dominio real de Ngrok
+    '1639-2806-2f0-9360-f346-a178-f435-2ed2-4ca6.ngrok-free.app'   => '.env.facturame',   // <--- CAMBIA ESTO por tu dominio real de Ngrok
 
     // Dominios para desarrollo local
     'credintegra.localhost'      => '.env.credintegra',

@@ -228,6 +228,8 @@ $tipos_contrato = [
         $pdf = Pdf::loadView($vistaPdf, $data);
 
         // 9. Descargar el archivo
-        return $pdf->download($nombrePdf);
+        return $pdf->stream($nombrePdf);
+
+
     }
 }
