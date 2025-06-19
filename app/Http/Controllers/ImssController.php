@@ -99,6 +99,7 @@ public function registrarAlta(Request $request, Empleado $empleado)
         // 1. Validación de los datos del modal
         $validatedData = $request->validate([
             'id_patron_imss' => 'required|exists:patrones,id_patron',
+            'sdi' => 'required|numeric|min:0',
             'fecha_alta_imss' => 'required|date|before_or_equal:today', 
             // Para la redirección y mantener filtros
             'id_sucursal_seleccionada' => 'nullable|exists:sucursales,id_sucursal',
@@ -106,6 +107,8 @@ public function registrarAlta(Request $request, Empleado $empleado)
             'estado_imss_filter' => 'nullable|string',
         ],[
             'id_patron_imss.required' => 'Debe seleccionar un Patrón para el alta en IMSS.',
+            'sdi.required' => 'El Salario Diario Integrado (SDI) es obligatorio.', // <-- AÑADIDO: Mensaje de error
+            'sdi.numeric' => 'El SDI debe ser un valor numérico.', // <-- AÑADIDO: Mensaje de error
             'fecha_alta_imss.required' => 'La fecha de alta en IMSS es obligatoria.',
             'fecha_alta_imss.date' => 'La fecha de alta en IMSS no es válida.',
             'fecha_alta_imss.before_or_equal' => 'La fecha de alta en IMSS no puede ser una fecha futura.',
@@ -115,6 +118,7 @@ public function registrarAlta(Request $request, Empleado $empleado)
         $empleado->estado_imss = 'Alta';
         $empleado->fecha_alta_imss = $validatedData['fecha_alta_imss'];
         $empleado->id_patron_imss = $validatedData['id_patron_imss'];
+         $empleado->sdi = $validatedData['sdi'];
         $empleado->fecha_baja_imss = null; // Limpiar fecha de baja por si existía una previa
         $empleado->save();
 
@@ -222,6 +226,52 @@ public function generarAcuseAltaPdf(Empleado $empleado)
     return $pdf->stream($nombrePdf); // Muestra el PDF en el navegador
     // return $pdf->download($nombrePdf); // Para descargar directamente
 }
+
+ public function generarCartaPatronal(Empleado $empleado)
+    {
+        // 1. Validar que el empleado esté de alta en IMSS y tenga un patrón asignado
+        if ($empleado->estado_imss !== 'Alta' || !$empleado->id_patron_imss) {
+            return redirect()->route('imss.index')->with('error', 'El empleado no tiene un alta en IMSS válida para generar la carta patronal.');
+        }
+
+        // 2. Cargar todas las relaciones necesarias para el PDF
+        $empleado->load(['puesto', 'sucursal', 'patronImss', 'horario']);
+        $patron = $empleado->patronImss;
+
+        // 3. Calcular el SDI a partir del salario del puesto
+        $sdiCalculado = 0; // Valor por defecto si no hay puesto o salario
+        if ($empleado->puesto && $empleado->puesto->salario_mensual) {
+            $sdiCalculado = $empleado->puesto->salario_mensual / 30;
+        }
+
+        // 4. Construir el texto del horario según tus reglas
+        $horarioTexto = 'No especificado';
+        if ($empleado->horario) {
+            $h = $empleado->horario;
+            $entradaLV = Carbon::parse($h->lunes_entrada)->format('H:i');
+            $salidaLV = Carbon::parse($h->lunes_salida)->format('H:i');
+            $entradaS = Carbon::parse($h->sabado_entrada)->format('H:i');
+            $salidaS = Carbon::parse($h->sabado_salida)->format('H:i');
+
+            $horarioTexto = "Lunes a Viernes de {$entradaLV} a {$salidaLV} hrs., Sábados de {$entradaS} a {$salidaS} hrs.";
+        }
+        
+        // 5. Preparar los datos para la vista
+        $data = [
+            'empleado' => $empleado,
+            'patron' => $patron,
+            'horarioTexto' => $horarioTexto,
+        ];
+
+        // 6. Generar el nombre del archivo
+        $nombreEmpleadoFormateado = Str::slug($empleado->nombre_completo, '_');
+        $nombrePdf = 'carta_patronal_' . $nombreEmpleadoFormateado . '.pdf';
+
+        // 7. Cargar la vista y generar el PDF
+        $pdf = Pdf::loadView('pdf_templates.carta_patronal', $data);
+
+        return $pdf->stream($nombrePdf);
+    }
 
     // Aquí irán los métodos para registrar alta, baja, generar acuse, etc.
 }

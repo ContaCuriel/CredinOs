@@ -259,22 +259,6 @@
             <p class="uppercase">{{ $empleado->nombre_completo ?? '____________________________' }}</p>
         </div>
     </div>
-    
-    @if($mostrarTestigos)
-    <br style="page-break-before: auto; clear:both;"> {{-- Ajustado para que el salto no sea tan agresivo si no hay testigos --}}
-    <div class="firmas-container" style="margin-top: 30px;">
-        <div class="firma firma-izquierda">
-            <div class="linea-firma"></div>
-            <p class="uppercase">Testigo</p>
-            <p style="margin-top:10px;">_________________________</p>
-        </div>
-        <div class="firma firma-derecha">
-            <div class="linea-firma"></div>
-            <p class="uppercase">Testigo</p>
-            <p style="margin-top:10px;">_________________________</p>
-        </div>
-    </div>
-    @endif
 
 </body>
 </html>

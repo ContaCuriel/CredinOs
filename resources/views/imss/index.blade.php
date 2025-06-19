@@ -122,20 +122,26 @@
                                             {{-- Dentro de la celda de Acciones, si el empleado está de Alta en IMSS --}}
 @if ($empleado->estado_imss == 'Alta' && $empleado->fecha_alta_imss && $empleado->id_patron_imss)
     <a href="{{ route('imss.acuseAltaPdf', $empleado->id_empleado) }}" class="btn btn-sm btn-outline-primary" target="_blank" title="Generar Acuse de Alta IMSS">
-        <i class="bi bi-file-earmark-pdf"></i> Acuse
+        <i class="bi bi-file-earmark-pdf"></i> 
     </a>
 @else
     <button type="button" class="btn btn-sm btn-outline-primary" disabled title="Empleado no dado de alta en IMSS o falta información">
-        <i class="bi bi-file-earmark-pdf"></i> Acuse
+        <i class="bi bi-file-earmark-pdf"></i> 
     </button>
 @endif
+<a href="{{ route('imss.cartaPatronalPdf', $empleado->id_empleado) }}" class="btn btn-sm btn-outline-info" target="_blank" title="Generar Carta Patronal">
+            <i class="bi bi-file-text"></i> 
+        </a>
+
+
+
                                             <button type="button" class="btn btn-sm btn-danger btn-registrar-baja-imss"
             data-bs-toggle="modal" data-bs-target="#modalBajaImss"
             data-id_empleado="{{ $empleado->id_empleado }}"
             data-nombre_empleado="{{ $empleado->nombre_completo }}"
             data-fecha_alta_imss="{{ $empleado->fecha_alta_imss ? $empleado->fecha_alta_imss->toDateString() : '' }}" {{-- Para validación --}}
             title="Registrar Baja IMSS">
-        <i class="bi bi-shield-minus"></i> Baja
+        <i class="bi bi-shield-minus"></i> 
     </button>
                                         @endif
                                     </td>
@@ -191,6 +197,15 @@
                         </select>
                         @error('id_patron_imss') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
+<div class="mb-3">
+    <label for="sdi_modal" class="form-label">Salario Diario Integrado (SDI) <span class="text-danger">*</span></label>
+    <div class="input-group input-group-sm">
+        <span class="input-group-text">$</span>
+        <input type="number" step="0.01" min="0" class="form-control @error('sdi') is-invalid @enderror" id="sdi_modal" name="sdi" required placeholder="Ej: 250.50">
+    </div>
+    @error('sdi') <div class="invalid-feedback">{{ $message }}</div> @enderror
+</div>
+
 
                     <div class="mb-3">
                         <label for="fecha_alta_imss_modal" class="form-label">Fecha de Alta IMSS <span class="text-danger">*</span></label>

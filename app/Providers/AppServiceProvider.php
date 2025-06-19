@@ -6,6 +6,7 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\View;       // Necesario para View::composer
 use App\View\Composers\PatronLogoComposer;  // Necesario para la clase Composer
+use Illuminate\Support\Facades\URL;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -26,5 +27,11 @@ class AppServiceProvider extends ServiceProvider
 
         // Registrar el View Composer usando la clase dedicada
         View::composer('auth.login', PatronLogoComposer::class);
+   
+// Forzar que todas las URLs se generen con HTTPS si la conexión original era segura (como con ngrok)
+        if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+            URL::forceScheme('https');
+        }
+
     }
 }

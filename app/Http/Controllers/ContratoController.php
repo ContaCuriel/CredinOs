@@ -11,6 +11,10 @@ use App\Exports\ContratosPanoramaExport;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Str;
 use App\Models\Patron;
+use Webklex\PDFMerger\Facades\PDFMergerFacade as PDFMerger;
+use Illuminate\Support\Facades\File; 
+ use Illuminate\Http\Response; 
+ use ZipArchive;
 
 class ContratoController extends Controller
 {
@@ -190,46 +194,81 @@ $tipos_contrato = [
      */
      public function generarPdf(Contrato $contrato)
     {
-        // 1. Forzar la recarga de datos frescos desde la base de datos
         $contrato->refresh();
-        
-        // 2. Cargar las relaciones necesarias para el PDF
-        $contrato->load('empleado.puesto', 'empleado.sucursal', 'patron');
+        $contrato->load('empleado.puesto', 'empleado.sucursal', 'patron', 'empleado.contratos');
 
-        // 3. Verificar que el contrato tiene un patrón asociado
         if (!$contrato->patron) {
             return back()->with('error', 'Error: El contrato no tiene un patrón asociado y no se puede generar el PDF.');
         }
 
-        // 4. Definir el mapeo de tipos de contrato a plantillas de PDF
-        $mapaDePlantillas = [
-            'Determinado'     => 'generico',
-            'Indeterminado'   => 'generico',
-            'Honorarios'      => 'generico',
-            'Sueldo Variable' => 'sueldo_variable',
-        ];
+        $empleado = $contrato->empleado;
+        $contratos_totales_empleado = $empleado->contratos->count();
 
-        // 5. Seleccionar la plantilla correcta. Si no se encuentra, usar 'generico' por defecto.
-        $nombrePlantilla = $mapaDePlantillas[$contrato->tipo_contrato] ?? 'generico';
-        $vistaPdf = 'contratos.pdf_templates.' . $nombrePlantilla;
-        
-        // 6. Preparar los datos que se enviarán a la vista del PDF
         $data = [
             'contrato' => $contrato,
-            'empleado' => $contrato->empleado,
+            'empleado' => $empleado,
             'patron'   => $contrato->patron,
         ];
-
-        // 7. Generar el nombre del archivo PDF
-        $nombreEmpleadoFormateado = str_replace(' ', '_', $contrato->empleado->nombre_completo);
-        $nombrePdf = 'contrato-' . $nombreEmpleadoFormateado . '-' . $contrato->id_contrato . '.pdf';
         
-        // 8. Cargar la vista y generar el PDF
-        $pdf = Pdf::loadView($vistaPdf, $data);
+        $nombreEmpleadoFormateado = Str::slug($contrato->empleado->nombre_completo, '_');
 
-        // 9. Descargar el archivo
-        return $pdf->stream($nombrePdf);
+        if ($contratos_totales_empleado === 1) {
+            // --- ES EL PRIMER CONTRATO: GENERAR ZIP CON AMBOS DOCUMENTOS ---
 
+            // 1. Asegurar que el directorio temporal exista
+            $tempPath = storage_path('app/temp_contratos'); // Usamos una carpeta diferente para más orden
+            if (!File::isDirectory($tempPath)) {
+                File::makeDirectory($tempPath, 0755, true, true);
+            }
 
+            // 2. Definir nombres de archivo
+            $nombrePdfPrincipal = 'contrato-' . $nombreEmpleadoFormateado . '.pdf';
+            $nombrePdfConfidencialidad = 'contrato-confidencialidad-' . $nombreEmpleadoFormateado . '.pdf';
+            $nombreZip = 'paquete-contrato-' . $nombreEmpleadoFormateado . '.zip';
+            
+            $rutaPdfPrincipal = $tempPath . '/' . $nombrePdfPrincipal;
+            $rutaPdfConfidencialidad = $tempPath . '/' . $nombrePdfConfidencialidad;
+            $rutaZip = $tempPath . '/' . $nombreZip;
+
+            // 3. Generar y GUARDAR los dos PDFs
+            $mapaDePlantillas = [
+                'Determinado'     => 'generico', 'Indeterminado'   => 'generico',
+                'Honorarios'      => 'generico', 'Sueldo Variable' => 'sueldo_variable',
+            ];
+            $nombrePlantilla = $mapaDePlantillas[$contrato->tipo_contrato] ?? 'generico';
+            Pdf::loadView('contratos.pdf_templates.' . $nombrePlantilla, $data)->save($rutaPdfPrincipal);
+            Pdf::loadView('contratos.pdf_templates.confidencialidad', $data)->save($rutaPdfConfidencialidad);
+
+            // 4. Crear el archivo ZIP
+            $zip = new ZipArchive;
+            if ($zip->open($rutaZip, ZipArchive::CREATE | ZipArchive::OVERWRITE) === TRUE) {
+                $zip->addFile($rutaPdfPrincipal, $nombrePdfPrincipal);
+                $zip->addFile($rutaPdfConfidencialidad, $nombrePdfConfidencialidad);
+                $zip->close();
+            }
+
+            // 5. Borrar los PDFs individuales que ya están dentro del ZIP
+            File::delete($rutaPdfPrincipal);
+            File::delete($rutaPdfConfidencialidad);
+
+            // 6. Descargar el ZIP y decirle a Laravel que lo borre del servidor después de la descarga
+            return response()->download($rutaZip)->deleteFileAfterSend(true);
+
+        } else {
+            // --- NO ES EL PRIMER CONTRATO: DESCARGAR PDF ÚNICO ---
+            $mapaDePlantillas = [
+                'Determinado'     => 'generico', 'Indeterminado'   => 'generico',
+                'Honorarios'      => 'generico', 'Sueldo Variable' => 'sueldo_variable',
+            ];
+            $nombrePlantilla = $mapaDePlantillas[$contrato->tipo_contrato] ?? 'generico';
+            $vistaPdf = 'contratos.pdf_templates.' . $nombrePlantilla;
+            
+            $nombrePdf = 'contrato-' . $nombreEmpleadoFormateado . '-' . $contrato->id_contrato . '.pdf';
+            
+            $pdf = Pdf::loadView($vistaPdf, $data);
+
+            // Volvemos al método .stream() original, que sabemos que funciona para PDFs únicos
+            return $pdf->stream($nombrePdf);
+        }
     }
 }

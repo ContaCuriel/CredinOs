@@ -77,6 +77,11 @@ Route::get('/imss/{empleado}/acuse-alta-pdf', [ImssController::class, 'generarAc
     // Por ahora, generaremos todas las rutas CRUD, luego podemos restringirlas con ->only() o ->except() si es necesario.
     // =================================================
 
+    
+// =====> AÑADE ESTA NUEVA RUTA PARA LA CARTA PATRONAL <=====
+Route::get('/imss/{empleado}/carta-patronal-pdf', [ImssController::class, 'generarCartaPatronal'])->name('imss.cartaPatronalPdf');
+// =========================================================
+
 // Rutas que requieren autenticación
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
