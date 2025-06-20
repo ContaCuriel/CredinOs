@@ -17,15 +17,15 @@
                     </div>
                 @endif
 
-                <form action="{{ route('contratos.update', $contrato->id_contrato) }}" method="POST">
+                <form action="{{ route('contratos.update', $contrato->id_contrato) }}" method="POST" enctype="multipart/form-data">
                     @csrf
                     @method('PUT') {{-- Método para actualizar --}}
 
+                    {{-- ======================= DATOS DEL CONTRATO (SIN CAMBIOS) ======================= --}}
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Empleado</label>
                             <input type="text" class="form-control" value="{{ $empleadoDelContrato->nombre_completo }} ({{ $empleadoDelContrato->rfc }})" readonly>
-                            {{-- No permitimos cambiar el empleado de un contrato existente, si se necesita, se crea uno nuevo --}}
                             <input type="hidden" name="id_empleado" value="{{ $contrato->id_empleado }}">
                         </div>
 
@@ -70,9 +70,39 @@
                         </div>
                     </div>
 
-                    {{-- El campo de Cartas de Recomendación es del Empleado, no se edita aquí en el contrato --}}
+                    {{-- ======================= SECCIÓN PARA SUBIR EL CONTRATO FIRMADO (NUEVO) ======================= --}}
+                    <hr class="my-4">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <h5 class="mb-3">Contrato Firmado</h5>
+                            <div class="mb-3">
+                                <label for="contrato_firmado_file" class="form-label">
+                                    <strong>Subir nuevo archivo (solo PDF, máx. 5MB)</strong>
+                                </label>
+                                <p class="small text-muted mb-2">Si subes un nuevo archivo, el anterior será reemplazado permanentemente.</p>
+                                <input class="form-control @error('contrato_firmado_file') is-invalid @enderror" type="file" id="contrato_firmado_file" name="contrato_firmado_file" accept=".pdf">
+                                @error('contrato_firmado_file')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
 
-                    <hr>
+                            @if ($contrato->ruta_contrato_firmado)
+                                <div class="mt-3">
+                                    <p class="mb-2"><strong>Archivo actual:</strong></p>
+                                    <a href="{{ route('contratos.verFirmado', $contrato->id_contrato) }}" target="_blank" class="btn btn-outline-success">
+                                        <i class="bi bi-file-earmark-check-fill"></i> Ver Contrato Firmado Actual
+                                    </a>
+                                </div>
+                            @else
+                                <div class="alert alert-warning mt-3" role="alert">
+                                    <i class="bi bi-exclamation-triangle-fill"></i> Aún no se ha subido ningún contrato firmado para este registro.
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                    <hr class="my-4">
+                    {{-- ======================= FIN DE LA SECCIÓN NUEVA ======================= --}}
+
                     <div class="text-end">
                         <a href="{{ route('contratos.index') }}" class="btn btn-secondary">Cancelar</a>
                         <button type="submit" class="btn btn-primary">Actualizar Contrato</button>

@@ -25,6 +25,7 @@ protected $fillable = [
         'tipo_contrato',
         'fecha_inicio',
         'fecha_fin',
+        'ruta_contrato_firmado',
         // ... otros campos si los tienes ...
     ];
 

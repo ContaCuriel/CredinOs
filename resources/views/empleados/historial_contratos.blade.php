@@ -3,8 +3,6 @@
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Historial de Contratos de: {{ $empleado->nombre_completo }}</h5>
-                {{-- Botón para volver a la lista principal de empleados o al panorama contractual --}}
-                {{-- Puedes cambiar route('contratos.index') por route('empleados.index') si lo prefieres --}}
                 <a href="{{ route('contratos.index') }}" class="btn btn-secondary">
                     <i class="bi bi-arrow-left"></i> Volver al Panorama Contractual
                 </a>
@@ -25,16 +23,19 @@
 
                 @if ($contratos->count() > 0)
                     <div class="table-responsive">
-                        <table class="table table-striped table-hover">
+                        <table class="table table-striped table-hover align-middle">
                             <thead>
                                 <tr>
-                                    <th>ID Contrato</th>
+                                    <th>ID</th>
                                     <th>Tipo Patrón</th>
                                     <th>Tipo Contrato</th>
                                     <th>Fecha Inicio</th>
                                     <th>Fecha Fin</th>
                                     <th>Duración</th>
-                                    <th>Acciones</th>
+                                    {{-- ================== NUEVA COLUMNA AÑADIDA ================== --}}
+                                    <th class="text-center">Contrato Firmado</th>
+                                    {{-- ========================================================== --}}
+                                    <th class="text-end">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -60,12 +61,38 @@
                                                 N/A
                                             @endif
                                         </td>
-                                        <td>
-                                            <a href="{{ route('contratos.pdf', $contrato->id_contrato) }}" class="btn btn-sm btn-primary" target="_blank" title="Ver/Generar PDF">
-                                                <i class="bi bi-file-pdf"></i>
-                                            </a>
-                                            {{-- Aquí podríamos añadir un botón para ver detalles del contrato o editar (si aplica a históricos) --}}
-                                            {{-- <a href="{{ route('contratos.edit', $contrato->id_contrato) }}" class="btn btn-sm btn-info" title="Editar Contrato"><i class="bi bi-pencil-square"></i></a> --}}
+                                        
+                                        {{-- ============ LÓGICA DE LA NUEVA COLUMNA ============ --}}
+                                        <td class="text-center">
+                                            @if ($contrato->ruta_contrato_firmado)
+                                                <a href="{{ route('contratos.verFirmado', $contrato->id_contrato) }}" class="btn btn-sm btn-success" target="_blank" title="Ver Contrato Firmado">
+                                                    <i class="bi bi-check-circle-fill"></i> Ver
+                                                </a>
+                                            @else
+                                                <a href="{{ route('contratos.edit', $contrato->id_contrato) }}" class="btn btn-sm btn-warning" title="Subir Contrato Firmado">
+                                                    <i class="bi bi-upload"></i> Subir
+                                                </a>
+                                            @endif
+                                        </td>
+                                        {{-- ==================================================== --}}
+
+                                        <td class="text-end">
+                                            {{-- ============ BOTONES DE ACCIÓN MEJORADOS ============ --}}
+                                            <div class="btn-group" role="group">
+                                                <a href="{{ route('contratos.pdf', $contrato->id_contrato) }}" class="btn btn-sm btn-primary" target="_blank" title="Generar PDF del Contrato">
+                                                    <i class="bi bi-file-pdf"></i>
+                                                </a>
+                                                <a href="{{ route('contratos.edit', $contrato->id_contrato) }}" class="btn btn-sm btn-info" title="Editar Contrato">
+                                                    <i class="bi bi-pencil-square"></i>
+                                                </a>
+                                                <form action="{{ route('contratos.destroy', $contrato->id_contrato) }}" method="POST" class="d-inline">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="btn btn-sm btn-danger" title="Eliminar Contrato" onclick="return confirm('¿Estás seguro de que quieres eliminar este contrato del historial? Esta acción no se puede deshacer.')" style="border-top-left-radius: 0; border-bottom-left-radius: 0;">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
                                         </td>
                                     </tr>
                                 @endforeach

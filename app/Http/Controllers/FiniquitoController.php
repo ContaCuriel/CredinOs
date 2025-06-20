@@ -13,6 +13,7 @@ use PDF;
 use Illuminate\Support\Facades\File;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\FiniquitoExport;
+use Illuminate\Support\Str;
 
 class FiniquitoController extends Controller
 {
@@ -192,4 +193,53 @@ class FiniquitoController extends Controller
 
         return $resultados;
     }
+
+public function exportarRenunciaPdf(Request $request)
+    {
+        // 1. Validar los datos necesarios
+        $validatedData = $request->validate([
+            'id_empleado' => 'required|exists:empleados,id_empleado',
+            'id_patron' => 'required|exists:patrones,id_patron',
+            'fecha_final' => 'required|date',
+        ]);
+
+        // 2. Obtener los modelos con sus relaciones
+        $empleado = Empleado::with(['puesto', 'ultimoContrato'])->findOrFail($validatedData['id_empleado']);
+        $patron = Patron::findOrFail($validatedData['id_patron']);
+        $fechaIngreso = Carbon::parse($empleado->fecha_ingreso);
+        $fechaFin = Carbon::parse($validatedData['fecha_final']);
+
+        // 3. ======== LÓGICA DE VERIFICACIÓN CENTRALIZADA ========
+        $esContratoDeHonorarios = false;
+        // Verificamos que exista un último contrato y que el tipo no esté vacío
+        if ($empleado->ultimoContrato && !empty($empleado->ultimoContrato->tipo_contrato)) {
+            // Comprobamos si la palabra 'honorarios' existe en el tipo de contrato
+            if (Str::contains(strtolower($empleado->ultimoContrato->tipo_contrato), 'honorarios')) {
+                $esContratoDeHonorarios = true;
+            }
+        }
+        // ==========================================================
+
+        // 4. Formatear fechas a texto largo en español
+        $fecha_ingreso_letra = $fechaIngreso->translatedFormat('l, d \de F \de Y');
+        $fecha_fin_letra = $fechaFin->translatedFormat('l, d \de F \de Y');
+
+        // 5. Preparar los datos para la vista, incluyendo nuestra nueva bandera
+        $data = [
+            'empleado' => $empleado,
+            'patron' => $patron,
+            'fecha_ingreso_letra' => $fecha_ingreso_letra,
+            'fecha_fin_letra' => $fecha_fin_letra,
+            'esContratoDeHonorarios' => $esContratoDeHonorarios, // <-- Se pasa la bandera a la vista
+        ];
+
+        // 6. Generar el PDF
+        $nombreArchivo = 'carta_renuncia_' . Str::slug($empleado->nombre_completo) . '.pdf';
+        $pdf = Pdf::loadView('finiquitos.pdf_renuncia', $data);
+
+        return $pdf->stream($nombreArchivo);
+    }
 }
+
+
+

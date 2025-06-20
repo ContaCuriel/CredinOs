@@ -97,6 +97,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('contratos', ContratoController::class);
     Route::get('/contratos/{contrato}/pdf', [ContratoController::class, 'generarPdf'])->name('contratos.pdf');
 
+Route::get('contratos/{id}/ver-firmado', [ContratoController::class, 'verContratoFirmado'])->name('contratos.verFirmado');
 // =====> AÑADE ESTA NUEVA RUTA PARA EXPORTAR CONTRATOS A EXCEL <=====
 Route::get('/contratos/exportar/excel', [ContratoController::class, 'exportarExcel'])->name('contratos.exportarExcel');
 // ===================================================================
@@ -112,6 +113,10 @@ Route::get('/lista-de-raya/exportar', [ListaDeRayaController::class, 'exportarEx
  // =====> AÑADE ESTA NUEVA RUTA PARA PATRONES <=====
     Route::resource('patrones', PatronController::class)->only(['index', 'create', 'store']);
     // =================================================
+    
+
+Route::post('/finiquitos/exportar-renuncia-pdf', [FiniquitoController::class, 'exportarRenunciaPdf'])->name('finiquitos.export.renuncia.pdf');
+
     
  // =====> AÑADE ESTA NUEVA RUTA PARA FINIQUITOS <=====
     Route::get('/finiquitos', [FiniquitoController::class, 'index'])->name('finiquitos.index');
