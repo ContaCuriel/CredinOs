@@ -71,8 +71,7 @@ class FiniquitoController extends Controller
     }
 
     /**
-     * CORREGIDO: Método que toma los datos editados, añade la información faltante
-     * y los prepara para la exportación.
+     * Método que toma los datos editados y los prepara para la exportación.
      */
     private function prepararDatosParaExportacion(Request $request): array
     {
@@ -82,6 +81,7 @@ class FiniquitoController extends Controller
             'tipo_calculo' => 'required',
             'dias_vacaciones_manuales' => 'required|numeric',
             'id_patron' => 'sometimes|exists:patrones,id_patron',
+            'gratificacion_monto' => 'nullable|numeric|min:0',
             '*_monto' => 'sometimes|numeric'
         ]);
 
@@ -90,15 +90,12 @@ class FiniquitoController extends Controller
         $empleado = Empleado::with('puesto')->find($data['id_empleado']);
         $patron = Patron::find($data['id_patron'] ?? null);
 
-        // --- INICIO DE LA CORRECCIÓN ---
-        // Se calcula y añade la variable que faltaba para la vista del PDF/Excel.
         $fechaBaja = Carbon::parse($data['fecha_final']);
         $diaDeBaja = $fechaBaja->day;
         $diasLaboradosPeriodo = ($diaDeBaja <= 15) ? $diaDeBaja : ($diaDeBaja - 15);
-        // --- FIN DE LA CORRECCIÓN ---
 
         $totalPercepciones = 0;
-        $percepcionesKeys = ['dias_laborados_monto', 'aguinaldo_monto', 'vacaciones_monto', 'prima_vacacional_monto', 'monto_3_meses', 'monto_prima_antiguedad', 'caja_ahorro_monto'];
+        $percepcionesKeys = ['dias_laborados_monto', 'aguinaldo_monto', 'vacaciones_monto', 'prima_vacacional_monto', 'monto_3_meses', 'monto_prima_antiguedad', 'caja_ahorro_monto', 'gratificacion_monto'];
         foreach($percepcionesKeys as $key){
             $totalPercepciones += (float)($data[$key] ?? 0);
         }
@@ -106,7 +103,6 @@ class FiniquitoController extends Controller
         $totalDeducciones = (float)($data['prestamo_saldo'] ?? 0);
         $netoAPagar = $totalPercepciones - $totalDeducciones;
 
-        // Preparar el array final para la vista
         $exportData = $data;
         $exportData['empleado'] = $empleado;
         $exportData['patron'] = $patron;
@@ -115,13 +111,12 @@ class FiniquitoController extends Controller
         $exportData['total_deducciones'] = $totalDeducciones;
         $exportData['neto_a_pagar'] = $netoAPagar;
         $exportData['fecha_final_formateada'] = $fechaBaja->format('d/m/Y');
-        $exportData['dias_laborados_dias'] = $diasLaboradosPeriodo; // Se añade la variable
-        $exportData['vacaciones_dias_restantes'] = $data['dias_vacaciones_manuales']; // Se asegura que el dato se pase
+        $exportData['dias_laborados_dias'] = $diasLaboradosPeriodo;
+        $exportData['vacaciones_dias_restantes'] = $data['dias_vacaciones_manuales'];
         
         $titulos = ['dias_laborados' => 'PAGO DE DÍAS LABORADOS', 'finiquito' => 'RECIBO DE FINIQUITO', 'liquidacion' => 'RECIBO DE LIQUIDACIÓN'];
         $exportData['titulo_documento'] = $titulos[$data['tipo_calculo']] ?? 'RECIBO DE PAGO';
 
-        // Preparar el logo (solo para PDF)
         $exportData['logo_base64'] = null;
         if ($patron && $patron->logo_path) {
             $logoPath = storage_path('app/public/' . $patron->logo_path); 
@@ -135,13 +130,17 @@ class FiniquitoController extends Controller
         return $exportData;
     }
     
+    /**
+     * Realiza el cálculo inicial desde cero, incluyendo la gratificación.
+     */
     private function obtenerCalculoInicial(Request $request): array
     {
         $validator = Validator::make($request->all(), [
             'id_empleado' => 'required|exists:empleados,id_empleado',
             'fecha_final' => 'required|date',
             'tipo_calculo' => 'required|string|in:dias_laborados,finiquito,liquidacion',
-            'dias_vacaciones_manuales' => 'required_if:tipo_calculo,finiquito,liquidacion|numeric|min:0'
+            'dias_vacaciones_manuales' => 'required_if:tipo_calculo,finiquito,liquidacion|numeric|min:0',
+            'gratificacion_monto' => 'nullable|numeric|min:0'
         ]);
 
         if ($validator->fails()) {
@@ -161,11 +160,13 @@ class FiniquitoController extends Controller
         $conceptos = [
             'dias_laborados_monto', 'vacaciones_monto', 'prima_vacacional_monto', 'aguinaldo_monto',
             'monto_3_meses', 'monto_prima_antiguedad', 'caja_ahorro_monto', 'prestamo_saldo', 
-            'dias_laborados_dias', 'vacaciones_dias_restantes'
+            'dias_laborados_dias', 'vacaciones_dias_restantes', 'gratificacion_monto'
         ];
         foreach ($conceptos as $concepto) {
             $resultados[$concepto] = 0;
         }
+
+        $resultados['gratificacion_monto'] = (float) $request->input('gratificacion_monto', 0);
 
         $diaDeBaja = $fechaBaja->day;
         $diasLaboradosPeriodo = ($diaDeBaja <= 15) ? $diaDeBaja : ($diaDeBaja - 15);

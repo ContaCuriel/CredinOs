@@ -25,17 +25,27 @@
                             <div class="col-md-4"><div class="form-group"><label for="dias_vacaciones_manuales">Días Vacaciones</label><input type="number" class="form-control" id="dias_vacaciones_manuales" step="0.01" placeholder="Ej: 19.54" required></div></div>
                         </div>
                         <div class="row">
-                             <div class="col-md-12">
-                                 <div class="form-group">
-                                     <label for="id_patron_manual">Patrón para Documentos <span class="text-danger">*</span></label>
-                                     <select class="form-select" id="id_patron_manual" required>
-                                         <option value="">Seleccione un patrón...</option>
-                                         @foreach($patrones as $patron)
-                                             <option value="{{ $patron->id_patron }}">{{ $patron->nombre_comercial }}</option>
-                                         @endforeach
-                                     </select>
-                                 </div>
-                             </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="id_patron_manual">Patrón para Documentos <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="id_patron_manual" required>
+                                        <option value="">Seleccione un patrón...</option>
+                                        @foreach($patrones as $patron)
+                                            <option value="{{ $patron->id_patron }}">{{ $patron->nombre_comercial }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            {{-- NUEVO CAMPO PARA GRATIFICACIÓN --}}
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="gratificacion_monto_inicial">Gratificación (Opcional)</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" class="form-control" id="gratificacion_monto_inicial" step="0.01" placeholder="0.00">
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -62,6 +72,7 @@
                             <input type="hidden" name="tipo_calculo" id="export_tipo_calculo">
                             <input type="hidden" name="dias_vacaciones_manuales" id="export_dias_vacaciones_manuales">
                             <input type="hidden" name="id_patron" id="export_id_patron">
+                            {{-- Campos ocultos para montos editables --}}
                             <input type="hidden" name="dias_laborados_monto" id="export_dias_laborados_monto">
                             <input type="hidden" name="aguinaldo_monto" id="export_aguinaldo_monto">
                             <input type="hidden" name="vacaciones_monto" id="export_vacaciones_monto">
@@ -70,13 +81,10 @@
                             <input type="hidden" name="monto_prima_antiguedad" id="export_monto_prima_antiguedad">
                             <input type="hidden" name="caja_ahorro_monto" id="export_caja_ahorro_monto">
                             <input type="hidden" name="prestamo_saldo" id="export_prestamo_saldo">
+                            <input type="hidden" name="gratificacion_monto" id="export_gratificacion_monto">
                             
-                            <!-- ============== BOTONES DE EXPORTACIÓN MODIFICADOS ============== -->
                             <button type="button" id="btn_export_pdf" class="btn btn-danger"><i class="bi bi-file-earmark-pdf"></i> Generar Finiquito PDF</button>
-                            
-                            <!-- ============== NUEVO BOTÓN PARA CARTA DE RENUNCIA ============== -->
                             <button type="button" id="btn_export_renuncia" class="btn btn-secondary"><i class="bi bi-journal-text"></i> Generar Carta Renuncia</button>
-                            
                             <button type="button" id="btn_export_excel" class="btn btn-success"><i class="bi bi-file-earmark-excel"></i> Exportar a Excel</button>
                         </form>
                     </div>
@@ -93,6 +101,7 @@
         const fechaFinalInput = document.getElementById('fecha_final');
         const diasManualesInput = document.getElementById('dias_vacaciones_manuales');
         const patronManualSelect = document.getElementById('id_patron_manual');
+        const gratificacionInput = document.getElementById('gratificacion_monto_inicial');
         const resultadosContainer = document.getElementById('resultados_finiquito_container');
         const tablaResultadosDiv = document.getElementById('tabla_resultados');
         const botonesCalculo = document.querySelectorAll('#btn_calc_dias_laborados, #btn_calc_finiquito, #btn_calc_liquidacion');
@@ -116,18 +125,22 @@
             e.preventDefault();
             const tipoCalculo = this.id.replace('btn_calc_', '');
             
-            const idEmpleado = empleadoSelect.value;
-            const fechaFinal = fechaFinalInput.value;
-            const diasManuales = diasManualesInput.value;
-            const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            const payload = {
+                id_empleado: empleadoSelect.value,
+                fecha_final: fechaFinalInput.value,
+                tipo_calculo: tipoCalculo,
+                dias_vacaciones_manuales: diasManualesInput.value,
+                gratificacion_monto: gratificacionInput.value || 0
+            };
 
+            const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
             tablaResultadosDiv.innerHTML = `<div class="text-center"><div class="spinner-border text-primary" role="status"></div><p>Calculando...</p></div>`;
             resultadosContainer.style.display = 'block';
 
             fetch("{{ route('finiquitos.calcular') }}", {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
-                body: JSON.stringify({ id_empleado: idEmpleado, fecha_final: fechaFinal, tipo_calculo: tipoCalculo, dias_vacaciones_manuales: diasManuales })
+                body: JSON.stringify(payload)
             })
             .then(response => {
                 if (!response.ok) return response.json().then(error => Promise.reject(error));
@@ -137,7 +150,7 @@
                 construirTablaEditable(data);
             })
             .catch(error => {
-                let errorMessage = 'Ocurrió un error. Revise la consola para más detalles.';
+                let errorMessage = 'Ocurrió un error. Revise la consola.';
                 if (error && error.errors) {
                     errorMessage = `<ul>${Object.values(error.errors).map(e => `<li>${e[0]}</li>`).join('')}</ul>`;
                 } else if (error && error.mensaje) {
@@ -155,12 +168,14 @@
                 {label: 'Aguinaldo Proporcional', id: 'aguinaldo_monto', value: data.aguinaldo_monto},
                 {label: 'Vacaciones', id: 'vacaciones_monto', value: data.vacaciones_monto},
                 {label: 'Prima Vacacional', id: 'prima_vacacional_monto', value: data.prima_vacacional_monto},
+                {label: 'Gratificación / Bono', id: 'gratificacion_monto', value: data.gratificacion_monto},
                 {label: 'Indemnización (3 Meses)', id: 'monto_3_meses', value: data.monto_3_meses},
                 {label: 'Prima de Antigüedad', id: 'monto_prima_antiguedad', value: data.monto_prima_antiguedad},
                 {label: 'Fondo de Caja de Ahorro', id: 'caja_ahorro_monto', value: data.caja_ahorro_monto}
             ];
             
             percepciones.forEach(item => {
+                // Se muestra el campo solo si el valor inicial es mayor a 0
                 if(item.value > 0) {
                     percepcionesHtml += `<tr><td>${item.label}</td><td class="text-end"><input type="number" step="0.01" id="${item.id}" class="form-control form-control-sm text-end monto-percepcion" value="${parseFloat(item.value).toFixed(2)}"></td></tr>`;
                 }
@@ -195,59 +210,40 @@
         
         function recalcularTotales() {
             let totalPercepciones = 0;
-            document.querySelectorAll('.monto-percepcion').forEach(input => {
-                totalPercepciones += parseFloat(input.value) || 0;
-            });
-            
+            document.querySelectorAll('.monto-percepcion').forEach(input => { totalPercepciones += parseFloat(input.value) || 0; });
             let totalDeducciones = 0;
-            document.querySelectorAll('.monto-deduccion').forEach(input => {
-                totalDeducciones += parseFloat(input.value) || 0;
-            });
-
+            document.querySelectorAll('.monto-deduccion').forEach(input => { totalDeducciones += parseFloat(input.value) || 0; });
             const netoAPagar = totalPercepciones - totalDeducciones;
-
             document.getElementById('total_percepciones').textContent = `$${totalPercepciones.toFixed(2)}`;
             document.getElementById('total_deducciones').textContent = `($${totalDeducciones.toFixed(2)})`;
             document.getElementById('neto_a_pagar').textContent = `$${netoAPagar.toFixed(2)}`;
         }
 
-        // ================== FUNCIÓN DE EXPORTACIÓN MODIFICADA ==================
         function prepararYEnviarFormulario(format) {
             const form = document.getElementById('form_export');
             
-            // Asignar la URL correcta según el formato solicitado
-            if (format === 'pdf_finiquito') {
-                form.action = "{{ route('finiquitos.export.pdf') }}";
-            } else if (format === 'excel') {
-                form.action = "{{ route('finiquitos.export.excel') }}";
-            } else if (format === 'pdf_renuncia') {
-                form.action = "{{ route('finiquitos.export.renuncia.pdf') }}";
-            } else {
-                return; // No hacer nada si el formato es desconocido
-            }
+            if (format === 'pdf_finiquito') { form.action = "{{ route('finiquitos.export.pdf') }}"; } 
+            else if (format === 'excel') { form.action = "{{ route('finiquitos.export.excel') }}"; } 
+            else if (format === 'pdf_renuncia') { form.action = "{{ route('finiquitos.export.renuncia.pdf') }}"; } 
+            else { return; }
 
-            // Rellenar los campos ocultos del formulario
             document.getElementById('export_id_empleado').value = empleadoSelect.value;
             document.getElementById('export_fecha_final').value = fechaFinalInput.value;
             document.getElementById('export_dias_vacaciones_manuales').value = diasManualesInput.value;
             document.getElementById('export_tipo_calculo').value = document.querySelector('.btn-info.active, .btn-primary.active, .btn-danger.active')?.id.replace('btn_calc_', '') || '';
             document.getElementById('export_id_patron').value = patronManualSelect.value;
 
-            const campos = ['dias_laborados_monto', 'aguinaldo_monto', 'vacaciones_monto', 'prima_vacacional_monto', 'monto_3_meses', 'monto_prima_antiguedad', 'caja_ahorro_monto', 'prestamo_saldo'];
+            const campos = ['dias_laborados_monto', 'aguinaldo_monto', 'vacaciones_monto', 'prima_vacacional_monto', 'monto_3_meses', 'monto_prima_antiguedad', 'caja_ahorro_monto', 'prestamo_saldo', 'gratificacion_monto'];
             campos.forEach(id => {
                 const inputElement = document.getElementById(id);
                 const hiddenInputElement = document.getElementById(`export_${id}`);
-                if (inputElement && hiddenInputElement) {
-                    hiddenInputElement.value = inputElement.value;
-                } else if(hiddenInputElement) {
-                    hiddenInputElement.value = 0;
-                }
+                if (inputElement && hiddenInputElement) { hiddenInputElement.value = inputElement.value; } 
+                else if(hiddenInputElement) { hiddenInputElement.value = 0; }
             });
             
             form.submit();
         }
         
-        // ================== NUEVOS EVENT LISTENERS ==================
         document.getElementById('btn_export_pdf').addEventListener('click', () => prepararYEnviarFormulario('pdf_finiquito'));
         document.getElementById('btn_export_renuncia').addEventListener('click', () => prepararYEnviarFormulario('pdf_renuncia'));
         document.getElementById('btn_export_excel').addEventListener('click', () => prepararYEnviarFormulario('excel'));

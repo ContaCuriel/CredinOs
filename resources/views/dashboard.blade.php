@@ -5,20 +5,16 @@
         </h2>
     </x-slot>
 
-    {{-- PASO 2: ELIMINAMOS POR COMPLETO EL BLOQUE @push('styles') CON EL CSS ANTERIOR --}}
-
     <div class="py-4">
         <div class="container-fluid">
             <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                 <h1 class="h2">Dashboard</h1>
             </div>
 
-            {{-- PASO 1: RESTAURAMOS EL HTML ORIGINAL CON .row y .col-* --}}
-            {{-- Le añadimos un ID "dashboard-container" para que el script lo encuentre fácil --}}
             <div class="row" data-masonry='{"percentPosition": true }'>
                 
                 {{-- Tarjeta Contratos por Vencer --}}
-                <div class="col-md-6 col-lg-4 mb-4"> {{-- Usamos mb-4 para un poco más de espacio vertical --}}
+                <div class="col-md-6 col-lg-4 mb-4">
                     <div class="card">
                         <div class="card-header"><i class="bi bi-calendar-x"></i> Contratos por Vencer (Próx. 15 días)</div>
                         <div class="card-body">
@@ -30,8 +26,8 @@
                                             <small>
                                                 Puesto: {{ $contrato->empleado->puesto ? $contrato->empleado->puesto->nombre_puesto : 'N/A' }} <br>
                                                 Sucursal: {{ $contrato->empleado->sucursal ? $contrato->empleado->sucursal->nombre_sucursal : 'N/A' }} <br>
-                                                Vence: <strong>{{ $contrato->fecha_fin->format('d/m/Y') }}</strong>
-                                                ({{ $contrato->fecha_fin->diffForHumans(now()->startOfDay(), true, false, 2) }} para vencer)
+                                                Vence: <strong>{{ \Carbon\Carbon::parse($contrato->fecha_fin)->format('d/m/Y') }}</strong>
+                                                ({{ \Carbon\Carbon::parse($contrato->fecha_fin)->diffForHumans(now()->startOfDay(), true, false, 2) }} para vencer)
                                             </small>
                                         </li>
                                     @endforeach
@@ -46,48 +42,50 @@
                 {{-- Tarjeta Cumpleaños del Mes --}}
                 <div class="col-md-6 col-lg-4 mb-4">
                     <div class="card">
-                         <div class="card-header"><i class="bi bi-cake2"></i> Cumpleaños del Mes ({{ ucfirst(\Carbon\Carbon::now()->translatedFormat('F')) }})</div>
-                         <div class="card-body">
-                             @if($cumpleanerosDelMes->isNotEmpty())
-                                 <ul class="list-group list-group-flush">
-                                     @foreach ($cumpleanerosDelMes as $empleado)
-                                         <li class="list-group-item">
-                                             {{ $empleado->nombre_completo }} 
-                                             ({{ \Carbon\Carbon::parse($empleado->fecha_nacimiento)->format('d') }})
-                                         </li>
-                                     @endforeach
-                                 </ul>
-                             @else
-                                 <p class="text-muted mb-0">No hay cumpleaños este mes.</p>
-                             @endif
-                         </div>
+                        <div class="card-header"><i class="bi bi-cake2"></i> Cumpleaños del Mes ({{ ucfirst(\Carbon\Carbon::now()->translatedFormat('F')) }})</div>
+                        <div class="card-body">
+                            @if($cumpleanerosDelMes->isNotEmpty())
+                                <ul class="list-group list-group-flush">
+                                    @foreach ($cumpleanerosDelMes as $empleado)
+                                        <li class="list-group-item">
+                                            {{ $empleado->nombre_completo }} 
+                                            ({{ \Carbon\Carbon::parse($empleado->fecha_nacimiento)->format('d') }})
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @else
+                                <p class="text-muted mb-0">No hay cumpleaños este mes.</p>
+                            @endif
+                        </div>
                     </div>
                 </div>
 
-                {{-- Tarjeta Aniversarios Laborales del Mes --}}
+                {{-- Tarjeta Aniversarios Laborales del Mes (CON CORRECCIÓN) --}}
                 <div class="col-md-6 col-lg-4 mb-4">
                     <div class="card">
-                         <div class="card-header"><i class="bi bi-award"></i> Aniversarios Laborales del Mes ({{ ucfirst(\Carbon\Carbon::now()->translatedFormat('F')) }})</div>
-                         <div class="card-body">
-                             @if($aniversariosDelMes->isNotEmpty())
-                                 <ul class="list-group list-group-flush">
-                                     @foreach ($aniversariosDelMes as $empleado)
-                                         @php
-                                             $fechaIngreso = \Carbon\Carbon::parse($empleado->fecha_ingreso);
-                                             $anosCelebrando = \Carbon\Carbon::now()->year - $fechaIngreso->year;
-                                         @endphp
-                                         <li class="list-group-item">
-                                             {{ $empleado->nombre_completo }} 
-                                             ({{ $fechaIngreso->format('d M') }})
-                                             - Cumple {{ $anosCelebrando }}
-                                             {{ $anosCelebrando == 1 ? 'año' : 'años' }}
-                                         </li>
-                                     @endforeach
-                                 </ul>
-                             @else
-                                 <p class="text-muted mb-0">No hay aniversarios laborales este mes.</p>
-                             @endif
-                         </div>
+                        <div class="card-header"><i class="bi bi-award"></i> Aniversarios Laborales del Mes ({{ ucfirst(\Carbon\Carbon::now()->translatedFormat('F')) }})</div>
+                        <div class="card-body">
+                            @if($aniversariosDelMes->isNotEmpty())
+                                <ul class="list-group list-group-flush">
+                                    @foreach ($aniversariosDelMes as $empleado)
+                                        @php
+                                            $fechaIngreso = \Carbon\Carbon::parse($empleado->fecha_ingreso);
+                                            // CÁLCULO MEJORADO Y MÁS PRECISO:
+                                            // Usa diffInYears() para obtener los años completos transcurridos.
+                                            $anosCelebrando = intval($fechaIngreso->diffInYears(now()));    
+                                        @endphp
+                                        <li class="list-group-item">
+                                            {{ $empleado->nombre_completo }} 
+                                            ({{ $fechaIngreso->translatedFormat('d M') }})
+                                            - Cumple <strong>{{ $anosCelebrando }}</strong>
+                                            {{ $anosCelebrando == 1 ? 'año' : 'años' }}
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @else
+                                <p class="text-muted mb-0">No hay aniversarios laborales este mes.</p>
+                            @endif
+                        </div>
                     </div>
                 </div>
 
@@ -126,7 +124,7 @@
                                             <span class="badge bg-primary rounded-pill">{{ $item['conteo_imss_alta'] }}</span>
                                         </li>
                                     @endforeach
-                                 </ul>
+                                  </ul>
                             @else
                                 <p class="text-sm text-muted mb-0">No hay patrones con empleados actualmente de alta en IMSS.</p>
                             @endif
@@ -144,10 +142,9 @@
         </div>
     </div>
 
-    {{-- PASO 3: AÑADIMOS LOS SCRIPTS NECESARIOS AL FINAL --}}
     @push('scripts')
     {{-- Script de la librería Masonry --}}
-    <script src="https://cdn.jsdelivr.net/npm/masonry-layout@4.2.2/dist/masonry.pkgd.min.js" integrity="sha384-GNFwBvfVxBkLMJpYMOABq3c+d3KnQxudP/mGPkzpZSTYykLBNsZEnG2D9G/X/+7D" crossorigin="anonymous" async></script>
+    <script src="https://cdn.jsdelivr.net/npm/masonry-layout@4.2.2/dist/masonry.pkgd.min.js" xintegrity="sha384-GNFwBvfVxBkLMJpYMOABq3c+d3KnQxudP/mGPkzpZSTYykLBNsZEnG2D9G/X/+7D" crossorigin="anonymous" async></script>
     @endpush
 
 </x-app-layout>

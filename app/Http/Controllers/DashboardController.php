@@ -2,19 +2,23 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request; // Aunque no la uses directamente en index, es bueno tenerla si la añades a la firma.
+use Illuminate\Http\Request;
 use App\Models\Empleado;
 use App\Models\Contrato;
-use App\Models\Patron; // Asegúrate de que este 'use' esté presente
+use App\Models\Patron;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB; // Para la subconsulta de contratosPorVencer
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
-    public function index() // Si no usas $request, puedes quitarla de los parámetros
+    /**
+     * Muestra el dashboard principal de la aplicación.
+     */
+    public function index()
     {
         $hoy = Carbon::now();
         $mesActual = $hoy->month;
+        $anoActual = $hoy->year; // <-- AÑADIDO: Obtenemos el año actual para la comparación.
 
         // Empleados que cumplen años este mes
         $cumpleanerosDelMes = Empleado::where('status', 'Alta')
@@ -22,9 +26,13 @@ class DashboardController extends Controller
             ->orderByRaw('DAY(fecha_nacimiento) ASC')
             ->get();
 
-        // Empleados que cumplen aniversario de ingreso este mes
+        // Empleados que cumplen aniversario de ingreso este mes (CON CORRECCIÓN)
         $aniversariosDelMes = Empleado::where('status', 'Alta')
             ->whereMonth('fecha_ingreso', $mesActual)
+            // =====> LÍNEA CLAVE AÑADIDA <=====
+            // Filtra para que el año de ingreso sea anterior al año actual.
+            // Esto excluye a los que ingresaron este mismo año (aniversario de 0 años).
+            ->whereYear('fecha_ingreso', '<', $anoActual)
             ->orderByRaw('DAY(fecha_ingreso) ASC')
             ->get();
         
@@ -32,6 +40,7 @@ class DashboardController extends Controller
         $fechaHoyParaComparar = Carbon::today();
         $fechaLimiteVencimiento = Carbon::today()->addDays(15);
 
+        // Subconsulta para obtener el último contrato de cada empleado activo
         $latestContractIdsSubquery = Contrato::select('id_empleado', DB::raw('MAX(fecha_fin) as max_fecha_fin'))
             ->whereHas('empleado', function ($query) {
                 $query->where('status', 'Alta');
@@ -40,6 +49,7 @@ class DashboardController extends Controller
             ->where('fecha_fin', '>=', $fechaHoyParaComparar)
             ->groupBy('id_empleado');
 
+        // Consulta principal que se une con la subconsulta para obtener los contratos por vencer
         $contratosPorVencer = Contrato::with('empleado.puesto', 'empleado.sucursal')
             ->joinSub($latestContractIdsSubquery, 'latest_contracts', function ($join) {
                 $join->on('contratos.id_empleado', '=', 'latest_contracts.id_empleado')
@@ -49,7 +59,7 @@ class DashboardController extends Controller
             ->orderBy('contratos.fecha_fin', 'asc')
             ->get();
             
-        // =====> NUEVA LÓGICA PARA EL WIDGET DE IMSS (AHORA DENTRO DEL MÉTODO INDEX) <=====
+        // LÓGICA PARA EL WIDGET DE IMSS
         $patronesTodos = Patron::orderBy('razon_social')->get();
         $patronesConteoImss = [];
 
@@ -66,14 +76,13 @@ class DashboardController extends Controller
                 ];
             }
         }
-        // ==========================================================================
         
+        // Pasamos todas las variables a la vista
         return view('dashboard', compact(
             'cumpleanerosDelMes', 
             'aniversariosDelMes', 
             'contratosPorVencer',
-            'patronesConteoImss' // Pasamos la nueva variable a la vista
+            'patronesConteoImss'
         ));
-    } // <--- Esta es la llave de cierre del método index()
-
-} // <--- Esta es la llave de cierre de la clase DashboardController
+    }
+}

@@ -74,7 +74,6 @@
                 @endif
                 @if($vacaciones_monto > 0)
                 <tr>
-                    {{-- CAMBIO AQUÍ --}}
                     <td>Vacaciones</td>
                     <td class="text-right">${{ number_format($vacaciones_monto, 2) }}</td>
                 </tr>
@@ -85,6 +84,14 @@
                     <td class="text-right">${{ number_format($prima_vacacional_monto, 2) }}</td>
                 </tr>
                 @endif
+                {{-- =====> INICIO DE LA MODIFICACIÓN <===== --}}
+                @if(isset($gratificacion_monto) && $gratificacion_monto > 0)
+                <tr>
+                    <td>Gratificación</td>
+                    <td class="text-right">${{ number_format($gratificacion_monto, 2) }}</td>
+                </tr>
+                @endif
+                {{-- =====> FIN DE LA MODIFICACIÓN <===== --}}
                 @if($caja_ahorro_monto > 0)
                 <tr>
                     <td>Caja de ahorro</td>
