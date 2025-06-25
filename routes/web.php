@@ -16,6 +16,7 @@ use App\Http\Controllers\DeduccionController;
 use App\Http\Controllers\HorarioController;
 use App\Http\Controllers\ListaDeRayaController; 
 use App\Http\Controllers\FiniquitoController;
+use App\Http\Controllers\AguinaldoController;
 use App\Models\User;
 
 
@@ -109,6 +110,16 @@ Route::get('/contratos/exportar/excel', [ContratoController::class, 'exportarExc
 // =====> AÑADE ESTA NUEVA RUTA PARA LA EXPORTACIÓN <=====
 Route::get('/lista-de-raya/exportar', [ListaDeRayaController::class, 'exportarExcel'])->name('lista_de_raya.exportar');
 // ========================================================
+
+// --- Módulo de Aguinaldo ---
+// Esta ruta mostrará la página principal del módulo
+Route::get('/aguinaldo', [AguinaldoController::class, 'index'])->name('aguinaldo.index');
+
+// Esta ruta procesará el cálculo cuando el usuario presione el botón
+Route::post('/aguinaldo/calcular', [AguinaldoController::class, 'calcular'])->name('aguinaldo.calcular');
+
+
+Route::post('/aguinaldo/exportar', [AguinaldoController::class, 'exportar'])->name('aguinaldo.exportar');
 
  // =====> AÑADE ESTA NUEVA RUTA PARA PATRONES <=====
     Route::resource('patrones', PatronController::class)->only(['index', 'create', 'store']);

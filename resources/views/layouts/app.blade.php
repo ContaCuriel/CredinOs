@@ -170,6 +170,17 @@
                     {{-- ====================================== --}}
                 </ul>
 
+                <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                    <span>CONTABILIDAD</span>
+                </h6>
+ <ul class="nav flex-column mb-2">
+                <li class="nav-item">
+    <a class="nav-link {{ request()->routeIs('aguinaldo.*') ? 'active' : '' }}" href="{{ route('aguinaldo.index') }}">
+        <i class="bi bi-gift-fill"></i> {{-- Icono para Aguinaldo --}}
+        Cálculo de Aguinaldo
+    </a>
+</li>
+</ul>
                      <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
                     <span>ADMINISTRACIÓN</span>
                 </h6>

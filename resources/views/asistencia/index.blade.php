@@ -1,49 +1,15 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registro de Asistencia - Credinos System</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <style>
-        body { background-color: #f4f6f9; }
-        .attendance-container { max-width: 1000px; margin-top: 30px;}
-        .table th, .table td { vertical-align: middle; }
-        .estado-display { cursor: pointer; display: block; padding: 0.5rem; }
-        .estado-display:hover { background-color: #e9ecef; }
-        .inline-edit-form input[type="time"] {
-            padding: 0.25rem 0.5rem;
-            font-size: 0.875rem;
-            width: auto;
-            display: inline-block;
-        }
-        .inline-edit-form .btn-sm {
-            padding: 0.25rem 0.5rem;
-            font-size: 0.75rem;
-            line-height: 1.5;
-        }
-    </style>
-</head>
-<body>
-    <div class="container attendance-container">
-        <div class="text-center mb-4">
-            <div class="text-end mb-3">
-                <a href="{{ route('asistencia.vistaPeriodo') }}" class="btn btn-outline-primary btn-sm">
-                    <i class="bi bi-calendar3-week"></i> Ver Asistencia por Periodo
-                </a>
-            </div>
-            <h2>Registro de Asistencia</h2>
-        </div>
-        @auth
-        <div class="text-end mb-2">
-            <a href="{{ route('dashboard') }}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-arrow-left-circle"></i> Volver al Sistema Principal
-            </a>
-        </div>
-        @endauth
-
+<x-app-layout>
+    <div class="container-fluid py-4">
         <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Registro de Asistencia Diario</h5>
+                <div>
+                    {{-- Botón para ir a la vista de periodo --}}
+                    <a href="{{ route('asistencia.vistaPeriodo') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-calendar3-week"></i> Ver Asistencia por Periodo
+                    </a>
+                </div>
+            </div>
             <div class="card-body">
                 @if (session('success'))
                     <div class="alert alert-success alert-dismissible fade show" role="alert">
@@ -58,6 +24,7 @@
                     </div>
                 @endif
 
+                {{-- Formulario de Selección de Sucursal --}}
                 <form id="selectSucursalForm" method="GET" action="{{ route('asistencia.index') }}" class="mb-3">
                     <div class="row justify-content-center">
                         <div class="col-md-6">
@@ -100,24 +67,17 @@
                                                 $claseFondo = '';
                                                 if ($asistenciaDelDia) {
                                                     switch ($asistenciaDelDia->status_asistencia) {
-                                                        case 'Retardo':
-                                                            $claseFondo = 'table-warning'; // Fondo amarillo para retardos
-                                                            break;
-                                                        case 'Falta':
-                                                            $claseFondo = 'table-danger';
-                                                            break;
+                                                        case 'Retardo': $claseFondo = 'table-warning'; break;
+                                                        case 'Falta': $claseFondo = 'table-danger'; break;
                                                     }
                                                 }
                                             @endphp
                                             <td class="text-center {{ $claseFondo }}">
                                                 <div class="estado-display" data-empleado-id="{{ $empleado->id_empleado }}">
                                                     @if ($asistenciaDelDia)
-                                                        @if ($asistenciaDelDia->status_asistencia == 'Presente' && $asistenciaDelDia->hora_llegada)
-                                                            <span class="badge bg-success fs-6 me-1">{{ \Carbon\Carbon::parse($asistenciaDelDia->hora_llegada)->format('h:i A') }}</span>
-                                                            <i class="bi bi-pencil-fill text-primary edit-hora-icon" style="cursor:pointer;" title="Editar Hora"></i>
-                                                        @elseif ($asistenciaDelDia->status_asistencia == 'Retardo' && $asistenciaDelDia->hora_llegada)
-                                                            <span class="badge bg-warning text-dark fs-6 me-1">{{ \Carbon\Carbon::parse($asistenciaDelDia->hora_llegada)->format('h:i A') }}</span>
-                                                            <i class="bi bi-pencil-fill text-primary edit-hora-icon" style="cursor:pointer;" title="Editar Hora"></i>
+                                                        @if (in_array($asistenciaDelDia->status_asistencia, ['Presente', 'Retardo']) && $asistenciaDelDia->hora_llegada)
+                                                          <span class="badge bg-{{$asistenciaDelDia->status_asistencia == 'Retardo' ? 'warning text-dark' : 'success'}} fs-6 me-1">{{ \Carbon\Carbon::parse($asistenciaDelDia->hora_llegada)->format('h:i A') }}</span>
+                                                          <i class="bi bi-pencil-fill text-primary edit-hora-icon" style="cursor:pointer;" title="Editar Hora"></i>
                                                         @elseif ($asistenciaDelDia->status_asistencia == 'Falta')
                                                             <span class="badge bg-danger fs-6">FALTA</span>
                                                         @elseif ($asistenciaDelDia->status_asistencia == 'Baja_Dia')
@@ -212,112 +172,73 @@
         </div>
     </div>
 
+    @push('scripts')
+        <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-    
-    <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        console.log('Asistencia JS: DOMContentLoaded');
-
-        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl);
-        });
-
-        // Manejar edición en línea para la hora de llegada
-        document.querySelectorAll('.estado-display').forEach(function(displayElement) {
-            displayElement.addEventListener('click', function() {
-                // Ocultar todos los otros formularios de edición en línea abiertos
-                document.querySelectorAll('.inline-edit-form').forEach(f => f.style.display = 'none');
-                document.querySelectorAll('.estado-display').forEach(d => d.style.display = 'block');
-
-                // Mostrar este formulario de edición
-                this.style.display = 'none';
-                var editForm = this.nextElementSibling; // El .inline-edit-form debe estar justo después
-                if (editForm && editForm.classList.contains('inline-edit-form')) {
-                    editForm.style.display = 'block';
-                    var timeInput = editForm.querySelector('input[name="hora_llegada_manual"]');
-                    if (timeInput) {
-                        // Si había una hora registrada, pre-llenarla. Si no, dejarlo vacío.
-                        var existingTimeBadge = this.querySelector('.badge.bg-success');
-                        if (existingTimeBadge) {
-                            // Convertir '08:15 AM' a '08:15'
-                            let timeText = existingTimeBadge.textContent; // "08:15 AM"
-                            let parts = timeText.match(/(\d+):(\d+)\s*(AM|PM)/i);
-                            if (parts) {
-                                let hours = parseInt(parts[1], 10);
-                                let minutes = parts[2];
-                                let ampm = parts[3].toUpperCase();
-                                if (ampm === 'PM' && hours < 12) hours += 12;
-                                if (ampm === 'AM' && hours === 12) hours = 0; // medianoche
-                                timeInput.value = String(hours).padStart(2, '0') + ':' + minutes;
+            document.querySelectorAll('.estado-display').forEach(function(displayElement) {
+                displayElement.addEventListener('click', function() {
+                    document.querySelectorAll('.inline-edit-form').forEach(f => f.style.display = 'none');
+                    document.querySelectorAll('.estado-display').forEach(d => d.style.display = 'block');
+                    
+                    this.style.display = 'none';
+                    var editForm = this.nextElementSibling;
+                    if (editForm && editForm.classList.contains('inline-edit-form')) {
+                        editForm.style.display = 'block';
+                        var timeInput = editForm.querySelector('input[name="hora_llegada_manual"]');
+                        if (timeInput) {
+                            var existingTimeBadge = this.querySelector('.badge');
+                            if (existingTimeBadge && existingTimeBadge.textContent.includes(':')) {
+                                let timeText = existingTimeBadge.textContent.trim();
+                                let parts = timeText.match(/(\d+):(\d+)\s*(AM|PM)/i);
+                                if (parts) {
+                                    let hours = parseInt(parts[1], 10);
+                                    let minutes = parts[2];
+                                    let ampm = parts[3].toUpperCase();
+                                    if (ampm === 'PM' && hours < 12) hours += 12;
+                                    if (ampm === 'AM' && hours === 12) hours = 0;
+                                    timeInput.value = String(hours).padStart(2, '0') + ':' + minutes;
+                                } else {
+                                    timeInput.value = '';
+                                }
                             } else {
-                                timeInput.value = ''; // Si no se puede parsear, dejar vacío
+                                timeInput.value = '';
                             }
-                        } else {
-                            timeInput.value = ''; // Si era '--:--', dejar vacío
+                            timeInput.focus();
                         }
-                        timeInput.focus();
                     }
-                }
+                });
             });
-        });
 
-        // Manejar cancelación de edición en línea
-        document.querySelectorAll('.btn-cancel-edit-hora').forEach(function(cancelButton) {
-            cancelButton.addEventListener('click', function() {
-                var editForm = this.closest('.inline-edit-form');
-                if (editForm) {
-                    editForm.style.display = 'none';
-                    var displayElement = editForm.previousElementSibling;
-                    if (displayElement && displayElement.classList.contains('estado-display')) {
-                        displayElement.style.display = 'block';
+            document.querySelectorAll('.btn-cancel-edit-hora').forEach(function(cancelButton) {
+                cancelButton.addEventListener('click', function() {
+                    var editForm = this.closest('.inline-edit-form');
+                    if (editForm) {
+                        editForm.style.display = 'none';
+                        var displayElement = editForm.previousElementSibling;
+                        if (displayElement && displayElement.classList.contains('estado-display')) {
+                            displayElement.style.display = 'block';
+                        }
                     }
-                }
+                });
             });
+            
+            var modalRegistrarIncidencia = document.getElementById('modalRegistrarIncidencia');
+            if (modalRegistrarIncidencia) {
+                modalRegistrarIncidencia.addEventListener('show.bs.modal', function(event) {
+                    var button = event.relatedTarget;
+                    var idEmpleado = button.getAttribute('data-id_empleado');
+                    var nombreEmpleado = button.getAttribute('data-nombre_empleado');
+                    document.getElementById('nombreEmpleadoIncidencia').textContent = nombreEmpleado;
+                    document.getElementById('id_empleado_incidencia_modal').value = idEmpleado;
+                    document.getElementById('notas_incidencia_modal').value = '';
+                });
+            }
         });
-        
-        // Manejar Enter para guardar en edición en línea
-        document.querySelectorAll('input[name="hora_llegada_manual"]').forEach(function(timeInput) {
-            timeInput.addEventListener('keypress', function(event) {
-                if (event.key === 'Enter') {
-                    event.preventDefault(); // Prevenir envío normal si está en un form más grande
-                    this.closest('form').submit();
-                }
-            });
-        });
-
-        // Script para el modal de Registrar Incidencia (existente)
-        var modalRegistrarIncidencia = document.getElementById('modalRegistrarIncidencia');
-        if (modalRegistrarIncidencia) {
-            // ... (resto de tu script para modalRegistrarIncidencia como lo tenías) ...
-            var formRegistrarIncidencia = document.getElementById('formRegistrarIncidencia');
-            var nombreEmpleadoIncidenciaSpan = document.getElementById('nombreEmpleadoIncidencia');
-            var idEmpleadoIncidenciaModalInput = document.getElementById('id_empleado_incidencia_modal');
-            var notasTextarea = document.getElementById('notas_incidencia_modal');
-
-            modalRegistrarIncidencia.addEventListener('show.bs.modal', function(event) {
-                var button = event.relatedTarget; 
-                if (!button || typeof button.getAttribute !== 'function') {
-                    console.error('ERROR (modalRegistrarIncidencia): event.relatedTarget no es un botón válido.');
-                    if(formRegistrarIncidencia) formRegistrarIncidencia.action = "#ERROR_NO_BUTTON_INCIDENCIA";
-                    return;
-                }
-                var idEmpleado = button.getAttribute('data-id_empleado');
-                var nombreEmpleado = button.getAttribute('data-nombre_empleado');
-                
-                if (nombreEmpleadoIncidenciaSpan) nombreEmpleadoIncidenciaSpan.textContent = nombreEmpleado;
-                if (idEmpleadoIncidenciaModalInput) idEmpleadoIncidenciaModalInput.value = idEmpleado;
-                
-                if (formRegistrarIncidencia) {
-                    formRegistrarIncidencia.action = "{{ route('asistencia.registrarIncidencia') }}"; 
-                }
-                if(notasTextarea) notasTextarea.value = '';
-            });
-        } else {
-            console.error('Asistencia JS: Modal con ID "modalRegistrarIncidencia" NO encontrado.');
-        }
-    });
-    </script>
-</body>
-</html>
+        </script>
+    @endpush
+</x-app-layout>
