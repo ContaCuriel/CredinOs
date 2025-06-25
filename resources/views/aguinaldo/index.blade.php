@@ -1,4 +1,6 @@
-<x-app-layout>
+@extends('layouts.app')
+
+@section('content')
     <div class="container-fluid py-4">
         <div class="card">
             <div class="card-header">
@@ -6,12 +8,9 @@
             </div>
             <div class="card-body">
                 <form action="{{ route('aguinaldo.calcular') }}" method="POST">
-                    @csrf  {{-- Medida de seguridad de Laravel --}}
-
-                    {{-- Usamos la clase 'mb-3' de Bootstrap para el espaciado --}}
+                    @csrf
                     <div class="mb-3">
                         <label for="fecha_fin_anio" class="form-label">Fecha de Fin de Año:</label>
-                        {{-- Usamos la clase 'form-control' para que el input tome el estilo del sistema --}}
                         <input type="date" class="form-control" id="fecha_fin_anio" name="fecha_fin_anio" value="{{ date('Y-12-31') }}" required>
                     </div>
 
@@ -20,10 +19,9 @@
                         <input type="number" class="form-control" id="dias_aguinaldo" name="dias_aguinaldo" value="15" required>
                     </div>
 
-                    {{-- Usamos las clases 'btn btn-primary' para que el botón se vea como los del sistema --}}
                     <button type="submit" class="btn btn-primary mt-2">Calcular y Generar Reporte</button>
                 </form>
             </div>
         </div>
     </div>
-</x-app-layout>
+@endsection

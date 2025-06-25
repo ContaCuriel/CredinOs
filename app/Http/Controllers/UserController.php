@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash; // <-- AÑADE ESTA LÍNEA PARA HASHEAR CONTRASEÑAS
 use Illuminate\Validation\Rules;     // <-- AÑADE ESTA LÍNEA PARA REGLAS DE CONTRASEÑA DE BREEZE
 use Illuminate\Support\Facades\Auth;
+use App\Models\Sucursal;
+use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
@@ -80,55 +82,43 @@ class UserController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(User $user) // Laravel inyecta el modelo User
-{
-    // Pasamos el usuario a editar a la vista.
-    // Más adelante, si tenemos roles, también podríamos pasar la lista de roles aquí.
-    return view('users.edit', compact('user'));
-}
+public function edit(User $user)
+    {
+        // Cargamos todas las listas que necesitaremos en los dropdowns y checkboxes
+        $roles = Role::all();
+        $sucursales = Sucursal::all();
+
+        // Obtenemos los roles que el usuario ya tiene para poder marcar los checkboxes
+        $userRoles = $user->roles->pluck('name')->toArray();
+
+        return view('users.edit', compact('user', 'roles', 'sucursales', 'userRoles'));
+    }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, User $user) // User $user es inyectado por Route-Model Binding
-{
-    // 1. Validación de los datos del formulario
-    $validatedData = $request->validate([
-        'name' => ['required', 'string', 'max:255'],
-        // La regla 'unique' para email necesita ignorar el usuario actual que se está editando
-        'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class.',email,'.$user->id],
-        // La contraseña es opcional en la actualización. Si se proporciona, debe ser confirmada y cumplir las reglas.
-        'password' => ['nullable', 'confirmed', Rules\Password::defaults()], 
-    ],[
-        // Mensajes de error personalizados (opcional)
-        'name.required' => 'El nombre del usuario es obligatorio.',
-        'email.required' => 'El correo electrónico es obligatorio.',
-        'email.email' => 'El formato del correo electrónico no es válido.',
-        'email.unique' => 'Este correo electrónico ya está registrado para otro usuario.',
-        'password.confirmed' => 'La confirmación de la nueva contraseña no coincide.',
-    ]);
+     public function update(Request $request, User $user)
+    {
+        // 1. Validamos los datos que vienen del formulario
+        $request->validate([
+            'roles' => 'nullable|array',
+            'id_sucursal' => 'nullable|exists:sucursales,id_sucursal',
+        ]);
 
-    // 2. Actualización de los datos básicos del Usuario
-    $user->name = $validatedData['name'];
-    $user->email = $validatedData['email'];
+        // 2. Actualizamos los permisos de sucursal
+        $user->ver_todas_sucursales = $request->has('ver_todas_sucursales');
+        // Si 'ver_todas_sucursales' está marcado, id_sucursal se guarda como null.
+        $user->id_sucursal = $user->ver_todas_sucursales ? null : $request->id_sucursal;
+        $user->save();
 
-    // 3. Actualizar la contraseña SOLO SI se proporcionó una nueva
-    if (!empty($validatedData['password'])) {
-        $user->password = Hash::make($validatedData['password']);
+        // 3. Sincronizamos los roles
+        // El método syncRoles del paquete Spatie se encarga de añadir/quitar los roles necesarios.
+        $user->syncRoles($request->input('roles', []));
+
+        // 4. Redirigimos con un mensaje de éxito
+        return redirect()->route('users.index')
+                         ->with('success', 'Usuario actualizado exitosamente.');
     }
-
-    // Si el email fue cambiado y tu sistema usa verificación de email,
-    // podrías querer marcar el email como no verificado de nuevo:
-    // if ($user->isDirty('email')) {
-    //     $user->email_verified_at = null;
-    // }
-
-    $user->save(); // Guarda los cambios en la base de datos
-
-    // 4. Redirección con Mensaje de Éxito
-    return redirect()->route('users.index')
-                     ->with('success', '¡Usuario "' . $user->name . '" actualizado exitosamente!');
-}
 
     /**
      * Remove the specified resource from storage.
