@@ -18,9 +18,9 @@ class RolesSeeder extends Seeder // <-- ASEGÚRATE DE TENER ESTA LÍNEA Y LA {
 
         // Insertamos los roles
         DB::table('roles')->insert([
-            ['nombre_rol' => 'Administrador'],
-            ['nombre_rol' => 'Aux. Contable'],
-            ['nombre_rol' => 'RH'],
-        ]);
+    ['name' => 'Administrador', 'guard_name' => 'web'],
+    ['name' => 'Aux. Contable', 'guard_name' => 'web'],
+    ['name' => 'RH', 'guard_name' => 'web'],
+]);
     }
 } // <-- ASEGÚRATE DE TENER ESTA LLAVE DE CIERRE '}'

@@ -77,11 +77,25 @@ class DashboardController extends Controller
             }
         }
         
+        // --- INICIO: Lógica para el Widget de Gastos ---
+$gastosPendientes = collect(); // Creamos una colección vacía por defecto
+
+// Solo ejecutamos la consulta si el usuario tiene el permiso de aprobar
+if (auth()->user()->can('aprobar-gastos')) {
+    $gastosPendientes = \App\Models\Gasto::with('sucursal')
+                                          ->where('estado', 'En Aprobación')
+                                          ->latest()
+                                          ->take(5) // Tomamos los 5 más recientes
+                                          ->get();
+}
+// --- FIN: Lógica para el Widget de Gastos ---
+
         // Pasamos todas las variables a la vista
         return view('dashboard', compact(
             'cumpleanerosDelMes', 
             'aniversariosDelMes', 
             'contratosPorVencer',
+            'gastosPendientes',
             'patronesConteoImss'
         ));
     }

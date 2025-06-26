@@ -20,6 +20,9 @@ use App\Http\Controllers\ListaDeRayaController;
 use App\Http\Controllers\FiniquitoController;
 use App\Http\Controllers\AguinaldoController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\GastoController;
+use App\Http\Controllers\CategoriaController;
+use App\Http\Controllers\ReporteController;
 
 /*
 |--------------------------------------------------------------------------
@@ -91,13 +94,33 @@ Route::middleware('auth')->group(function () {
         Route::get('/imss/{empleado}/carta-patronal-pdf', [ImssController::class, 'generarCartaPatronal'])->name('imss.cartaPatronalPdf')->middleware('can:tramitar-imss');
     });
 
-    // --- CONTABILIDAD ---
+   // --- CONTABILIDAD ---
     Route::middleware('can:ver-menu-contabilidad')->group(function () {
         // Aguinaldo
         Route::get('/aguinaldo', [AguinaldoController::class, 'index'])->name('aguinaldo.index')->middleware('can:ver-aguinaldo');
         Route::post('/aguinaldo/calcular', [AguinaldoController::class, 'calcular'])->name('aguinaldo.calcular')->middleware('can:calcular-aguinaldo');
         Route::post('/aguinaldo/exportar', [AguinaldoController::class, 'exportar'])->name('aguinaldo.exportar')->middleware('can:exportar-aguinaldo');
-    });
+        
+ // 1. Rutas específicas primero para que no choquen con el resource.
+        Route::get('/gastos/aprobaciones', [GastoController::class, 'approvalIndex'])->name('gastos.approvals')->middleware('can:aprobar-gastos');
+        Route::get('/gastos/crear', [GastoController::class, 'create'])->name('gastos.create'); // El 'create' de resource funciona, pero así es más explícito.
+        
+        // 2. Rutas con parámetros
+        Route::post('/gastos/{gasto}/aprobar', [GastoController::class, 'approve'])->name('gastos.approve')->middleware('can:aprobar-gastos');
+        Route::post('/gastos/{gasto}/rechazar', [GastoController::class, 'reject'])->name('gastos.reject')->middleware('can:aprobar-gastos');
+        Route::get('/gastos/{gasto}/comprobante', [GastoController::class, 'verComprobante'])->name('gastos.verComprobante');
+        
+        // 3. La ruta resource al final, para que maneje las rutas estándar restantes.
+        // He excluido 'create' y 'show' para evitar conflictos.
+        Route::resource('gastos', GastoController::class)->except(['create', 'show']);
+
+        // --- REPORTES ---
+    Route::get('/reportes/gastos-por-sucursal', [ReporteController::class, 'gastosPorSucursal'])->name('reportes.gastos.sucursal')->middleware('can:ver-reportes');
+    
+    Route::get('/reportes/gastos-por-sucursal/exportar', [ReporteController::class, 'exportarGastosPorSucursal'])->name('reportes.gastos.sucursal.exportar')->middleware('can:ver-reportes');
+
+
+    }); // Cierre del grupo de Contabilidad
 
     // --- ADMINISTRACIÓN ---
     Route::middleware('can:ver-menu-administracion')->group(function () {
@@ -112,6 +135,8 @@ Route::middleware('auth')->group(function () {
         Route::resource('puestos', PuestoController::class)->middleware('can:ver-puestos');
         Route::resource('patrones', PatronController::class)->only(['index', 'create', 'store'])->middleware('can:ver-patrones');
         Route::resource('horarios', HorarioController::class)->middleware('can:ver-horarios');
+        // --- AÑADE ESTA LÍNEA PARA GESTIONAR CATEGORÍAS ---
+    Route::resource('categorias', CategoriaController::class)->except(['show']);
     });
 });
 

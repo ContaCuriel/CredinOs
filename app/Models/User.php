@@ -46,4 +46,10 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    public function sucursal()
+{
+    // Asumiendo que el modelo se llama Sucursal y la llave foránea es id_sucursal
+    return $this->belongsTo(Sucursal::class, 'id_sucursal');
+}
 }

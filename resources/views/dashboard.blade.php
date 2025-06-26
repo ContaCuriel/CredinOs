@@ -138,6 +138,47 @@
                     </div>
                 </div>
 
+                @can('aprobar-gastos') {{-- El widget completo solo se muestra si tienes el permiso --}}
+<div class="col-md-6 col-lg-4 mb-4">
+    <div class="card h-100">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-hourglass-split"></i> Gastos Pendientes de Aprobación</span>
+            @if($gastosPendientes->count() > 0)
+                <span class="badge bg-danger rounded-pill">{{ $gastosPendientes->count() }}</span>
+            @endif
+        </div>
+        <div class="card-body">
+            @if($gastosPendientes->isNotEmpty())
+                <p class="text-sm text-muted">Mostrando los 5 más recientes.</p>
+                <ul class="list-group list-group-flush">
+                    @foreach ($gastosPendientes as $gasto)
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <div>
+                                <strong>{{ $gasto->sucursal?->nombre_sucursal ?? 'N/A' }}</strong><br>
+                                <small>
+                                    {{ $gasto->categoria?->nombre ?? 'Sin Categoría' }} - {{ $gasto->fecha_gasto->format('d/m/Y') }}
+                                </small>
+                            </div>
+                            <strong class="text-danger">${{ number_format($gasto->monto_total, 2) }}</strong>
+                        </li>
+                    @endforeach
+                </ul>
+            @else
+                <div class="text-center py-3">
+                    <i class="bi bi-check-circle-fill text-success fs-3"></i>
+                    <p class="text-muted mt-2 mb-0">¡Excelente! No hay gastos pendientes.</p>
+                </div>
+            @endif
+        </div>
+        <div class="card-footer p-3 text-center">
+            <a href="{{ route('gastos.approvals') }}" class="btn btn-outline-primary btn-sm w-100">
+                Ir a Aprobar Gastos
+            </a>
+        </div>
+    </div>
+</div>
+@endcan
+
             </div> {{-- Fin del Contenedor .row --}}
         </div>
     </div>

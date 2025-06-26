@@ -28,6 +28,9 @@ class PermissionSeeder extends Seeder
             // --- CONTABILIDAD ---
             'ver-menu-contabilidad',
             'ver-aguinaldo', 'calcular-aguinaldo', 'exportar-aguinaldo',
+            'ver-gastos','crear-gastos','editar-gastos','eliminar-gastos','aprobar-gastos',
+            'ver-reportes',
+        
 
             // --- ADMINISTRACIÓN ---
             'ver-menu-administracion',
@@ -40,6 +43,7 @@ class PermissionSeeder extends Seeder
             'ver-puestos', 'crear-puestos', 'editar-puestos', 'eliminar-puestos',
             'ver-patrones', 'crear-patrones',
             'ver-horarios', 'crear-horarios', 'editar-horarios', 'eliminar-horarios',
+         'ver-categorias','crear-categorias','editar-categorias','eliminar-categorias',
         ];
 
         foreach ($permissions as $permission) {
