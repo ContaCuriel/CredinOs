@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Journal;
 
 class Gasto extends Model
 {
@@ -42,4 +43,10 @@ class Gasto extends Model
         // El usuario que registró el gasto
         return $this->belongsTo(User::class, 'usuario_registra_id');
     }
+
+    public function journal()
+{
+    return $this->morphOne(Journal::class, 'sourceable');
+}
+
 }

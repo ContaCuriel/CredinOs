@@ -142,6 +142,39 @@
     </a>
 </li>
 @endcan
+ @can('ver-cuentas')
+    <li class="nav-item">
+        <a class="nav-link {{ request()->routeIs('accounts.*') ? 'active' : '' }}" href="{{ route('accounts.index') }}">
+            <i class="bi bi-journal-bookmark-fill"></i> Catálogo de Cuentas
+        </a>
+    </li>
+    @endcan
+
+    @can('ver-polizas')
+    <li class="nav-item">
+        <a class="nav-link {{ request()->routeIs('journals.*') ? 'active' : '' }}" href="{{ route('journals.index') }}">
+            <i class="bi bi-collection-fill"></i> Libro de Diario (Pólizas)
+        </a>
+    </li>
+    @endcan
+
+      @can('ver-reportes')
+    <li class="nav-item">
+        <a class="nav-link {{ request()->routeIs('reportes.balanza_comprobacion') ? 'active' : '' }}" href="{{ route('reportes.balanza_comprobacion') }}">
+            <i class="bi bi-file-earmark-spreadsheet-fill"></i> Balanza de Comprobación
+        </a>
+    </li>
+    @endcan
+    
+ @can('ver-reportes')
+    <li class="nav-item">
+        <a class="nav-link {{ request()->routeIs('reportes.income_statement') ? 'active' : '' }}" href="{{ route('reportes.income_statement') }}">
+            <i class="bi bi-graph-up-arrow"></i> Estado de Resultados
+        </a>
+    </li>
+    @endcan
+
+
 
     </ul>
 @endcan

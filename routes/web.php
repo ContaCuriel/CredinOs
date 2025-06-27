@@ -23,6 +23,8 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\GastoController;
 use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\ReporteController;
+use App\Http\Controllers\AccountController;
+use App\Http\Controllers\JournalController;
 
 /*
 |--------------------------------------------------------------------------
@@ -118,6 +120,31 @@ Route::middleware('auth')->group(function () {
     Route::get('/reportes/gastos-por-sucursal', [ReporteController::class, 'gastosPorSucursal'])->name('reportes.gastos.sucursal')->middleware('can:ver-reportes');
     
     Route::get('/reportes/gastos-por-sucursal/exportar', [ReporteController::class, 'exportarGastosPorSucursal'])->name('reportes.gastos.sucursal.exportar')->middleware('can:ver-reportes');
+
+      Route::resource('accounts', AccountController::class)->middleware([
+        'can:ver-cuentas',      // 'index', 'show'
+        'can:crear-cuentas',    // 'create', 'store'
+        'can:editar-cuentas',   // 'edit', 'update'
+        'can:eliminar-cuentas', // 'destroy'
+    ]);
+
+// Pólizas Contables (Libro de Diario)
+    Route::get('journals', [JournalController::class, 'index'])
+        ->name('journals.index')
+        ->middleware('can:ver-polizas');
+
+    Route::get('journals/{journal}', [JournalController::class, 'show'])
+        ->name('journals.show')
+        ->middleware('can:ver-detalle-polizas');
+
+         Route::get('/reportes/balanza-comprobacion', [ReporteController::class, 'trialBalance'])
+        ->name('reportes.balanza_comprobacion') // Nuevo nombre
+        ->middleware('can:ver-reportes'); 
+
+        Route::get('/reportes/estado-resultados', [ReporteController::class, 'incomeStatement'])
+     ->name('reportes.income_statement')
+     ->middleware('can:ver-reportes'); // Reutilizamos el permiso existente.
+
 
 
     }); // Cierre del grupo de Contabilidad

@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 use App\Models\Categoria;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use App\Models\Account;
 
 class CategoriaController extends Controller
 {
@@ -17,40 +18,45 @@ class CategoriaController extends Controller
 
     public function create()
     {
-        return view('categorias.create');
+        // Cargamos solo las cuentas de GASTO que no son "padres" para el selector.
+        $accounts = Account::where('type', 'gastos')->whereDoesntHave('children')->orderBy('code')->get();
+        
+        return view('categorias.create', compact('accounts')); // Asegúrate que el nombre de la vista sea el correcto
     }
 
-    public function store(Request $request)
+     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'nombre' => 'required|string|unique:categorias,nombre|max:255',
-            'default_requiere_aprobacion' => 'nullable|boolean',
+        // Añadimos la validación para el nuevo campo
+        $validatedData = $request->validate([
+            'nombre' => 'required|string|max:255',
+            'default_requiere_aprobacion' => 'required|boolean',
+            'account_id' => 'nullable|exists:accounts,id'
         ]);
 
-        Categoria::create([
-            'nombre' => $validated['nombre'],
-            'default_requiere_aprobacion' => $request->has('default_requiere_aprobacion'),
-        ]);
+        Categoria::create($validatedData);
 
         return redirect()->route('categorias.index')->with('success', 'Categoría creada exitosamente.');
     }
 
     public function edit(Categoria $categoria)
     {
-        return view('categorias.edit', compact('categoria'));
+        // También cargamos las cuentas aquí para el formulario de edición
+        $accounts = Account::where('type', 'gastos')->whereDoesntHave('children')->orderBy('code')->get();
+
+        return view('categorias.edit', compact('categoria', 'accounts')); // Asegúrate que el nombre de la vista sea el correcto
     }
+
 
     public function update(Request $request, Categoria $categoria)
     {
-        $validated = $request->validate([
-            'nombre' => ['required','string','max:255', Rule::unique('categorias')->ignore($categoria->id)],
-            'default_requiere_aprobacion' => 'nullable|boolean',
+        // Añadimos la validación para el nuevo campo
+        $validatedData = $request->validate([
+            'nombre' => 'required|string|max:255',
+            'default_requiere_aprobacion' => 'required|boolean',
+            'account_id' => 'nullable|exists:accounts,id'
         ]);
 
-        $categoria->update([
-            'nombre' => $validated['nombre'],
-            'default_requiere_aprobacion' => $request->has('default_requiere_aprobacion'),
-        ]);
+        $categoria->update($validatedData);
 
         return redirect()->route('categorias.index')->with('success', 'Categoría actualizada exitosamente.');
     }

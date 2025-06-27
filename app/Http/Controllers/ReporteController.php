@@ -9,6 +9,8 @@ use App\Models\Sucursal;
 use App\Models\Categoria;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\GastosPorSucursalExport;
+use App\Models\Account;
+use Carbon\Carbon;
 
 class ReporteController extends Controller
 {
@@ -59,4 +61,56 @@ class ReporteController extends Controller
 
         return Excel::download(new GastosPorSucursalExport($fechaInicio, $fechaFin), $nombreArchivo);
     }
+
+ public function trialBalance(Request $request)
+    {
+        $startDate = $request->input('start_date', Carbon::now()->startOfMonth()->toDateString());
+        $endDate = $request->input('end_date', Carbon::now()->endOfMonth()->toDateString());
+
+        $accounts = Account::with('children')->whereNull('parent_id')->orderBy('code')->get();
+
+        // CAMBIO CLAVE: Apuntamos a la carpeta 'reportes'
+        return view('reportes.trial_balance', compact('accounts', 'startDate', 'endDate'));
+    }
+
+    public function incomeStatement(Request $request)
+    {
+        // Validar las fechas de entrada, usando el mes actual por defecto.
+        $startDate = $request->input('start_date', Carbon::now()->startOfMonth()->toDateString());
+        $endDate = $request->input('end_date', Carbon::now()->endOfMonth()->toDateString());
+
+        // --- CÁLCULO DE INGRESOS ---
+        // Obtenemos la cuenta principal de Ingresos (código 400 del catálogo SAT).
+        $incomeAccount = Account::where('code', '400')->first();
+        $totalIncome = 0;
+        if ($incomeAccount) {
+            $movements = $incomeAccount->getMovements($startDate, $endDate);
+            // Los ingresos son de naturaleza Acreedora (Haber - Deber).
+            $totalIncome = $movements['credits'] - $movements['debits'];
+        }
+
+        // --- CÁLCULO DE GASTOS ---
+        // Obtenemos las cuentas principales de Gastos (códigos 600 y 800 del catálogo SAT).
+        $expenseAccounts = Account::whereIn('code', ['600', '800'])->get();
+        $totalExpenses = 0;
+        foreach ($expenseAccounts as $account) {
+            $movements = $account->getMovements($startDate, $endDate);
+            // Los gastos son de naturaleza Deudora (Deber - Haber).
+            $totalExpenses += $movements['debits'] - $movements['credits'];
+        }
+
+        // --- UTILIDAD NETA ---
+        $netIncome = $totalIncome - $totalExpenses;
+
+        return view('reportes.income_statement', compact(
+            'totalIncome',
+            'totalExpenses',
+            'netIncome',
+            'startDate',
+            'endDate'
+        ));
+    }
+
+
+
 }

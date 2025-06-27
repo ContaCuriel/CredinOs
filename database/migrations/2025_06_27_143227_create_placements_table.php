@@ -11,10 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('roles', function (Blueprint $table) {
-        $table->id('id_rol'); // PK
-        $table->string('nombre_rol', 50)->unique(); // Administrador, Aux. Contable, RH
-        $table->timestamps();
+        Schema::create('placements', function (Blueprint $table) {
+            $table->id();
+            $table->timestamps();
         });
     }
 
@@ -23,6 +22,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('roles');
+        Schema::dropIfExists('placements');
     }
 };

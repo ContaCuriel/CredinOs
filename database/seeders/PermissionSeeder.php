@@ -30,6 +30,15 @@ class PermissionSeeder extends Seeder
             'ver-aguinaldo', 'calcular-aguinaldo', 'exportar-aguinaldo',
             'ver-gastos','crear-gastos','editar-gastos','eliminar-gastos','aprobar-gastos',
             'ver-reportes',
+
+            'ver-cuentas', 'crear-cuentas', 'editar-cuentas', 'eliminar-cuentas',
+
+             // ===== NUEVOS PERMISOS PARA LAS PÓLIZAS =====
+            'ver-polizas', 'ver-detalle-polizas',
+
+            'ver-aguinaldo', 'calcular-aguinaldo', 'exportar-aguinaldo',
+            'ver-reportes',
+        
         
 
             // --- ADMINISTRACIÓN ---
