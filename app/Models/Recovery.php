@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class Placement extends Model
+class Recovery extends Model
 {
     use HasFactory;
 
@@ -14,13 +14,15 @@ class Placement extends Model
         'sucursal_id',
         'year',
         'month',
-        'amount',
+        'capital_recovered',
+        'interest_collected',
+        'unrecoverable_amount',
         'user_id',
         'notes',
     ];
 
     /**
-     * Una colocación pertenece a una sucursal.
+     * Una recuperación pertenece a una sucursal.
      */
     public function sucursal(): BelongsTo
     {
@@ -28,7 +30,7 @@ class Placement extends Model
     }
 
     /**
-     * Una colocación fue registrada por un usuario.
+     * Una recuperación fue registrada por un usuario.
      */
     public function user(): BelongsTo
     {
@@ -36,7 +38,7 @@ class Placement extends Model
     }
 
     /**
-     * Obtiene la póliza contable asociada a esta colocación.
+     * Obtiene la póliza contable asociada a esta recuperación.
      */
     public function journal()
     {

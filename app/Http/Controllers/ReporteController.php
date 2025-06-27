@@ -1,16 +1,24 @@
 <?php
-// app/Http/Controllers/ReporteController.php
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\Gasto;
-use App\Models\Sucursal;
-use App\Models\Categoria;
-use Maatwebsite\Excel\Facades\Excel;
+// --- LÍNEAS DE IMPORTACIÓN CONSOLIDADAS ---
 use App\Exports\GastosPorSucursalExport;
+use App\Exports\IncomeStatementExport;
+use App\Exports\TrialBalanceExport;
 use App\Models\Account;
+use App\Models\Categoria;
+use App\Models\Gasto;
+use App\Models\Patron;
+use App\Models\Recovery;
+use App\Models\Sucursal;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\BalanceSheetExport;
 
 class ReporteController extends Controller
 {
@@ -19,29 +27,19 @@ class ReporteController extends Controller
      */
     public function gastosPorSucursal(Request $request)
     {
-        // --- 1. Obtener los filtros y los datos base ---
         $fechaInicio = $request->input('fecha_inicio', now()->startOfMonth()->toDateString());
         $fechaFin = $request->input('fecha_fin', now()->endOfMonth()->toDateString());
-
         $sucursales = Sucursal::orderBy('nombre_sucursal')->get();
-        
-        // --- 2. Realizar la consulta principal ---
         $gastos = Gasto::with(['categoria', 'sucursal'])
-                       ->whereBetween('fecha_gasto', [$fechaInicio, $fechaFin])
-                       ->get();
-
-        // --- 3. Procesar y pivotar los datos ---
-        // Agrupamos primero por categoría, luego por sucursal, y sumamos los montos.
+                          ->whereBetween('fecha_gasto', [$fechaInicio, $fechaFin])
+                          ->get();
         $datosPivoteados = $gastos->groupBy('categoria.nombre')->map(function ($gastosPorCategoria) {
             return $gastosPorCategoria->groupBy('sucursal.nombre_sucursal')->map(function ($gastos) {
                 return $gastos->sum('monto_total');
             });
         });
-
-        // Obtenemos una lista única de las categorías que tuvieron gastos en este periodo
         $categoriasConGastos = Categoria::whereIn('id', $gastos->pluck('categoria_id'))->orderBy('nombre')->get();
         
-        // --- 4. Pasar todo a la vista ---
         return view('reportes.gastos_por_sucursal', [
             'sucursales' => $sucursales,
             'categorias' => $categoriasConGastos,
@@ -51,66 +49,270 @@ class ReporteController extends Controller
         ]);
     }
 
-     public function exportarGastosPorSucursal(Request $request)
+    public function exportarGastosPorSucursal(Request $request)
     {
-        // Obtenemos los mismos filtros de fecha que en el reporte principal
         $fechaInicio = $request->query('fecha_inicio', now()->startOfMonth()->toDateString());
         $fechaFin = $request->query('fecha_fin', now()->endOfMonth()->toDateString());
-        
         $nombreArchivo = 'ReporteGastosPorSucursal_' . now()->format('Y-m-d') . '.xlsx';
-
         return Excel::download(new GastosPorSucursalExport($fechaInicio, $fechaFin), $nombreArchivo);
     }
 
- public function trialBalance(Request $request)
+    /**
+     * Muestra la Balanza de Comprobación.
+     */
+    public function trialBalance(Request $request)
     {
+        $sucursales = Sucursal::orderBy('nombre_sucursal')->get();
         $startDate = $request->input('start_date', Carbon::now()->startOfMonth()->toDateString());
         $endDate = $request->input('end_date', Carbon::now()->endOfMonth()->toDateString());
-
         $accounts = Account::with('children')->whereNull('parent_id')->orderBy('code')->get();
-
-        // CAMBIO CLAVE: Apuntamos a la carpeta 'reportes'
-        return view('reportes.trial_balance', compact('accounts', 'startDate', 'endDate'));
+        return view('reportes.trial_balance', compact('accounts', 'startDate', 'endDate', 'sucursales'));
     }
 
+    /**
+     * Muestra el Estado de Resultados.
+     */
     public function incomeStatement(Request $request)
     {
-        // Validar las fechas de entrada, usando el mes actual por defecto.
+        $sucursales = Sucursal::orderBy('nombre_sucursal')->get();
+        $selectedSucursalId = $request->input('sucursal_id');
         $startDate = $request->input('start_date', Carbon::now()->startOfMonth()->toDateString());
         $endDate = $request->input('end_date', Carbon::now()->endOfMonth()->toDateString());
 
-        // --- CÁLCULO DE INGRESOS ---
-        // Obtenemos la cuenta principal de Ingresos (código 400 del catálogo SAT).
-        $incomeAccount = Account::where('code', '400')->first();
-        $totalIncome = 0;
-        if ($incomeAccount) {
-            $movements = $incomeAccount->getMovements($startDate, $endDate);
-            // Los ingresos son de naturaleza Acreedora (Haber - Deber).
-            $totalIncome = $movements['credits'] - $movements['debits'];
+        $incomeQuery = Recovery::whereBetween('created_at', [$startDate, $endDate]);
+        if ($selectedSucursalId) {
+            $incomeQuery->where('sucursal_id', $selectedSucursalId);
         }
-
-        // --- CÁLCULO DE GASTOS ---
-        // Obtenemos las cuentas principales de Gastos (códigos 600 y 800 del catálogo SAT).
-        $expenseAccounts = Account::whereIn('code', ['600', '800'])->get();
-        $totalExpenses = 0;
-        foreach ($expenseAccounts as $account) {
-            $movements = $account->getMovements($startDate, $endDate);
-            // Los gastos son de naturaleza Deudora (Deber - Haber).
-            $totalExpenses += $movements['debits'] - $movements['credits'];
+        $totalInterest = $incomeQuery->sum('interest_collected');
+        
+        $opExpensesQuery = Gasto::where('estado', 'Aprobado')->whereBetween('updated_at', [$startDate, $endDate]);
+        if ($selectedSucursalId) {
+            $opExpensesQuery->where('sucursal_id', $selectedSucursalId);
         }
+        $totalOperationalExpenses = $opExpensesQuery->sum('monto_total');
 
-        // --- UTILIDAD NETA ---
-        $netIncome = $totalIncome - $totalExpenses;
+        $unrecoverableQuery = Recovery::whereBetween('created_at', [$startDate, $endDate]);
+        if ($selectedSucursalId) {
+            $unrecoverableQuery->where('sucursal_id', $selectedSucursalId);
+        }
+        $totalUnrecoverable = $unrecoverableQuery->sum('unrecoverable_amount');
+
+        $operatingProfit = $totalInterest - $totalOperationalExpenses;
+        $netIncome = $operatingProfit - $totalUnrecoverable;
 
         return view('reportes.income_statement', compact(
-            'totalIncome',
-            'totalExpenses',
-            'netIncome',
-            'startDate',
-            'endDate'
+            'sucursales', 'selectedSucursalId', 'totalInterest', 'totalOperationalExpenses',
+            'totalUnrecoverable', 'operatingProfit', 'netIncome', 'startDate', 'endDate'
         ));
     }
+    
+    /**
+     * Exporta la Balanza de Comprobación a Excel.
+     */
+    public function exportTrialBalance(Request $request)
+    {
+        $startDate = $request->query('start_date', now()->startOfMonth()->toDateString());
+        $endDate = $request->query('end_date', now()->endOfMonth()->toDateString());
+        $fileName = "Balanza_de_Comprobacion_{$startDate}_a_{$endDate}.xlsx";
+        return Excel::download(new TrialBalanceExport($startDate, $endDate), $fileName);
+    }
+    
+    /**
+     * Exporta el Estado de Resultados a Excel.
+     */
+    public function exportIncomeStatement(Request $request)
+    {
+        $selectedSucursalId = $request->query('sucursal_id');
+        $startDate = $request->query('start_date', now()->startOfMonth()->toDateString());
+        $endDate = $request->query('end_date', now()->endOfMonth()->toDateString());
 
+        $incomeQuery = Recovery::whereBetween('created_at', [$startDate, $endDate]);
+        if ($selectedSucursalId) { $incomeQuery->where('sucursal_id', $selectedSucursalId); }
+        $totalInterest = $incomeQuery->sum('interest_collected');
+        
+        $opExpensesQuery = Gasto::where('estado', 'Aprobado')->whereBetween('updated_at', [$startDate, $endDate]);
+        if ($selectedSucursalId) { $opExpensesQuery->where('sucursal_id', $selectedSucursalId); }
+        $totalOperationalExpenses = $opExpensesQuery->sum('monto_total');
+
+        $unrecoverableQuery = Recovery::whereBetween('created_at', [$startDate, $endDate]);
+        if ($selectedSucursalId) { $unrecoverableQuery->where('sucursal_id', $selectedSucursalId); }
+        $totalUnrecoverable = $unrecoverableQuery->sum('unrecoverable_amount');
+
+        $operatingProfit = $totalInterest - $totalOperationalExpenses;
+        $netIncome = $operatingProfit - $totalUnrecoverable;
+        
+        $data = compact(
+            'totalInterest', 'totalOperationalExpenses', 'totalUnrecoverable', 'operatingProfit', 'netIncome', 'startDate', 'endDate'
+        );
+
+        $fileName = "Estado_de_Resultados_{$startDate}_a_{$endDate}.xlsx";
+        return Excel::download(new IncomeStatementExport($data), $fileName);
+    }
+
+    /**
+     * Exporta el Estado de Resultados a PDF.
+     */
+    public function exportIncomeStatementPDF(Request $request)
+    {
+        $selectedSucursalId = $request->query('sucursal_id');
+        $startDate = $request->query('start_date', now()->startOfMonth()->toDateString());
+        $endDate = $request->query('end_date', now()->endOfMonth()->toDateString());
+        $incomeQuery = Recovery::whereBetween('created_at', [$startDate, $endDate]);
+        if ($selectedSucursalId) { $incomeQuery->where('sucursal_id', $selectedSucursalId); }
+        $totalInterest = $incomeQuery->sum('interest_collected');
+        $opExpensesQuery = Gasto::where('estado', 'Aprobado')->whereBetween('updated_at', [$startDate, $endDate]);
+        if ($selectedSucursalId) { $opExpensesQuery->where('sucursal_id', $selectedSucursalId); }
+        $totalOperationalExpenses = $opExpensesQuery->sum('monto_total');
+        $unrecoverableQuery = Recovery::whereBetween('created_at', [$startDate, $endDate]);
+        if ($selectedSucursalId) { $unrecoverableQuery->where('sucursal_id', $selectedSucursalId); }
+        $totalUnrecoverable = $unrecoverableQuery->sum('unrecoverable_amount');
+        $operatingProfit = $totalInterest - $totalOperationalExpenses;
+        $netIncome = $operatingProfit - $totalUnrecoverable;
+        
+        $companyName = $request->query('company_name', 'Nombre de Empresa no Especificado');
+        $legalRepresentative = $request->query('legal_representative', 'Nombre del Representante no Especificado');
+        
+        $data = compact(
+            'companyName',
+            'legalRepresentative',
+            'totalInterest', 'totalOperationalExpenses', 'totalUnrecoverable',
+            'operatingProfit', 'netIncome', 'startDate', 'endDate'
+        );
+        
+        $pdf = Pdf::loadView('reportes.pdfs.income_statement_pdf', $data);
+        $fileName = "Estado_de_Resultados_{$startDate}_a_{$endDate}.pdf";
+        return $pdf->stream($fileName);
+    }
+
+    /**
+     * Llama a la API de IA para generar un análisis financiero.
+     */
+    public function generateAnalysis(Request $request)
+    {
+        try {
+            $data = $request->validate([
+                'ingresos' => 'required|numeric', 'gastos' => 'required|numeric',
+                'castigos' => 'required|numeric', 'utilidad' => 'required|numeric',
+                'inicio' => 'required|date', 'fin' => 'required|date',
+            ]);
+
+            $prompt = "Actúa como un asesor financiero profesional para una pequeña financiera en México. Analiza el siguiente resumen de un Estado de Resultados para el periodo del {$data['inicio']} al {$data['fin']}. Los datos son: Ingresos Totales por Intereses: \${$data['ingresos']} MXN, Gastos Operativos Totales: \${$data['gastos']} MXN, Gastos por Cuentas Incobrables (Castigos): \${$data['castigos']} MXN, y una Utilidad Neta de: \${$data['utilidad']} MXN. Proporciona un análisis breve y claro en 2 o 3 párrafos. Explica qué significan estos números, destaca un punto positivo, un punto a vigilar, y ofrece una recomendación general. Utiliza un lenguaje fácil de entender para alguien que no es contador. Estructura la respuesta con los siguientes títulos en negritas: **Análisis General**, **Punto Clave Positivo**, **Foco de Atención**, y **Recomendación**.";
+
+            // CORRECCIÓN DE SINTAXIS
+            $apiKey = env('GEMINI_API_KEY', '');
+            
+            $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={$apiKey}";
+            
+            $response = Http::timeout(30)->post($apiUrl, [
+                'contents' => [['role' => 'user', 'parts' => [['text' => $prompt]]]]
+            ]);
+
+            if ($response->successful()) {
+                $analysisText = $response->json('candidates.0.content.parts.0.text', 'No se pudo generar el texto del análisis.');
+                return response()->json(['analysis' => $analysisText]);
+            } else {
+                Log::error('Error en API de IA:', ['status' => $response->status(), 'body' => $response->body()]);
+                return response()->json(['error' => 'La API de IA no pudo procesar la solicitud. Revisa los logs del servidor para más detalles.'], 500);
+            }
+        } catch (\Exception $e) {
+            Log::error('Excepción en generateAnalysis:', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return response()->json(['error' => 'Error interno del servidor al generar el análisis. Contacta al administrador.'], 500);
+        }
+    }
+
+
+
+// --- NUEVOS MÉTODOS PARA BALANCE GENERAL ---
+
+    public function balanceSheet(Request $request)
+    {
+        $endDate = $request->input('end_date', Carbon::now()->toDateString());
+        $assetAccount = Account::where('code', '100')->first();
+        $liabilityAccount = Account::where('code', '200')->first();
+        $equityAccount = Account::where('code', '300')->first();
+        $incomeAccount = Account::where('code', '400')->first();
+        $expenseAccounts = Account::whereIn('code', ['600', '800'])->get();
+        return view('reportes.balance_sheet', compact('endDate', 'assetAccount', 'liabilityAccount', 'equityAccount', 'incomeAccount', 'expenseAccounts'));
+    }
+
+    private function getBalanceSheetData(Request $request)
+    {
+        $endDate = $request->input('end_date', $request->query('end_date', now()->toDateString()));
+        $assetAccount = Account::where('code', '100')->first();
+        $liabilityAccount = Account::where('code', '200')->first();
+        $equityAccount = Account::where('code', '300')->first();
+        $incomeAccount = Account::where('code', '400')->first();
+        $expenseAccounts = Account::whereIn('code', ['600', '800'])->get();
+
+        $totalAssets = $assetAccount ? $assetAccount->getInitialBalance($endDate) : 0;
+        $totalLiabilities = $liabilityAccount ? $liabilityAccount->getInitialBalance($endDate) : 0;
+        
+        $incomeMovements = $incomeAccount ? $incomeAccount->getMovements('2000-01-01', $endDate) : ['debits' => 0, 'credits' => 0];
+        $totalIncome = $incomeMovements['credits'] - $incomeMovements['debits'];
+        $totalExpenses = 0;
+        if ($expenseAccounts) {
+            foreach($expenseAccounts as $expenseAccount) {
+                $expenseMovements = $expenseAccount->getMovements('2000-01-01', $endDate);
+                $totalExpenses += $expenseMovements['debits'] - $expenseMovements['credits'];
+            }
+        }
+        $netIncomeForPeriod = $totalIncome - $totalExpenses;
+        $equityBalance = $equityAccount ? $equityAccount->getInitialBalance($endDate) : 0;
+        $totalEquity = $equityBalance + $netIncomeForPeriod;
+        $totalLiabilitiesAndEquity = $totalLiabilities + $totalEquity;
+        
+        $companyName = $request->query('company_name', 'Nombre de Empresa no Especificado');
+
+        return compact(
+            'endDate', 'companyName', 'assetAccount', 'liabilityAccount', 'equityAccount', 'incomeAccount', 'expenseAccounts',
+            'totalAssets', 'totalLiabilities', 'netIncomeForPeriod', 'totalEquity', 'totalLiabilitiesAndEquity'
+        );
+    }
+    
+    public function exportBalanceSheet(Request $request)
+    {
+        $data = $this->getBalanceSheetData($request);
+        $fileName = "Balance_General_al_{$data['endDate']}.xlsx";
+        // La clase de exportación ahora se encuentra correctamente.
+        return Excel::download(new BalanceSheetExport($data['endDate'], $data), $fileName);
+    }
+
+
+    public function exportBalanceSheetPDF(Request $request)
+    {
+        $data = $this->getBalanceSheetData($request);
+        $pdf = Pdf::loadView('reportes.pdfs.balance_sheet_pdf', $data);
+        $fileName = "Balance_General_al_{$data['endDate']}.pdf";
+        return $pdf->stream($fileName);
+    }
+    
+    public function generateBalanceSheetAnalysis(Request $request)
+    {
+        $data = $request->validate([
+            'activos' => 'required|numeric',
+            'pasivos' => 'required|numeric',
+            'capital' => 'required|numeric',
+        ]);
+        
+        $prompt = "Actúa como un asesor financiero para una pyme en México. Analiza este Balance General resumido: Total de Activos: \${$data['activos']} MXN, Total de Pasivos: \${$data['pasivos']} MXN, Total de Capital Contable: \${$data['capital']} MXN. Explica en 2 o 3 párrafos qué significa esta 'fotografía' financiera. Menciona la solvencia de la empresa (si los activos cubren las deudas) y su estructura de capital (qué tanto se financia con deuda vs. recursos propios). Ofrece una recomendación general. Usa un lenguaje claro y fácil de entender.";
+        
+        try {
+            $apiKey = env('GEMINI_API_KEY', '');
+            if (!$apiKey) return response()->json(['error' => 'La clave de API no está configurada.'], 500);
+            
+            $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={$apiKey}";
+            $response = Http::timeout(30)->post($apiUrl, ['contents' => [['role' => 'user', 'parts' => [['text' => $prompt]]]]]);
+
+            if ($response->successful()) {
+                $analysisText = $response->json('candidates.0.content.parts.0.text', 'No se pudo generar el texto del análisis.');
+                return response()->json(['analysis' => $analysisText]);
+            } else {
+                return response()->json(['error' => 'La API de IA no pudo procesar la solicitud.'], 500);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Error interno al generar el análisis.'], 500);
+        }
+    }
 
 
 }

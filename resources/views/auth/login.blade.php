@@ -101,8 +101,15 @@
                 {{-- El enlace de registro ha sido eliminado --}}
 
             </form>
+            {{-- ... dentro de tu vista login.blade.php, al final --}}
+<div class="text-center mt-5 text-muted">
+    <p><em>"El futuro pertenece a quienes creen en la belleza de sus sueños."</em></p>
+    <p style="font-size: 0.8em;">Creado por Carlos Curiel & Gemini</p>
+</div>
         </div>
+
     </div>
+
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     

@@ -36,9 +36,13 @@ class PermissionSeeder extends Seeder
              // ===== NUEVOS PERMISOS PARA LAS PÓLIZAS =====
             'ver-polizas', 'ver-detalle-polizas',
 
+            'ver-colocaciones',
+            'ver-recuperaciones',
+
             'ver-aguinaldo', 'calcular-aguinaldo', 'exportar-aguinaldo',
             'ver-reportes',
-        
+            
+
         
 
             // --- ADMINISTRACIÓN ---

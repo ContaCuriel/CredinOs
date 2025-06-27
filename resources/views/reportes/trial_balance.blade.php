@@ -1,7 +1,12 @@
 <x-app-layout>
     <div class="card shadow-sm">
-        <div class="card-header">
+        <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Balanza de Comprobación</h5>
+            {{-- ===== NUEVO BOTÓN DE EXPORTACIÓN ===== --}}
+            <a href="{{ route('reportes.export_trial_balance', ['start_date' => $startDate, 'end_date' => $endDate]) }}" class="btn btn-sm btn-outline-success">
+                <i class="bi bi-file-earmark-excel-fill"></i> Exportar a Excel
+            </a>
+            {{-- ======================================= --}}
         </div>
         <div class="card-body">
             {{-- Formulario de Filtro por Fechas --}}

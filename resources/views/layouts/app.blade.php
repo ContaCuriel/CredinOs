@@ -116,6 +116,22 @@
                 </a>
             </li>
         @endcan
+
+           @can('ver-colocaciones')
+    <li class="nav-item">
+        <a class="nav-link {{ request()->routeIs('placements.*') ? 'active' : '' }}" href="{{ route('placements.index') }}">
+            <i class="bi bi-box-arrow-up-right"></i> Colocaciones Mensuales
+        </a>
+    </li>
+    @endcan
+
+    @can('ver-recuperaciones')
+    <li class="nav-item">
+        <a class="nav-link {{ request()->routeIs('recoveries.*') ? 'active' : '' }}" href="{{ route('recoveries.index') }}">
+            <i class="bi bi-box-arrow-in-down-left"></i> Recuperaciones Mensuales
+        </a>
+    </li>
+    @endcan
         
         @can('ver-gastos')
             <li class="nav-item">
@@ -170,6 +186,14 @@
     <li class="nav-item">
         <a class="nav-link {{ request()->routeIs('reportes.income_statement') ? 'active' : '' }}" href="{{ route('reportes.income_statement') }}">
             <i class="bi bi-graph-up-arrow"></i> Estado de Resultados
+        </a>
+    </li>
+    @endcan
+
+      @can('ver-reportes')
+    <li class="nav-item">
+        <a class="nav-link {{ request()->routeIs('reportes.balance_sheet') ? 'active' : '' }}" href="{{ route('reportes.balance_sheet') }}">
+            <i class="bi bi-bank2"></i> Balance General
         </a>
     </li>
     @endcan

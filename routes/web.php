@@ -25,6 +25,9 @@ use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\JournalController;
+use App\Http\Controllers\PlacementController;
+use App\Http\Controllers\RecoveryController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -121,6 +124,35 @@ Route::middleware('auth')->group(function () {
     
     Route::get('/reportes/gastos-por-sucursal/exportar', [ReporteController::class, 'exportarGastosPorSucursal'])->name('reportes.gastos.sucursal.exportar')->middleware('can:ver-reportes');
 
+    // Añade esta ruta junto a tus otras rutas de reportes
+Route::get('/reportes/export/trial-balance', [ReporteController::class, 'exportTrialBalance'])
+     ->name('reportes.export_trial_balance')
+     ->middleware('can:ver-reportes');
+
+Route::get('/reportes/export/income-statement', [ReporteController::class, 'exportIncomeStatement'])
+     ->name('reportes.export_income_statement')
+     ->middleware('can:ver-reportes');
+
+     Route::get('/reportes/export/income-statement/pdf', [ReporteController::class, 'exportIncomeStatementPDF'])
+     ->name('reportes.export_income_statement_pdf')
+     ->middleware('can:ver-reportes');
+
+     // Ruta para el endpoint de análisis con IA
+Route::post('/reportes/generate-analysis', [ReporteController::class, 'generateAnalysis'])
+     ->name('reports.generate_analysis')
+     ->middleware('can:ver-reportes');
+
+     // Ruta para el Balance General
+Route::get('/reportes/balance-general', [ReporteController::class, 'balanceSheet'])
+     ->name('reportes.balance_sheet')
+     ->middleware('can:ver-reportes');
+
+// Rutas para exportación y análisis del Balance General
+Route::get('/reportes/export/balance-sheet', [ReporteController::class, 'exportBalanceSheet'])->name('reportes.export_balance_sheet')->middleware('can:ver-reportes');
+Route::get('/reportes/export/balance-sheet/pdf', [ReporteController::class, 'exportBalanceSheetPDF'])->name('reportes.export_balance_sheet_pdf')->middleware('can:ver-reportes');
+Route::post('/reportes/generate-balance-sheet-analysis', [ReporteController::class, 'generateBalanceSheetAnalysis'])->name('reportes.generate_balance_sheet_analysis')->middleware('can:ver-reportes');
+
+
       Route::resource('accounts', AccountController::class)->middleware([
         'can:ver-cuentas',      // 'index', 'show'
         'can:crear-cuentas',    // 'create', 'store'
@@ -144,6 +176,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/reportes/estado-resultados', [ReporteController::class, 'incomeStatement'])
      ->name('reportes.income_statement')
      ->middleware('can:ver-reportes'); // Reutilizamos el permiso existente.
+
+     Route::resource('placements', PlacementController::class)->only(['index', 'create', 'store'])->middleware('can:ver-colocaciones');
+
+     Route::resource('recoveries', RecoveryController::class)->only(['index', 'create', 'store'])->middleware('can:ver-recuperaciones');
 
 
 

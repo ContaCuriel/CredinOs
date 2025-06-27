@@ -8,6 +8,9 @@ use App\Models\Journal;
 use Illuminate\Support\Facades\DB;
 use Exception;
 use Illuminate\Support\Facades\Log;
+use App\Models\Placement;
+use App\Models\Recovery;
+use Carbon\Carbon;
 
 class AccountingService
 {
@@ -70,4 +73,88 @@ class AccountingService
             return null;
         }
     }
+ public function createJournalFromPlacement(Placement $placement): ?Journal
+    {
+        if ($placement->journal()->exists()) {
+            return null;
+        }
+
+        $clientesAccount = Account::where('code', '105.01')->firstOrFail();
+        $bancoAccount = Account::where('code', '102.01')->firstOrFail();
+
+        return DB::transaction(function () use ($placement, $clientesAccount, $bancoAccount) {
+            $journal = Journal::create([
+                'date' => Carbon::create($placement->year, $placement->month)->endOfMonth(),
+                'concept' => "Colocación de créditos Suc. {$placement->sucursal->nombre_sucursal} - {$placement->month}/{$placement->year}",
+                'sourceable_id' => $placement->id,
+                'sourceable_type' => Placement::class,
+            ]);
+
+            $journal->entries()->create([
+                'account_id' => $clientesAccount->id,
+                'debit' => $placement->amount,
+                'credit' => 0,
+            ]);
+
+            $journal->entries()->create([
+                'account_id' => $bancoAccount->id,
+                'debit' => 0,
+                'credit' => $placement->amount,
+            ]);
+
+            return $journal;
+        });
+    }
+
+    public function createJournalFromRecovery(Recovery $recovery): ?Journal
+    {
+        if ($recovery->journal()->exists()) {
+            return null;
+        }
+
+        // Obtenemos las cuentas del catálogo del SAT que vamos a necesitar.
+        $bancoAccount = Account::where('code', '102.01')->firstOrFail(); // Bancos
+        $clientesAccount = Account::where('code', '105.01')->firstOrFail(); // Clientes
+        $interesesAccount = Account::where('code', '401.32')->firstOrFail(); // Ingresos por intereses
+        $castigosAccount = Account::where('code', '601.10')->firstOrFail(); // Gastos por castigos (incobrables)
+
+        return DB::transaction(function () use ($recovery, $bancoAccount, $clientesAccount, $interesesAccount, $castigosAccount) {
+            $journal = Journal::create([
+                'date' => Carbon::create($recovery->year, $recovery->month)->endOfMonth(),
+                'concept' => "Recuperación de cartera Suc. {$recovery->sucursal->nombre_sucursal} - {$recovery->month}/{$recovery->year}",
+                'sourceable_id' => $recovery->id,
+                'sourceable_type' => Recovery::class,
+            ]);
+
+            $totalCashIn = $recovery->capital_recovered + $recovery->interest_collected;
+
+            // CARGO a Bancos por el total de dinero que entró.
+            if ($totalCashIn > 0) {
+                $journal->entries()->create(['account_id' => $bancoAccount->id, 'debit' => $totalCashIn, 'credit' => 0]);
+            }
+
+            // ABONO a Ingresos por los intereses cobrados.
+            if ($recovery->interest_collected > 0) {
+                $journal->entries()->create(['account_id' => $interesesAccount->id, 'debit' => 0, 'credit' => $recovery->interest_collected]);
+            }
+            
+            // ABONO a Clientes por el capital recuperado (disminuye la deuda del cliente).
+            if ($recovery->capital_recovered > 0) {
+                $journal->entries()->create(['account_id' => $clientesAccount->id, 'debit' => 0, 'credit' => $recovery->capital_recovered]);
+            }
+
+            // Asiento por los préstamos castigados como incobrables.
+            if ($recovery->unrecoverable_amount > 0) {
+                // CARGO a Gastos por el monto que se da por perdido.
+                $journal->entries()->create(['account_id' => $castigosAccount->id, 'debit' => $recovery->unrecoverable_amount, 'credit' => 0]);
+                // ABONO a Clientes para cancelar esa deuda del balance.
+                $journal->entries()->create(['account_id' => $clientesAccount->id, 'debit' => 0, 'credit' => $recovery->unrecoverable_amount]);
+            }
+
+            return $journal;
+        });
+    }
+
+
+
 }
