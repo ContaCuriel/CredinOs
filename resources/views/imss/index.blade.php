@@ -109,12 +109,13 @@
                                     <td>
                                         @if (!$empleado->estado_imss || $empleado->estado_imss != 'Alta')
                                             <button type="button" class="btn btn-sm btn-success btn-registrar-alta-imss"
-        data-bs-toggle="modal" data-bs-target="#modalAltaImss"
-        data-id_empleado="{{ $empleado->id_empleado }}"
-        data-nombre_empleado="{{ $empleado->nombre_completo }}"
-        data-fecha_alta_actual="{{ $empleado->fecha_alta_imss ? $empleado->fecha_alta_imss->toDateString() : '' }}"
-        data-id_patron_imss_actual="{{ $empleado->id_patron_imss }}"
-        title="Registrar/Actualizar Alta IMSS">
+    data-bs-toggle="modal" data-bs-target="#modalAltaImss"
+    data-id_empleado="{{ $empleado->id_empleado }}"
+    data-nombre_empleado="{{ $empleado->nombre_completo }}"
+    data-fecha_alta_actual="{{ $empleado->fecha_alta_imss ? $empleado->fecha_alta_imss->toDateString() : '' }}"
+    data-id_patron_imss_actual="{{ $empleado->id_patron_imss }}"
+    data-sdi_actual="{{ $empleado->sdi ?? '' }}"
+    title="Registrar/Actualizar Alta IMSS">
     <i class="bi bi-shield-plus"></i> Alta
 </button>
                                         @endif
@@ -175,7 +176,7 @@
                 {{-- Usaremos POST, el controlador manejará si es crear o actualizar datos del empleado --}}
                 <div class="modal-body">
                     <p>Empleado: <strong id="nombreEmpleadoAltaImss"></strong></p>
-                    <input type="hidden" name="id_empleado_alta_imss" id="id_empleado_alta_imss_modal">
+                   
 
                      {{-- Campos ocultos para mantener los filtros al redirigir --}}
         <input type="hidden" name="id_sucursal_seleccionada" value="{{ request('id_sucursal_seleccionada') }}">
@@ -195,7 +196,7 @@
                                 @endforeach
                             @endif
                         </select>
-                        @error('id_patron_imss') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                       <div class="invalid-feedback"></div>
                     </div>
 <div class="mb-3">
     <label for="sdi_modal" class="form-label">Salario Diario Integrado (SDI) <span class="text-danger">*</span></label>
@@ -203,14 +204,14 @@
         <span class="input-group-text">$</span>
         <input type="number" step="0.01" min="0" class="form-control @error('sdi') is-invalid @enderror" id="sdi_modal" name="sdi" required placeholder="Ej: 250.50">
     </div>
-    @error('sdi') <div class="invalid-feedback">{{ $message }}</div> @enderror
+<div class="invalid-feedback"></div>
 </div>
 
 
                     <div class="mb-3">
                         <label for="fecha_alta_imss_modal" class="form-label">Fecha de Alta IMSS <span class="text-danger">*</span></label>
                         <input type="date" class="form-control form-control-sm @error('fecha_alta_imss') is-invalid @enderror" id="fecha_alta_imss_modal" name="fecha_alta_imss" required>
-                        @error('fecha_alta_imss') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        <div class="invalid-feedback"></div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -260,64 +261,99 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    // ... (tu script existente para tooltips y envío de filterForm si lo tienes) ...
-
-    // =====> SCRIPT PARA MODAL ALTA IMSS <=====
-    var modalAltaImss = document.getElementById('modalAltaImss');
+    // =====> SCRIPT PARA MODAL ALTA IMSS (VERSIÓN AJAX) <=====
+    const modalAltaImss = document.getElementById('modalAltaImss');
     if (modalAltaImss) {
-        var formAltaImss = document.getElementById('formAltaImss');
-        var nombreEmpleadoSpanModal = document.getElementById('nombreEmpleadoAltaImss');
-        var inputIdEmpleadoModal = document.getElementById('id_empleado_alta_imss_modal');
-        var selectPatronModal = document.getElementById('id_patron_imss_modal');
-        var inputFechaAltaModal = document.getElementById('fecha_alta_imss_modal');
+        const formAltaImss = document.getElementById('formAltaImss');
 
+        // Configura el modal con los datos del empleado cuando se abre
         modalAltaImss.addEventListener('show.bs.modal', function(event) {
-            var button = event.relatedTarget;
-            var idEmpleado = button.dataset.id_empleado;
-            var nombreEmpleado = button.dataset.nombre_empleado;
-            var fechaAltaActual = button.dataset.fecha_alta_actual;
-            var idPatronActual = button.dataset.id_patron_imss_actual;
-
-            if (nombreEmpleadoSpanModal) nombreEmpleadoSpanModal.textContent = nombreEmpleado;
-            if (inputIdEmpleadoModal) inputIdEmpleadoModal.value = idEmpleado;
+            const button = event.relatedTarget;
+            const idEmpleado = button.dataset.id_empleado;
             
-            if (selectPatronModal) selectPatronModal.value = idPatronActual || ""; // Preseleccionar si existe
-            if (inputFechaAltaModal) inputFechaAltaModal.value = fechaAltaActual || new Date().toISOString().slice(0,10); // Preseleccionar o hoy
+            // Limpia los errores de validación anteriores
+            formAltaImss.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+            formAltaImss.querySelectorAll('.invalid-feedback').forEach(el => el.textContent = '');
+            
+            // Rellena los campos del modal con los datos del botón
+            document.getElementById('nombreEmpleadoAltaImss').textContent = button.dataset.nombre_empleado;
+            document.getElementById('id_patron_imss_modal').value = button.dataset.id_patron_imss_actual || "";
+            document.getElementById('sdi_modal').value = button.dataset.sdi_actual || "";
+            document.getElementById('fecha_alta_imss_modal').value = button.dataset.fecha_alta_actual || new Date().toISOString().slice(0, 10);
+            
+            // Construye la URL de acción para el formulario
+            let actionUrl = "{{ route('imss.registrarAlta', ['empleado' => ':id_empleado']) }}";
+            formAltaImss.action = actionUrl.replace(':id_empleado', idEmpleado);
+        });
 
-            if (formAltaImss && idEmpleado) {
-                // La ruta necesitará el ID del empleado
-                let actionUrl = "{{ route('imss.registrarAlta', ['empleado' => ':id_empleado']) }}";
-                formAltaImss.action = actionUrl.replace(':id_empleado', idEmpleado);
-            }
+        // Intercepta el evento de envío del formulario para usar AJAX
+        formAltaImss.addEventListener('submit', function (event) {
+            event.preventDefault(); // ¡Evita que el formulario recargue la página!
+
+            const submitButton = formAltaImss.querySelector('button[type="submit"]');
+            const originalButtonText = submitButton.innerHTML;
+            submitButton.disabled = true;
+            submitButton.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Guardando...`;
+
+            const formData = new FormData(formAltaImss);
+            const actionUrl = formAltaImss.action;
+
+            fetch(actionUrl, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json',
+                }
+            })
+            .then(response => response.json().then(data => ({ status: response.status, body: data })))
+            .then(({ status, body }) => {
+                if (status === 422) { // 422: Error de validación del servidor
+                    // Limpia errores antiguos antes de mostrar los nuevos
+                    formAltaImss.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+                    formAltaImss.querySelectorAll('.invalid-feedback').forEach(el => el.textContent = '');
+
+                    // Muestra los nuevos errores de validación
+                    Object.keys(body.errors).forEach(key => {
+                        const inputId = key + '_modal'; // ej: 'sdi' -> 'sdi_modal'
+                        const input = document.getElementById(inputId);
+                        const errorDiv = input ? input.closest('.mb-3').querySelector('.invalid-feedback') : null;
+                        
+                        if (input && errorDiv) {
+                            input.classList.add('is-invalid');
+                            errorDiv.textContent = body.errors[key][0];
+                        }
+                    });
+                } else if (status >= 200 && status < 300) { // 2xx: Éxito
+                    // Redirige a la URL que nos indicó el controlador
+                    window.location.href = body.redirect;
+                } else { // Cualquier otro error (ej: 500 Error de servidor)
+                    alert(body.message || 'Ocurrió un error inesperado. Revisa la consola para más detalles.');
+                    console.error("Error del servidor:", body);
+                }
+            })
+            .catch(error => {
+                console.error('Error en la petición fetch:', error);
+                alert('No se pudo conectar con el servidor. Revisa tu conexión a internet.');
+            })
+            .finally(() => {
+                // Restaura el botón a su estado original
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalButtonText;
+            });
         });
     }
-});
-</script>
 
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    // ... (tu script existente para tooltips y modalAltaImss) ...
-
-    // =====> SCRIPT PARA MODAL BAJA IMSS <=====
-    var modalBajaImss = document.getElementById('modalBajaImss');
+    // =====> SCRIPT PARA MODAL BAJA IMSS (Funcionalidad original) <=====
+    // Nota: Si también quieres que la baja sea por AJAX, se necesita una lógica similar a la de arriba.
+    const modalBajaImss = document.getElementById('modalBajaImss');
     if (modalBajaImss) {
-        var formBajaImss = document.getElementById('formBajaImss');
-        var nombreEmpleadoSpanBajaModal = document.getElementById('nombreEmpleadoBajaImss');
-        var inputIdEmpleadoBajaModal = document.getElementById('id_empleado_baja_imss_modal');
-        var inputFechaBajaModal = document.getElementById('fecha_baja_imss_modal');
-
+        const formBajaImss = document.getElementById('formBajaImss');
         modalBajaImss.addEventListener('show.bs.modal', function(event) {
-            var button = event.relatedTarget;
-            var idEmpleado = button.dataset.id_empleado;
-            var nombreEmpleado = button.dataset.nombre_empleado;
-            // Podrías también pasar y usar fecha_alta_imss para validaciones o pre-llenados
-
-            if (nombreEmpleadoSpanBajaModal) nombreEmpleadoSpanBajaModal.textContent = nombreEmpleado;
-            if (inputIdEmpleadoBajaModal) inputIdEmpleadoBajaModal.value = idEmpleado;
-
-            // Pre-llenar la fecha de baja con hoy por defecto, o dejar vacío
-            if (inputFechaBajaModal) inputFechaBajaModal.value = new Date().toISOString().slice(0,10); 
-
+            const button = event.relatedTarget;
+            const idEmpleado = button.dataset.id_empleado;
+            document.getElementById('nombreEmpleadoBajaImss').textContent = button.dataset.nombre_empleado;
+            document.getElementById('fecha_baja_imss_modal').value = new Date().toISOString().slice(0,10); 
             if (formBajaImss && idEmpleado) {
                 let actionUrl = "{{ route('imss.registrarBaja', ['empleado' => ':id_empleado']) }}";
                 formBajaImss.action = actionUrl.replace(':id_empleado', idEmpleado);

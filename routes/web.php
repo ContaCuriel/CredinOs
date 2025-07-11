@@ -27,6 +27,13 @@ use App\Http\Controllers\AccountController;
 use App\Http\Controllers\JournalController;
 use App\Http\Controllers\PlacementController;
 use App\Http\Controllers\RecoveryController;
+use App\Http\Controllers\GroupController;
+use App\Http\Controllers\ClienteController; // --- LÍNEA AÑADIDA ---
+use App\Http\Controllers\CreditoController;
+use App\Http\Controllers\PaymentController; // Añade esto al principio del archivo
+use App\Http\Controllers\ReconciliationController;
+
+
 
 
 /*
@@ -55,6 +62,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // --- SECCIÓN DE CRÉDITOS ---
+    Route::resource('clientes', ClienteController::class); // <-- RUTA DE CLIENTES AÑADIDA
+    Route::resource('groups', GroupController::class);
+    Route::post('/groups/{group}/add-member', [GroupController::class, 'addMember'])->name('groups.members.add');
+    Route::post('/groups/{group}/remove-member/{client}', [GroupController::class, 'removeMember'])->name('groups.members.remove');
+
+    Route::resource('creditos', CreditoController::class);
     
     // --- RECURSOS HUMANOS ---
     Route::middleware('can:ver-menu-rh')->group(function () {
@@ -106,7 +121,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/aguinaldo/calcular', [AguinaldoController::class, 'calcular'])->name('aguinaldo.calcular')->middleware('can:calcular-aguinaldo');
         Route::post('/aguinaldo/exportar', [AguinaldoController::class, 'exportar'])->name('aguinaldo.exportar')->middleware('can:exportar-aguinaldo');
         
- // 1. Rutas específicas primero para que no choquen con el resource.
+   // 1. Rutas específicas primero para que no choquen con el resource.
         Route::get('/gastos/aprobaciones', [GastoController::class, 'approvalIndex'])->name('gastos.approvals')->middleware('can:aprobar-gastos');
         Route::get('/gastos/crear', [GastoController::class, 'create'])->name('gastos.create'); // El 'create' de resource funciona, pero así es más explícito.
         
@@ -125,63 +140,84 @@ Route::middleware('auth')->group(function () {
     Route::get('/reportes/gastos-por-sucursal/exportar', [ReporteController::class, 'exportarGastosPorSucursal'])->name('reportes.gastos.sucursal.exportar')->middleware('can:ver-reportes');
 
     // Añade esta ruta junto a tus otras rutas de reportes
-Route::get('/reportes/export/trial-balance', [ReporteController::class, 'exportTrialBalance'])
+    Route::get('/reportes/export/trial-balance', [ReporteController::class, 'exportTrialBalance'])
      ->name('reportes.export_trial_balance')
      ->middleware('can:ver-reportes');
 
-Route::get('/reportes/export/income-statement', [ReporteController::class, 'exportIncomeStatement'])
-     ->name('reportes.export_income_statement')
-     ->middleware('can:ver-reportes');
+    Route::get('/reportes/export/income-statement', [ReporteController::class, 'exportIncomeStatement'])
+         ->name('reportes.export_income_statement')
+         ->middleware('can:ver-reportes');
 
      Route::get('/reportes/export/income-statement/pdf', [ReporteController::class, 'exportIncomeStatementPDF'])
-     ->name('reportes.export_income_statement_pdf')
-     ->middleware('can:ver-reportes');
+         ->name('reportes.export_income_statement_pdf')
+         ->middleware('can:ver-reportes');
+
+         Route::post('/creditos/{credito}/disburse', [CreditoController::class, 'disburse'])->name('creditos.disburse');
+
+Route::post('/installments/{installment}/pay', [PaymentController::class, 'store'])->name('payments.store');
+
+Route::get('/reconciliation/upload', [ReconciliationController::class, 'create'])->name('reconciliation.create');
+Route::post('/reconciliation/upload', [ReconciliationController::class, 'store'])->name('reconciliation.store');
+
+Route::get('/reconciliation/confirm', [ReconciliationController::class, 'confirm'])->name('reconciliation.confirm');
+Route::post('/reconciliation/process', [ReconciliationController::class, 'process'])->name('reconciliation.process');
+
+// Ruta para la API interna que devuelve los miembros de un grupo
+Route::get('/api/groups/{group}/members', [App\Http\Controllers\GroupController::class, 'getMembers'])
+    ->name('groups.members')
+    ->middleware(['auth']);
+
+    // Ruta para el buscador de clientes con AJAX
+// Correcto, con diagonal invertida
+Route::get('/api/clientes/search', [App\Http\Controllers\ClienteController::class, 'search'])
+    ->name('clientes.search')
+    ->middleware(['auth']);
+
 
      // Ruta para el endpoint de análisis con IA
-Route::post('/reportes/generate-analysis', [ReporteController::class, 'generateAnalysis'])
-     ->name('reports.generate_analysis')
-     ->middleware('can:ver-reportes');
+    Route::post('/reportes/generate-analysis', [ReporteController::class, 'generateAnalysis'])
+         ->name('reports.generate_analysis')
+         ->middleware('can:ver-reportes');
 
      // Ruta para el Balance General
-Route::get('/reportes/balance-general', [ReporteController::class, 'balanceSheet'])
-     ->name('reportes.balance_sheet')
-     ->middleware('can:ver-reportes');
+    Route::get('/reportes/balance-general', [ReporteController::class, 'balanceSheet'])
+         ->name('reportes.balance_sheet')
+         ->middleware('can:ver-reportes');
 
-// Rutas para exportación y análisis del Balance General
-Route::get('/reportes/export/balance-sheet', [ReporteController::class, 'exportBalanceSheet'])->name('reportes.export_balance_sheet')->middleware('can:ver-reportes');
-Route::get('/reportes/export/balance-sheet/pdf', [ReporteController::class, 'exportBalanceSheetPDF'])->name('reportes.export_balance_sheet_pdf')->middleware('can:ver-reportes');
-Route::post('/reportes/generate-balance-sheet-analysis', [ReporteController::class, 'generateBalanceSheetAnalysis'])->name('reportes.generate_balance_sheet_analysis')->middleware('can:ver-reportes');
+    // Rutas para exportación y análisis del Balance General
+    Route::get('/reportes/export/balance-sheet', [ReporteController::class, 'exportBalanceSheet'])->name('reportes.export_balance_sheet')->middleware('can:ver-reportes');
+    Route::get('/reportes/export/balance-sheet/pdf', [ReporteController::class, 'exportBalanceSheetPDF'])->name('reportes.export_balance_sheet_pdf')->middleware('can:ver-reportes');
+    Route::post('/reportes/generate-balance-sheet-analysis', [ReporteController::class, 'generateBalanceSheetAnalysis'])->name('reportes.generate_balance_sheet_analysis')->middleware('can:ver-reportes');
 
+     Route::resource('accounts', AccountController::class)->middleware([
+         'can:ver-cuentas',      // 'index', 'show'
+         'can:crear-cuentas',    // 'create', 'store'
+         'can:editar-cuentas',   // 'edit', 'update'
+         'can:eliminar-cuentas', // 'destroy'
+     ]);
 
-      Route::resource('accounts', AccountController::class)->middleware([
-        'can:ver-cuentas',      // 'index', 'show'
-        'can:crear-cuentas',    // 'create', 'store'
-        'can:editar-cuentas',   // 'edit', 'update'
-        'can:eliminar-cuentas', // 'destroy'
-    ]);
-
-// Pólizas Contables (Libro de Diario)
+    // Pólizas Contables (Libro de Diario)
     Route::get('journals', [JournalController::class, 'index'])
-        ->name('journals.index')
-        ->middleware('can:ver-polizas');
+         ->name('journals.index')
+         ->middleware('can:ver-polizas');
+
+    Route::resource('grupos', GroupController::class)->middleware(['auth']);
 
     Route::get('journals/{journal}', [JournalController::class, 'show'])
-        ->name('journals.show')
-        ->middleware('can:ver-detalle-polizas');
+         ->name('journals.show')
+         ->middleware('can:ver-detalle-polizas');
 
-         Route::get('/reportes/balanza-comprobacion', [ReporteController::class, 'trialBalance'])
-        ->name('reportes.balanza_comprobacion') // Nuevo nombre
-        ->middleware('can:ver-reportes'); 
+        Route::get('/reportes/balanza-comprobacion', [ReporteController::class, 'trialBalance'])
+         ->name('reportes.balanza_comprobacion') // Nuevo nombre
+         ->middleware('can:ver-reportes'); 
 
-        Route::get('/reportes/estado-resultados', [ReporteController::class, 'incomeStatement'])
+         Route::get('/reportes/estado-resultados', [ReporteController::class, 'incomeStatement'])
      ->name('reportes.income_statement')
      ->middleware('can:ver-reportes'); // Reutilizamos el permiso existente.
 
      Route::resource('placements', PlacementController::class)->only(['index', 'create', 'store'])->middleware('can:ver-colocaciones');
 
      Route::resource('recoveries', RecoveryController::class)->only(['index', 'create', 'store'])->middleware('can:ver-recuperaciones');
-
-
 
     }); // Cierre del grupo de Contabilidad
 
@@ -194,12 +230,11 @@ Route::post('/reportes/generate-balance-sheet-analysis', [ReporteController::cla
 
     // --- CONFIGURACIÓN ---
     Route::middleware('can:ver-menu-configuracion')->group(function () {
-        Route::resource('sucursales', SucursalController::class)->only(['index', 'create', 'store'])->middleware('can:ver-sucursales');
+        Route::resource('sucursales', SucursalController::class)->middleware('can:ver-sucursales'); // <-- CORREGIDO
         Route::resource('puestos', PuestoController::class)->middleware('can:ver-puestos');
         Route::resource('patrones', PatronController::class)->only(['index', 'create', 'store'])->middleware('can:ver-patrones');
         Route::resource('horarios', HorarioController::class)->middleware('can:ver-horarios');
-        // --- AÑADE ESTA LÍNEA PARA GESTIONAR CATEGORÍAS ---
-    Route::resource('categorias', CategoriaController::class)->except(['show']);
+        Route::resource('categorias', CategoriaController::class)->except(['show']);
     });
 });
 

@@ -127,4 +127,24 @@ class ClienteController extends Controller
         return redirect()->route('clientes.index')
                          ->with('success', 'Cliente eliminado exitosamente.');
     }
+
+    public function search(Request $request)
+    {
+        $term = $request->input('term', ''); // 'term' es el texto que el usuario escribe
+        $clientes = \App\Models\Cliente::where('nombre_completo', 'LIKE', '%' . $term . '%')
+            ->orWhere('id_cliente', $term) // Permite buscar por ID también
+            ->select('id_cliente', 'nombre_completo')
+            ->limit(10) // Limita los resultados para no sobrecargar
+            ->get();
+
+        // Formateamos los resultados para que Select2 los entienda
+        $results = $clientes->map(function ($cliente) {
+            return [
+                'id' => $cliente->id_cliente,
+                'text' => $cliente->nombre_completo . ' (ID: ' . $cliente->id_cliente . ')'
+            ];
+        });
+
+        return response()->json($results);
+    }
 }

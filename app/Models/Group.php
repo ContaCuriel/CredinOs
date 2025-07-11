@@ -24,4 +24,25 @@ class Group extends Model
     {
         return $this->belongsToMany(Cliente::class, 'client_group', 'group_id', 'client_id');
     }
+
+
+public function sucursal()
+    {
+        return $this->belongsTo(Sucursal::class, 'id_sucursal', 'id_sucursal');
+    }
+
+    /**
+     * Relación: Un grupo es atendido por un asesor (Usuario).
+     */
+    public function asesor()
+    {
+        return $this->belongsTo(User::class, 'id_asesor', 'id');
+    }
+
+    public function creditos()
+{
+    return $this->morphMany(Credito::class, 'loanable');
+}
+
+
 }

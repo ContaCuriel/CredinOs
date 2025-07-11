@@ -29,21 +29,23 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
     protected int $sucursal_id;
     protected string $sucursal_nombre;
     protected Collection $resultados;
-    protected string $periodoTexto; 
+    protected string $periodoTexto;
+    // CORRECCIÓN: El contador de filas debe empezar en 1.
+    // El mapeo de datos ocurre ANTES de que se inserte la fila del título en el evento AfterSheet.
     protected int $rowNumber = 1;
 
     public function __construct(string $periodo, int $sucursal_id)
     {
         $this->periodo = $periodo;
         $this->sucursal_id = $sucursal_id;
-        
+
         $sucursal = Sucursal::find($sucursal_id);
         $this->sucursal_nombre = $sucursal ? Str::limit(preg_replace('/[\\*\\?\\:\\/\\\\]/', '', $sucursal->nombre_sucursal), 31) : 'Desconocida';
-        
+
         list($fechaInicioStr, $fechaFinStr) = explode('_', $this->periodo);
         $inicio = Carbon::parse($fechaInicioStr)->locale('es');
         $fin = Carbon::parse($fechaFinStr)->locale('es');
-        $this->periodoTexto = "DEL " . $inicio->translatedFormat('d \DE F') . " AL " . $fin->translatedFormat('d \DE F \DE Y');
+        $this->periodoTexto = "DEL " . strtoupper($inicio->translatedFormat('d \DE F')) . " AL " . strtoupper($fin->translatedFormat('d \DE F \DE Y'));
 
         $this->calculateResults();
     }
@@ -55,15 +57,24 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
         $fechaFinPeriodo = Carbon::parse($fechaFinStr);
 
         $empleados = Empleado::where('status', 'Alta')
-                            ->where('id_sucursal', $this->sucursal_id)
-                            ->with(['puesto'])
-                            ->get();
-        
+            ->where('id_sucursal', $this->sucursal_id)
+            ->with(['puesto'])
+            ->get();
+
         $this->resultados = collect();
 
         foreach ($empleados as $empleado) {
             $salarioDiario = $empleado->puesto ? ($empleado->puesto->salario_mensual / 30) : 0;
-            $sueldoQuincenalBruto = $salarioDiario * 15;
+            
+            $fechaIngresoEmpleado = Carbon::parse($empleado->fecha_ingreso);
+            $diasAPagar = 15;
+
+            if ($fechaIngresoEmpleado->between($fechaInicioPeriodo, $fechaFinPeriodo)) {
+                $diasAPagar = $fechaIngresoEmpleado->diffInDays($fechaFinPeriodo) + 1;
+            }
+            
+            $sueldoQuincenalBruto = $salarioDiario * $diasAPagar;
+
             $bonoPermanencia = 0;
             $bonoCumpleanos = 0;
             $primaVacacional = 0;
@@ -107,7 +118,9 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             $netoAPagar = $totalPercepciones - $totalDeducciones;
 
             $this->resultados->push([
-                'empleado_nombre' => $empleado->nombre_completo, 'puesto' => $empleado->puesto ? $empleado->puesto->nombre_puesto : 'N/A',
+                'empleado_nombre' => strtoupper($empleado->nombre_completo),
+                'fecha_ingreso' => $empleado->fecha_ingreso,
+                'puesto' => $empleado->puesto ? $empleado->puesto->nombre_puesto : 'N/A',
                 'sueldo_quincenal' => $sueldoQuincenalBruto, 'bono_permanencia' => $bonoPermanencia, 'bono_cumpleanos' => $bonoCumpleanos,
                 'prima_vacacional' => $primaVacacional, 'total_percepciones' => $totalPercepciones, 'deduccion_faltas' => $deduccionFaltas,
                 'deduccion_prestamo' => $deduccionPrestamo, 'deduccion_caja_ahorro' => $deduccionCajaAhorro, 'deduccion_infonavit' => $deduccionInfonavit,
@@ -124,7 +137,7 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
     public function headings(): array
     {
         return [
-            'Empleado', 'Puesto',
+            'Empleado', 'Fecha Ingreso', 'Puesto',
             'R', 'F',
             'Sueldo Quincenal', 'Bono Permanencia', 'Bono Cumpleaños', 'Prima Vacacional',
             'Total Percepciones', 'Ded. Faltas', 'Ded. Préstamo', 'Ded. Caja Ahorro', 'Ded. Infonavit', 'Ded. ISR', 'Ded. IMSS', 'Ded. Otros',
@@ -134,38 +147,47 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
 
     public function map($filaResultado): array
     {
-        $filaActual = $this->rowNumber + 1; 
+        // CORRECCIÓN: Se restaura la lógica original para calcular la fila actual.
+        // La fila actual es el número de fila en la hoja ANTES de que se inserte la fila del título.
+        // Excel ajustará automáticamente las referencias de celda (ej. de F2 a F3) después de la inserción.
+        $filaActual = $this->rowNumber + 1;
         $this->rowNumber++;
-        $rangoPercepciones      = "E{$filaActual}:H{$filaActual}";
-        $colTotalPercepciones   = "I{$filaActual}";
-        $rangoDeducciones       = "J{$filaActual}:P{$filaActual}";
-        $colTotalDeducciones    = "Q{$filaActual}";
+
+        // Las letras de las columnas y los rangos ahora son correctos para la nueva estructura.
+        $rangoPercepciones    = "F{$filaActual}:I{$filaActual}";
+        $colTotalPercepciones   = "J{$filaActual}";
+        $rangoDeducciones       = "K{$filaActual}:Q{$filaActual}";
+        $colTotalDeducciones    = "R{$filaActual}";
 
         return [
             $filaResultado['empleado_nombre'],
+            $filaResultado['fecha_ingreso'] ? Carbon::parse($filaResultado['fecha_ingreso'])->format('d/m/Y') : 'N/A',
             $filaResultado['puesto'],
-            '', '',
-            (float) $filaResultado['sueldo_quincenal'],
-            (float) $filaResultado['bono_permanencia'],
-            (float) $filaResultado['bono_cumpleanos'],
-            (float) $filaResultado['prima_vacacional'],
-            "=SUM({$rangoPercepciones})", 
-            (float) $filaResultado['deduccion_faltas'],
-            (float) $filaResultado['deduccion_prestamo'],
-            (float) $filaResultado['deduccion_caja_ahorro'],
-            (float) $filaResultado['deduccion_infonavit'],
-            (float) $filaResultado['deduccion_isr'],
-            (float) $filaResultado['deduccion_imss'],
-            (float) $filaResultado['deduccion_otro'],
-            "=SUM({$rangoDeducciones})",
-            "={$colTotalPercepciones}-{$colTotalDeducciones}",
+            '', '', // Columnas D y E
+            (float) $filaResultado['sueldo_quincenal'],     // F
+            (float) $filaResultado['bono_permanencia'],     // G
+            (float) $filaResultado['bono_cumpleanos'],      // H
+            (float) $filaResultado['prima_vacacional'],     // I
+            "=SUM({$rangoPercepciones})",                   // J
+            (float) $filaResultado['deduccion_faltas'],     // K
+            (float) $filaResultado['deduccion_prestamo'],   // L
+            (float) $filaResultado['deduccion_caja_ahorro'],// M
+            (float) $filaResultado['deduccion_infonavit'],  // N
+            (float) $filaResultado['deduccion_isr'],        // O
+            (float) $filaResultado['deduccion_imss'],       // P
+            (float) $filaResultado['deduccion_otro'],       // Q
+            "=SUM({$rangoDeducciones})",                    // R
+            "={$colTotalPercepciones}-{$colTotalDeducciones}", // S
         ];
     }
-    
+
     public function columnFormats(): array
     {
         $formatoMonedaConCero = '$ #,##0.00;[Red]-$ #,##0.00;"$ "0.00';
-        return ['E:R' => $formatoMonedaConCero];
+        return [
+            'F:S' => $formatoMonedaConCero, // El rango de formato de moneda es de la F a la S
+            'B' => NumberFormat::FORMAT_DATE_DDMMYYYY // La columna B ahora es la fecha
+        ];
     }
 
     public function registerEvents(): array
@@ -173,48 +195,58 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
         return [
             AfterSheet::class => function(AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
+                
+                // Inserta la fila del título, moviendo todo el contenido una fila hacia abajo.
                 $sheet->insertNewRowBefore(1, 1);
-                $tituloCompleto = 'NÓMINA ' . strtoupper($this->periodoTexto);
+                $tituloCompleto = 'NÓMINA ' . $this->periodoTexto;
                 $sheet->setCellValue('A1', $tituloCompleto);
-                $sheet->mergeCells('A1:R1');
+                
+                $lastColumn = 'S'; // La última columna ahora es la S
+                $sheet->mergeCells('A1:'.$lastColumn.'1');
                 $sheet->getStyle('A1')->applyFromArray([
                     'font' => ['bold' => true, 'size' => 14],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER]
                 ]);
 
-                $sheet->getStyle('A2:R2')->applyFromArray([
+                $sheet->getStyle('A2:'.$lastColumn.'2')->applyFromArray([
                     'font' => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF']],
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF4F81BD']]
                 ]);
-                $sheet->getStyle('J2:Q2')->applyFromArray([
+                
+                // El color rojo para las deducciones ahora va de la K a la R
+                $sheet->getStyle('K2:R2')->applyFromArray([
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFD9534F']]
                 ]);
 
                 if ($this->resultados->count() > 0) {
+                    // Los datos ahora terminan en la fila count + 2 (1 para header, 1 para título)
                     $lastDataRow = $this->resultados->count() + 2;
-                    $sheet->getStyle('A2:R' . $lastDataRow)->applyFromArray([
+                    $sheet->getStyle('A2:'.$lastColumn . $lastDataRow)->applyFromArray([
                         'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
                     ]);
 
                     $totalsRow = $lastDataRow + 2;
                     $sheet->setCellValue("A{$totalsRow}", 'TOTALES:');
-                    
-                    $columnsToSum = ['E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R'];
+
+                    // Las columnas a sumar ahora van de la F a la S
+                    $columnsToSum = ['F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S'];
                     foreach ($columnsToSum as $column) {
+                        // El rango de suma es correcto, desde la fila 3 (primer dato) hasta la última
                         $sheet->setCellValue("{$column}{$totalsRow}", "=SUM({$column}3:{$column}{$lastDataRow})");
                     }
 
-                    $sheet->getStyle("A{$totalsRow}:R{$totalsRow}")->applyFromArray([
+                    $sheet->getStyle("A{$totalsRow}:{$lastColumn}{$totalsRow}")->applyFromArray([
                         'font' => ['bold' => true],
                         'borders' => ['top' => ['borderStyle' => Border::BORDER_THICK]]
                     ]);
-                    $sheet->getStyle("E{$totalsRow}:R{$totalsRow}")->getNumberFormat()
+                    $sheet->getStyle("F{$totalsRow}:{$lastColumn}{$totalsRow}")->getNumberFormat()
                           ->setFormatCode(NumberFormat::FORMAT_CURRENCY_USD_SIMPLE);
-
+                    
+                    // Las letras de las columnas a ocultar también se ajustan
                     $columnsToCheck = [
-                        'F' => 'Bono Permanencia', 'G' => 'Bono Cumpleaños', 'H' => 'Prima Vacacional',
-                        'J' => 'Ded. Faltas', 'K' => 'Ded. Préstamo', 'L' => 'Ded. Caja Ahorro',
-                        'M' => 'Ded. Infonavit', 'N' => 'Ded. ISR', 'O' => 'Ded. IMSS', 'P' => 'Ded. Otros'
+                        'G' => 'Bono Permanencia', 'H' => 'Bono Cumpleaños', 'I' => 'Prima Vacacional',
+                        'K' => 'Ded. Faltas', 'L' => 'Ded. Préstamo', 'M' => 'Ded. Caja Ahorro',
+                        'N' => 'Ded. Infonavit', 'O' => 'Ded. ISR', 'P' => 'Ded. IMSS', 'Q' => 'Ded. Otros'
                     ];
 
                     foreach ($columnsToCheck as $columnLetter => $columnName) {
@@ -227,12 +259,7 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             },
         ];
     }
-    
-    /**
-     * --- NUEVA FUNCIÓN ---
-     * Devuelve el total neto a pagar calculado para esta hoja.
-     * La usaremos para alimentar la hoja de resumen.
-     */
+
     public function getNetoAPagarTotal(): float
     {
         return (float) $this->resultados->sum('neto_a_pagar');

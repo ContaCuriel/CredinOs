@@ -133,7 +133,7 @@ class FiniquitoController extends Controller
     /**
      * Realiza el cálculo inicial desde cero, incluyendo la gratificación.
      */
-    private function obtenerCalculoInicial(Request $request): array
+   private function obtenerCalculoInicial(Request $request): array
     {
         $validator = Validator::make($request->all(), [
             'id_empleado' => 'required|exists:empleados,id_empleado',
@@ -182,8 +182,20 @@ class FiniquitoController extends Controller
             $resultados['vacaciones_monto'] = $diasTotalesAPagar * $salarioDiario;
             $resultados['prima_vacacional_monto'] = $resultados['vacaciones_monto'] * 0.25;
             $resultados['vacaciones_dias_restantes'] = $diasTotalesAPagar;
-            $diasTrabajadosAno = $fechaBaja->dayOfYear;
-            $aguinaldoProporcional = ($salarioDiario * 15 / 365) * $diasTrabajadosAno;
+            
+            // Obtener el inicio del año de la fecha de baja
+            $inicioAnoActual = Carbon::parse($fechaBaja->format('Y-01-01'));
+
+            // Determinar la fecha de inicio para el cálculo del aguinaldo:
+            // Si la fecha de ingreso es posterior al inicio del año actual, se usa la fecha de ingreso.
+            // De lo contrario, se usa el inicio del año actual (1 de enero).
+            $fechaInicioAguinaldo = $fechaIngreso->greaterThan($inicioAnoActual) ? $fechaIngreso : $inicioAnoActual;
+
+            // Calcular los días trabajados desde la fecha de inicio del aguinaldo hasta la fecha de baja
+            // Se suma 1 para incluir el día de la baja.
+            $diasTrabajadosParaAguinaldo = $fechaInicioAguinaldo->diffInDays($fechaBaja) + 1;
+
+            $aguinaldoProporcional = ($salarioDiario * 15 / 365) * $diasTrabajadosParaAguinaldo;
             $resultados['aguinaldo_monto'] = $aguinaldoProporcional;
         }
         

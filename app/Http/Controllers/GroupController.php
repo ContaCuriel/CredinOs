@@ -13,11 +13,15 @@ class GroupController extends Controller
     /**
      * Muestra una lista de todos los grupos.
      */
-    public function index()
+     public function index()
     {
+        // Esta línea busca los grupos y carga la información de su sucursal y asesor
+        // para evitar errores en la vista.
         $groups = Group::with('sucursal', 'asesor')->orderBy('nombre_grupo')->paginate(15);
+        
         return view('groups.index', compact('groups'));
     }
+
 
     /**
      * Muestra el formulario para crear un nuevo grupo.
@@ -121,4 +125,13 @@ class GroupController extends Controller
 
         return redirect()->route('groups.show', $group->id_group)->with('success', 'Miembro eliminado del grupo.');
     }
+
+    public function getMembers(Group $group)
+{
+    // Cargamos la relación 'clientes' que definiste en tu modelo Group
+    $members = $group->clientes()->get();
+
+    // Devolvemos los miembros en formato JSON
+    return response()->json($members);
+}
 }

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\PeriodoVacacional;
+use App\Models\DeduccionEmpleado; // <-- LÍNEA AÑADIDA
 use Carbon\Carbon;
 
 class Empleado extends Model
@@ -82,6 +83,19 @@ class Empleado extends Model
     {
         return $this->belongsTo(Horario::class, 'id_horario', 'id_horario');
     }
+    
+    // ▼▼▼ FUNCIÓN AÑADIDA ▼▼▼
+    /**
+     * Define la relación: Un empleado puede tener muchas deducciones.
+     * Esta relación solo trae las deducciones que tienen el estatus 'Activo'.
+     */
+    public function deduccionesActivas()
+    {
+        return $this->hasMany(DeduccionEmpleado::class, 'id_empleado', 'id_empleado')
+                    ->where('status', 'Activo');
+    }
+    // ▲▲▲ FIN DE LA FUNCIÓN AÑADIDA ▲▲▲
+
 
     public function getVacacionesDetallado(Carbon $fechaCorte): array
     {

@@ -97,7 +97,18 @@
                                     @if($resultados->isNotEmpty())
                                         @foreach($resultados as $resultado)
                                             <tr>
-                                                <td>{{ $resultado['empleado_nombre'] }} <br><small class="text-muted">{{ $resultado['puesto'] }}</small></td>
+                                                {{-- CAMBIO: Nombre en mayúsculas y se añade fecha de ingreso --}}
+                                                <td>
+                                                    {{ strtoupper($resultado['empleado_nombre']) }}
+                                                    <br>
+                                                    <small class="text-muted">
+                                                        {{ $resultado['puesto'] }}
+                                                        {{-- Se asume que 'fecha_ingreso' está disponible en $resultado --}}
+                                                        @if(isset($resultado['fecha_ingreso']))
+                                                            | Ingreso: {{ \Carbon\Carbon::parse($resultado['fecha_ingreso'])->format('d/m/Y') }}
+                                                        @endif
+                                                    </small>
+                                                </td>
                                                 <td class="text-end">$ {{ number_format($resultado['sueldo_quincenal'], 2) }}</td>
                                                 <td class="text-end">$ {{ number_format($resultado['bono_permanencia'], 2) }}</td>
                                                 <td class="text-end">$ {{ number_format($resultado['bono_cumpleanos'], 2) }}</td>
@@ -120,9 +131,6 @@
                                 </tbody>
                             </table>
                         </div>
-
-
-
                     @endif
                 @endif
             </div>

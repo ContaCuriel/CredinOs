@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Empleado;
 use App\Models\Sucursal;
-use App\Models\Patron; // Lo podríamos necesitar si filtramos por patrón del IMSS
+use App\Models\Patron;
 use Carbon\Carbon;
-use Barryvdh\DomPDF\Facade\Pdf; // Para generar PDF
-use Illuminate\Support\Str;     // Para el nombre del archivo
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Validator;
 
 
 class ImssController extends Controller
@@ -24,8 +26,8 @@ class ImssController extends Controller
         $estado_imss_filter = $request->input('estado_imss_filter', 'todos'); // Por defecto muestra 'Alta'
 
         // Iniciar la consulta para Empleados
-       $query = Empleado::query()
-                ->where('status', 'Alta'); // <--- ¡AÑADE ESTE FILTRO IMPORTANTE!
+        $query = Empleado::query()
+                ->where('status', 'Alta');
 
         // Cargar relaciones necesarias para mostrar y filtrar eficientemente
         $query->with(['sucursal', 'puesto', 'patronImss']);
@@ -41,8 +43,6 @@ class ImssController extends Controller
         }
 
         // Filtrar por estado IMSS
-        // Si 'todos', no aplicamos filtro de estado_imss.
-        // Si es 'sin_registro', buscamos null o vacíos (podríamos necesitar ajustar esto según cómo guardes "No Registrado")
         if (!empty($estado_imss_filter) && $estado_imss_filter != 'todos') {
             if ($estado_imss_filter == 'sin_registro') {
                 $query->where(function ($q) {
@@ -52,95 +52,92 @@ class ImssController extends Controller
                 $query->where('estado_imss', $estado_imss_filter);
             }
         } else if (empty($estado_imss_filter) && $estado_imss_filter !== 'todos' && $estado_imss_filter !== 'sin_registro') {
-            // Si no se envía nada y no es 'todos' o 'sin_registro', por defecto mostramos solo los de Alta IMSS si quieres.
-            // O podrías mostrar todos los que tienen un estado_imss (Alta o Baja).
-            // Por ahora, si no es 'todos' o 'sin_registro', asume el valor que viene (o 'Alta' por defecto inicial).
+            // No se aplica filtro adicional si es 'todos' o si no se especificó y no es una de las opciones explícitas
         }
-
 
         // Ordenar y paginar
         $empleados = $query->orderBy('nombre_completo', 'asc')
-                           ->paginate(15)
-                           ->withQueryString(); // Para que la paginación conserve los filtros
+                            ->paginate(15)
+                            ->withQueryString();
 
         // Para los desplegables de los filtros
         $sucursales = Sucursal::orderBy('nombre_sucursal')->get();
-        $estados_imss_disponibles = [ // Podrías obtenerlos de la DB si fueran muchos o dinámicos
+        $estados_imss_disponibles = [
             'Alta' => 'Alta en IMSS',
             'Baja' => 'Baja en IMSS',
             'sin_registro' => 'Sin Registro IMSS',
             'todos' => 'Todos (con y sin IMSS)',
         ];
 
-
-    // =====> OBTENER PATRONES <=====
-    $patrones = Patron::orderBy('razon_social')->get();
-    // ==============================
-
-
-
+        // OBTENER PATRONES
+        $patrones = Patron::orderBy('razon_social')->get();
 
         return view('imss.index', compact(
-        'empleados', 
-        'sucursales', 
-        'estados_imss_disponibles',
-        'patrones', // <-- AÑADIDO
-        'search_nombre', 
-        'id_sucursal_filter', 
-        'estado_imss_filter'
+            'empleados',
+            'sucursales',
+            'estados_imss_disponibles',
+            'patrones',
+            'search_nombre',
+            'id_sucursal_filter',
+            'estado_imss_filter'
         ));
     }
 
-/**
- * Procesa el registro de alta en IMSS para un empleado.
- */
-public function registrarAlta(Request $request, Empleado $empleado)
-    {
-        // 1. Validación de los datos del modal
-        $validatedData = $request->validate([
-            'id_patron_imss' => 'required|exists:patrones,id_patron',
-            'sdi' => 'required|numeric|min:0',
-            'fecha_alta_imss' => 'required|date|before_or_equal:today', 
-            // Para la redirección y mantener filtros
-            'id_sucursal_seleccionada' => 'nullable|exists:sucursales,id_sucursal',
-            'search_nombre' => 'nullable|string|max:255',
-            'estado_imss_filter' => 'nullable|string',
-        ],[
-            'id_patron_imss.required' => 'Debe seleccionar un Patrón para el alta en IMSS.',
-            'sdi.required' => 'El Salario Diario Integrado (SDI) es obligatorio.', // <-- AÑADIDO: Mensaje de error
-            'sdi.numeric' => 'El SDI debe ser un valor numérico.', // <-- AÑADIDO: Mensaje de error
-            'fecha_alta_imss.required' => 'La fecha de alta en IMSS es obligatoria.',
-            'fecha_alta_imss.date' => 'La fecha de alta en IMSS no es válida.',
-            'fecha_alta_imss.before_or_equal' => 'La fecha de alta en IMSS no puede ser una fecha futura.',
-        ]);
+    /**
+     * Procesa el registro de alta en IMSS para un empleado.
+     */
+   public function registrarAlta(Request $request, Empleado $empleado)
+{
+    // Usamos Validator::make() para tener control manual sobre la respuesta
+    $validator = Validator::make($request->all(), [
+        'id_patron_imss' => 'required|exists:patrones,id_patron', // Corregido: el nombre de tu tabla es 'patrones'
+        'sdi' => 'required|numeric|min:0',
+        'fecha_alta_imss' => 'required|date|before_or_equal:today',
+    ], [
+        'id_patron_imss.required' => 'Debes seleccionar un Patrón para el alta en IMSS.',
+        'sdi.required' => 'El Salario Diario Integrado (SDI) es obligatorio.',
+        'sdi.numeric' => 'El SDI debe ser un valor numérico.',
+        'fecha_alta_imss.required' => 'La fecha de alta en IMSS es obligatoria.',
+        'fecha_alta_imss.before_or_equal' => 'La fecha de alta no puede ser futura.',
+    ]);
 
-        // 2. Actualizar los datos del empleado
-        $empleado->estado_imss = 'Alta';
-        $empleado->fecha_alta_imss = $validatedData['fecha_alta_imss'];
-        $empleado->id_patron_imss = $validatedData['id_patron_imss'];
-         $empleado->sdi = $validatedData['sdi'];
-        $empleado->fecha_baja_imss = null; // Limpiar fecha de baja por si existía una previa
-        $empleado->save();
-
-        // 3. Preparamos parámetros para la redirección para mantener los filtros
-        $redirectParams = [];
-        if (!empty($validatedData['id_sucursal_seleccionada'])) {
-            $redirectParams['id_sucursal_seleccionada'] = $validatedData['id_sucursal_seleccionada'];
-        }
-        if (!empty($validatedData['search_nombre'])) {
-            $redirectParams['search_nombre'] = $validatedData['search_nombre'];
-        }
-        if (!empty($validatedData['estado_imss_filter'])) {
-            $redirectParams['estado_imss_filter'] = $validatedData['estado_imss_filter'];
-        }
-
-        return redirect()->route('imss.index', $redirectParams)
-                         ->with('success', '¡Alta en IMSS para ' . $empleado->nombre_completo . ' registrada exitosamente!');
+    // Si la validación falla, devolvemos los errores como JSON
+    if ($validator->fails()) {
+        return response()->json(['errors' => $validator->errors()], 422);
     }
 
+    try {
+        $empleado->update([
+            'id_patron_imss' => $request->id_patron_imss,
+            'fecha_alta_imss' => $request->fecha_alta_imss,
+            'sdi' => $request->sdi,
+            'estado_imss' => 'Alta',
+            'fecha_baja_imss' => null,
+        ]);
 
+        // Preparamos la URL de redirección con los filtros
+        // NOTA: Asegúrate de que los nombres de los filtros coinciden con los que envías desde el formulario
+        $queryParams = $request->only(['search_nombre', 'id_sucursal_filter', 'estado_imss_filter']);
+        $redirectUrl = route('imss.index', array_filter($queryParams)); // array_filter para limpiar valores vacíos
 
-public function registrarBaja(Request $request, Empleado $empleado)
+        // Guardamos el mensaje de éxito en la sesión para que se muestre después de recargar
+        session()->flash('success', '¡Alta en IMSS para ' . $empleado->nombre_completo . ' registrada exitosamente!');
+
+        // Devolvemos una respuesta JSON de éxito con la URL para redirigir
+        return response()->json([
+            'message' => 'Alta registrada con éxito.',
+            'redirect' => $redirectUrl
+        ]);
+
+    } catch (\Exception $e) {
+        Log::error('Error al registrar alta IMSS para empleado ' . $empleado->id_empleado . ': ' . $e->getMessage());
+        
+        // Si hay un error de servidor, devolvemos un JSON de error
+        return response()->json(['message' => 'Ocurrió un error inesperado en el servidor.'], 500);
+    }
+}
+
+    public function registrarBaja(Request $request, Empleado $empleado)
     {
         // 1. Validación de los datos del modal
         $reglasValidacion = [
@@ -167,8 +164,8 @@ public function registrarBaja(Request $request, Empleado $empleado)
 
         // 2. Verificar que el empleado esté actualmente de Alta en IMSS
         if ($empleado->estado_imss !== 'Alta') {
-            return redirect()->route('imss.index', $this->getRedirectParams($request)) // Usamos una función helper para los params
-                             ->with('error', 'El empleado ' . $empleado->nombre_completo . ' no se encuentra actualmente de Alta en IMSS.');
+            return redirect()->route('imss.index', $this->getRedirectParams($request))
+                                ->with('error', 'El empleado ' . $empleado->nombre_completo . ' no se encuentra actualmente de Alta en IMSS.');
         }
 
         // 3. Actualizar los datos del empleado
@@ -179,7 +176,7 @@ public function registrarBaja(Request $request, Empleado $empleado)
 
         // 4. Redirección con Mensaje de Éxito
         return redirect()->route('imss.index', $this->getRedirectParams($request))
-                         ->with('success', '¡Baja de IMSS para ' . $empleado->nombre_completo . ' registrada exitosamente!');
+                            ->with('success', '¡Baja de IMSS para ' . $empleado->nombre_completo . ' registrada exitosamente!');
     }
 
     // Helper para obtener parámetros de redirección (opcional, para no repetir código)
@@ -197,37 +194,34 @@ public function registrarBaja(Request $request, Empleado $empleado)
         }
         return $params;
     }
-/**
- * Genera el PDF del acuse de alta en IMSS para un empleado.
- */
-public function generarAcuseAltaPdf(Empleado $empleado)
-{
-    // Validar que el empleado esté realmente de alta y tenga los datos necesarios
-    if ($empleado->estado_imss != 'Alta' || !$empleado->fecha_alta_imss || !$empleado->id_patron_imss) {
-        // Podríamos redirigir con un error o mostrar una vista de error
-        return redirect()->route('imss.index')->with('error', 'El empleado no tiene un alta en IMSS válida para generar el acuse.');
+
+    /**
+     * Genera el PDF del acuse de alta en IMSS para un empleado.
+     */
+    public function generarAcuseAltaPdf(Empleado $empleado)
+    {
+        // Validar que el empleado esté realmente de alta y tenga los datos necesarios
+        if ($empleado->estado_imss != 'Alta' || !$empleado->fecha_alta_imss || !$empleado->id_patron_imss) {
+            return redirect()->route('imss.index')->with('error', 'El empleado no tiene un alta en IMSS válida para generar el acuse.');
+        }
+
+        // Cargar las relaciones necesarias para el PDF
+        $empleado->load(['puesto', 'sucursal', 'patronImss']);
+
+        $data = [
+            'empleado' => $empleado,
+            'patronImss' => $empleado->patronImss, // El patrón bajo el cual se dio de alta
+        ];
+
+        $nombreEmpleadoFormateado = Str::slug($empleado->nombre_completo, '_');
+        $nombrePdf = 'acuse_alta_imss_' . $nombreEmpleadoFormateado . '_' . $empleado->id_empleado . '.pdf';
+
+        $pdf = Pdf::loadView('imss.pdf.acuse_alta', $data);
+
+        return $pdf->stream($nombrePdf); // Muestra el PDF en el navegador
     }
 
-    // Cargar las relaciones necesarias para el PDF
-    $empleado->load(['puesto', 'sucursal', 'patronImss']);
-
-    $data = [
-        'empleado' => $empleado,
-        'patronImss' => $empleado->patronImss, // El patrón bajo el cual se dio de alta
-    ];
-
-    $nombreEmpleadoFormateado = Str::slug($empleado->nombre_completo, '_');
-    $nombrePdf = 'acuse_alta_imss_' . $nombreEmpleadoFormateado . '_' . $empleado->id_empleado . '.pdf';
-
-    // Crear la vista PDF (la crearemos en el siguiente paso)
-    // Asumimos que la vista se llamará 'imss.pdf.acuse_alta'
-    $pdf = Pdf::loadView('imss.pdf.acuse_alta', $data);
-
-    return $pdf->stream($nombrePdf); // Muestra el PDF en el navegador
-    // return $pdf->download($nombrePdf); // Para descargar directamente
-}
-
- public function generarCartaPatronal(Empleado $empleado)
+    public function generarCartaPatronal(Empleado $empleado)
     {
         // 1. Validar que el empleado esté de alta en IMSS y tenga un patrón asignado
         if ($empleado->estado_imss !== 'Alta' || !$empleado->id_patron_imss) {
@@ -238,13 +232,29 @@ public function generarAcuseAltaPdf(Empleado $empleado)
         $empleado->load(['puesto', 'sucursal', 'patronImss', 'horario']);
         $patron = $empleado->patronImss;
 
-        // 3. Calcular el SDI a partir del salario del puesto
+        // 3. Calcular el SDI a partir del salario del puesto (se mantiene descomentado como lo pediste)
         $sdiCalculado = 0; // Valor por defecto si no hay puesto o salario
         if ($empleado->puesto && $empleado->puesto->salario_mensual) {
             $sdiCalculado = $empleado->puesto->salario_mensual / 30;
         }
 
-        // 4. Construir el texto del horario según tus reglas
+        // 4. Obtener y codificar el logo en Base64
+        $logo_base64 = null;
+        if ($patron && $patron->logo_path) {
+            // ***** ESTA ES LA LÍNEA CLAVE PARA TU CONFIGURACIÓN *****
+            // Asume que $patron->logo_path contiene 'patron_logos/nombre_archivo.png'
+            // y que 'public/storage' es un symlink a 'storage/app/public'.
+            $logoPath = public_path('storage/' . $patron->logo_path); 
+            // *******************************************************
+
+            if (File::exists($logoPath)) {
+                $type = pathinfo($logoPath, PATHINFO_EXTENSION);
+                $data = File::get($logoPath);
+                $logo_base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+            }
+        }
+
+        // 5. Construir el texto del horario según tus reglas
         $horarioTexto = 'No especificado';
         if ($empleado->horario) {
             $h = $empleado->horario;
@@ -256,22 +266,22 @@ public function generarAcuseAltaPdf(Empleado $empleado)
             $horarioTexto = "Lunes a Viernes de {$entradaLV} a {$salidaLV} hrs., Sábados de {$entradaS} a {$salidaS} hrs.";
         }
         
-        // 5. Preparar los datos para la vista
+        // 6. Preparar los datos para la vista
         $data = [
             'empleado' => $empleado,
             'patron' => $patron,
             'horarioTexto' => $horarioTexto,
+            'logo_base64' => $logo_base64, // Aseguramos que esta variable se pase
+            'sdiCalculado' => $sdiCalculado, // Incluido como lo solicitaste, aunque la carta usa $empleado->sdi directamente.
         ];
 
-        // 6. Generar el nombre del archivo
+        // 7. Generar el nombre del archivo
         $nombreEmpleadoFormateado = Str::slug($empleado->nombre_completo, '_');
         $nombrePdf = 'carta_patronal_' . $nombreEmpleadoFormateado . '.pdf';
 
-        // 7. Cargar la vista y generar el PDF
+        // 8. Cargar la vista y generar el PDF
         $pdf = Pdf::loadView('pdf_templates.carta_patronal', $data);
 
         return $pdf->stream($nombrePdf);
     }
-
-    // Aquí irán los métodos para registrar alta, baja, generar acuse, etc.
 }

@@ -88,6 +88,29 @@
                 </a>
             </li>
         </ul>
+@can('ver-menu-creditos')
+<h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+    <span>CRÉDITOS Y COBRANZA</span>
+</h6>
+<ul class="nav flex-column mb-2">
+    @can('ver-clientes')
+        <li class="nav-item"><a class="nav-link {{ request()->routeIs('clientes.*') ? 'active' : '' }}" href="{{ route('clientes.index') }}"><i class="bi bi-person-badge"></i> Clientes</a></li>
+    @endcan
+    @can('ver-grupos')
+        <li class="nav-item"><a class="nav-link {{ request()->routeIs('grupos.*') ? 'active' : '' }}" href="{{ route('grupos.index') }}"><i class="bi bi-people-fill"></i> Grupos Solidarios</a></li>
+    @endcan
+
+    {{-- CORRECCIÓN AQUÍ: 'registrar credito' -> 'registrar-credito' --}}
+    @can('registrar-credito')
+        <li class="nav-item"><a class="nav-link {{ request()->routeIs('creditos.create') ? 'active' : '' }}" href="{{ route('creditos.create') }}"><i class="bi bi-plus-circle"></i> Registrar Crédito</a></li>
+    @endcan
+
+    {{-- CORRECCIÓN AQUÍ: 'ver creditos' -> 'ver-creditos' --}}
+    @can('ver-creditos')
+        <li class="nav-item"><a class="nav-link {{ request()->routeIs(['creditos.index', 'creditos.show']) ? 'active' : '' }}" href="{{ route('creditos.index') }}"><i class="bi bi-card-list"></i> Lista de Créditos</a></li>
+    @endcan
+</ul>
+@endcan
 
         @can('ver-menu-rh')
         <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
@@ -96,6 +119,13 @@
         <ul class="nav flex-column mb-2">
             @can('ver-empleados')<li class="nav-item"><a class="nav-link {{ request()->routeIs('empleados.*') ? 'active' : '' }}" href="{{ route('empleados.index') }}"><i class="bi bi-people"></i> Empleados</a></li>@endcan
             @can('ver-contratos')<li class="nav-item"><a class="nav-link {{ request()->routeIs('contratos.*') ? 'active' : '' }}" href="{{ route('contratos.index') }}"><i class="bi bi-file-earmark-text"></i> Contratos</a></li>@endcan
+            @can('ver-aguinaldo')
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('aguinaldo.*') ? 'active' : '' }}" href="{{ route('aguinaldo.index') }}">
+                    <i class="bi bi-gift-fill"></i> Cálculo de Aguinaldo
+                </a>
+            </li>
+        @endcan
             @can('ver-asistencias')<li class="nav-item"><a class="nav-link {{ request()->routeIs('asistencia.*') ? 'active' : '' }}" href="{{ route('asistencia.index') }}"><i class="bi bi-calendar-check"></i> Asistencias</a></li>@endcan
             @can('ver-vacaciones')<li class="nav-item"><a class="nav-link {{ request()->routeIs('vacaciones.*') ? 'active' : '' }}" href="{{ route('vacaciones.index') }}"><i class="bi bi-briefcase-fill"></i> Vacaciones</a></li>@endcan
             @can('ver-deducciones')<li class="nav-item"><a class="nav-link {{ request()->routeIs('deducciones.*') ? 'active' : '' }}" href="{{ route('deducciones.index') }}"><i class="bi bi-wallet2"></i> Deducciones</a></li>@endcan
@@ -109,13 +139,7 @@
     <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted"><span>CONTABILIDAD</span></h6>
     <ul class="nav flex-column mb-2">
 
-        @can('ver-aguinaldo')
-            <li class="nav-item">
-                <a class="nav-link {{ request()->routeIs('aguinaldo.*') ? 'active' : '' }}" href="{{ route('aguinaldo.index') }}">
-                    <i class="bi bi-gift-fill"></i> Cálculo de Aguinaldo
-                </a>
-            </li>
-        @endcan
+        
 
            @can('ver-colocaciones')
     <li class="nav-item">

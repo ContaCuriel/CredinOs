@@ -48,6 +48,11 @@ class Cliente extends Model
     return $this->belongsToMany(Group::class, 'client_group', 'client_id', 'group_id');
 }
 
+public function creditos()
+{
+    return $this->morphMany(Credito::class, 'loanable');
+}
+
 
 
 }
