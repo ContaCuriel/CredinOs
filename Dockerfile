@@ -40,5 +40,10 @@ RUN php artisan config:cache
 RUN chown -R www-data:www-data storage bootstrap/cache
 RUN chmod -R 775 storage bootstrap/cache
 
-# Comando para iniciar el servidor
-CMD sh -c "php-fpm & nginx -g 'daemon off;'"
+# --- NUEVOS COMANDOS ---
+# Copia el script de inicio y dale permisos de ejecución
+COPY docker/start.sh /usr/local/bin/start.sh
+RUN chmod +x /usr/local/bin/start.sh
+
+# Ejecuta el script de inicio
+CMD ["/usr/local/bin/start.sh"]
