@@ -16,6 +16,8 @@ RUN composer install \
 # Stage 2: Preparar la aplicación final
 FROM php:8.3-fpm-alpine as app
 
+WORKDIR /var/www/html
+
 # Instalar las librerías de desarrollo de PostgreSQL y luego las extensiones de PHP
 RUN apk add --no-cache postgresql-dev && docker-php-ext-install pdo pdo_pgsql
 
@@ -23,16 +25,16 @@ RUN apk add --no-cache postgresql-dev && docker-php-ext-install pdo pdo_pgsql
 COPY . .
 COPY --from=vendor /app/vendor/ vendor/
 
-# --- ¡LA LÍNEA MÁGICA ESTÁ AQUÍ! ---
 # Copia el .env de producción para que el archivo exista
 COPY .env.production .env
 
 # Generar el caché de configuración de Laravel
 RUN php artisan config:cache
 
-# Configurar permisos para Laravel
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
-RUN chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+# --- AJUSTE DE PERMISOS CLAVE ---
+# Asegura que el usuario del servidor web sea el propietario y tenga permisos de escritura
+RUN chown -R www-data:www-data storage bootstrap/cache
+RUN chmod -R 775 storage bootstrap/cache
 
 # Exponer el puerto para el servidor web
 EXPOSE 9000
