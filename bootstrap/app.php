@@ -11,7 +11,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        //
+        // --- AÑADE ESTA LÍNEA AQUÍ ---
+        // Usamos prepend para que se ejecute antes que cualquier otro middleware.
+        $middleware->prepend(\App\Http\Middleware\IdentifyTenant::class);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
