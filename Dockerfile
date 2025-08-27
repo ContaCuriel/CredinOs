@@ -16,8 +16,9 @@ RUN composer install \
 # Stage 2: Preparar la aplicación final
 FROM php:8.3-fpm-alpine as app
 
-# Instalar extensiones de PHP necesarias para Laravel
-RUN docker-php-ext-install pdo pdo_pgsql
+# --- LA LÍNEA NUEVA Y CORREGIDA ESTÁ AQUÍ ---
+# Instalar las librerías de desarrollo de PostgreSQL y luego las extensiones de PHP
+RUN apk add --no-cache postgresql-dev && docker-php-ext-install pdo pdo_pgsql
 
 # Copiar archivos de la aplicación y dependencias
 COPY . .
