@@ -62,7 +62,7 @@
 <body>
     @php
         setlocale(LC_TIME, 'es_ES.UTF-8', 'Spanish_Spain.1252');
-        $fechaActual = \Carbon\Carbon::now()->translatedFormat('d \d\e F \d\e\l Y');
+        $fechaActual = \Carbon\Carbon::now()->translatedFormat('d \d\e F \d\e Y');
     @endphp
 
     <header>
@@ -80,14 +80,13 @@
             DIRECCION: {{ $patron->direccion_fiscal ?? 'DIRECCIÓN FISCAL NO ESPECIFICADA' }}
             <br>
         </p>
-        {{-- ¡La línea horizontal se ELIMINA de aquí! --}}
     </header>
 
     <main>
-        {{-- ¡Y se AÑADE aquí, justo antes del párrafo de fecha! --}}
         <hr> 
         <p style="text-align: right;">
-            <span class="bold">Lugar y Fecha de expedición:</span> {{ $patron->direccion_fiscal ?? 'DIRECCIÓN FISCAL NO ESPECIFICADA' }}, a {{ $fechaActual }}.
+            {{-- CORREGIDO: Se usa la dirección de la sucursal del empleado (Municipio y Estado) --}}
+            <span class="bold">Lugar y Fecha de expedición:</span> {{ $empleado->sucursal->municipio ?? 'MUNICIPIO' }}, {{ $empleado->sucursal->estado ?? 'ESTADO' }}, a {{ $fechaActual }}.
         </p>
 
         <p class="bold" style="margin-top: 3em; margin-bottom: 3em;">
@@ -95,7 +94,8 @@
         </p>
 
         <p>
-            Por medio de la presente se <span class="bold">HACE CONSTAR</span> que el (la) C. <span class="bold">{{ $empleado->nombre_completo ?? 'EMPLEADO NO ESPECIFICADO' }}</span>, con Número de Seguridad Social <span class="bold">{{ $empleado->nss ?? 'NSS NO ESPECIFICADO' }}</span> y R.F.C. <span class="bold">{{ $empleado->rfc ?? 'RFC NO ESPECIFICADO' }}</span>, ingresó a laborar en esta empresa desde el <span class="bold">{{ isset($empleado->fecha_alta_imss) ? \Carbon\Carbon::parse($empleado->fecha_alta_imss)->translatedFormat('d \d\e F \d\e\l Y') : 'FECHA NO ESPECIFICADA' }}</span> desempeñando el puesto de <span class="bold">{{ $empleado->puesto->nombre_puesto ?? 'PUESTO NO ESPECIFICADO' }}</span>, en la sucursal <span class="bold">{{ $empleado->sucursal->nombre_sucursal ?? 'SUCURSAL NO ESPECIFICADA' }}</span>, ubicada en <span class="bold">{{ $empleado->sucursal->direccion_sucursal ?? 'DIRECCIÓN DE SUCURSAL NO ESPECIFICADA' }}</span>
+            {{-- CORREGIDO: Se usa la dirección detallada de la sucursal --}}
+            Por medio de la presente se <span class="bold">HACE CONSTAR</span> que el (la) C. <span class="bold">{{ $empleado->nombre_completo ?? 'EMPLEADO NO ESPECIFICADO' }}</span>, con Número de Seguridad Social <span class="bold">{{ $empleado->nss ?? 'NSS NO ESPECIFICADO' }}</span> y R.F.C. <span class="bold">{{ $empleado->rfc ?? 'RFC NO ESPECIFICADO' }}</span>, ingresó a laborar en esta empresa desde el <span class="bold">{{ isset($empleado->fecha_alta_imss) ? \Carbon\Carbon::parse($empleado->fecha_alta_imss)->translatedFormat('d \d\e F \d\e\l Y') : 'FECHA NO ESPECIFICADA' }}</span> desempeñando el puesto de <span class="bold">{{ $empleado->puesto->nombre_puesto ?? 'PUESTO NO ESPECIFICADO' }}</span>, en la sucursal <span class="bold">{{ $empleado->sucursal->nombre_sucursal ?? 'SUCURSAL NO ESPECIFICADA' }}</span>, ubicada en <span class="bold">{{ $empleado->sucursal->calle ?? '' }} {{ $empleado->sucursal->numero ?? '' }}, Col. {{ $empleado->sucursal->colonia ?? '' }}, {{ $empleado->sucursal->municipio ?? '' }}, {{ $empleado->sucursal->estado ?? '' }}</span>.
         </p>
 
         <p>

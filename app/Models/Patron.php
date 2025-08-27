@@ -28,4 +28,12 @@ class Patron extends Model
     {
         return $this->hasMany(Contrato::class, 'patron_id', 'id_patron');
     }
+
+    public function empleados()
+    {
+        // El primer argumento es el modelo relacionado.
+        // El segundo es la clave foránea en la tabla 'empleados' (id_patron_imss).
+        // El tercero es la clave local en la tabla 'patrones' (id_patron).
+        return $this->hasMany(Empleado::class, 'id_patron_imss', 'id_patron');
+    }
 }

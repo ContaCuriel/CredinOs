@@ -15,10 +15,9 @@
                     </div>
                 @endif
 
-                {{-- Formulario de Filtros (se queda como está) --}}
+                {{-- Formulario de Filtros --}}
                 <form method="GET" action="{{ route('deducciones.index') }}" class="mb-4">
                     <div class="row align-items-end g-2">
-                        {{-- ... tu formulario de filtros completo se queda aquí ... --}}
                         <div class="col-md-3">
                             <label for="search_nombre" class="form-label mb-1">Buscar por Empleado:</label>
                             <input type="text" name="search_nombre" id="search_nombre" class="form-control form-control-sm" value="{{ request('search_nombre') }}" placeholder="Nombre del empleado...">
@@ -57,6 +56,12 @@
                 </form>
                 {{-- Fin Filtros --}}
 
+                <div class="d-flex justify-content-end mb-3">
+                    <a href="{{ route('deducciones.exportar', request()->query()) }}" class="btn btn-outline-success">
+                        <i class="bi bi-file-earmark-excel"></i> Exportar a Excel
+                    </a>
+                </div>
+
                 <div class="table-responsive">
                     <table class="table table-striped table-hover table-sm">
                         <thead class="table-light">
@@ -64,8 +69,11 @@
                                 <th>Empleado</th>
                                 <th>Tipo de Deducción</th>
                                 <th class="text-center">Fecha Inicio</th>
+                                {{-- === INICIO NUEVAS COLUMNAS === --}}
+                                <th class="text-center">Plazo / Pagadas</th>
+                                <th class="text-center">Último Descuento</th>
+                                {{-- === FIN NUEVAS COLUMNAS === --}}
                                 <th class="text-end">Monto Quincenal</th>
-                                {{-- =====> COLUMNA ACTUALIZADA <===== --}}
                                 <th class="text-end">Monto Acumulado / Saldo Pendiente</th>
                                 <th class="text-center">Status</th>
                                 <th>Acciones</th>
@@ -77,8 +85,28 @@
                                     <td>{{ $deduccion->empleado ? $deduccion->empleado->nombre_completo : 'Empleado no encontrado' }}</td>
                                     <td>{{ $deduccion->tipo_deduccion }}</td>
                                     <td class="text-center">{{ $deduccion->fecha_solicitud->format('d/m/Y') }}</td>
+                                    
+                                    {{-- === INICIO NUEVAS CELDAS === --}}
+                                    <td class="text-center">
+    @if ($deduccion->tipo_deduccion == 'Préstamo')
+        <span title="Plazo Total / Quincenas Pagadas">
+            {{-- La línea correcta es esta: --}}
+            {{ $deduccion->plazo_quincenas ?? 'N/A' }} / {{ $deduccion->quincenas_pagadas ?? 0 }}
+        </span>
+    @else
+        <span class="text-muted">N/A</span>
+    @endif
+</td>
+                                    <td class="text-center">
+                                        @if($deduccion->fecha_ultimo_descuento)
+                                            {{ \Carbon\Carbon::parse($deduccion->fecha_ultimo_descuento)->format('d/m/Y') }}
+                                        @else
+                                            <span class="text-muted">N/A</span>
+                                        @endif
+                                    </td>
+                                    {{-- === FIN NUEVAS CELDAS === --}}
+
                                     <td class="text-end">$ {{ number_format($deduccion->monto_quincenal, 2) }}</td>
-                                    {{-- =====> CELDA ACTUALIZADA <===== --}}
                                     <td class="text-end fw-bold">
                                         @if ($deduccion->tipo_deduccion == 'Préstamo')
                                             <span class="text-danger" title="Saldo Pendiente">$ {{ number_format($deduccion->saldo_pendiente, 2) }}</span>
@@ -99,7 +127,6 @@
                                     </td>
                                     <td>
                                         <a href="{{ route('deducciones.edit', $deduccion->id) }}" class="btn btn-sm btn-info" title="Editar Deducción"><i class="bi bi-pencil-square"></i></a>
-                                          {{-- =====> ACTIVAR FORMULARIO PARA ELIMINAR <===== --}}
                                         <form action="{{ route('deducciones.destroy', $deduccion->id) }}" method="POST" style="display:inline;">
                                             @csrf
                                             @method('DELETE')
@@ -107,12 +134,12 @@
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         </form>
-                                        {{-- ============================================= --}}
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8" class="text-center">No hay deducciones que coincidan con los filtros.</td>
+                                    {{-- Ajustamos el colspan para que coincida con el nuevo número de columnas (10) --}}
+                                    <td colspan="10" class="text-center">No hay deducciones que coincidan con los filtros.</td>
                                 </tr>
                             @endforelse
                         </tbody>

@@ -11,21 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('interest_rates', function (Blueprint $table) {
-            $table->id();
-            $table->string('name', 150)->unique();
-            $table->text('description')->nullable();
-
-            // Tasa de interés (anual, sin IVA)
-            // Se guardará como porcentaje, ej: 90.5 para 90.5%
-            $table->decimal('rate', 8, 4); 
-
-            // Define si la tasa es para el interés normal o el moratorio
-            $table->enum('type', ['normal', 'late_fee'])->default('normal');
-
-            $table->boolean('is_active')->default(true);
-            $table->timestamps();
-        });
+        // Verificamos si la tabla NO existe antes de intentar crearla
+        if (!Schema::hasTable('interest_rates')) {
+            Schema::create('interest_rates', function (Blueprint $table) {
+                $table->id();
+                $table->string('name', 150);
+                $table->text('description')->nullable();
+                $table->decimal('rate', 8, 4);
+                $table->enum('type', ['normal', 'late_fee'])->default('normal');
+                $table->boolean('is_active')->default(true);
+                $table->timestamps();
+            });
+        }
     }
 
     /**
@@ -33,6 +30,7 @@ return new class extends Migration
      */
     public function down(): void
     {
+        // La lógica de 'down' es simplemente borrar la tabla si existe.
         Schema::dropIfExists('interest_rates');
     }
 };

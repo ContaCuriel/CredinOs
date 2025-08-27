@@ -10,13 +10,17 @@ class SucursalController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+   public function index(Request $request)
     {
-        // Obtenemos todas las sucursales, ordenadas por nombre
-        // y usamos paginación por si tienes muchas
-        $sucursales = Sucursal::orderBy('nombre_sucursal', 'asc')->paginate(10); // Muestra 10 por página
+        // Por defecto, solo mostramos las sucursales activas
+        $query = Sucursal::query()->where('status', 'Activa');
 
-        // Pasamos la colección de sucursales a la vista
+        // (Opcional) Puedes añadir un filtro en el futuro para ver las inactivas
+        // if ($request->input('status_filter') === 'inactivas') {
+        //     $query->where('status', 'Inactiva');
+        // }
+
+        $sucursales = $query->orderBy('nombre_sucursal', 'asc')->paginate(10);
         return view('sucursales.index', compact('sucursales'));
     }
 
@@ -33,65 +37,56 @@ class SucursalController extends Controller
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
-{
-    // 1. Validación de los datos del formulario
-    $validatedData = $request->validate([
-        'nombre_sucursal' => 'required|string|max:255|unique:sucursales,nombre_sucursal',
-        'direccion_sucursal' => 'nullable|string|max:500',
-        // 'telefono_sucursal' => 'nullable|string|max:20', // Eliminada validación
-        // 'gerente_sucursal' => 'nullable|string|max:255', // Eliminada validación
-    ],[
-        'nombre_sucursal.required' => 'El nombre de la sucursal es obligatorio.',
-        'nombre_sucursal.unique' => 'Este nombre de sucursal ya existe.',
-    ]);
+    {
+        $validatedData = $request->validate([
+            'nombre_sucursal' => 'required|string|max:255|unique:sucursales,nombre_sucursal',
+            'calle' => 'required|string|max:255',
+            'numero' => 'required|string|max:50',
+            'colonia' => 'required|string|max:255',
+            'municipio' => 'required|string|max:255',
+            'estado' => 'required|string|max:255',
+        ]);
+        Sucursal::create($validatedData);
+        return redirect()->route('sucursales.index')->with('success', '¡Sucursal registrada exitosamente!');
+    }
 
-    // 2. Creación de la Sucursal
-    Sucursal::create($validatedData);
-
-    // 3. Redirección con Mensaje de Éxito
-    return redirect()->route('sucursales.index')
-                     ->with('success', '¡Sucursal registrada exitosamente!');
-}
 
     /**
      * Display the specified resource.
      */
-    public function show(Sucursal $sucursal)
+    public function show(Sucursal $sucursale) // <-- CORREGIDO: $sucursal -> $sucursale
     {
-        //
+        return view('sucursales.show', compact('sucursale'));
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Sucursal $sucursal)
-{
-    // Para depurar, puedes añadir esto temporalmente:
-    // dd($sucursal); // Esto detendrá la ejecución y te mostrará el contenido de $sucursal.
-    // Asegúrate de que $sucursal sea un objeto del modelo Sucursal y tenga un id_sucursal.
-    // Si ves esto, borra o comenta el dd($sucursal) para continuar.
-
-    return view('sucursales.edit', compact('sucursal'));
-}
+     public function edit(Sucursal $sucursale) // <-- CORREGIDO: $sucursal -> $sucursale
+    {
+        // Ahora la variable $sucursale tendrá el modelo correcto
+        return view('sucursales.edit', compact('sucursale'));
+    }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Sucursal $sucursal)
-{
-    $validatedData = $request->validate([
-        'nombre_sucursal' => 'required|string|max:255|unique:sucursales,nombre_sucursal,' . $sucursal->id_sucursal . ',id_sucursal',
-        'direccion_sucursal' => 'nullable|string|max:500',
-    ],[
-        'nombre_sucursal.required' => 'El nombre de la sucursal es obligatorio.',
-        'nombre_sucursal.unique' => 'Este nombre de sucursal ya existe.',
-    ]);
+     public function update(Request $request, Sucursal $sucursale) // <-- CORREGIDO: $sucursal -> $sucursale
+    {
+        $validatedData = $request->validate([
+            'nombre_sucursal' => 'required|string|max:255|unique:sucursales,nombre_sucursal,' . $sucursale->id_sucursal . ',id_sucursal',
+            'calle' => 'required|string|max:255',
+            'numero' => 'required|string|max:50',
+            'colonia' => 'required|string|max:255',
+            'municipio' => 'required|string|max:255',
+            'estado' => 'required|string|max:255',
+        ]);
 
-    $sucursal->update($validatedData);
+        $sucursale->update($validatedData);
 
-    return redirect()->route('sucursales.index')
-                     ->with('success', '¡Sucursal "' . $sucursal->nombre_sucursal . '" actualizada exitosamente!');
-}
+        return redirect()->route('sucursales.index')
+                         ->with('success', '¡Sucursal "' . $sucursale->nombre_sucursal . '" actualizada exitosamente!');
+    }
 
     /**
      * Remove the specified resource from storage.
@@ -99,37 +94,28 @@ class SucursalController extends Controller
 /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Sucursal $sucursal)
+    public function destroy(Sucursal $sucursale)
     {
-        try {
-            $nombreSucursalEliminada = $sucursal->nombre_sucursal;
-            $fueEliminada = $sucursal->delete(); // Intentamos eliminar
+        // Lógica de negocio: Verificamos si aún tiene empleados ACTIVOS
+        $empleadosActivos = $sucursale->empleados()->where('status', 'Alta')->count();
 
-            if ($fueEliminada) {
-                return redirect()->route('sucursales.index')
-                                 ->with('success', '¡Sucursal "' . $nombreSucursalEliminada . '" eliminada exitosamente!');
-            } else {
-                // Si $fueEliminada es false, la eliminación fue prevenida silenciosamente
-                return redirect()->route('sucursales.index')
-                                 ->with('error', 'La sucursal no pudo ser eliminada. Verifique que no tenga empleados asignados o que no haya otra restricción interna.');
-            }
-
-        } catch (\Illuminate\Database\QueryException $e) {
-            // Manejo de errores de base de datos (ej: restricciones de llave foránea)
-            $errorCode = $e->errorInfo[1] ?? null; // Usar null coalescing para evitar error si errorInfo no está completo
-            if ($errorCode == 1451) { // Error específico de restricción de llave foránea
-                return redirect()->route('sucursales.index')
-                                 ->with('error', 'No se pudo eliminar la sucursal. Asegúrate de que no tenga empleados u otros registros asociados activos.');
-            }
-            // Para otros errores de base de datos
-            \Log::error("Error al eliminar sucursal: " . $e->getMessage()); // Guardar el error en logs
+        if ($empleadosActivos > 0) {
             return redirect()->route('sucursales.index')
-                             ->with('error', 'Error de base de datos al intentar eliminar la sucursal. Consulte los logs para más detalles.');
-        } catch (\Exception $e) {
-            // Otro tipo de error inesperado
-            \Log::error("Error inesperado al eliminar sucursal: " . $e->getMessage()); // Guardar el error en logs
-            return redirect()->route('sucursales.index')
-                             ->with('error', 'Ocurrió un error inesperado al intentar eliminar la sucursal. Consulte los logs para más detalles.');
+                             ->with('error', 'No se puede desactivar la sucursal "' . $sucursale->nombre_sucursal . '" porque aún tiene empleados activos.');
         }
+
+        // Cambiamos el estado en lugar de eliminar
+        $sucursale->update(['status' => 'Inactiva']);
+
+        return redirect()->route('sucursales.index')
+                         ->with('success', '¡Sucursal "' . $sucursale->nombre_sucursal . '" desactivada exitosamente!');
+    }
+
+     public function reactivar(Sucursal $sucursale)
+    {
+        $sucursale->update(['status' => 'Activa']);
+
+        return redirect()->route('sucursales.index')
+                         ->with('success', '¡Sucursal "' . $sucursale->nombre_sucursal . '" reactivada exitosamente!');
     }
 }

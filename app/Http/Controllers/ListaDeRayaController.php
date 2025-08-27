@@ -20,9 +20,11 @@ class ListaDeRayaController extends Controller
      */
     public function index(Request $request)
     {
-        // ... (código para obtener $opcionesPeriodo y $sucursales, se queda igual)
         $opcionesPeriodo = $this->getOpcionesPeriodo();
-        $sucursales = Sucursal::orderBy('nombre_sucursal')->get();
+        
+        // CORREGIDO: Obtenemos solo las sucursales con estado 'Activa'
+        $sucursales = Sucursal::where('status', 'Activa')->orderBy('nombre_sucursal')->get();
+        
         $resultados = collect();
         $sucursalSeleccionada = null;
 
@@ -48,6 +50,7 @@ class ListaDeRayaController extends Controller
             'sucursalSeleccionada'
         ));
     }
+
 
     /**
      * Genera y descarga un reporte de la lista de raya en formato Excel.

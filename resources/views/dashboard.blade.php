@@ -11,9 +11,20 @@
                 <h1 class="h2">Dashboard</h1>
             </div>
 
+            {{-- ===== NUEVA SECCIÓN DE SALUDO PERSONALIZADO ===== --}}
+            <div class="mb-4">
+                <h3 class="fw-normal">{{ $saludo ?? 'Bienvenido(a)' }}, {{ $nombreUsuario ?? 'Usuario' }}!</h3>
+                @if(isset($mensajeEspecial))
+                    <div class="alert alert-info" role="alert">
+                        <i class="bi bi-stars"></i> {{ $mensajeEspecial }}
+                    </div>
+                @endif
+            </div>
+            {{-- ================================================= --}}
+
             <div class="row" data-masonry='{"percentPosition": true }'>
                 
-                {{-- Tarjeta Contratos por Vencer --}}
+                @can('ver-widget-contratos-vencer')
                 <div class="col-md-6 col-lg-4 mb-4">
                     <div class="card">
                         <div class="card-header"><i class="bi bi-calendar-x"></i> Contratos por Vencer (Próx. 15 días)</div>
@@ -38,13 +49,15 @@
                         </div>
                     </div>
                 </div>
+                @endcan
 
-                {{-- Tarjeta Cumpleaños del Mes --}}
+                {{-- ... (El resto de tus widgets con sus permisos @can se mantienen exactamente igual) ... --}}
+                @can('ver-widget-cumpleanos')
                 <div class="col-md-6 col-lg-4 mb-4">
                     <div class="card">
                         <div class="card-header"><i class="bi bi-cake2"></i> Cumpleaños del Mes ({{ ucfirst(\Carbon\Carbon::now()->translatedFormat('F')) }})</div>
                         <div class="card-body">
-                            @if($cumpleanerosDelMes->isNotEmpty())
+                            @if(isset($cumpleanerosDelMes) && $cumpleanerosDelMes->isNotEmpty())
                                 <ul class="list-group list-group-flush">
                                     @foreach ($cumpleanerosDelMes as $empleado)
                                         <li class="list-group-item">
@@ -59,19 +72,18 @@
                         </div>
                     </div>
                 </div>
+                @endcan
 
-                {{-- Tarjeta Aniversarios Laborales del Mes (CON CORRECCIÓN) --}}
+                @can('ver-widget-aniversarios')
                 <div class="col-md-6 col-lg-4 mb-4">
                     <div class="card">
                         <div class="card-header"><i class="bi bi-award"></i> Aniversarios Laborales del Mes ({{ ucfirst(\Carbon\Carbon::now()->translatedFormat('F')) }})</div>
                         <div class="card-body">
-                            @if($aniversariosDelMes->isNotEmpty())
+                            @if(isset($aniversariosDelMes) && $aniversariosDelMes->isNotEmpty())
                                 <ul class="list-group list-group-flush">
                                     @foreach ($aniversariosDelMes as $empleado)
                                         @php
                                             $fechaIngreso = \Carbon\Carbon::parse($empleado->fecha_ingreso);
-                                            // CÁLCULO MEJORADO Y MÁS PRECISO:
-                                            // Usa diffInYears() para obtener los años completos transcurridos.
                                             $anosCelebrando = intval($fechaIngreso->diffInYears(now()));    
                                         @endphp
                                         <li class="list-group-item">
@@ -88,8 +100,9 @@
                         </div>
                     </div>
                 </div>
+                @endcan
 
-                {{-- Tarjeta Accesos Rápidos --}}
+                @can('ver-widget-accesos-rapidos')
                 <div class="col-md-6 col-lg-4 mb-4">
                     <div class="card">
                         <div class="card-header"><i class="bi bi-lightning-charge"></i> Accesos Rápidos</div>
@@ -99,8 +112,9 @@
                         </div>
                     </div>
                 </div>
+                @endcan
 
-                {{-- Nuevo Widget: Estado de Empleados en IMSS por Patrón --}}
+                @can('ver-widget-imss')
                 <div class="col-md-6 col-lg-4 mb-4">
                     <div class="card">
                         <div class="card-header p-3 pt-2">
@@ -124,7 +138,7 @@
                                             <span class="badge bg-primary rounded-pill">{{ $item['conteo_imss_alta'] }}</span>
                                         </li>
                                     @endforeach
-                                  </ul>
+                                    </ul>
                             @else
                                 <p class="text-sm text-muted mb-0">No hay patrones con empleados actualmente de alta en IMSS.</p>
                             @endif
@@ -137,47 +151,74 @@
                         </div>
                     </div>
                 </div>
+                @endcan
 
-                @can('aprobar-gastos') {{-- El widget completo solo se muestra si tienes el permiso --}}
-<div class="col-md-6 col-lg-4 mb-4">
-    <div class="card h-100">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <span><i class="bi bi-hourglass-split"></i> Gastos Pendientes de Aprobación</span>
-            @if($gastosPendientes->count() > 0)
-                <span class="badge bg-danger rounded-pill">{{ $gastosPendientes->count() }}</span>
-            @endif
-        </div>
-        <div class="card-body">
-            @if($gastosPendientes->isNotEmpty())
-                <p class="text-sm text-muted">Mostrando los 5 más recientes.</p>
-                <ul class="list-group list-group-flush">
-                    @foreach ($gastosPendientes as $gasto)
-                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-                            <div>
-                                <strong>{{ $gasto->sucursal?->nombre_sucursal ?? 'N/A' }}</strong><br>
-                                <small>
-                                    {{ $gasto->categoria?->nombre ?? 'Sin Categoría' }} - {{ $gasto->fecha_gasto->format('d/m/Y') }}
-                                </small>
-                            </div>
-                            <strong class="text-danger">${{ number_format($gasto->monto_total, 2) }}</strong>
-                        </li>
-                    @endforeach
-                </ul>
-            @else
-                <div class="text-center py-3">
-                    <i class="bi bi-check-circle-fill text-success fs-3"></i>
-                    <p class="text-muted mt-2 mb-0">¡Excelente! No hay gastos pendientes.</p>
+                @can('aprobar-gastos')
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-hourglass-split"></i> Gastos Pendientes de Aprobación</span>
+                            @if(isset($gastosPendientes) && $gastosPendientes->count() > 0)
+                                <span class="badge bg-danger rounded-pill">{{ $gastosPendientes->count() }}</span>
+                            @endif
+                        </div>
+                        <div class="card-body">
+                            @if(isset($gastosPendientes) && $gastosPendientes->isNotEmpty())
+                                <p class="text-sm text-muted">Mostrando los 5 más recientes.</p>
+                                <ul class="list-group list-group-flush">
+                                    @foreach ($gastosPendientes as $gasto)
+                                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                            <div>
+                                                <strong>{{ $gasto->sucursal?->nombre_sucursal ?? 'N/A' }}</strong><br>
+                                                <small>
+                                                    {{ $gasto->categoria?->nombre ?? 'Sin Categoría' }} - {{ $gasto->fecha_gasto->format('d/m/Y') }}
+                                                </small>
+                                            </div>
+                                            <strong class="text-danger">${{ number_format($gasto->monto_total, 2) }}</strong>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @else
+                                <div class="text-center py-3">
+                                    <i class="bi bi-check-circle-fill text-success fs-3"></i>
+                                    <p class="text-muted mt-2 mb-0">¡Excelente! No hay gastos pendientes.</p>
+                                </div>
+                            @endif
+                        </div>
+                        <div class="card-footer p-3 text-center">
+                            <a href="{{ route('gastos.approvals') }}" class="btn btn-outline-primary btn-sm w-100">
+                                Ir a Aprobar Gastos
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            @endif
-        </div>
-        <div class="card-footer p-3 text-center">
-            <a href="{{ route('gastos.approvals') }}" class="btn btn-outline-primary btn-sm w-100">
-                Ir a Aprobar Gastos
-            </a>
-        </div>
-    </div>
-</div>
-@endcan
+                @endcan
+
+                @can('ver-widget-nuevos-ingresos')
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header"><i class="bi bi-person-plus-fill"></i> Nuevos Ingresos ({{ $fortnightTitle ?? 'Quincena Actual' }})</div>
+                        <div class="card-body">
+                            @if(isset($nuevosIngresos) && $nuevosIngresos->isNotEmpty())
+                                <ul class="list-group list-group-flush">
+                                    @foreach ($nuevosIngresos as $empleado)
+                                        <li class="list-group-item px-0">
+                                            <strong>{{ $empleado->nombre_completo }}</strong><br>
+                                            <small>
+                                                Puesto: {{ $empleado->puesto?->nombre_puesto ?? 'N/A' }} <br>
+                                                Sucursal: {{ $empleado->sucursal?->nombre_sucursal ?? 'N/A' }} <br>
+                                                Ingreso: <strong>{{ \Carbon\Carbon::parse($empleado->fecha_ingreso)->format('d/m/Y') }}</strong>
+                                            </small>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @else
+                                <p class="text-muted mb-0">No hay nuevos ingresos en esta quincena.</p>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+                @endcan
 
             </div> {{-- Fin del Contenedor .row --}}
         </div>

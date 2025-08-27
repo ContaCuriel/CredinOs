@@ -16,7 +16,9 @@ class AsistenciaController extends Controller
      */
     public function index(Request $request)
     {
-        $sucursales = Sucursal::orderBy('nombre_sucursal')->get();
+        // CORREGIDO: Obtenemos solo las sucursales con estado 'Activa'
+        $sucursales = Sucursal::where('status', 'Activa')->orderBy('nombre_sucursal')->get();
+        
         $id_sucursal_seleccionada = $request->input('id_sucursal_seleccionada');
         
         $empleadosDeSucursal = collect(); 
@@ -30,9 +32,9 @@ class AsistenciaController extends Controller
             }
 
             $empleadosDeSucursal = Empleado::where('status', 'Alta')
-                                           ->where('id_sucursal', $id_sucursal_seleccionada)
-                                           ->orderBy('nombre_completo')
-                                           ->get();
+                                          ->where('id_sucursal', $id_sucursal_seleccionada)
+                                          ->orderBy('nombre_completo')
+                                          ->get();
 
             if ($empleadosDeSucursal->isNotEmpty()) {
                 $fechaHoy = Carbon::today()->toDateString();
@@ -55,7 +57,7 @@ class AsistenciaController extends Controller
     /**
      * Registra la entrada de un empleado y determina si es retardo.
      */
-     public function registrarEntrada(Request $request)
+    public function registrarEntrada(Request $request)
     {
         $validatedData = $request->validate([
             'id_empleado' => 'required|exists:empleados,id_empleado',
@@ -85,7 +87,7 @@ class AsistenciaController extends Controller
     /**
      * Guarda o actualiza la asistencia desde la vista de periodo.
      */
-     public function guardarAsistenciaDia(Request $request)
+    public function guardarAsistenciaDia(Request $request)
     {
         $validatedData = $request->validate([
             'id_empleado_asistencia_dia' => 'required|exists:empleados,id_empleado',
@@ -216,7 +218,9 @@ class AsistenciaController extends Controller
      */
     public function vistaPeriodo(Request $request)
     {
-        $sucursales = Sucursal::orderBy('nombre_sucursal')->get();
+        // CORREGIDO: Obtenemos solo las sucursales con estado 'Activa'
+        $sucursales = Sucursal::where('status', 'Activa')->orderBy('nombre_sucursal')->get();
+        
         $id_sucursal_seleccionada = $request->input('id_sucursal_seleccionada');
         
         $empleadosDeSucursal = collect();

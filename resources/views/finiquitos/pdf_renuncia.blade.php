@@ -31,7 +31,8 @@
     <p class="text-end fw-bold">RENUNCIA VOLUNTARIA</p>
 
     <p class="text-end">
-        {{ $patron->direccion_fiscal ?? 'Ciudad No Especificada' }} a {{ $fecha_fin_letra }}.
+        {{-- CORREGIDO: Se usa la sucursal del empleado y su fecha de baja --}}
+        {{ $empleado->sucursal->municipio ?? 'Municipio No Especificado' }}, {{ $empleado->sucursal->estado ?? 'Estado No Especificado' }} a {{ \Carbon\Carbon::parse($empleado->fecha_baja)->translatedFormat('d \d\e F \d\e Y') }}.
     </p>
 
     <div class="mt-4">
@@ -40,7 +41,8 @@
     </div>
 
     <p class="mt-4 text-justify">
-        Por medio de la presente, yo, <span class="fw-bold">{{ $empleado->nombre_completo }}</span>, por convenir así a mis intereses particulares, con fecha <span class="fw-bold">{{ $fecha_fin_letra }}</span>, he resuelto dar por terminado voluntariamente
+        {{-- CORREGIDO: Se usa la fecha de baja del empleado --}}
+        Por medio de la presente, yo, <span class="fw-bold">{{ $empleado->nombre_completo }}</span>, por convenir así a mis intereses particulares, con fecha <span class="fw-bold">{{ \Carbon\Carbon::parse($empleado->fecha_baja)->translatedFormat('d \d\e F \d\e Y') }}</span>, he resuelto dar por terminado voluntariamente
         @if($esContratoDeHonorarios)
             el <span class="fw-bold">contrato de prestación de servicios profesionales</span>
         @else
@@ -50,7 +52,8 @@
     </p>
 
     <p class="text-justify">
-        Así mismo manifiesto que el último puesto que desempeñé fue el de: <span class="fw-bold">{{ $empleado->puesto->nombre_puesto ?? 'NO ESPECIFICADO' }}</span>, habiendo ingresado a prestar mis servicios el día <span class="fw-bold">{{ $fecha_ingreso_letra }}</span>.
+        {{-- CORREGIDO: Se usa la fecha de ingreso del empleado --}}
+        Así mismo manifiesto que el último puesto que desempeñé fue el de: <span class="fw-bold">{{ $empleado->puesto->nombre_puesto ?? 'NO ESPECIFICADO' }}</span>, habiendo ingresado a prestar mis servicios el día <span class="fw-bold">{{ \Carbon\Carbon::parse($empleado->fecha_ingreso)->translatedFormat('d \d\e F \d\e Y') }}</span>.
     </p>
 
     <p class="text-justify">
@@ -74,4 +77,3 @@
 
 </body>
 </html>
-

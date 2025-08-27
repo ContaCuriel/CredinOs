@@ -29,7 +29,7 @@ class ListaDeRayaMultiSucursalExport implements WithMultipleSheets
 
         // Obtenemos las sucursales tal como en tu código original.
         // Si en el futuro solo quieres procesar sucursales activas, puedes añadir ->where('status', 'Alta')
-        $sucursales = Sucursal::orderBy('nombre_sucursal')->get();
+         $sucursales = Sucursal::where('status', 'Activa')->orderBy('nombre_sucursal')->get();
 
         foreach ($sucursales as $sucursal) {
             // Creamos la hoja para la sucursal, usando 'id_sucursal' que es el correcto.

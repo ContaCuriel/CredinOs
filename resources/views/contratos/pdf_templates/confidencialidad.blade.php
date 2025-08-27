@@ -66,7 +66,8 @@
     </p>
     
     <p>
-        Se firma el presente contrato en <span class="bold">{{ $patron->direccion_fiscal ?? 'DIRECCIÓN FISCAL NO ESPECIFICADA' }}</span>, al día {{ \Carbon\Carbon::parse($contrato->fecha_inicio)->day }} del mes de {{ \Carbon\Carbon::parse($contrato->fecha_inicio)->monthName }} del año {{ \Carbon\Carbon::parse($contrato->fecha_inicio)->year }}.
+        {{-- CORREGIDO: Se usa la dirección de la sucursal del empleado (Municipio y Estado) --}}
+        Se firma el presente contrato en <span class="bold">{{ $empleado->sucursal->municipio ?? 'MUNICIPIO NO ESPECIFICADO' }}, {{ $empleado->sucursal->estado ?? 'ESTADO NO ESPECIFICADO' }}</span>, al día {{ \Carbon\Carbon::parse($contrato->fecha_inicio)->day }} del mes de {{ \Carbon\Carbon::parse($contrato->fecha_inicio)->translatedFormat('F') }} del año {{ \Carbon\Carbon::parse($contrato->fecha_inicio)->year }}.
     </p>
 
     <br><br>

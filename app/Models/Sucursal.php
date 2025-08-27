@@ -13,10 +13,13 @@ class Sucursal extends Model
     protected $primaryKey = 'id_sucursal';
 
     protected $fillable = [
-        'nombre_sucursal',
-        'direccion_sucursal',
-        // 'telefono_sucursal', // Correctamente comentado/eliminado
-        // 'gerente_sucursal',  // Correctamente comentado/eliminado
+       'nombre_sucursal',
+        'calle',
+        'numero',
+        'colonia',
+        'municipio',
+        'estado',
+        'status',
     ];
 
     public function empleados()

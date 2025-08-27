@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\File;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\FiniquitoExport;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
 
 class FiniquitoController extends Controller
 {
@@ -251,6 +252,45 @@ public function exportarRenunciaPdf(Request $request)
         $pdf = Pdf::loadView('finiquitos.pdf_renuncia', $data);
 
         return $pdf->stream($nombreArchivo);
+    }
+
+      public function uploadSigned(Request $request, Empleado $empleado)
+    {
+        $request->validate([
+            'documento_firmado' => 'required|file|mimes:pdf|max:2048', // Acepta solo PDF de hasta 2MB
+        ], [
+            'documento_firmado.required' => 'Debes seleccionar un archivo.',
+            'documento_firmado.mimes' => 'El archivo debe ser un PDF.',
+            'documento_firmado.max' => 'El archivo no debe pesar más de 2MB.',
+        ]);
+
+        // Elimina el archivo anterior si existe para evitar basura en el disco
+        if ($empleado->finiquito_firmado_path && Storage::disk('public')->exists($empleado->finiquito_firmado_path)) {
+            Storage::disk('public')->delete($empleado->finiquito_firmado_path);
+        }
+
+        // Guarda el nuevo archivo en 'storage/app/public/finiquitos_firmados'
+        $path = $request->file('documento_firmado')->store('finiquitos_firmados', 'public');
+
+        // Actualiza la ruta en la base de datos
+        $empleado->update(['finiquito_firmado_path' => $path]);
+
+        // Redirige de vuelta con un mensaje de éxito
+        return back()->with('success', '¡Documento firmado subido exitosamente!');
+    }
+
+    /**
+     * Muestra el documento firmado que está guardado.
+     */
+    public function viewSigned(Empleado $empleado)
+    {
+        // Verifica que el empleado tenga un archivo y que este exista en el disco
+        if (!$empleado->finiquito_firmado_path || !Storage::disk('public')->exists($empleado->finiquito_firmado_path)) {
+            abort(404, 'Documento no encontrado.');
+        }
+
+        // Devuelve el archivo para ser mostrado en el navegador
+        return Storage::disk('public')->response($empleado->finiquito_firmado_path);
     }
 }
 

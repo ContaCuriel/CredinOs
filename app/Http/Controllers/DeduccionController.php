@@ -6,6 +6,8 @@ use App\Models\DeduccionEmpleado; // <-- CAMBIADO
 use App\Models\Empleado;
 use Illuminate\Http\Request;
 use App\Models\Sucursal;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\DeduccionesExport; 
 
 class DeduccionController extends Controller // <-- CAMBIADO
 {
@@ -212,4 +214,36 @@ class DeduccionController extends Controller // <-- CAMBIADO
                          ->with('error', 'No se pudo eliminar la deducción. Error: ' . $e->getMessage());
     }
 }
+
+public function exportarExcel(Request $request)
+    {
+        // 1. COPIAMOS LA MISMA LÓGICA DE FILTROS DEL MÉTODO INDEX
+        $search_nombre = $request->input('search_nombre');
+        $id_sucursal_filter = $request->input('id_sucursal_filter');
+        $tipo_deduccion_filter = $request->input('tipo_deduccion_filter');
+
+        $query = DeduccionEmpleado::with(['empleado.sucursal']);
+
+        if (!empty($search_nombre)) {
+            $query->whereHas('empleado', function ($q_empleado) use ($search_nombre) {
+                $q_empleado->where('nombre_completo', 'like', '%' . $search_nombre . '%');
+            });
+        }
+
+        if (!empty($id_sucursal_filter)) {
+            $query->whereHas('empleado', function ($q_empleado) use ($id_sucursal_filter) {
+                $q_empleado->where('id_sucursal', $id_sucursal_filter);
+            });
+        }
+
+        if (!empty($tipo_deduccion_filter)) {
+            $query->where('tipo_deduccion', $tipo_deduccion_filter);
+        }
+
+        // 2. OBTENEMOS TODOS los resultados filtrados, SIN PAGINAR
+        $deducciones = $query->orderBy('fecha_solicitud', 'desc')->get();
+
+        // 3. Generamos y descargamos el archivo Excel
+        return Excel::download(new DeduccionesExport($deducciones), 'Reporte_Deducciones.xlsx');
+    }
 }   

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use App\Models\PeriodoVacacional;
 use App\Models\DeduccionEmpleado; // <-- LÍNEA AÑADIDA
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class Empleado extends Model
 {
@@ -42,6 +43,7 @@ class Empleado extends Model
         'fecha_baja_imss',
         'id_patron_imss',
         'id_horario',
+        'finiquito_firmado_path',
     ];
 
     protected $casts = [
@@ -153,5 +155,12 @@ class Empleado extends Model
         if ($anoDeServicio >= 31) return 32;
 
         return 32;
+    }
+
+    protected function nombreCompleto(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => strtoupper($value),
+        );
     }
 }

@@ -3,7 +3,25 @@
         <div class="card">
             <div class="card-header"><h5 class="mb-0">Calculadora de Finiquitos y Liquidaciones</h5></div>
             <div class="card-body">
+                {{-- Alertas de éxito o error --}}
+                @if (session('success'))
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        {{ session('success') }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                @endif
+                @if ($errors->any())
+                    <div class="alert alert-danger">
+                        <ul>
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
                 <div class="row border p-3 rounded">
+                    {{-- Columna Izquierda: Calculadora (se mantiene igual) --}}
                     <div class="col-md-7">
                         <h6 class="mb-3">1. Seleccione Empleado y Fechas</h6>
                         <div class="row">
@@ -12,7 +30,13 @@
                                 <select class="form-select" id="id_empleado" required>
                                     <option value="">Seleccione un empleado...</option>
                                     @foreach ($empleados as $empleado)
-                                        <option value="{{ $empleado->id_empleado }}" data-fecha_ingreso="{{ $empleado->fecha_ingreso?->format('Y-m-d') }}" data-fecha_baja="{{ $empleado->fecha_baja?->format('Y-m-d') }}">
+                                        <option value="{{ $empleado->id_empleado }}" 
+                                                data-fecha_ingreso="{{ $empleado->fecha_ingreso?->format('Y-m-d') }}" 
+                                                data-fecha_baja="{{ $empleado->fecha_baja?->format('Y-m-d') }}"
+                                                {{-- NUEVOS ATRIBUTOS DE DATOS --}}
+                                                data-finiquito-path="{{ $empleado->finiquito_firmado_path }}"
+                                                data-finiquito-view-url="{{ route('finiquitos.viewSigned', $empleado) }}"
+                                                data-finiquito-upload-url="{{ route('finiquitos.uploadSigned', $empleado) }}">
                                             {{ $empleado->nombre_completo }} - ({{ $empleado->status }})
                                         </option>
                                     @endforeach
@@ -36,7 +60,6 @@
                                     </select>
                                 </div>
                             </div>
-                            {{-- NUEVO CAMPO PARA GRATIFICACIÓN --}}
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label for="gratificacion_monto_inicial">Gratificación (Opcional)</label>
@@ -49,6 +72,7 @@
                         </div>
                     </div>
 
+                    {{-- Columna Derecha: Botones de Cálculo y Gestión de Documentos --}}
                     <div class="col-md-5 border-start">
                         <h6 class="mb-3">2. Elija el Tipo de Cálculo</h6>
                         <div class="d-grid gap-2">
@@ -56,9 +80,20 @@
                             <button type="button" id="btn_calc_finiquito" class="btn btn-primary" disabled>Calcular Finiquito</button>
                             <button type="button" id="btn_calc_liquidacion" class="btn btn-danger" disabled>Calcular Liquidación</button>
                         </div>
+                        
+                        {{-- ===== NUEVA SECCIÓN PARA GESTIÓN DE DOCUMENTOS ===== --}}
+                        <div id="documento_firmado_container" class="mt-4" style="display: none;">
+                            <hr>
+                            <h6 class="mb-3">3. Documento Firmado</h6>
+                            <div id="documento_firmado_content">
+                                {{-- El contenido se generará con JavaScript --}}
+                            </div>
+                        </div>
+                        {{-- =================================================== --}}
                     </div>
                 </div>
 
+                {{-- Resultados del Cálculo (se mantiene igual) --}}
                 <div id="resultados_finiquito_container" class="mt-4" style="display: none;">
                     <hr>
                     <h5 class="mb-3">Resultados del Cálculo (Editable)</h5>
@@ -67,12 +102,12 @@
                     <div class="text-end mt-3 d-flex justify-content-end gap-2">
                         <form id="form_export" method="POST" target="_blank">
                             @csrf
+                            {{-- ... (todos tus campos hidden se mantienen igual) ... --}}
                             <input type="hidden" name="id_empleado" id="export_id_empleado">
                             <input type="hidden" name="fecha_final" id="export_fecha_final">
                             <input type="hidden" name="tipo_calculo" id="export_tipo_calculo">
                             <input type="hidden" name="dias_vacaciones_manuales" id="export_dias_vacaciones_manuales">
                             <input type="hidden" name="id_patron" id="export_id_patron">
-                            {{-- Campos ocultos para montos editables --}}
                             <input type="hidden" name="dias_laborados_monto" id="export_dias_laborados_monto">
                             <input type="hidden" name="aguinaldo_monto" id="export_aguinaldo_monto">
                             <input type="hidden" name="vacaciones_monto" id="export_vacaciones_monto">
@@ -106,6 +141,10 @@
         const tablaResultadosDiv = document.getElementById('tabla_resultados');
         const botonesCalculo = document.querySelectorAll('#btn_calc_dias_laborados, #btn_calc_finiquito, #btn_calc_liquidacion');
 
+        // ===== NUEVAS CONSTANTES PARA GESTIÓN DE DOCUMENTOS =====
+        const docContainer = document.getElementById('documento_firmado_container');
+        const docContent = document.getElementById('documento_firmado_content');
+
         function toggleButtons() {
             const habilitar = empleadoSelect.value && fechaFinalInput.value && diasManualesInput.value && patronManualSelect.value;
             botonesCalculo.forEach(btn => btn.disabled = !habilitar);
@@ -113,14 +152,64 @@
         
         empleadoSelect.addEventListener('change', function() {
             const selectedOption = this.options[this.selectedIndex];
+            
+            // Lógica existente
             fechaIngresoInput.value = selectedOption.dataset.fecha_ingreso || '';
             fechaFinalInput.value = selectedOption.dataset.fecha_baja || '';
             resultadosContainer.style.display = 'none';
             toggleButtons();
+
+            // ===== NUEVA LÓGICA PARA MOSTRAR GESTIÓN DE DOCUMENTOS =====
+            if (this.value) {
+                const finiquitoPath = selectedOption.dataset.finiquitoPath;
+                const viewUrl = selectedOption.dataset.finiquitoViewUrl;
+                const uploadUrl = selectedOption.dataset.finiquitoUploadUrl;
+                let htmlContent = '';
+
+                if (finiquitoPath) {
+                    // Si ya hay un archivo, mostrar opción para verlo y reemplazarlo
+                    htmlContent = `
+                        <div class="alert alert-success p-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <p class="mb-0 small">Documento subido.</p>
+                                <a href="${viewUrl}" class="btn btn-sm btn-info" target="_blank">
+                                    <i class="bi bi-eye-fill me-1"></i> Ver
+                                </a>
+                            </div>
+                        </div>
+                        <p class="text-muted small mb-2">Para reemplazarlo, sube un archivo nuevo:</p>
+                    `;
+                } else {
+                    // Si no hay archivo
+                    htmlContent = `<p>Aún no se ha subido el documento firmado.</p>`;
+                }
+
+                // Formulario para subir/reemplazar
+                htmlContent += `
+                    <form action="${uploadUrl}" method="POST" enctype="multipart/form-data">
+                        @csrf
+                        <div class="input-group">
+                            <input type="file" class="form-control form-control-sm" name="documento_firmado" required>
+                            <button class="btn btn-primary btn-sm" type="submit">
+                                <i class="bi bi-upload me-1"></i> ${finiquitoPath ? 'Reemplazar' : 'Subir'}
+                            </button>
+                        </div>
+                        <div class="form-text">PDF (máx. 2MB).</div>
+                    </form>
+                `;
+                
+                docContent.innerHTML = htmlContent;
+                docContainer.style.display = 'block';
+            } else {
+                // Ocultar si no hay empleado seleccionado
+                docContainer.style.display = 'none';
+            }
         });
 
+        // El resto de tu script se mantiene exactamente igual...
         [fechaFinalInput, diasManualesInput, patronManualSelect].forEach(input => input.addEventListener('change', toggleButtons));
-
+        
+        // ... (handleCalculation, construirTablaEditable, recalcularTotales, prepararYEnviarFormulario) ...
         function handleCalculation(e) {
             e.preventDefault();
             const tipoCalculo = this.id.replace('btn_calc_', '');
@@ -175,7 +264,6 @@
             ];
             
             percepciones.forEach(item => {
-                // Se muestra el campo solo si el valor inicial es mayor a 0
                 if(item.value > 0) {
                     percepcionesHtml += `<tr><td>${item.label}</td><td class="text-end"><input type="number" step="0.01" id="${item.id}" class="form-control form-control-sm text-end monto-percepcion" value="${parseFloat(item.value).toFixed(2)}"></td></tr>`;
                 }

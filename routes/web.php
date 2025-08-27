@@ -93,7 +93,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/vacaciones/historial/{empleado}', [VacacionController::class, 'historialPorEmpleado'])->name('vacaciones.historial')->middleware('can:ver-vacaciones');
         
         // Deducciones
-        Route::resource('deducciones', DeduccionController::class)->middleware('can:ver-deducciones');
+        Route::resource('deducciones', DeduccionController::class)
+    ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
+    ->middleware('can:ver-deducciones');
+        Route::get('/deducciones/exportar', [DeduccionController::class, 'exportarExcel'])->name('deducciones.exportar');
+
 
         // Lista de Raya
         Route::get('/lista-de-raya', [ListaDeRayaController::class, 'index'])->name('lista_de_raya.index')->middleware('can:ver-lista-raya');
@@ -105,6 +109,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/finiquitos/exportar-pdf', [FiniquitoController::class, 'exportarPDF'])->name('finiquitos.export.pdf')->middleware('can:exportar-finiquitos');
         Route::post('/finiquitos/exportar-excel', [FiniquitoController::class, 'exportarExcel'])->name('finiquitos.export.excel')->middleware('can:exportar-finiquitos');
         Route::post('/finiquitos/exportar-renuncia-pdf', [FiniquitoController::class, 'exportarRenunciaPdf'])->name('finiquitos.export.renuncia.pdf')->middleware('can:exportar-finiquitos');
+        Route::post('/finiquitos/{empleado}/upload-signed', [FiniquitoController::class, 'uploadSigned'])->name('finiquitos.uploadSigned');
+Route::get('/finiquitos/{empleado}/view-signed', [FiniquitoController::class, 'viewSigned'])->name('finiquitos.viewSigned');
+
 
         // Gestión IMSS
         Route::get('/imss', [ImssController::class, 'index'])->name('imss.index')->middleware('can:ver-gestion-imss');

@@ -164,7 +164,8 @@
                 <p>El incumplimiento de cualquiera de las obligaciones consignadas en este contrato, faculta a "<span class="uppercase">{{ $denominacionPatron }}</span>" a rescindirlo unilateralmente sin necesidad de declaración judicial y sin responsabilidad alguna, bastando la notificación que al efecto se le haga a "<span class="uppercase">{{ $denominacionTrabajador }}</span>" sin necesidad de previo aviso.</p>
             </div>
             <div class="clausula-item">
-                <p><span class="clausula-numero">NOVENA.- JURISDICCIÓN Y LEY APLICABLE.</span> Para la interpretación y cumplimiento del presente contrato, las partes se someten expresamente a la jurisdicción de los tribunales competentes de <span class="etiqueta uppercase">{{ $lugarFirmaCompleto }}</span>, y a las disposiciones del Código Civil para el Estado de México vigente, renunciando a cualquier otro fuero que pudiera corresponderles por razón de sus domicilios presentes o futuros.</p>
+                {{-- CORREGIDO: Se usa la dirección de la sucursal del empleado (Municipio y Estado) --}}
+                <p><span class="clausula-numero">NOVENA.- JURISDICCIÓN Y LEY APLICABLE.</span> Para la interpretación y cumplimiento del presente contrato, las partes se someten expresamente a la jurisdicción de los tribunales competentes de <span class="etiqueta uppercase">{{ $empleado->sucursal->municipio ?? 'MUNICIPIO' }}, {{ $empleado->sucursal->estado ?? 'ESTADO' }}</span>, y a las disposiciones del Código Civil para el Estado de México vigente, renunciando a cualquier otro fuero que pudiera corresponderles por razón de sus domicilios presentes o futuros.</p>
             </div>
 
         @elseif (in_array($contrato->tipo_contrato, ['Determinado', 'Indeterminado', 'Obra Determinada']))
@@ -241,7 +242,8 @@
     </div>
 
     <div class="firmas footer-text"> {{-- Usé footer-text para la parte final de firma --}}
-        <p class="text-justify">HABIENDO LEÍDO EL PRESENTE CONTRATO Y EXPLICADO EL VALOR, ALCANCES Y CONSECUENCIAS DEL MISMO A LAS PARTES, LO FIRMAN PARA CONSTANCIA Y POR DUPLICADO, EN <span class="etiqueta uppercase">{{ $contrato->patron->direccion_fiscal ?? 'DOMICILIO NO ESPECIFICADO' }}</span>, EL DÍA <span class="etiqueta">{{ $fechaFirma }}</span>.</p>
+        {{-- CORREGIDO: Se usa la dirección de la sucursal del empleado (Municipio y Estado) --}}
+        <p class="text-justify">HABIENDO LEÍDO EL PRESENTE CONTRATO Y EXPLICADO EL VALOR, ALCANCES Y CONSECUENCIAS DEL MISMO A LAS PARTES, LO FIRMAN PARA CONSTANCIA Y POR DUPLICADO, EN <span class="etiqueta uppercase">{{ $empleado->sucursal->municipio ?? 'MUNICIPIO' }}, {{ $empleado->sucursal->estado ?? 'ESTADO' }}</span>, EL DÍA <span class="etiqueta">{{ $fechaFirma }}</span>.</p>
     </div>
 
     <div class="firmas-container">

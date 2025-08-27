@@ -3,100 +3,127 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Empleado;
+use Illuminate\Support\Facades\Auth;
 use App\Models\Contrato;
+use App\Models\Empleado;
 use App\Models\Patron;
+use App\Models\Gasto;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
-    /**
-     * Muestra el dashboard principal de la aplicación.
-     */
     public function index()
     {
-        $hoy = Carbon::now();
-        $mesActual = $hoy->month;
-        $anoActual = $hoy->year; // <-- AÑADIDO: Obtenemos el año actual para la comparación.
+        $user = Auth::user();
+        $data = [];
 
-        // Empleados que cumplen años este mes
-        $cumpleanerosDelMes = Empleado::where('status', 'Alta')
-            ->whereMonth('fecha_nacimiento', $mesActual)
-            ->orderByRaw('DAY(fecha_nacimiento) ASC')
-            ->get();
-
-        // Empleados que cumplen aniversario de ingreso este mes (CON CORRECCIÓN)
-        $aniversariosDelMes = Empleado::where('status', 'Alta')
-            ->whereMonth('fecha_ingreso', $mesActual)
-            // =====> LÍNEA CLAVE AÑADIDA <=====
-            // Filtra para que el año de ingreso sea anterior al año actual.
-            // Esto excluye a los que ingresaron este mismo año (aniversario de 0 años).
-            ->whereYear('fecha_ingreso', '<', $anoActual)
-            ->orderByRaw('DAY(fecha_ingreso) ASC')
-            ->get();
-        
-        // LÓGICA PARA CONTRATOS POR VENCER
-        $fechaHoyParaComparar = Carbon::today();
-        $fechaLimiteVencimiento = Carbon::today()->addDays(15);
-
-        // Subconsulta para obtener el último contrato de cada empleado activo
-        $latestContractIdsSubquery = Contrato::select('id_empleado', DB::raw('MAX(fecha_fin) as max_fecha_fin'))
-            ->whereHas('empleado', function ($query) {
-                $query->where('status', 'Alta');
-            })
-            ->whereNotNull('fecha_fin')
-            ->where('fecha_fin', '>=', $fechaHoyParaComparar)
-            ->groupBy('id_empleado');
-
-        // Consulta principal que se une con la subconsulta para obtener los contratos por vencer
-        $contratosPorVencer = Contrato::with('empleado.puesto', 'empleado.sucursal')
-            ->joinSub($latestContractIdsSubquery, 'latest_contracts', function ($join) {
-                $join->on('contratos.id_empleado', '=', 'latest_contracts.id_empleado')
-                     ->on('contratos.fecha_fin', '=', 'latest_contracts.max_fecha_fin');
-            })
-            ->whereBetween('contratos.fecha_fin', [$fechaHoyParaComparar, $fechaLimiteVencimiento])
-            ->orderBy('contratos.fecha_fin', 'asc')
-            ->get();
-            
-        // LÓGICA PARA EL WIDGET DE IMSS
-        $patronesTodos = Patron::orderBy('razon_social')->get();
-        $patronesConteoImss = [];
-
-        foreach ($patronesTodos as $patron) {
-            $conteo = Empleado::where('status', 'Alta') // Empleados activos en la empresa
-                              ->where('id_patron_imss', $patron->id_patron) // Vinculados a este patrón para IMSS
-                              ->where('estado_imss', 'Alta') // Con estado IMSS 'Alta'
-                              ->count();
-            
-            if ($conteo > 0) {
-                $patronesConteoImss[] = [
-                    'patron' => $patron,
-                    'conteo_imss_alta' => $conteo,
-                ];
-            }
+        // --- LÓGICA PARA EL SALUDO PERSONALIZADO ---
+        $horaActual = Carbon::now('America/Mexico_City')->hour;
+        if ($horaActual < 12) {
+            $data['saludo'] = 'Buenos días';
+        } elseif ($horaActual < 19) {
+            $data['saludo'] = 'Buenas tardes';
+        } else {
+            $data['saludo'] = 'Buenas noches';
         }
         
-        // --- INICIO: Lógica para el Widget de Gastos ---
-$gastosPendientes = collect(); // Creamos una colección vacía por defecto
+        $data['nombreUsuario'] = $user->name;
+        $data['mensajeEspecial'] = null;
 
-// Solo ejecutamos la consulta si el usuario tiene el permiso de aprobar
-if (auth()->user()->can('aprobar-gastos')) {
-    $gastosPendientes = \App\Models\Gasto::with('sucursal')
-                                          ->where('estado', 'En Aprobación')
-                                          ->latest()
-                                          ->take(5) // Tomamos los 5 más recientes
-                                          ->get();
+        // Buscamos al empleado que corresponde al usuario logueado
+        $empleadoLogueado = Empleado::where('nombre_completo', $user->name)->first();
+
+        if ($empleadoLogueado) {
+            $hoy = Carbon::today();
+            // Verificar cumpleaños
+            if ($empleadoLogueado->fecha_nacimiento && Carbon::parse($empleadoLogueado->fecha_nacimiento)->isBirthday($hoy)) {
+                $data['mensajeEspecial'] = '¡Feliz Cumpleaños! Te deseamos un día increíble.';
+            }
+            // Verificar aniversario (y que no sea el primer día de trabajo)
+            $fechaIngreso = Carbon::parse($empleadoLogueado->fecha_ingreso);
+            if ($fechaIngreso->month == $hoy->month && $fechaIngreso->day == $hoy->day && !$fechaIngreso->isToday()) {
+                $anos = $fechaIngreso->diffInYears($hoy);
+                $data['mensajeEspecial'] = "¡Feliz Aniversario! Hoy cumples {$anos} " . ($anos == 1 ? 'año' : 'años') . " con nosotros.";
+            }
+        }
+        // --- FIN DE LA LÓGICA DEL SALUDO ---
+
+        // Widget: Contratos por Vencer
+if ($user->can('ver-widget-contratos-vencer')) {
+    $data['contratosPorVencer'] = Contrato::whereNotNull('fecha_fin')
+        ->whereBetween('fecha_fin', [Carbon::today(), Carbon::today()->addDays(15)])
+
+        // --- INICIO DE LA CORRECCIÓN ---
+        // Filtramos para que solo muestre contratos de empleados cuyo estado es 'Alta'.
+        ->whereHas('empleado', function ($query) {
+            $query->where('status', 'Alta');
+        })
+        // --- FIN DE LA CORRECCIÓN ---
+
+        ->with('empleado.puesto', 'empleado.sucursal')
+        ->orderBy('fecha_fin', 'asc')
+        ->get();
 }
-// --- FIN: Lógica para el Widget de Gastos ---
 
-        // Pasamos todas las variables a la vista
-        return view('dashboard', compact(
-            'cumpleanerosDelMes', 
-            'aniversariosDelMes', 
-            'contratosPorVencer',
-            'gastosPendientes',
-            'patronesConteoImss'
-        ));
+        // Widget: Cumpleaños del Mes
+        if ($user->can('ver-widget-cumpleanos')) {
+            $data['cumpleanerosDelMes'] = Empleado::where('status', 'Alta')
+                ->whereMonth('fecha_nacimiento', Carbon::now()->month)
+                ->orderByRaw('DAY(fecha_nacimiento) ASC')
+                ->get();
+        }
+
+        // Widget: Aniversarios Laborales del Mes
+        if ($user->can('ver-widget-aniversarios')) {
+            $data['aniversariosDelMes'] = Empleado::where('status', 'Alta')
+                ->whereMonth('fecha_ingreso', Carbon::now()->month)
+                ->orderByRaw('DAY(fecha_ingreso) ASC')
+                ->get();
+        }
+
+        // Widget: Nuevos Ingresos de la Quincena
+        if ($user->can('ver-widget-nuevos-ingresos')) {
+            $now = Carbon::now();
+            if ($now->day <= 15) {
+                $startDate = $now->copy()->startOfMonth();
+                $endDate = $now->copy()->day(15)->endOfDay();
+                $data['fortnightTitle'] = "1ra Quincena";
+            } else {
+                $startDate = $now->copy()->day(16)->startOfDay();
+                $endDate = $now->copy()->endOfMonth()->endOfDay();
+                $data['fortnightTitle'] = "2da Quincena";
+            }
+            $data['nuevosIngresos'] = Empleado::whereBetween('fecha_ingreso', [$startDate, $endDate])
+                ->with(['puesto', 'sucursal'])
+                ->orderBy('fecha_ingreso', 'desc')
+                ->get();
+        }
+
+        // Widget: Empleados con IMSS por Patrón
+        if ($user->can('ver-widget-imss')) {
+            $patrones = Patron::withCount(['empleados as conteo_imss_alta' => function ($query) {
+                $query->where('estado_imss', 'Alta');
+            }])->get();
+
+            $data['patronesConteoImss'] = $patrones->map(function ($patron) {
+                return [
+                    'patron' => $patron,
+                    'conteo_imss_alta' => $patron->conteo_imss_alta
+                ];
+            })->filter(function ($item) {
+                return $item['conteo_imss_alta'] > 0;
+            });
+        }
+
+        // Widget: Gastos Pendientes de Aprobación
+        if ($user->can('aprobar-gastos')) {
+            $data['gastosPendientes'] = Gasto::where('estado', 'Pendiente')
+                ->with(['sucursal', 'categoria'])
+                ->latest()
+                ->take(5)
+                ->get();
+        }
+
+        return view('dashboard', $data);
     }
 }
