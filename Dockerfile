@@ -12,30 +12,33 @@ RUN composer install \
     --no-scripts \
     --prefer-dist
 
-
-# Stage 2: Preparar la aplicación final
+# Stage 2: Preparar la aplicación final de producción
 FROM php:8.3-fpm-alpine as app
 
 WORKDIR /var/www/html
 
-# Instalar las librerías de desarrollo de PostgreSQL y luego las extensiones de PHP
-RUN apk add --no-cache postgresql-dev && docker-php-ext-install pdo pdo_pgsql
+# Instalar dependencias del sistema: Nginx y librerías de PostgreSQL
+RUN apk add --no-cache nginx postgresql-dev
 
-# Copiar archivos de la aplicación y dependencias
+# Instalar extensiones de PHP
+RUN docker-php-ext-install pdo pdo_pgsql
+
+# Copiar el archivo de configuración de Nginx
+COPY docker/nginx.conf /etc/nginx/http.d/default.conf
+
+# Copiar archivos de la aplicación
 COPY . .
 COPY --from=vendor /app/vendor/ vendor/
 
-# Copia el .env de producción para que el archivo exista
+# Copia el .env de producción
 COPY .env.production .env
 
-# Generar el caché de configuración de Laravel
+# Generar caché de configuración
 RUN php artisan config:cache
 
-# --- AJUSTE DE PERMISOS CLAVE ---
-# Asegura que el usuario del servidor web sea el propietario y tenga permisos de escritura
+# Configurar permisos
 RUN chown -R www-data:www-data storage bootstrap/cache
 RUN chmod -R 775 storage bootstrap/cache
 
-# Exponer el puerto para el servidor web
-EXPOSE 9000
-CMD ["php-fpm"]
+# Comando para iniciar el servidor
+CMD sh -c "php-fpm & nginx -g 'daemon off;'"
