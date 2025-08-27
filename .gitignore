@@ -1,12 +1,11 @@
 *.log
 .DS_Store
 .env
-!/.env.production
-.env.*
+.env.facturame
+.env.credintegra
 .bat
 .env.example
 .env.backup
-.env.production
 .phpactor.json
 .phpunit.result.cache
 /.fleet
