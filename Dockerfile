@@ -8,7 +8,7 @@ COPY composer.lock composer.lock
 RUN composer install --no-dev --no-interaction --prefer-dist
 
 # Stage 2: Preparar la aplicación final de producción
-FROM php:8.2-fpm-alpine
+FROM php:8.3-fpm-alpine
 
 WORKDIR /var/www/html
 
