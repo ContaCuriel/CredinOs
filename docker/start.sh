@@ -11,11 +11,11 @@ echo "Running database migrations for central DB..."
 php artisan migrate --force
 
 # --- CORRECCIÓN CLAVE AQUÍ ---
-# Se eliminan los comandos 'clear' redundantes. Los comandos 'cache' ya limpian antes de crear.
+# Se elimina el comando 'view:cache' que está causando el conflicto.
+# Los otros dos comandos de caché son los más importantes.
 echo "Caching configuration..."
 php artisan config:cache
 php artisan route:cache
-php artisan view:cache
 
 echo "Linking storage directory..."
 # Crea el enlace simbólico para el almacenamiento de archivos.
