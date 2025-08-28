@@ -15,13 +15,14 @@ FROM php:8.3-fpm-bullseye
 WORKDIR /var/www/html
 
 # --- CORRECCIÓN CLAVE AQUÍ ---
-# Se instala un conjunto completo de librerías de desarrollo para evitar errores de compilación.
+# Se instala un conjunto final y completo de librerías, incluyendo las de procesamiento de imágenes y PDF.
 RUN apt-get update && apt-get install -y \
         nginx \
         build-essential \
         unzip \
         git \
         curl \
+        ghostscript \
         libpq-dev \
         libonig-dev \
         libxml2-dev \
@@ -31,6 +32,9 @@ RUN apt-get update && apt-get install -y \
         libpng-dev \
         libjpeg-dev \
         libfreetype6-dev \
+        libmagickwand-dev \
+    && pecl install imagick \
+    && docker-php-ext-enable imagick \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install \
         pdo pdo_pgsql \
