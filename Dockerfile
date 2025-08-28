@@ -14,9 +14,7 @@ FROM php:8.3-fpm-bullseye
 WORKDIR /var/www/html
 
 # --- CORRECCIÓN CLAVE AQUÍ ---
-# Se separa la instalación de dependencias y extensiones para mayor robustez.
-
-# 1. Instalar dependencias del sistema (excepto las de GD)
+# Se unifican todas las instalaciones en un solo bloque para máxima robustez.
 RUN apt-get update && apt-get install -y \
         nginx \
         build-essential \
@@ -29,10 +27,14 @@ RUN apt-get update && apt-get install -y \
         libssl-dev \
         libzip-dev \
         zlib1g-dev \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# 2. Instalar extensiones de PHP (excepto GD)
-RUN docker-php-ext-install \
+        libpng-dev \
+        libjpeg-dev \
+        libfreetype6-dev \
+        libwebp-dev \
+        libxpm-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
+    && docker-php-ext-install -j$(nproc) gd \
+    && docker-php-ext-install \
         pdo pdo_pgsql \
         bcmath \
         ctype \
@@ -41,20 +43,8 @@ RUN docker-php-ext-install \
         tokenizer \
         xml \
         openssl \
-        zip
-
-# 3. Instalar dependencias del sistema SOLO para la extensión GD
-RUN apt-get update && apt-get install -y \
-        libpng-dev \
-        libjpeg-dev \
-        libfreetype6-dev \
-        libwebp-dev \
-        libxpm-dev \
+        zip \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# 4. Configurar e instalar la extensión GD de forma aislada
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
-    && docker-php-ext-install -j$(nproc) gd
 
 # Copiar el archivo de configuración de Nginx
 COPY docker/nginx.conf /etc/nginx/sites-available/default
