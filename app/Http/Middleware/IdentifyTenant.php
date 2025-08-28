@@ -6,7 +6,6 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Config;
-use App\Models\Tenant;
 
 class IdentifyTenant
 {
@@ -19,21 +18,23 @@ class IdentifyTenant
      */
     public function handle(Request $request, Closure $next)
     {
-        // --- CORRECCIÓN CLAVE AQUÍ ---
-        // Forzamos la conexión por defecto a 'pgsql' para asegurar que se use el driver correcto.
-        Config::set('database.default', 'pgsql');
-
         $host = $request->getHost();
 
-        // Ahora podemos usar la conexión por defecto, que ya sabemos que es pgsql.
-        $tenant = DB::table('tenants')->where('domain', 'like', $host)->first();
+        // --- CORRECCIÓN DEFINITIVA ---
+        // Usamos explícitamente la conexión 'pgsql' (configurada en las variables de entorno)
+        // para buscar al inquilino, evitando cualquier conflicto con la caché.
+        $tenant = DB::connection('pgsql')->table('tenants')->where('domain', $host)->first();
 
         if (!$tenant) {
             abort(404, 'Inquilino no encontrado.');
         }
 
+        // Purgamos cualquier conexión de inquilino antigua para asegurar un estado limpio.
+        DB::purge('tenant');
+
+        // Configuramos la nueva conexión para el inquilino encontrado.
         Config::set('database.connections.tenant', [
-            'driver'    => 'pgsql', // Aseguramos que aquí también sea pgsql
+            'driver'    => 'pgsql',
             'host'      => $tenant->db_host,
             'port'      => $tenant->db_port,
             'database'  => $tenant->db_database,
@@ -45,6 +46,7 @@ class IdentifyTenant
             'sslmode'   => 'prefer',
         ]);
 
+        // Establecemos la conexión del inquilino como la predeterminada para el resto de la solicitud.
         DB::setDefaultConnection('tenant');
 
         return $next($request);
