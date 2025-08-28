@@ -5,7 +5,9 @@ WORKDIR /app
 COPY database/ database/
 COPY composer.json composer.json
 COPY composer.lock composer.lock
-RUN composer install --no-dev --no-interaction --prefer-dist
+# --- CORRECCIÓN CLAVE AQUÍ ---
+# Añadimos --ignore-platform-reqs para que no falle si faltan extensiones en ESTA etapa
+RUN composer install --no-dev --no-interaction --prefer-dist --ignore-platform-reqs
 
 # Stage 2: Preparar la aplicación final de producción
 FROM php:8.3-fpm-alpine
@@ -15,9 +17,7 @@ WORKDIR /var/www/html
 # Instalar dependencias del sistema: Nginx y librerías de PostgreSQL
 RUN apk add --no-cache nginx postgresql-dev
 
-# -----------------------------------------------------------------
-# CORRECCIÓN CLAVE: Instalar TODAS las extensiones de PHP que Laravel necesita.
-# -----------------------------------------------------------------
+# Instalar TODAS las extensiones de PHP que Laravel necesita
 RUN docker-php-ext-install pdo pdo_pgsql bcmath ctype fileinfo mbstring tokenizer xml openssl
 
 # Copiar el archivo de configuración de Nginx
