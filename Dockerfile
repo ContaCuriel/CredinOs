@@ -15,10 +15,11 @@ FROM php:8.3-fpm-bullseye
 WORKDIR /var/www/html
 
 # --- CORRECCIÓN CLAVE AQUÍ ---
-# Usamos apt-get (el gestor de paquetes de Debian) para instalar las dependencias.
-# Añadimos zlib1g-dev, que es necesaria para la extensión zip.
+# Añadimos 'build-essential' y 'unzip' para tener todas las herramientas de compilación necesarias.
 RUN apt-get update && apt-get install -y \
         nginx \
+        build-essential \
+        unzip \
         libpq-dev \
         libonig-dev \
         libxml2-dev \
