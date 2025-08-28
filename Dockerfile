@@ -12,8 +12,9 @@ RUN apt-get update && apt-get install -y nginx && apt-get clean && rm -rf /var/l
 # Copiar todos los archivos de nuestra aplicación al contenedor
 COPY . .
 
-# Instalar las dependencias de Composer de forma optimizada para producción
-RUN composer install --no-dev --no-interaction --optimize-autoloader
+# --- CORRECCIÓN CLAVE AQUÍ ---
+# Instalar las dependencias de Composer ignorando los requisitos de la plataforma para máxima compatibilidad.
+RUN composer install --no-dev --no-interaction --optimize-autoloader --ignore-platform-reqs
 
 # Generar los archivos de caché de Laravel para un rendimiento óptimo
 RUN php artisan config:cache
