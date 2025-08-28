@@ -4,26 +4,28 @@
 set -e
 
 # Usar envsubst para reemplazar ${PORT} en nuestra plantilla de Nginx
-# y crear el archivo de configuración final que Nginx usará.
 envsubst '${PORT}' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
 
 echo "Running database migrations for central DB..."
 php artisan migrate --force
 
-# --- CORRECCIÓN CLAVE AQUÍ ---
-# Se elimina el comando 'view:cache' que está causando el conflicto.
-# Los otros dos comandos de caché son los más importantes.
+# --- CORRECCIÓN DEFINITIVA ---
+# Ejecutamos automáticamente las migraciones para cada inquilino al iniciar.
+# Esto asegura que sus bases de datos siempre estén listas.
+echo "Running migrations for tenants..."
+php artisan tenant:migrate 1
+php artisan tenant:migrate 2
+
 echo "Caching configuration..."
 php artisan config:cache
 php artisan route:cache
 
 echo "Linking storage directory..."
-# Crea el enlace simbólico para el almacenamiento de archivos.
 php artisan storage:link
 
 echo "Starting services..."
 # Inicia PHP-FPM en segundo plano
 php-fpm &
 
-# Inicia Nginx en primer plano con el nuevo archivo de configuración
+# Inicia Nginx en primer plano
 nginx -g 'daemon off;'
