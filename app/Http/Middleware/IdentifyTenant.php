@@ -19,11 +19,14 @@ class IdentifyTenant
      */
     public function handle(Request $request, Closure $next)
     {
+        // --- CORRECCIÓN CLAVE AQUÍ ---
+        // Forzamos la conexión por defecto a 'pgsql' para asegurar que se use el driver correcto.
+        Config::set('database.default', 'pgsql');
+
         $host = $request->getHost();
 
-        // --- CORRECCIÓN CLAVE AQUÍ ---
-        // Cambiamos 'mysql' por 'pgsql' para que coincida con la base de datos de Render.
-        $tenant = DB::connection('pgsql')->table('tenants')->where('domain', $host)->first();
+        // Ahora podemos usar la conexión por defecto, que ya sabemos que es pgsql.
+        $tenant = DB::table('tenants')->where('domain', 'like', $host)->first();
 
         if (!$tenant) {
             abort(404, 'Inquilino no encontrado.');
