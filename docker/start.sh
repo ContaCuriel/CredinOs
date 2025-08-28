@@ -9,19 +9,19 @@ envsubst '${PORT}' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
 echo "Running database migrations for central DB..."
 php artisan migrate --force
 
-# --- CORRECCIÓN DEFINITIVA ---
-# Ejecutamos automáticamente las migraciones para cada inquilino al iniciar.
-# Esto asegura que sus bases de datos siempre estén listas.
 echo "Running migrations for tenants..."
+# Ejecutamos las migraciones para cada inquilino ANTES de cualquier otra cosa.
 php artisan tenant:migrate 1
 php artisan tenant:migrate 2
 
+echo "Linking storage directory..."
+php artisan storage:link
+
+# --- CORRECCIÓN CLAVE AQUÍ ---
+# Movemos la creación de la caché al final, justo antes de iniciar los servicios.
 echo "Caching configuration..."
 php artisan config:cache
 php artisan route:cache
-
-echo "Linking storage directory..."
-php artisan storage:link
 
 echo "Starting services..."
 # Inicia PHP-FPM en segundo plano
