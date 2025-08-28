@@ -1,69 +1,55 @@
 <?php
 
-use Illuminate\Foundation\Application;
+use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Http\Request;
 
 define('LARAVEL_START', microtime(true));
 
-// Determine if the application is in maintenance mode...
+/*
+|--------------------------------------------------------------------------
+| Check If The Application Is Under Maintenance
+|--------------------------------------------------------------------------
+|
+| If the application is in maintenance / demo mode via the "down" command
+| we will load this file so that any pre-rendered content can be shown
+| instead of starting the framework, which could cause an exception.
+|
+*/
+
 if (file_exists($maintenance = __DIR__.'/../storage/framework/maintenance.php')) {
     require $maintenance;
 }
 
-// Register the Composer autoloader...
-require __DIR__.'/../vendor/autoload.php';
-
-
 /*
 |--------------------------------------------------------------------------
-| Cargar Configuración de Entorno Dinámica (Multi-Tenant)
+| Register The Auto Loader
 |--------------------------------------------------------------------------
 |
-| Aquí detectamos el dominio de la solicitud y cargamos el archivo .env
-| correspondiente para la empresa (inquilino) correcta.
+| Composer provides a convenient, automatically generated class loader for
+| this application. We just need to utilize it! We'll simply require it
+| into the script here so we don't need to manually load our classes.
 |
 */
 
-// 1. Definimos el mapa de dominios a archivos .env
-// !! IMPORTANTE: Usa aquí los dominios REALES que configurarás en Ngrok !!
-$domainEnvMap = [
-    // Dominios de producción/Ngrok
-    '40fc47cff71e.ngrok-free.app' => '.env.credintegra', // <--- CAMBIA ESTO por tu dominio real de Ngrok
-    'e26bc5d874c5.ngrok-free.app'   => '.env.facturame',   // <--- CAMBIA ESTO por tu dominio real de Ngrok
-
-    // Dominios para desarrollo local
-    'credintegra.localhost'      => '.env.credintegra',
-    'facturame.localhost'        => '.env.facturame',
-];
-
-// 2. Obtenemos el host de la petición actual
-$httpHost = $_SERVER['HTTP_HOST'] ?? null;
-
-// 3. Determinamos qué archivo .env usar
-// Si no se encuentra un dominio en el mapa, usará el archivo .env por defecto como respaldo.
-$envFileToLoad = $domainEnvMap[$httpHost] ?? '.env';
-
-// 4. Cargamos el archivo .env específico usando el componente Dotenv de Laravel
-try {
-    $dotenv = Dotenv\Dotenv::createImmutable(
-        __DIR__.'/..', // <--- LA SOLUCIÓN
-        $envFileToLoad
-    );
-    $dotenv->load();
-} catch (\Dotenv\Exception\InvalidPathException $e) {
-    // Manejar el error si el archivo .env no se encuentra
-    die('El archivo de entorno (' . $envFileToLoad . ') no se encontró. Error: ' . $e->getMessage());
-}
-
+require __DIR__.'/../vendor/autoload.php';
 
 /*
 |--------------------------------------------------------------------------
 | Run The Application
 |--------------------------------------------------------------------------
 |
-| (Esta parte del archivo ya existe, déjala como está)
+| Once we have the application, we can handle the incoming request using
+| the application's HTTP kernel. Then, we will send the response back
+| to this client's browser, allowing them to enjoy our application.
 |
 */
+
 $app = require_once __DIR__.'/../bootstrap/app.php';
 
-$app->handleRequest(Request::capture());
+$kernel = $app->make(Kernel::class);
+
+$response = $kernel->handle(
+    $request = Request::capture()
+)->send();
+
+$kernel->terminate($request, $response);
