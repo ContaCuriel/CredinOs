@@ -14,9 +14,10 @@ FROM php:8.3-fpm-alpine
 WORKDIR /var/www/html
 
 # --- CORRECCIÓN CLAVE AQUÍ ---
-# Se instalan un conjunto más completo de dependencias del sistema y luego las extensiones de PHP.
+# Se instalan un conjunto más completo de dependencias del sistema, incluyendo las herramientas de compilación.
 RUN apk add --no-cache \
         nginx \
+        build-base \
         postgresql-dev \
         oniguruma-dev \
         libxml2-dev \
