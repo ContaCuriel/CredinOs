@@ -5,21 +5,31 @@ WORKDIR /app
 COPY database/ database/
 COPY composer.json composer.json
 COPY composer.lock composer.lock
-# --- CORRECCIÓN CLAVE AQUÍ ---
 # Añadimos --no-scripts para que Composer solo instale las dependencias sin ejecutar nada más
 RUN composer install --no-dev --no-interaction --prefer-dist --ignore-platform-reqs --no-scripts
 
 # Stage 2: Preparar la aplicación final de producción
 FROM php:8.3-fpm-alpine
 
-WORKDIR /var/w ww/html
+WORKDIR /var/www/html
 
 # --- CORRECCIÓN CLAVE AQUÍ ---
-# Instalar dependencias del sistema: Nginx, librerías de PostgreSQL y la librería oniguruma
-RUN apk add --no-cache nginx postgresql-dev oniguruma-dev
-
-# Instalar TODAS las extensiones de PHP que Laravel necesita
-RUN docker-php-ext-install pdo pdo_pgsql bcmath ctype fileinfo mbstring tokenizer xml openssl
+# Se instalan las dependencias del sistema y las extensiones de PHP en un solo bloque
+# para garantizar que las librerías estén disponibles.
+RUN apk add --no-cache \
+        nginx \
+        postgresql-dev \
+        oniguruma-dev \
+        libxml2-dev \
+    && docker-php-ext-install \
+        pdo pdo_pgsql \
+        bcmath \
+        ctype \
+        fileinfo \
+        mbstring \
+        tokenizer \
+        xml \
+        openssl
 
 # Copiar el archivo de configuración de Nginx
 COPY docker/nginx.conf /etc/nginx/http.d/default.conf
@@ -28,9 +38,7 @@ COPY docker/nginx.conf /etc/nginx/http.d/default.conf
 COPY . .
 COPY --from=vendor /app/vendor/ vendor/
 
-# --- NUEVO PASO ---
 # Ahora que tenemos todos los archivos, generamos el autoloader optimizado.
-# Este comando también ejecuta el "package:discover" de forma segura.
 RUN composer dump-autoload --no-dev --optimize
 
 # Configurar permisos correctos para Laravel
