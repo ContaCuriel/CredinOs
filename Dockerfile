@@ -1,27 +1,35 @@
-# --- SOLUCIÓN DEFINITIVA USANDO UNA IMAGEN PRE-CONSTRUIDA DE LARAVEL ---
+# --- SOLUCIÓN DEFINITIVA USANDO UN ENFOQUE DE DOS ETAPAS ---
 
-# Stage 1: Usar la imagen oficial de Laravel Sail que ya incluye Composer y todas las extensiones.
-FROM laravelsail/php83-composer:latest
+# ETAPA 1: El Constructor
+# Usamos la imagen de Sail para instalar las dependencias de Composer de forma confiable.
+FROM laravelsail/php83-composer:latest as builder
 
-# Establecer el directorio de trabajo
 WORKDIR /var/www/html
-
-# Instalar Nginx, que usaremos como nuestro servidor web
-RUN apt-get update && apt-get install -y nginx && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# Copiar todos los archivos de nuestra aplicación al contenedor
 COPY . .
-
-# Instalar las dependencias de Composer ignorando los requisitos de la plataforma para máxima compatibilidad.
 RUN composer install --no-dev --no-interaction --optimize-autoloader --ignore-platform-reqs
 
-# Generar los archivos de caché de Laravel para un rendimiento óptimo
+# ETAPA 2: La Imagen Final de Producción
+# Usamos una imagen oficial de PHP-FPM que es ligera y correcta para producción.
+FROM php:8.3-fpm-bullseye
+
+WORKDIR /var/www/html
+
+# Instalar Nginx y las librerías de sistema necesarias
+RUN apt-get update && apt-get install -y \
+        nginx \
+        libpq-dev \
+    && docker-php-ext-install pdo pdo_pgsql \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Copiar los archivos de la aplicación y las dependencias ya instaladas desde la etapa del constructor
+COPY --from=builder /var/www/html .
+
+# Generar los archivos de caché de Laravel
 RUN php artisan config:cache
 RUN php artisan route:cache
 RUN php artisan view:cache
 
-# --- CORRECCIÓN CLAVE AQUÍ ---
-# Configurar los permisos correctos para las carpetas de Laravel usando el usuario estándar 'www-data'.
+# Configurar los permisos correctos usando el usuario estándar 'www-data'
 RUN chown -R www-data:www-data /var/www/html
 RUN chmod -R 775 storage bootstrap/cache
 
