@@ -14,7 +14,9 @@ FROM php:8.3-fpm-bullseye
 
 WORKDIR /var/www/html
 
+# --- CORRECCIÓN CLAVE AQUÍ ---
 # Usamos apt-get (el gestor de paquetes de Debian) para instalar las dependencias.
+# Añadimos zlib1g-dev, que es necesaria para la extensión zip.
 RUN apt-get update && apt-get install -y \
         nginx \
         libpq-dev \
@@ -22,6 +24,7 @@ RUN apt-get update && apt-get install -y \
         libxml2-dev \
         libssl-dev \
         libzip-dev \
+        zlib1g-dev \
     && docker-php-ext-install \
         pdo pdo_pgsql \
         bcmath \
@@ -31,9 +34,9 @@ RUN apt-get update && apt-get install -y \
         tokenizer \
         xml \
         openssl \
-        zip
+        zip \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# --- CORRECCIÓN CLAVE AQUÍ ---
 # Copiar el archivo de configuración de Nginx a la carpeta de sitios disponibles
 COPY docker/nginx.conf /etc/nginx/sites-available/default
 # Eliminar el enlace simbólico por defecto y crear el nuestro
