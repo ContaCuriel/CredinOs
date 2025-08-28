@@ -15,15 +15,14 @@ FROM php:8.3-fpm-bullseye
 WORKDIR /var/www/html
 
 # --- CORRECCIÓN CLAVE AQUÍ ---
-# Se separan las instalaciones para mayor robustez y mejor cacheo.
-# 1. Instalar dependencias del sistema
+# Se instala un conjunto simplificado de librerías, eliminando imagick y sus dependencias.
+# La extensión GD es suficiente para la mayoría de las tareas de imagen y PDF.
 RUN apt-get update && apt-get install -y \
         nginx \
         build-essential \
         unzip \
         git \
         curl \
-        ghostscript \
         libpq-dev \
         libonig-dev \
         libxml2-dev \
@@ -33,13 +32,10 @@ RUN apt-get update && apt-get install -y \
         libpng-dev \
         libjpeg-dev \
         libfreetype6-dev \
-        libmagickwand-dev \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# 2. Instalar extensiones de PHP
-RUN pecl install imagick \
-    && docker-php-ext-enable imagick \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+# 2. Instalar extensiones de PHP (sin imagick)
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install \
         pdo pdo_pgsql \
         bcmath \
