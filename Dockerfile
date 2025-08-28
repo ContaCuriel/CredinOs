@@ -12,7 +12,6 @@ RUN apt-get update && apt-get install -y nginx && apt-get clean && rm -rf /var/l
 # Copiar todos los archivos de nuestra aplicación al contenedor
 COPY . .
 
-# --- CORRECCIÓN CLAVE AQUÍ ---
 # Instalar las dependencias de Composer ignorando los requisitos de la plataforma para máxima compatibilidad.
 RUN composer install --no-dev --no-interaction --optimize-autoloader --ignore-platform-reqs
 
@@ -21,9 +20,9 @@ RUN php artisan config:cache
 RUN php artisan route:cache
 RUN php artisan view:cache
 
-# Configurar los permisos correctos para las carpetas de Laravel
-# El usuario por defecto en la imagen de Sail es 'sail'
-RUN chown -R sail:sail /var/www/html
+# --- CORRECCIÓN CLAVE AQUÍ ---
+# Configurar los permisos correctos para las carpetas de Laravel usando el usuario estándar 'www-data'.
+RUN chown -R www-data:www-data /var/www/html
 RUN chmod -R 775 storage bootstrap/cache
 
 # Copiar nuestra configuración personalizada de Nginx
