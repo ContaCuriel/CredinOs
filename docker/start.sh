@@ -11,14 +11,8 @@ echo "Running database migrations for central DB..."
 php artisan migrate --force
 
 # --- CORRECCIÓN CLAVE AQUÍ ---
-# Limpiar todas las cachés antiguas antes de crear las nuevas para asegurar un estado limpio.
-echo "Clearing old caches..."
-php artisan config:clear
-php artisan route:clear
-php artisan view:clear
-
-echo "Caching new configuration..."
-# Genera la caché AHORA, con las variables de entorno correctas inyectadas por Render.
+# Se eliminan los comandos 'clear' redundantes. Los comandos 'cache' ya limpian antes de crear.
+echo "Caching configuration..."
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
