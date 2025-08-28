@@ -24,12 +24,8 @@ RUN apt-get update && apt-get install -y \
 # Copiar los archivos de la aplicación y las dependencias ya instaladas desde la etapa del constructor
 COPY --from=builder /var/www/html .
 
-# Generar los archivos de caché de Laravel
-RUN php artisan config:cache
-RUN php artisan route:cache
-RUN php artisan view:cache
-
 # Configurar los permisos correctos usando el usuario estándar 'www-data'
+# Esto se hace ANTES de que se generen los archivos de caché.
 RUN chown -R www-data:www-data /var/www/html
 RUN chmod -R 775 storage bootstrap/cache
 
@@ -41,6 +37,3 @@ RUN rm /etc/nginx/sites-enabled/default && \
 # Copiar nuestro script de inicio
 COPY docker/start.sh /usr/local/bin/start.sh
 RUN chmod +x /usr/local/bin/start.sh
-
-# El contenedor ejecutará este script cuando inicie
-CMD ["/usr/local/bin/start.sh"]
