@@ -15,8 +15,7 @@ FROM php:8.3-fpm-bullseye
 WORKDIR /var/www/html
 
 # --- CORRECCIÓN CLAVE AQUÍ ---
-# Se instala un conjunto simplificado de librerías, eliminando imagick y sus dependencias.
-# La extensión GD es suficiente para la mayoría de las tareas de imagen y PDF.
+# Se instala un conjunto final de librerías y se separa la instalación de GD para mayor robustez.
 RUN apt-get update && apt-get install -y \
         nginx \
         build-essential \
@@ -32,10 +31,13 @@ RUN apt-get update && apt-get install -y \
         libpng-dev \
         libjpeg-dev \
         libfreetype6-dev \
+        libwebp-dev \
+        libxpm-dev \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# 2. Instalar extensiones de PHP (sin imagick)
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
+# 2. Instalar extensiones de PHP, con un paso dedicado para GD.
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
+    && docker-php-ext-install -j$(nproc) gd \
     && docker-php-ext-install \
         pdo pdo_pgsql \
         bcmath \
@@ -45,8 +47,7 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
         tokenizer \
         xml \
         openssl \
-        zip \
-        gd
+        zip
 
 # Copiar el archivo de configuración de Nginx a la carpeta de sitios disponibles
 COPY docker/nginx.conf /etc/nginx/sites-available/default
