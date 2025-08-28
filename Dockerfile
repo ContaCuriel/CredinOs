@@ -6,8 +6,8 @@ COPY database/ database/
 COPY composer.json composer.json
 COPY composer.lock composer.lock
 # --- CORRECCIÓN CLAVE AQUÍ ---
-# Añadimos --ignore-platform-reqs para que no falle si faltan extensiones en ESTA etapa
-RUN composer install --no-dev --no-interaction --prefer-dist --ignore-platform-reqs
+# Añadimos --no-scripts para que Composer solo instale las dependencias sin ejecutar nada más
+RUN composer install --no-dev --no-interaction --prefer-dist --ignore-platform-reqs --no-scripts
 
 # Stage 2: Preparar la aplicación final de producción
 FROM php:8.3-fpm-alpine
@@ -26,6 +26,11 @@ COPY docker/nginx.conf /etc/nginx/http.d/default.conf
 # Copiar archivos de la aplicación
 COPY . .
 COPY --from=vendor /app/vendor/ vendor/
+
+# --- NUEVO PASO ---
+# Ahora que tenemos todos los archivos, generamos el autoloader optimizado.
+# Este comando también ejecuta el "package:discover" de forma segura.
+RUN composer dump-autoload --no-dev --optimize
 
 # Configurar permisos correctos para Laravel
 RUN chown -R www-data:www-data storage bootstrap/cache
