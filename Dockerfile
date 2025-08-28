@@ -15,7 +15,8 @@ FROM php:8.3-fpm-bullseye
 WORKDIR /var/www/html
 
 # --- CORRECCIÓN CLAVE AQUÍ ---
-# Se instala un conjunto final y completo de librerías, incluyendo las de procesamiento de imágenes y PDF.
+# Se separan las instalaciones para mayor robustez y mejor cacheo.
+# 1. Instalar dependencias del sistema
 RUN apt-get update && apt-get install -y \
         nginx \
         build-essential \
@@ -33,7 +34,10 @@ RUN apt-get update && apt-get install -y \
         libjpeg-dev \
         libfreetype6-dev \
         libmagickwand-dev \
-    && pecl install imagick \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# 2. Instalar extensiones de PHP
+RUN pecl install imagick \
     && docker-php-ext-enable imagick \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install \
@@ -46,8 +50,7 @@ RUN apt-get update && apt-get install -y \
         xml \
         openssl \
         zip \
-        gd \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+        gd
 
 # Copiar el archivo de configuración de Nginx a la carpeta de sitios disponibles
 COPY docker/nginx.conf /etc/nginx/sites-available/default
