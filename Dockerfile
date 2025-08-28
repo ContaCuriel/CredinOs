@@ -9,19 +9,21 @@ COPY composer.lock composer.lock
 RUN composer install --no-dev --no-interaction --prefer-dist --ignore-platform-reqs --no-scripts
 
 # Stage 2: Preparar la aplicación final de producción
-FROM php:8.3-fpm-alpine
+# --- CORRECCIÓN CLAVE AQUÍ ---
+# Cambiamos la imagen base a una de Debian (Bullseye) que es más estable y completa.
+FROM php:8.3-fpm-bullseye
 
 WORKDIR /var/www/html
 
 # --- CORRECCIÓN CLAVE AQUÍ ---
-# Se instalan un conjunto más completo de dependencias del sistema, incluyendo las herramientas de compilación.
-RUN apk add --no-cache \
+# Usamos apt-get (el gestor de paquetes de Debian) para instalar las dependencias.
+# Los nombres de los paquetes son ligeramente diferentes.
+RUN apt-get update && apt-get install -y \
         nginx \
-        build-base \
-        postgresql-dev \
-        oniguruma-dev \
+        libpq-dev \
+        libonig-dev \
         libxml2-dev \
-        openssl-dev \
+        libssl-dev \
         libzip-dev \
     && docker-php-ext-install \
         pdo pdo_pgsql \
@@ -35,7 +37,7 @@ RUN apk add --no-cache \
         zip
 
 # Copiar el archivo de configuración de Nginx
-COPY docker/nginx.conf /etc/nginx/http.d/default.conf
+COPY docker/nginx.conf /etc/nginx/sites-available/default
 
 # Copiar archivos de la aplicación
 COPY . .
