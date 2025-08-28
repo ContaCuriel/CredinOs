@@ -14,13 +14,14 @@ FROM php:8.3-fpm-alpine
 WORKDIR /var/www/html
 
 # --- CORRECCIÓN CLAVE AQUÍ ---
-# Se instalan las dependencias del sistema y las extensiones de PHP en un solo bloque
-# para garantizar que las librerías estén disponibles.
+# Se instalan un conjunto más completo de dependencias del sistema y luego las extensiones de PHP.
 RUN apk add --no-cache \
         nginx \
         postgresql-dev \
         oniguruma-dev \
         libxml2-dev \
+        openssl-dev \
+        libzip-dev \
     && docker-php-ext-install \
         pdo pdo_pgsql \
         bcmath \
@@ -29,7 +30,8 @@ RUN apk add --no-cache \
         mbstring \
         tokenizer \
         xml \
-        openssl
+        openssl \
+        zip
 
 # Copiar el archivo de configuración de Nginx
 COPY docker/nginx.conf /etc/nginx/http.d/default.conf
