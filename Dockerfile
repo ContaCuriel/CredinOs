@@ -12,10 +12,11 @@ RUN composer install --no-dev --no-interaction --prefer-dist --ignore-platform-r
 # Stage 2: Preparar la aplicación final de producción
 FROM php:8.3-fpm-alpine
 
-WORKDIR /var/www/html
+WORKDIR /var/w ww/html
 
-# Instalar dependencias del sistema: Nginx y librerías de PostgreSQL
-RUN apk add --no-cache nginx postgresql-dev
+# --- CORRECCIÓN CLAVE AQUÍ ---
+# Instalar dependencias del sistema: Nginx, librerías de PostgreSQL y la librería oniguruma
+RUN apk add --no-cache nginx postgresql-dev oniguruma-dev
 
 # Instalar TODAS las extensiones de PHP que Laravel necesita
 RUN docker-php-ext-install pdo pdo_pgsql bcmath ctype fileinfo mbstring tokenizer xml openssl
