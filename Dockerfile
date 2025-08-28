@@ -15,11 +15,12 @@ WORKDIR /var/www/html
 # Instalar dependencias del sistema: Nginx y librerías de PostgreSQL
 RUN apk add --no-cache nginx postgresql-dev
 
-# Instalar extensiones de PHP necesarias para Laravel con PostgreSQL
-RUN docker-php-ext-install pdo pdo_pgsql
+# -----------------------------------------------------------------
+# CORRECCIÓN CLAVE: Instalar TODAS las extensiones de PHP que Laravel necesita.
+# -----------------------------------------------------------------
+RUN docker-php-ext-install pdo pdo_pgsql bcmath ctype fileinfo mbstring tokenizer xml openssl
 
 # Copiar el archivo de configuración de Nginx
-# Asegúrate de que este archivo exista en docker/nginx.conf
 COPY docker/nginx.conf /etc/nginx/http.d/default.conf
 
 # Copiar archivos de la aplicación
