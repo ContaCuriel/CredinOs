@@ -15,17 +15,23 @@ FROM php:8.3-fpm-bullseye
 WORKDIR /var/www/html
 
 # --- CORRECCIÓN CLAVE AQUÍ ---
-# Añadimos 'build-essential' y 'unzip' para tener todas las herramientas de compilación necesarias.
+# Se instala un conjunto completo de librerías de desarrollo para evitar errores de compilación.
 RUN apt-get update && apt-get install -y \
         nginx \
         build-essential \
         unzip \
+        git \
+        curl \
         libpq-dev \
         libonig-dev \
         libxml2-dev \
         libssl-dev \
         libzip-dev \
         zlib1g-dev \
+        libpng-dev \
+        libjpeg-dev \
+        libfreetype6-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install \
         pdo pdo_pgsql \
         bcmath \
@@ -36,6 +42,7 @@ RUN apt-get update && apt-get install -y \
         xml \
         openssl \
         zip \
+        gd \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Copiar el archivo de configuración de Nginx a la carpeta de sitios disponibles
