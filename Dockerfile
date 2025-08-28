@@ -9,15 +9,12 @@ COPY composer.lock composer.lock
 RUN composer install --no-dev --no-interaction --prefer-dist --ignore-platform-reqs --no-scripts
 
 # Stage 2: Preparar la aplicación final de producción
-# --- CORRECCIÓN CLAVE AQUÍ ---
 # Cambiamos la imagen base a una de Debian (Bullseye) que es más estable y completa.
 FROM php:8.3-fpm-bullseye
 
 WORKDIR /var/www/html
 
-# --- CORRECCIÓN CLAVE AQUÍ ---
 # Usamos apt-get (el gestor de paquetes de Debian) para instalar las dependencias.
-# Los nombres de los paquetes son ligeramente diferentes.
 RUN apt-get update && apt-get install -y \
         nginx \
         libpq-dev \
@@ -36,8 +33,12 @@ RUN apt-get update && apt-get install -y \
         openssl \
         zip
 
-# Copiar el archivo de configuración de Nginx
+# --- CORRECCIÓN CLAVE AQUÍ ---
+# Copiar el archivo de configuración de Nginx a la carpeta de sitios disponibles
 COPY docker/nginx.conf /etc/nginx/sites-available/default
+# Eliminar el enlace simbólico por defecto y crear el nuestro
+RUN rm /etc/nginx/sites-enabled/default && \
+    ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
 
 # Copiar archivos de la aplicación
 COPY . .
