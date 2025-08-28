@@ -3,15 +3,18 @@
 # Salir inmediatamente si un comando falla
 set -e
 
-echo "Running database migrations..."
+echo "Running database migrations for central DB..."
 # Ejecuta las migraciones en la base de datos CENTRAL
 php artisan migrate --force
 
-# -----------------------------------------------------------------
-# NUEVA LÍNEA: Crea el enlace simbólico para el almacenamiento de archivos.
-# Esto es necesario para que los archivos subidos al disco sean públicamente accesibles.
-# -----------------------------------------------------------------
+echo "Caching configuration..."
+# Genera la caché AHORA, con las variables de entorno correctas inyectadas por Render.
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+
 echo "Linking storage directory..."
+# Crea el enlace simbólico para el almacenamiento de archivos.
 php artisan storage:link
 
 echo "Starting services..."
