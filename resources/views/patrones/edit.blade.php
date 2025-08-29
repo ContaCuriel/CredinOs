@@ -18,8 +18,8 @@
                 @endif
 
                 {{-- --- LÍNEA CORREGIDA --- --}}
-                {{-- Pasamos el ID del patrón de forma explícita como un array asociativo --}}
-                <form action="{{ route('patrones.update', ['patron' => $patron->id_patron]) }}" method="POST" enctype="multipart/form-data">
+                {{-- Cambiamos el nombre del parámetro de 'patron' a 'patrone' para que coincida con la ruta --}}
+                <form action="{{ route('patrones.update', ['patrone' => $patron->id_patron]) }}" method="POST" enctype="multipart/form-data">
                     @csrf
                     @method('PUT') {{-- Método HTTP para actualizar --}}
 
