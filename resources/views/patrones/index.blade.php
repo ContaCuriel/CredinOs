@@ -49,21 +49,22 @@
                                             N/A
                                         @endif
                                     </td>
-                                    <td>
-                                        <!-- Botón de Editar -->
-                                        <a href="{{ route('patrones.edit', $patron->id_patron) }}" class="btn btn-sm btn-info" title="Editar">
-                                            <i class="bi bi-pencil-square"></i>
-                                        </a>
+                                                                            <td>
+                                            <div class="btn-group" role="group" aria-label="Acciones de patrón">
+                                                {{-- ESTE ES EL NUEVO BOTÓN PARA CAMBIAR LOGO --}}
+                                                <a href="{{ route('patrones.logo.edit', $patron->id_patron) }}" class="btn btn-sm btn-success" title="Cambiar Logo">
+                                                    <i class="bi bi-image"></i>
+                                                </a>
 
-                                        <!-- Formulario para el botón de Eliminar -->
-                                        <form action="{{ route('patrones.destroy', $patron->id_patron) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este patrón? Esta acción no se puede deshacer.');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-sm btn-danger" title="Eliminar">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </form>
-                                    </td>
+                                                {{-- Botones originales (aún no funcionan, pero los dejamos) --}}
+                                                <a href="#" class="btn btn-sm btn-info disabled" title="Editar Patrón Completo">
+                                                    <i class="bi bi-pencil-square"></i>
+                                                </a>
+                                                <button type="button" class="btn btn-sm btn-danger disabled" title="Eliminar Patrón">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
                                 </tr>
                             @empty
                                 <tr>
