@@ -17,7 +17,9 @@
                     </div>
                 @endif
 
-                <form action="{{ route('patrones.update', $patron->id_patron) }}" method="POST" enctype="multipart/form-data">
+                {{-- --- LÍNEA CORREGIDA --- --}}
+                {{-- Pasamos el ID del patrón de forma explícita como un array asociativo --}}
+                <form action="{{ route('patrones.update', ['patron' => $patron->id_patron]) }}" method="POST" enctype="multipart/form-data">
                     @csrf
                     @method('PUT') {{-- Método HTTP para actualizar --}}
 
@@ -39,7 +41,8 @@
                             <label for="tipo_persona" class="form-label">Tipo de Persona <span class="text-danger">*</span></label>
                             <select class="form-select @error('tipo_persona') is-invalid @enderror" id="tipo_persona" name="tipo_persona" required>
                                 <option value="">Seleccione un tipo...</option>
-                                @foreach ($tipos_persona as $valor => $texto)
+                                {{-- Asumimos que $tipos_persona se pasa desde el controlador --}}
+                                @foreach (['fisica' => 'Persona Física', 'moral' => 'Persona Moral'] as $valor => $texto)
                                     <option value="{{ $valor }}" {{ old('tipo_persona', $patron->tipo_persona) == $valor ? 'selected' : '' }}>{{ $texto }}</option>
                                 @endforeach
                             </select>
