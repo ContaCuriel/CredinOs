@@ -49,27 +49,24 @@ class DashboardController extends Controller
         // --- FIN DE LA LÓGICA DEL SALUDO ---
 
         // Widget: Contratos por Vencer
-if ($user->can('ver-widget-contratos-vencer')) {
-    $data['contratosPorVencer'] = Contrato::whereNotNull('fecha_fin')
-        ->whereBetween('fecha_fin', [Carbon::today(), Carbon::today()->addDays(15)])
-
-        // --- INICIO DE LA CORRECCIÓN ---
-        // Filtramos para que solo muestre contratos de empleados cuyo estado es 'Alta'.
-        ->whereHas('empleado', function ($query) {
-            $query->where('status', 'Alta');
-        })
-        // --- FIN DE LA CORRECCIÓN ---
-
-        ->with('empleado.puesto', 'empleado.sucursal')
-        ->orderBy('fecha_fin', 'asc')
-        ->get();
-}
+        if ($user->can('ver-widget-contratos-vencer')) {
+            $data['contratosPorVencer'] = Contrato::whereNotNull('fecha_fin')
+                ->whereBetween('fecha_fin', [Carbon::today(), Carbon::today()->addDays(15)])
+                // Filtramos para que solo muestre contratos de empleados cuyo estado es 'Alta'.
+                ->whereHas('empleado', function ($query) {
+                    $query->where('status', 'Alta');
+                })
+                ->with('empleado.puesto', 'empleado.sucursal')
+                ->orderBy('fecha_fin', 'asc')
+                ->get();
+        }
 
         // Widget: Cumpleaños del Mes
         if ($user->can('ver-widget-cumpleanos')) {
             $data['cumpleanerosDelMes'] = Empleado::where('status', 'Alta')
                 ->whereMonth('fecha_nacimiento', Carbon::now()->month)
-                ->orderByRaw('DAY(fecha_nacimiento) ASC')
+                // --- CORRECCIÓN PARA POSTGRESQL ---
+                ->orderByRaw('EXTRACT(DAY FROM fecha_nacimiento) ASC')
                 ->get();
         }
 
@@ -77,7 +74,8 @@ if ($user->can('ver-widget-contratos-vencer')) {
         if ($user->can('ver-widget-aniversarios')) {
             $data['aniversariosDelMes'] = Empleado::where('status', 'Alta')
                 ->whereMonth('fecha_ingreso', Carbon::now()->month)
-                ->orderByRaw('DAY(fecha_ingreso) ASC')
+                // --- CORRECCIÓN PARA POSTGRESQL ---
+                ->orderByRaw('EXTRACT(DAY FROM fecha_ingreso) ASC')
                 ->get();
         }
 
