@@ -4,122 +4,115 @@ namespace App\Http\Controllers;
 
 use App\Models\Patron;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage; // Para manejar archivos (logo)
-use Illuminate\Support\Str;             // Para generar nombres de archivo
+use Illuminate\Support\Facades\Storage;
+use App\Http\Requests\PatronRequest; // Usaremos un Form Request para la validación
 
 class PatronController extends Controller
 {
+    // Define los tipos de persona para no repetirlos en create y edit
+    private function getTiposPersona()
+    {
+        return [
+            'fisica' => 'Persona Física',
+            'moral' => 'Persona Moral',
+        ];
+    }
+
     /**
-     * Display a listing of the resource.
+     * Muestra una lista de todos los patrones.
      */
     public function index()
     {
-        // Obtenemos todos los patrones, ordenados por razón social
-        // Usamos paginación por si tienes muchos
-        $patrones = Patron::orderBy('razon_social', 'asc')->paginate(10); // Muestra 10 por página
-
-        // Pasamos la colección de patrones a la vista
+        // Usamos paginate para manejar grandes cantidades de registros
+        $patrones = Patron::orderBy('razon_social', 'asc')->paginate(10);
         return view('patrones.index', compact('patrones'));
     }
 
     /**
-     * Show the form for creating a new resource.
+     * Muestra el formulario para crear un nuevo patrón.
      */
     public function create()
     {
-        // Definimos las opciones para el tipo de persona
-        $tipos_persona = [
-            'fisica' => 'Persona Física',
-            'moral' => 'Persona Moral',
-        ];
-
+        $tipos_persona = $this->getTiposPersona();
         return view('patrones.create', compact('tipos_persona'));
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Guarda un nuevo patrón en la base de datos.
      */
-    public function store(Request $request)
+    public function store(PatronRequest $request)
     {
-        // 1. Validación de los datos del formulario
-        $validatedData = $request->validate([
-            'nombre_comercial' => 'required|string|max:255',
-            'razon_social' => 'required|string|max:255|unique:patrones,razon_social',
-            'tipo_persona' => 'required|string|in:fisica,moral',
-            'rfc' => 'required|string|max:13|unique:patrones,rfc',
-            'direccion_fiscal' => 'nullable|string|max:1000',
-            'actividad_principal' => 'nullable|string|max:500',
-            'representante_legal' => 'nullable|string|max:255',
-            'logo_path' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048', // Logo opcional, imagen, tipos y tamaño máx 2MB
-        ],[
-            'nombre_comercial.required' => 'El nombre comercial es obligatorio.',
-            'razon_social.required' => 'La razón social es obligatoria.',
-            'razon_social.unique' => 'Esta razón social ya está registrada.',
-            'tipo_persona.required' => 'Debe seleccionar el tipo de persona.',
-            'rfc.required' => 'El RFC es obligatorio.',
-            'rfc.unique' => 'Este RFC ya está registrado.',
-            'logo_path.image' => 'El archivo del logo debe ser una imagen.',
-            'logo_path.mimes' => 'El logo debe ser un archivo de tipo: jpeg, png, jpg, gif.',
-            'logo_path.max' => 'El logo no debe pesar más de 2MB.',
-        ]);
+        $validatedData = $request->validated();
 
-        // 2. Manejo de la Subida del Logo (si se proporcionó)
         if ($request->hasFile('logo_path')) {
-            // Generar un nombre único para el archivo
-            $logoNombre = Str::slug($validatedData['razon_social']) . '_' . time() . '.' . $request->file('logo_path')->getClientOriginalExtension();
-            // Guardar el archivo en storage/app/public/patron_logos
-            // Asegúrate de que la carpeta 'patron_logos' exista o créala
-            $path = $request->file('logo_path')->storeAs('patron_logos', $logoNombre, 'public');
-            $validatedData['logo_path'] = $path; // Guardamos la ruta del archivo en los datos a crear
+            // Guarda el logo en 'public/logos' y guarda la ruta en la BD
+            $path = $request->file('logo_path')->store('logos', 'public');
+            $validatedData['logo_path'] = $path;
         }
 
-        // 3. Creación del Patrón
         Patron::create($validatedData);
 
-        // 4. Redirección con Mensaje de Éxito
         return redirect()->route('patrones.index')
-                         ->with('success', '¡Patrón registrado exitosamente!');
-    } // <--- ESTA ES LA LLAVE DE CIERRE DEL MÉTODO store()
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(Patron $patron)
-    {
-        // Lo implementaremos después si es necesario (ej: una vista de detalle del patrón)
-        // Por ahora, puedes redirigir a la lista o a la edición:
-        // return redirect()->route('patrones.edit', $patron->id_patron);
+                         ->with('success', 'Patrón registrado exitosamente.');
     }
 
     /**
-     * Show the form for editing the specified resource.
+     * Muestra el formulario para editar un patrón existente.
      */
     public function edit(Patron $patron)
-{
-    // Laravel nos pasa automáticamente la instancia del Patrón a editar.
-
-    $tipos_persona = [
-        'fisica' => 'Persona Física',
-        'moral' => 'Persona Moral',
-    ];
-
-    return view('patrones.edit', compact('patron', 'tipos_persona'));
-}
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Patron $patron)
     {
-        // Lo implementaremos después
+        $tipos_persona = $this->getTiposPersona();
+        return view('patrones.edit', compact('patron', 'tipos_persona'));
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Actualiza un patrón existente en la base de datos.
+     */
+    public function update(PatronRequest $request, Patron $patron)
+    {
+        $validatedData = $request->validated();
+
+        if ($request->hasFile('logo_path')) {
+            // Si se sube un nuevo logo, eliminamos el anterior si existe
+            if ($patron->logo_path) {
+                Storage::disk('public')->delete($patron->logo_path);
+            }
+            // Guardamos el nuevo logo
+            $path = $request->file('logo_path')->store('logos', 'public');
+            $validatedData['logo_path'] = $path;
+        }
+
+        $patron->update($validatedData);
+
+        return redirect()->route('patrones.index')
+                         ->with('success', 'Patrón actualizado exitosamente.');
+    }
+
+    /**
+     * Elimina un patrón de la base de datos.
      */
     public function destroy(Patron $patron)
     {
-        // Lo implementaremos después
-    }
+        try {
+            // Si el patrón tiene un logo, lo eliminamos del almacenamiento
+            if ($patron->logo_path) {
+                Storage::disk('public')->delete($patron->logo_path);
+            }
 
-} // <--- ESTA ES LA LLAVE DE CIERRE FINAL DE LA CLASE PatronController
+            $patron->delete();
+
+            return redirect()->route('patrones.index')
+                             ->with('success', 'Patrón eliminado exitosamente.');
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Capturamos el error si el patrón no se puede eliminar por tener empleados asociados
+            if ($e->getCode() === '23503') { // Código de error de PostgreSQL para violación de llave foránea
+                return redirect()->route('patrones.index')
+                                 ->with('error', 'No se puede eliminar el patrón porque tiene empleados asociados.');
+            }
+            // Para cualquier otro error de base de datos
+            return redirect()->route('patrones.index')
+                             ->with('error', 'Ocurrió un error al intentar eliminar el patrón.');
+        }
+    }
+}
+

@@ -50,10 +50,20 @@
                                         @endif
                                     </td>
                                     <td>
-    {{-- Editar y Eliminar deshabilitados temporalmente --}}
-    <button class="btn btn-sm btn-info disabled" title="Editar (Próximamente)"><i class="bi bi-pencil-square"></i></button>
-    <button class="btn btn-sm btn-danger disabled" title="Eliminar (Próximamente)"><i class="bi bi-trash"></i></button>
-</td>
+                                        <!-- Botón de Editar -->
+                                        <a href="{{ route('patrones.edit', $patron->id_patron) }}" class="btn btn-sm btn-info" title="Editar">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </a>
+
+                                        <!-- Formulario para el botón de Eliminar -->
+                                        <form action="{{ route('patrones.destroy', $patron->id_patron) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este patrón? Esta acción no se puede deshacer.');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-danger" title="Eliminar">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
                                 </tr>
                             @empty
                                 <tr>
