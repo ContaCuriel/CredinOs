@@ -236,6 +236,12 @@ Route::middleware('auth')->group(function () {
     Route::middleware('can:ver-menu-configuracion')->group(function () {
         Route::resource('sucursales', SucursalController::class)->middleware('can:ver-sucursales');
         Route::resource('puestos', PuestoController::class)->middleware('can:ver-puestos');
+
+        // --- INICIO DE LÍNEAS NUEVAS ---
+        // Estas dos rutas son solo para manejar la subida del logo de forma independiente.
+        Route::get('/patrones/{patron}/logo', [PatronController::class, 'editLogo'])->name('patrones.logo.edit');
+        Route::post('/patrones/{patron}/logo', [PatronController::class, 'updateLogo'])->name('patrones.logo.update');
+        // --- FIN DE LÍNEAS NUEVAS ---
         
         // --- CORRECCIÓN PARA PATRONES ---
         // Eliminamos .only() para generar todas las rutas del CRUD
