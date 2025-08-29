@@ -1,21 +1,9 @@
 #!/bin/sh
-
-# Salir inmediatamente si un comando falla
 set -e
 
-# --- PASO DE DEPURACIÓN 1: ASEGURAR QUE NO HAYA .env ---
 echo "Forzando la eliminación de .env para leer variables del sistema..."
 rm -f /var/www/html/.env
 
-# --- PASO DE DEPURACIÓN 2: MOSTRAR QUÉ VE LARAVEL ---
-echo "-----------------------------------------------------"
-echo "Laravel está viendo estas variables ANTES de la caché:"
-php artisan tinker --execute="echo 'CACHE_DRIVER VISTO: ' . env('CACHE_DRIVER', '¡NO VISTO!');"
-php artisan tinker --execute="echo 'SESSION_DRIVER VISTO: ' . env('SESSION_DRIVER', '¡NO VISTO!');"
-php artisan tinker --execute="echo 'REDIS_URL VISTA: ' . env('REDIS_URL', '¡NO VISTA!');"
-echo "-----------------------------------------------------"
-
-# Usar envsubst para reemplazar ${PORT} en nuestra plantilla de Nginx
 envsubst '${PORT}' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
 
 echo "Running database migrations for central DB..."
@@ -37,6 +25,13 @@ php artisan view:clear
 echo "Caching new configuration..."
 php artisan config:cache
 php artisan route:cache
+
+# --- PASO DE DEPURACIÓN FINAL ---
+echo "-----------------------------------------------------"
+echo "VERIFICANDO EL ARCHIVO DE CACHÉ DE CONFIGURACIÓN GENERADO:"
+# Imprimimos la línea donde se define el driver de caché por defecto
+cat bootstrap/cache/config.php | grep "'default' =>"
+echo "-----------------------------------------------------"
 
 echo "Starting services..."
 php-fpm &
