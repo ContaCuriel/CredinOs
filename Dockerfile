@@ -12,13 +12,16 @@ FROM php:8.3-fpm-bullseye
 
 WORKDIR /var/www/html
 
-# --- CORRECCIÓN CLAVE AQUÍ ---
-# Instalar Nginx, las librerías de sistema y la utilidad 'gettext' para envsubst.
+# Instalar Nginx, las librerías de sistema y las extensiones de PHP.
 RUN apt-get update && apt-get install -y \
         nginx \
         libpq-dev \
         gettext \
     && docker-php-ext-install pdo pdo_pgsql \
+    # --- AÑADIDO PARA REDIS ---
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    # --- FIN DE AÑADIDO ---
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Copiar los archivos de la aplicación y las dependencias ya instaladas desde la etapa del constructor
