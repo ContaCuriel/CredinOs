@@ -4,16 +4,78 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use App\Models\DeduccionEmpleado;
+use App\Models\Tenant;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 
 class ActualizarDeducciones extends Command
 {
-    protected $signature = 'deducciones:actualizar';
-    protected $description = 'Procesa las deducciones activas (préstamos, ahorros) según las fechas de corte quincenales.';
+    /**
+     * La firma del comando.
+     * {tenantId? : El ID del inquilino a procesar (opcional)}
+     * {--all : Procesar todos los inquilinos (opción)}
+     */
+    // --- CORRECCIÓN CLAVE AQUÍ ---
+    // Se ha ajustado la firma para que Laravel la reconozca correctamente.
+    protected $signature = 'deducciones:actualizar {tenantId?} {--all}';
+    
+    protected $description = 'Procesa las deducciones activas para uno o todos los inquilinos.';
 
     public function handle()
     {
-        $this->info('-> Iniciando proceso de actualización de deducciones...');
+        $tenantId = $this->argument('tenantId');
+        $allTenants = $this->option('all');
+
+        if ($allTenants) {
+            $tenants = Tenant::all();
+        } elseif ($tenantId) {
+            $tenants = Tenant::where('id', $tenantId)->get();
+        } else {
+            $this->error('Debes especificar un ID de inquilino o usar la opción --all.');
+            return 1;
+        }
+
+        if ($tenants->isEmpty()) {
+            $this->warn('No se encontraron inquilinos para procesar.');
+            return 0;
+        }
+
+        foreach ($tenants as $tenant) {
+            $this->info("--- Procesando inquilino: {$tenant->name} (ID: {$tenant->id}) ---");
+            
+            try {
+                $this->switchToTenantDatabase($tenant);
+                $this->processDeductionsForCurrentTenant();
+            } catch (\Exception $e) {
+                $this->error("  -> Error al procesar el inquilino {$tenant->name}: " . $e->getMessage());
+            }
+        }
+
+        $this->info('--- ¡Proceso de actualización de deducciones completado! ---');
+        return 0;
+    }
+
+    protected function switchToTenantDatabase(Tenant $tenant)
+    {
+        DB::purge('tenant');
+
+        Config::set('database.connections.tenant.host', $tenant->db_host);
+        Config::set('database.connections.tenant.port', $tenant->db_port);
+        Config::set('database.connections.tenant.database', $tenant->db_name);
+        Config::set('database.connections.tenant.username', $tenant->db_user);
+        Config::set('database.connections.tenant.password', $tenant->db_password);
+        
+        DB::reconnect('tenant');
+        
+        Config::set('database.default', 'tenant');
+        
+        $this->line("  -> Conectado a la base de datos: {$tenant->db_name}");
+    }
+
+    protected function processDeductionsForCurrentTenant()
+    {
+        $this->line('  -> Iniciando proceso de actualización de deducciones...');
         $hoy = Carbon::today();
         
         DeduccionEmpleado::where('status', 'Activo')->chunkById(100, function ($deduccionesActivas) use ($hoy) {
@@ -28,9 +90,8 @@ class ActualizarDeducciones extends Command
                 }
             }
         });
-
-        $this->info('-> ¡Actualización de deducciones completada!');
-        return 0;
+        
+        $this->line('  -> Actualización de deducciones para este inquilino completada.');
     }
 
     private function procesarQuincenasPendientes(DeduccionEmpleado $deduccion, Carbon $desde, Carbon $hasta)
@@ -42,7 +103,7 @@ class ActualizarDeducciones extends Command
             $fechaIterador->addDay();
 
             if (($fechaIterador->day == 15 || $fechaIterador->isLastOfMonth()) && $fechaIterador >= $fechaSolicitud) {
-                $this->line("  - Procesando deducción #{$deduccion->id} en fecha {$fechaIterador->toDateString()}");
+                $this->line("    - Procesando deducción #{$deduccion->id} en fecha {$fechaIterador->toDateString()}");
                 switch ($deduccion->tipo_deduccion) {
                     case 'Préstamo':
                         $deduccion->saldo_pendiente -= $deduccion->monto_quincenal;
@@ -50,7 +111,7 @@ class ActualizarDeducciones extends Command
                         if ($deduccion->saldo_pendiente <= 0) {
                             $deduccion->saldo_pendiente = 0;
                             $deduccion->status = 'Pagado';
-                            $this->warn("    ¡Préstamo #{$deduccion->id} LIQUIDADO!");
+                            $this->warn("      ¡Préstamo #{$deduccion->id} LIQUIDADO!");
                         }
                         break;
                     case 'Caja de Ahorro':
