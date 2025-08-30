@@ -11,13 +11,6 @@ use Illuminate\Support\Facades\DB;
 
 class ActualizarDeducciones extends Command
 {
-    /**
-     * La firma del comando.
-     * {tenantId? : El ID del inquilino a procesar (opcional)}
-     * {--all : Procesar todos los inquilinos (opción)}
-     */
-    // --- CORRECCIÓN CLAVE AQUÍ ---
-    // Se ha ajustado la firma para que Laravel la reconozca correctamente.
     protected $signature = 'deducciones:actualizar {tenantId?} {--all}';
     
     protected $description = 'Procesa las deducciones activas para uno o todos los inquilinos.';
@@ -60,6 +53,9 @@ class ActualizarDeducciones extends Command
     {
         DB::purge('tenant');
 
+        // --- CORRECCIÓN CLAVE AQUÍ ---
+        // Añadimos la línea 'driver' para que Laravel sepa que es una conexión PostgreSQL.
+        Config::set('database.connections.tenant.driver', 'pgsql');
         Config::set('database.connections.tenant.host', $tenant->db_host);
         Config::set('database.connections.tenant.port', $tenant->db_port);
         Config::set('database.connections.tenant.database', $tenant->db_name);
@@ -124,3 +120,4 @@ class ActualizarDeducciones extends Command
         }
     }
 }
+
