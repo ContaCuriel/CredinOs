@@ -41,7 +41,9 @@ class ActualizarDeducciones extends Command
                 $this->switchToTenantDatabase($tenant);
                 $this->processDeductionsForCurrentTenant();
             } catch (\Exception $e) {
+                // Añadimos más detalle al mensaje de error para futura depuración
                 $this->error("  -> Error al procesar el inquilino {$tenant->name}: " . $e->getMessage());
+                $this->error("  -> En el archivo: " . $e->getFile() . " en la línea: " . $e->getLine());
             }
         }
 
@@ -53,20 +55,20 @@ class ActualizarDeducciones extends Command
     {
         DB::purge('tenant');
 
-        // --- CORRECCIÓN CLAVE AQUÍ ---
-        // Añadimos la línea 'driver' para que Laravel sepa que es una conexión PostgreSQL.
         Config::set('database.connections.tenant.driver', 'pgsql');
         Config::set('database.connections.tenant.host', $tenant->db_host);
         Config::set('database.connections.tenant.port', $tenant->db_port);
         Config::set('database.connections.tenant.database', $tenant->db_name);
-        Config::set('database.connections.tenant.username', $tenant->db_user);
+        // --- CORRECCIÓN CLAVE AQUÍ ---
+        // Usamos 'db_username' que es el nombre correcto de la columna en tu tabla tenants.
+        Config::set('database.connections.tenant.username', $tenant->db_username);
         Config::set('database.connections.tenant.password', $tenant->db_password);
         
         DB::reconnect('tenant');
         
         Config::set('database.default', 'tenant');
         
-        $this->line("  -> Conectado a la base de datos: {$tenant->db_name}");
+        $this->line("  -> Conectado a la base de datos: {$tenant->db_name} con el usuario: {$tenant->db_username}");
     }
 
     protected function processDeductionsForCurrentTenant()
@@ -120,4 +122,3 @@ class ActualizarDeducciones extends Command
         }
     }
 }
-
