@@ -51,7 +51,6 @@
                 </div>
                 @endcan
 
-                {{-- ... (El resto de tus widgets con sus permisos @can se mantienen exactamente igual) ... --}}
                 @can('ver-widget-cumpleanos')
                 <div class="col-md-6 col-lg-4 mb-4">
                     <div class="card">
@@ -74,6 +73,7 @@
                 </div>
                 @endcan
 
+                {{-- --- INICIO DE LA CORRECCIÓN DEL WIDGET DE ANIVERSARIOS --- --}}
                 @can('ver-widget-aniversarios')
                 <div class="col-md-6 col-lg-4 mb-4">
                     <div class="card">
@@ -82,15 +82,11 @@
                             @if(isset($aniversariosDelMes) && $aniversariosDelMes->isNotEmpty())
                                 <ul class="list-group list-group-flush">
                                     @foreach ($aniversariosDelMes as $empleado)
-                                        @php
-                                            $fechaIngreso = \Carbon\Carbon::parse($empleado->fecha_ingreso);
-                                            $anosCelebrando = intval($fechaIngreso->diffInYears(now()));    
-                                        @endphp
                                         <li class="list-group-item">
                                             {{ $empleado->nombre_completo }} 
-                                            ({{ $fechaIngreso->translatedFormat('d M') }})
-                                            - Cumple <strong>{{ $anosCelebrando }}</strong>
-                                            {{ $anosCelebrando == 1 ? 'año' : 'años' }}
+                                            ({{ \Carbon\Carbon::parse($empleado->fecha_ingreso)->translatedFormat('d M') }})
+                                            - Cumple <strong>{{ $empleado->anosCelebrando }}</strong>
+                                            {{ $empleado->anosCelebrando == 1 ? 'año' : 'años' }}
                                         </li>
                                     @endforeach
                                 </ul>
@@ -101,6 +97,7 @@
                     </div>
                 </div>
                 @endcan
+                {{-- --- FIN DE LA CORRECCIÓN --- --}}
 
                 @can('ver-widget-accesos-rapidos')
                 <div class="col-md-6 col-lg-4 mb-4">

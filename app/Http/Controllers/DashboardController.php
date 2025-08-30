@@ -65,19 +65,36 @@ class DashboardController extends Controller
         if ($user->can('ver-widget-cumpleanos')) {
             $data['cumpleanerosDelMes'] = Empleado::where('status', 'Alta')
                 ->whereMonth('fecha_nacimiento', Carbon::now()->month)
-                // --- CORRECCIÓN PARA POSTGRESQL ---
                 ->orderByRaw('EXTRACT(DAY FROM fecha_nacimiento) ASC')
                 ->get();
         }
 
+        // --- INICIO DE LA CORRECCIÓN DEL WIDGET DE ANIVERSARIOS ---
         // Widget: Aniversarios Laborales del Mes
         if ($user->can('ver-widget-aniversarios')) {
-            $data['aniversariosDelMes'] = Empleado::where('status', 'Alta')
-                ->whereMonth('fecha_ingreso', Carbon::now()->month)
-                // --- CORRECCIÓN PARA POSTGRESQL ---
+            $hoy = Carbon::today();
+            
+            // 1. Obtenemos a todos los que cumplen años este mes
+            $aniversarios = Empleado::where('status', 'Alta')
+                ->whereMonth('fecha_ingreso', $hoy->month)
                 ->orderByRaw('EXTRACT(DAY FROM fecha_ingreso) ASC')
-                ->get();
+                ->get()
+                // 2. Mapeamos la colección para añadir el cálculo correcto de años
+                ->map(function ($empleado) use ($hoy) {
+                    $fechaIngreso = Carbon::parse($empleado->fecha_ingreso);
+                    // Calculamos los años que CUMPLIRÁ este mes
+                    $anosCelebrando = $hoy->year - $fechaIngreso->year;
+                    $empleado->anosCelebrando = $anosCelebrando; // Añadimos la propiedad al objeto
+                    return $empleado;
+                })
+                // 3. Filtramos para quitar a los que cumplen 0 años (recién ingresados)
+                ->filter(function ($empleado) {
+                    return $empleado->anosCelebrando > 0;
+                });
+
+            $data['aniversariosDelMes'] = $aniversarios;
         }
+        // --- FIN DE LA CORRECCIÓN ---
 
         // Widget: Nuevos Ingresos de la Quincena
         if ($user->can('ver-widget-nuevos-ingresos')) {
@@ -125,3 +142,4 @@ class DashboardController extends Controller
         return view('dashboard', $data);
     }
 }
+
