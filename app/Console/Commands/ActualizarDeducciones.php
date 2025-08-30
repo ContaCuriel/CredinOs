@@ -41,7 +41,6 @@ class ActualizarDeducciones extends Command
                 $this->switchToTenantDatabase($tenant);
                 $this->processDeductionsForCurrentTenant();
             } catch (\Exception $e) {
-                // Añadimos más detalle al mensaje de error para futura depuración
                 $this->error("  -> Error al procesar el inquilino {$tenant->name}: " . $e->getMessage());
                 $this->error("  -> En el archivo: " . $e->getFile() . " en la línea: " . $e->getLine());
             }
@@ -58,17 +57,20 @@ class ActualizarDeducciones extends Command
         Config::set('database.connections.tenant.driver', 'pgsql');
         Config::set('database.connections.tenant.host', $tenant->db_host);
         Config::set('database.connections.tenant.port', $tenant->db_port);
-        Config::set('database.connections.tenant.database', $tenant->db_name);
-        // --- CORRECCIÓN CLAVE AQUÍ ---
-        // Usamos 'db_username' que es el nombre correcto de la columna en tu tabla tenants.
+        // --- CORRECCIÓN 1 ---
+        // Usamos 'db_database', el nombre correcto de la columna.
+        Config::set('database.connections.tenant.database', $tenant->db_database);
         Config::set('database.connections.tenant.username', $tenant->db_username);
         Config::set('database.connections.tenant.password', $tenant->db_password);
+        // --- CORRECCIÓN 2 ---
+        // Forzamos el uso de encriptación SSL para cumplir con los requisitos de Render.
+        Config::set('database.connections.tenant.sslmode', 'require');
         
         DB::reconnect('tenant');
         
         Config::set('database.default', 'tenant');
         
-        $this->line("  -> Conectado a la base de datos: {$tenant->db_name} con el usuario: {$tenant->db_username}");
+        $this->line("  -> Conectado a la base de datos: {$tenant->db_database} con el usuario: {$tenant->db_username}");
     }
 
     protected function processDeductionsForCurrentTenant()
@@ -122,3 +124,4 @@ class ActualizarDeducciones extends Command
         }
     }
 }
+
