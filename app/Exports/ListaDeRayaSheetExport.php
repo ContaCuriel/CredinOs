@@ -30,8 +30,6 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
     protected string $sucursal_nombre;
     protected Collection $resultados;
     protected string $periodoTexto;
-    // CORRECCIÓN: El contador de filas debe empezar en 1.
-    // El mapeo de datos ocurre ANTES de que se inserte la fila del título en el evento AfterSheet.
     protected int $rowNumber = 1;
 
     public function __construct(string $periodo, int $sucursal_id)
@@ -147,46 +145,45 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
 
     public function map($filaResultado): array
     {
-        // CORRECCIÓN: Se restaura la lógica original para calcular la fila actual.
-        // La fila actual es el número de fila en la hoja ANTES de que se inserte la fila del título.
-        // Excel ajustará automáticamente las referencias de celda (ej. de F2 a F3) después de la inserción.
         $filaActual = $this->rowNumber + 1;
         $this->rowNumber++;
 
-        // Las letras de las columnas y los rangos ahora son correctos para la nueva estructura.
         $rangoPercepciones    = "F{$filaActual}:I{$filaActual}";
         $colTotalPercepciones   = "J{$filaActual}";
         $rangoDeducciones       = "K{$filaActual}:Q{$filaActual}";
         $colTotalDeducciones    = "R{$filaActual}";
 
+        // --- INICIO DE LA CORRECCIÓN ---
+        // Aplicamos el operador '?? 0' a cada valor numérico para asegurar que no sea nulo.
         return [
             $filaResultado['empleado_nombre'],
             $filaResultado['fecha_ingreso'] ? Carbon::parse($filaResultado['fecha_ingreso'])->format('d/m/Y') : 'N/A',
             $filaResultado['puesto'],
             '', '', // Columnas D y E
-            (float) $filaResultado['sueldo_quincenal'],     // F
-            (float) $filaResultado['bono_permanencia'],     // G
-            (float) $filaResultado['bono_cumpleanos'],      // H
-            (float) $filaResultado['prima_vacacional'],     // I
-            "=SUM({$rangoPercepciones})",                   // J
-            (float) $filaResultado['deduccion_faltas'],     // K
-            (float) $filaResultado['deduccion_prestamo'],   // L
-            (float) $filaResultado['deduccion_caja_ahorro'],// M
-            (float) $filaResultado['deduccion_infonavit'],  // N
-            (float) $filaResultado['deduccion_isr'],        // O
-            (float) $filaResultado['deduccion_imss'],       // P
-            (float) $filaResultado['deduccion_otro'],       // Q
-            "=SUM({$rangoDeducciones})",                    // R
-            "={$colTotalPercepciones}-{$colTotalDeducciones}", // S
+            (float) ($filaResultado['sueldo_quincenal'] ?? 0),    // F
+            (float) ($filaResultado['bono_permanencia'] ?? 0),    // G
+            (float) ($filaResultado['bono_cumpleanos'] ?? 0),     // H
+            (float) ($filaResultado['prima_vacacional'] ?? 0),    // I
+            "=SUM({$rangoPercepciones})",                         // J
+            (float) ($filaResultado['deduccion_faltas'] ?? 0),    // K
+            (float) ($filaResultado['deduccion_prestamo'] ?? 0),  // L
+            (float) ($filaResultado['deduccion_caja_ahorro'] ?? 0),// M
+            (float) ($filaResultado['deduccion_infonavit'] ?? 0), // N
+            (float) ($filaResultado['deduccion_isr'] ?? 0),       // O
+            (float) ($filaResultado['deduccion_imss'] ?? 0),      // P
+            (float) ($filaResultado['deduccion_otro'] ?? 0),      // Q
+            "=SUM({$rangoDeducciones})",                          // R
+            "={$colTotalPercepciones}-{$colTotalDeducciones}",    // S
         ];
+        // --- FIN DE LA CORRECCIÓN ---
     }
 
     public function columnFormats(): array
     {
         $formatoMonedaConCero = '$ #,##0.00;[Red]-$ #,##0.00;"$ "0.00';
         return [
-            'F:S' => $formatoMonedaConCero, // El rango de formato de moneda es de la F a la S
-            'B' => NumberFormat::FORMAT_DATE_DDMMYYYY // La columna B ahora es la fecha
+            'F:S' => $formatoMonedaConCero,
+            'B' => NumberFormat::FORMAT_DATE_DDMMYYYY
         ];
     }
 
@@ -196,12 +193,11 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             AfterSheet::class => function(AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
                 
-                // Inserta la fila del título, moviendo todo el contenido una fila hacia abajo.
                 $sheet->insertNewRowBefore(1, 1);
                 $tituloCompleto = 'NÓMINA ' . $this->periodoTexto;
                 $sheet->setCellValue('A1', $tituloCompleto);
                 
-                $lastColumn = 'S'; // La última columna ahora es la S
+                $lastColumn = 'S';
                 $sheet->mergeCells('A1:'.$lastColumn.'1');
                 $sheet->getStyle('A1')->applyFromArray([
                     'font' => ['bold' => true, 'size' => 14],
@@ -213,13 +209,11 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF4F81BD']]
                 ]);
                 
-                // El color rojo para las deducciones ahora va de la K a la R
                 $sheet->getStyle('K2:R2')->applyFromArray([
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFD9534F']]
                 ]);
 
                 if ($this->resultados->count() > 0) {
-                    // Los datos ahora terminan en la fila count + 2 (1 para header, 1 para título)
                     $lastDataRow = $this->resultados->count() + 2;
                     $sheet->getStyle('A2:'.$lastColumn . $lastDataRow)->applyFromArray([
                         'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
@@ -228,10 +222,8 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                     $totalsRow = $lastDataRow + 2;
                     $sheet->setCellValue("A{$totalsRow}", 'TOTALES:');
 
-                    // Las columnas a sumar ahora van de la F a la S
                     $columnsToSum = ['F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S'];
                     foreach ($columnsToSum as $column) {
-                        // El rango de suma es correcto, desde la fila 3 (primer dato) hasta la última
                         $sheet->setCellValue("{$column}{$totalsRow}", "=SUM({$column}3:{$column}{$lastDataRow})");
                     }
 
@@ -242,7 +234,6 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                     $sheet->getStyle("F{$totalsRow}:{$lastColumn}{$totalsRow}")->getNumberFormat()
                           ->setFormatCode(NumberFormat::FORMAT_CURRENCY_USD_SIMPLE);
                     
-                    // Las letras de las columnas a ocultar también se ajustan
                     $columnsToCheck = [
                         'G' => 'Bono Permanencia', 'H' => 'Bono Cumpleaños', 'I' => 'Prima Vacacional',
                         'K' => 'Ded. Faltas', 'L' => 'Ded. Préstamo', 'M' => 'Ded. Caja Ahorro',
