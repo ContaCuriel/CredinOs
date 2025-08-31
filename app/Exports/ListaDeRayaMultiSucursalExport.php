@@ -24,28 +24,36 @@ class ListaDeRayaMultiSucursalExport implements WithMultipleSheets
     public function sheets(): array
     {
         $sheets = [];
-        // Colección para guardar los datos del resumen
         $resumenData = collect();
-
-        // Obtenemos las sucursales tal como en tu código original.
-        // Si en el futuro solo quieres procesar sucursales activas, puedes añadir ->where('status', 'Alta')
-         $sucursales = Sucursal::where('status', 'Activa')->orderBy('nombre_sucursal')->get();
+        $sucursales = Sucursal::where('status', 'Activa')->orderBy('nombre_sucursal')->get();
 
         foreach ($sucursales as $sucursal) {
-            // Creamos la hoja para la sucursal, usando 'id_sucursal' que es el correcto.
             $sheetExport = new ListaDeRayaSheetExport($this->periodo, $sucursal->id_sucursal);
             $sheets[] = $sheetExport;
 
-            // Obtenemos el total y lo guardamos para el resumen
+            // --- INICIO DE LA MODIFICACIÓN ---
+            // Obtenemos los datos necesarios para construir la fórmula
+            $sheetName = $sheetExport->title();
+            $rowCount = $sheetExport->collection()->count();
+            
+            // Si hay datos, calculamos la fila del total. Si no, el total es 0.
+            if ($rowCount > 0) {
+                // Fila del título (1) + Fila de cabeceras (1) + Filas de datos + 2 filas de espacio = Fila de totales
+                $totalRow = 1 + 1 + $rowCount + 2;
+                $netoTotalFormula = "='" . $sheetName . "'!S" . $totalRow;
+            } else {
+                // Si no hay empleados en esa sucursal, el total es 0.
+                $netoTotalFormula = 0;
+            }
+
             $resumenData->push([
                 'sucursal' => $sucursal->nombre_sucursal,
-                'neto' => $sheetExport->getNetoAPagarTotal(),
+                'neto_formula' => $netoTotalFormula, // Pasamos la fórmula en lugar del valor
             ]);
+            // --- FIN DE LA MODIFICACIÓN ---
         }
 
-        // Creamos la hoja de resumen con los datos recopilados
         $resumenSheet = new ResumenNetosExport($resumenData);
-        // La insertamos al principio del array para que sea la primera hoja
         array_unshift($sheets, $resumenSheet);
 
         return $sheets;

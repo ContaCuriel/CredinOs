@@ -9,13 +9,14 @@ use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+use Maatwebsite\Excel\Concerns\WithMapping; // <-- AÑADIDO
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
-class ResumenNetosExport implements FromCollection, WithHeadings, WithTitle, ShouldAutoSize, WithEvents, WithColumnFormatting
+class ResumenNetosExport implements FromCollection, WithHeadings, WithTitle, ShouldAutoSize, WithEvents, WithColumnFormatting, WithMapping // <-- AÑADIDO
 {
     protected Collection $data;
 
@@ -41,6 +42,23 @@ class ResumenNetosExport implements FromCollection, WithHeadings, WithTitle, Sho
             'Neto a Pagar',
         ];
     }
+
+    // --- INICIO DE LA MODIFICACIÓN ---
+    /**
+     * Mapea los datos para cada fila del resumen.
+     *
+     * @param mixed $row
+     * @return array
+     */
+    public function map($row): array
+    {
+        // Devolvemos el nombre de la sucursal y la fórmula que preparamos en el paso anterior.
+        return [
+            $row['sucursal'],
+            $row['neto_formula'],
+        ];
+    }
+    // --- FIN DE LA MODIFICACIÓN ---
     
     public function columnFormats(): array
     {
