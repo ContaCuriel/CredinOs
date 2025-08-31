@@ -115,16 +115,29 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
 
             $netoAPagar = $totalPercepciones - $totalDeducciones;
 
+            // --- INICIO DE LA CORRECCIÓN ---
+            // Aseguramos que todos los valores numéricos sean de tipo float antes de guardarlos.
+            // Esto garantiza que el valor 0 se escriba correctamente en el Excel.
             $this->resultados->push([
                 'empleado_nombre' => strtoupper($empleado->nombre_completo),
                 'fecha_ingreso' => $empleado->fecha_ingreso,
                 'puesto' => $empleado->puesto ? $empleado->puesto->nombre_puesto : 'N/A',
-                'sueldo_quincenal' => $sueldoQuincenalBruto, 'bono_permanencia' => $bonoPermanencia, 'bono_cumpleanos' => $bonoCumpleanos,
-                'prima_vacacional' => $primaVacacional, 'total_percepciones' => $totalPercepciones, 'deduccion_faltas' => $deduccionFaltas,
-                'deduccion_prestamo' => $deduccionPrestamo, 'deduccion_caja_ahorro' => $deduccionCajaAhorro, 'deduccion_infonavit' => $deduccionInfonavit,
-                'deduccion_isr' => $deduccionISR, 'deduccion_imss' => $deduccionIMSS, 'deduccion_otro' => $deduccionOtro,
-                'total_deducciones' => $totalDeducciones, 'neto_a_pagar' => $netoAPagar,
+                'sueldo_quincenal' => (float) ($sueldoQuincenalBruto ?? 0),
+                'bono_permanencia' => (float) ($bonoPermanencia ?? 0),
+                'bono_cumpleanos' => (float) ($bonoCumpleanos ?? 0),
+                'prima_vacacional' => (float) ($primaVacacional ?? 0),
+                'total_percepciones' => (float) ($totalPercepciones ?? 0),
+                'deduccion_faltas' => (float) ($deduccionFaltas ?? 0),
+                'deduccion_prestamo' => (float) ($deduccionPrestamo ?? 0),
+                'deduccion_caja_ahorro' => (float) ($deduccionCajaAhorro ?? 0),
+                'deduccion_infonavit' => (float) ($deduccionInfonavit ?? 0),
+                'deduccion_isr' => (float) ($deduccionISR ?? 0),
+                'deduccion_imss' => (float) ($deduccionIMSS ?? 0),
+                'deduccion_otro' => (float) ($deduccionOtro ?? 0),
+                'total_deducciones' => (float) ($totalDeducciones ?? 0),
+                'neto_a_pagar' => (float) ($netoAPagar ?? 0),
             ]);
+            // --- FIN DE LA CORRECCIÓN ---
         }
     }
 
@@ -153,29 +166,27 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
         $rangoDeducciones       = "K{$filaActual}:Q{$filaActual}";
         $colTotalDeducciones    = "R{$filaActual}";
 
-        // --- INICIO DE LA CORRECCIÓN ---
-        // Aplicamos el operador '?? 0' a cada valor numérico para asegurar que no sea nulo.
+        // Ahora el mapeo es más limpio, ya que los datos vienen pre-formateados.
         return [
             $filaResultado['empleado_nombre'],
             $filaResultado['fecha_ingreso'] ? Carbon::parse($filaResultado['fecha_ingreso'])->format('d/m/Y') : 'N/A',
             $filaResultado['puesto'],
             '', '', // Columnas D y E
-            (float) ($filaResultado['sueldo_quincenal'] ?? 0),    // F
-            (float) ($filaResultado['bono_permanencia'] ?? 0),    // G
-            (float) ($filaResultado['bono_cumpleanos'] ?? 0),     // H
-            (float) ($filaResultado['prima_vacacional'] ?? 0),    // I
+            $filaResultado['sueldo_quincenal'],    // F
+            $filaResultado['bono_permanencia'],    // G
+            $filaResultado['bono_cumpleanos'],     // H
+            $filaResultado['prima_vacacional'],    // I
             "=SUM({$rangoPercepciones})",                         // J
-            (float) ($filaResultado['deduccion_faltas'] ?? 0),    // K
-            (float) ($filaResultado['deduccion_prestamo'] ?? 0),  // L
-            (float) ($filaResultado['deduccion_caja_ahorro'] ?? 0),// M
-            (float) ($filaResultado['deduccion_infonavit'] ?? 0), // N
-            (float) ($filaResultado['deduccion_isr'] ?? 0),       // O
-            (float) ($filaResultado['deduccion_imss'] ?? 0),      // P
-            (float) ($filaResultado['deduccion_otro'] ?? 0),      // Q
+            $filaResultado['deduccion_faltas'],    // K
+            $filaResultado['deduccion_prestamo'],  // L
+            $filaResultado['deduccion_caja_ahorro'],// M
+            $filaResultado['deduccion_infonavit'], // N
+            $filaResultado['deduccion_isr'],       // O
+            $filaResultado['deduccion_imss'],      // P
+            $filaResultado['deduccion_otro'],      // Q
             "=SUM({$rangoDeducciones})",                          // R
             "={$colTotalPercepciones}-{$colTotalDeducciones}",    // S
         ];
-        // --- FIN DE LA CORRECCIÓN ---
     }
 
     public function columnFormats(): array
