@@ -4,99 +4,101 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role; // <-- ¡Importante! Usamos el modelo Role del paquete
+use Spatie\Permission\Models\Role;
 
 class RoleController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Muestra una lista de todos los roles.
      */
     public function index()
     {
-        // Obtenemos todos los roles de la base de datos
-        $roles = Role::all();
-
-        // Devolvemos la vista, pasándole la lista de roles
+        $roles = Role::orderBy('name')->get();
         return view('roles.index', compact('roles'));
     }
 
-     public function create()
+    /**
+     * Muestra el formulario para crear un nuevo rol.
+     */
+    public function create()
     {
-        // Obtenemos todos los permisos para poder listarlos en la vista
-        $permissions = Permission::all();
-
+        $permissions = Permission::orderBy('name')->get();
         return view('roles.create', compact('permissions'));
     }
-    
-   public function store(Request $request)
-{
-    // 1. Validar los datos
-    $request->validate([
-        'name' => 'required|string|unique:roles,name',
-        'permissions' => 'nullable|array',
-        'permissions.*' => 'string|exists:permissions,name', // Validación mejorada
-    ]);
 
-    // 2. Crear el nuevo rol
-    $role = Role::create(['name' => $request->name]);
+    /**
+     * Guarda un nuevo rol en la base de datos.
+     */
+    public function store(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|unique:roles,name',
+            'permissions' => 'nullable|array',
+            'permissions.*' => 'string|exists:permissions,name',
+        ]);
 
-    // 3. Asignar los permisos seleccionados
-    if (!empty($request->permissions)) {
-        // Ahora $request->permissions contiene los nombres, así que esto funcionará
-        $role->syncPermissions($request->permissions);
+        $role = Role::create(['name' => $request->name]);
+
+        $role->syncPermissions($request->input('permissions', []));
+        
+        // Limpiar la caché de permisos
+        app()->make(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+
+        return redirect()->route('roles.index')
+                         ->with('success', 'Rol creado exitosamente.');
     }
 
-    // 4. Redirigir a la lista de roles con un mensaje de éxito
-    return redirect()->route('roles.index')
-                     ->with('success', 'Rol creado exitosamente.');
-}
-
- public function edit(Role $role)
+    /**
+     * Muestra el formulario para editar un rol existente.
+     */
+    public function edit(Role $role)
     {
-        // Obtenemos todos los permisos para poder listarlos
-        $permissions = Permission::all();
-
-        // Obtenemos los permisos que este rol ya tiene asignados
+        $permissions = Permission::orderBy('name')->get();
         $rolePermissions = $role->permissions->pluck('name')->toArray();
 
         return view('roles.edit', compact('role', 'permissions', 'rolePermissions'));
     }
 
-      public function update(Request $request, Role $role)
+    /**
+     * Actualiza un rol existente en la base de datos.
+     */
+    public function update(Request $request, Role $role)
     {
-        // 1. Validar los datos
-        // La regla 'unique' necesita ignorar el rol actual, por eso se añade el ID del rol al final.
         $request->validate([
             'name' => 'required|string|unique:roles,name,' . $role->id,
             'permissions' => 'nullable|array',
             'permissions.*' => 'string|exists:permissions,name',
         ]);
 
-        // 2. Actualizar el nombre del rol
         $role->update(['name' => $request->name]);
 
-        // 3. Sincronizar los permisos
+        // La línea clave que sincroniza los permisos desde el formulario de edición.
         $role->syncPermissions($request->input('permissions', []));
 
-        // 4. Redirigir con mensaje de éxito
+        // Limpiar la caché es crucial para que los cambios se reflejen inmediatamente.
+        app()->make(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+
         return redirect()->route('roles.index')
-                         ->with('success', 'Rol actualizado exitosamente.');
+                         ->with('success', 'Rol y permisos actualizados exitosamente.');
     }
-    
-     public function destroy(Role $role)
+
+    /**
+     * Elimina un rol de la base de datos.
+     */
+    public function destroy(Role $role)
     {
-        // Añadimos una capa extra de seguridad. Si alguien intenta borrar el rol Super-Admin
-        // modificando la URL, esta validación lo detendrá.
+        // Medida de seguridad para no eliminar el rol más importante.
         if ($role->name == 'Super-Admin') {
             return redirect()->route('roles.index')
                              ->with('error', 'No se puede eliminar el rol de Super Administrador.');
         }
 
         $role->delete();
+        
+        // Limpiar la caché de permisos
+        app()->make(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
 
         return redirect()->route('roles.index')
                          ->with('success', 'Rol eliminado exitosamente.');
     }
-
-    // ... aquí irán las otras funciones (create, store, etc.) más adelante ...
 }
