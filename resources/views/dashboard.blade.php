@@ -11,7 +11,7 @@
                 <h1 class="h2">Dashboard</h1>
             </div>
 
-            {{-- ===== NUEVA SECCIÓN DE SALUDO PERSONALIZADO ===== --}}
+            {{-- ===== SECCIÓN DE SALUDO PERSONALIZADO ===== --}}
             <div class="mb-4">
                 <h3 class="fw-normal">{{ $saludo ?? 'Bienvenido(a)' }}, {{ $nombreUsuario ?? 'Usuario' }}!</h3>
                 @if(isset($mensajeEspecial))
@@ -51,6 +51,36 @@
                 </div>
                 @endcan
 
+                {{-- --- INICIO DEL NUEVO WIDGET --- --}}
+                @can('ver-widget-contratos-vencer')
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card border-warning">
+                        <div class="card-header bg-warning text-dark"><i class="bi bi-exclamation-triangle"></i> Contratos Vencidos No Renovados (Últimos 7 días)</div>
+                        <div class="card-body">
+                            @if(isset($contratosVencidosRecientemente) && $contratosVencidosRecientemente->isNotEmpty())
+                                <ul class="list-group list-group-flush">
+                                    @foreach ($contratosVencidosRecientemente as $empleado)
+                                        <li class="list-group-item">
+                                            <strong>{{ $empleado->nombre_completo }}</strong><br>
+                                            <small>
+                                                Puesto: {{ $empleado->puesto ? $empleado->puesto->nombre_puesto : 'N/A' }} <br>
+                                                Sucursal: {{ $empleado->sucursal ? $empleado->sucursal->nombre_sucursal : 'N/A' }} <br>
+                                                Contrato venció: <strong class="text-danger">{{ \Carbon\Carbon::parse($empleado->ultimoContrato->fecha_fin)->format('d/m/Y') }}</strong>
+                                                (hace {{ \Carbon\Carbon::parse($empleado->ultimoContrato->fecha_fin)->diffForHumans(null, true) }})
+                                            </small>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @else
+                                <p class="text-muted mb-0">No hay contratos vencidos recientemente.</p>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+                @endcan
+                {{-- --- FIN DEL NUEVO WIDGET --- --}}
+
+
                 @can('ver-widget-cumpleanos')
                 <div class="col-md-6 col-lg-4 mb-4">
                     <div class="card">
@@ -73,7 +103,6 @@
                 </div>
                 @endcan
 
-                {{-- --- INICIO DE LA CORRECCIÓN DEL WIDGET DE ANIVERSARIOS --- --}}
                 @can('ver-widget-aniversarios')
                 <div class="col-md-6 col-lg-4 mb-4">
                     <div class="card">
@@ -97,7 +126,6 @@
                     </div>
                 </div>
                 @endcan
-                {{-- --- FIN DE LA CORRECCIÓN --- --}}
 
                 @can('ver-widget-accesos-rapidos')
                 <div class="col-md-6 col-lg-4 mb-4">
@@ -227,3 +255,4 @@
     @endpush
 
 </x-app-layout>
+
