@@ -51,6 +51,8 @@ class PermissionSeeder extends Seeder
             'ver-finiquitos', 'calcular-finiquitos', 'exportar-finiquitos',
             'ver-gestion-imss', 'tramitar-imss',
             'ver-aguinaldo', 'calcular-aguinaldo', 'exportar-aguinaldo',
+                    'ver-renuncias', // Permiso para ver el menú y la página
+        'generar-renuncias', // Permiso para generar el PDF
 
             // --- CONTABILIDAD ---
             'ver-gastos', 'crear-gastos', 'editar-gastos', 'eliminar-gastos', 'aprobar-gastos',

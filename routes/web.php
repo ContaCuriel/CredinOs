@@ -109,6 +109,15 @@ Route::middleware('auth')->group(function () {
         Route::post('/finiquitos/{empleado}/upload-signed', [FiniquitoController::class, 'uploadSigned'])->name('finiquitos.uploadSigned');
         Route::get('/finiquitos/{empleado}/view-signed', [FiniquitoController::class, 'viewSigned'])->name('finiquitos.viewSigned');
 
+ // --- Módulo de Renuncia Voluntaria ---
+    Route::get('/renuncias/crear', [App\Http\Controllers\RenunciaController::class, 'create'])
+         ->name('renuncias.create')
+         ->middleware('can:ver-renuncias'); // Solo quien pueda 'ver-renuncias' accede
+
+    Route::post('/renuncias/exportar-pdf', [App\Http\Controllers\RenunciaController::class, 'exportarPdf'])
+         ->name('renuncias.exportar.pdf')
+         ->middleware('can:generar-renuncias'); // Solo quien pueda 'generar-renuncias' envía el form
+
 
         // Gestión IMSS
         Route::get('/imss', [ImssController::class, 'index'])->name('imss.index')->middleware('can:ver-gestion-imss');

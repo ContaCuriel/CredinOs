@@ -132,6 +132,16 @@
             @can('ver-lista-raya')<li class="nav-item"><a class="nav-link {{ request()->routeIs('lista_de_raya.*') ? 'active' : '' }}" href="{{ route('lista_de_raya.index') }}"><i class="bi bi-file-spreadsheet"></i> Lista de Raya</a></li>@endcan
             @can('ver-finiquitos')<li class="nav-item"><a class="nav-link {{ request()->routeIs('finiquitos.*') ? 'active' : '' }}" href="{{ route('finiquitos.index') }}"><i class="bi bi-person-x"></i> Finiquitos y Liquidaciones</a></li>@endcan
             @can('ver-gestion-imss')<li class="nav-item"><a class="nav-link {{ request()->routeIs('imss.*') ? 'active' : '' }}" href="{{ route('imss.index') }}"><i class="bi bi-shield-check"></i> Gestión IMSS</a></li>@endcan
+            @can('ver-renuncias') {{-- <-- El usuario debe tener este permiso para ver lo de adentro --}}
+<li class="nav-item">
+  <a class="nav-link text-white " href="{{ route('renuncias.create') }}">
+    <div class="text-white text-center me-2 d-flex align-items-center justify-content-center">
+      <i class="material-icons opacity-10">description</i>
+    </div>
+    <span class="nav-link-text ms-1">Renuncia Voluntaria</span>
+  </a>
+</li>
+@endcan
         </ul>
         @endcan
 
