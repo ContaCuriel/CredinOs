@@ -30,8 +30,6 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
     protected string $sucursal_nombre;
     protected Collection $resultados;
     protected string $periodoTexto;
-    // CORRECCIÓN: El contador de filas debe empezar en 1.
-    // El mapeo de datos ocurre ANTES de que se inserte la fila del título en el evento AfterSheet.
     protected int $rowNumber = 1;
 
     public function __construct(string $periodo, int $sucursal_id)
@@ -53,12 +51,12 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
     private function calculateResults(): void
     {
         list($fechaInicioStr, $fechaFinStr) = explode('_', $this->periodo);
-        $fechaInicioPeriodo = Carbon::parse($fechaInicioStr);
-        $fechaFinPeriodo = Carbon::parse($fechaFinStr);
+        $fechaInicioPeriodo = Carbon::parse($fechaInicioStr)->startOfDay();
+        $fechaFinPeriodo = Carbon::parse($fechaFinStr)->endOfDay();
 
         $empleados = Empleado::where('status', 'Alta')
             ->where('id_sucursal', $this->sucursal_id)
-            ->with(['puesto'])
+            ->with(['puesto', 'horario']) // Cargar la relación con el horario
             ->get();
 
         $this->resultados = collect();
@@ -75,10 +73,10 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             
             $sueldoQuincenalBruto = $salarioDiario * $diasAPagar;
 
+            // --- CÁLCULOS DE BONOS Y PERCEPCIONES (SIN CAMBIOS) ---
             $bonoPermanencia = 0;
             $bonoCumpleanos = 0;
             $primaVacacional = 0;
-
             if ($empleado->fecha_ingreso) {
                 $fechaIngreso = Carbon::parse($empleado->fecha_ingreso);
                 $aniversarioEnAnoDelPeriodo = $fechaIngreso->copy()->year($fechaInicioPeriodo->year);
@@ -104,11 +102,61 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             }
             $totalPercepciones = $sueldoQuincenalBruto + $bonoPermanencia + $bonoCumpleanos + $primaVacacional;
 
-            $diasFalta = Asistencia::where('id_empleado', $empleado->id_empleado)->where('status_asistencia', 'Falta')->whereBetween('fecha', [$fechaInicioPeriodo, $fechaFinPeriodo])->count();
+            // --- INICIO DE LA NUEVA LÓGICA DE ASISTENCIA ---
+            $diasFalta = 0;
+            $diasRetardo = 0;
+
+            $asistencias = Asistencia::where('id_empleado', $empleado->id_empleado)
+                ->whereBetween('fecha', [$fechaInicioPeriodo, $fechaFinPeriodo])
+                ->get();
+            
+            // Agrupar asistencias por día para analizar cada día por separado
+            $asistenciasPorDia = $asistencias->groupBy(function($asistencia) {
+                return Carbon::parse($asistencia->fecha)->format('Y-m-d');
+            });
+
+            foreach ($asistenciasPorDia as $fecha => $registrosDelDia) {
+                // 1. Revisar si hay una 'Falta' registrada en el día
+                if ($registrosDelDia->contains('status_asistencia', 'Falta')) {
+                    $diasFalta++;
+                    continue; // Si es falta, no puede ser retardo, pasamos al siguiente día
+                }
+
+                // 2. Si no es falta, calcular retardo (solo si el empleado tiene horario asignado)
+                if ($empleado->horario) {
+                    // Obtener el primer registro del día (la entrada)
+                    $primerRegistro = $registrosDelDia->sortBy('fecha')->first();
+                    if (!$primerRegistro) continue;
+
+                    $fechaHoraLlegada = Carbon::parse($primerRegistro->fecha);
+                    
+                    // Determinar el día de la semana para buscar en el horario
+                    // El formato 'N' da 1 para lunes, 2 para martes, etc.
+                    $diaDeLaSemanaNum = $fechaHoraLlegada->format('N');
+                    $dias = [1 => 'lunes', 2 => 'martes', 3 => 'miercoles', 4 => 'jueves', 5 => 'viernes', 6 => 'sabado', 7 => 'domingo'];
+                    $nombreDia = $dias[$diaDeLaSemanaNum];
+
+                    $campoEntrada = $nombreDia . '_entrada'; // Ej: 'lunes_entrada'
+                    $horaEntradaProgramadaStr = $empleado->horario->$campoEntrada;
+
+                    // Si hay una hora de entrada definida para ese día en el horario
+                    if ($horaEntradaProgramadaStr) {
+                        // Construir la fecha y hora exacta en que se DEBÍA checar
+                        $fechaHoraEntradaProgramada = Carbon::createFromFormat('Y-m-d H:i:s', $fecha . ' ' . $horaEntradaProgramadaStr);
+
+                        // Comparar si la llegada fue después de la hora programada
+                        if ($fechaHoraLlegada->isAfter($fechaHoraEntradaProgramada)) {
+                            $diasRetardo++;
+                        }
+                    }
+                }
+            }
+            // --- FIN DE LA NUEVA LÓGICA DE ASISTENCIA ---
+
             $deduccionFaltas = $diasFalta * $salarioDiario;
             $deduccionesActivas = DeduccionEmpleado::where('id_empleado', $empleado->id_empleado)->where('status', 'Activo')->get();
             $deduccionPrestamo = $deduccionesActivas->where('tipo_deduccion', 'Préstamo')->sum('monto_quincenal');
-            $deduccionCajaAhorro = $deduccionesActivas->where('tipo_deduccion', 'Caja de Ahorro')->sum('monto_quincenal');
+            $deduccionCajaAhorro = $deduccionesActivas->where('tipo_deduc_ion', 'Caja de Ahorro')->sum('monto_quincenal');
             $deduccionInfonavit = $deduccionesActivas->where('tipo_deduccion', 'Infonavit')->sum('monto_quincenal');
             $deduccionISR = $deduccionesActivas->where('tipo_deduccion', 'ISR')->sum('monto_quincenal');
             $deduccionIMSS = $deduccionesActivas->where('tipo_deduccion', 'IMSS')->sum('monto_quincenal');
@@ -121,6 +169,8 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                 'empleado_nombre' => strtoupper($empleado->nombre_completo),
                 'fecha_ingreso' => $empleado->fecha_ingreso,
                 'puesto' => $empleado->puesto ? $empleado->puesto->nombre_puesto : 'N/A',
+                'dias_retardo' => $diasRetardo,
+                'dias_falta' => $diasFalta,
                 'sueldo_quincenal' => $sueldoQuincenalBruto, 'bono_permanencia' => $bonoPermanencia, 'bono_cumpleanos' => $bonoCumpleanos,
                 'prima_vacacional' => $primaVacacional, 'total_percepciones' => $totalPercepciones, 'deduccion_faltas' => $deduccionFaltas,
                 'deduccion_prestamo' => $deduccionPrestamo, 'deduccion_caja_ahorro' => $deduccionCajaAhorro, 'deduccion_infonavit' => $deduccionInfonavit,
@@ -137,8 +187,7 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
     public function headings(): array
     {
         return [
-            'Empleado', 'Fecha Ingreso', 'Puesto',
-            'R', 'F',
+            'Empleado', 'Fecha Ingreso', 'Puesto', 'R', 'F',
             'Sueldo Quincenal', 'Bono Permanencia', 'Bono Cumpleaños', 'Prima Vacacional',
             'Total Percepciones', 'Ded. Faltas', 'Ded. Préstamo', 'Ded. Caja Ahorro', 'Ded. Infonavit', 'Ded. ISR', 'Ded. IMSS', 'Ded. Otros',
             'Total Deducciones', 'Neto a Pagar',
@@ -159,21 +208,22 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             $filaResultado['empleado_nombre'],
             $filaResultado['fecha_ingreso'] ? Carbon::parse($filaResultado['fecha_ingreso'])->format('d/m/Y') : 'N/A',
             $filaResultado['puesto'],
-            '', '', // Columnas D y E
-            (float) $filaResultado['sueldo_quincenal'],      // F
-            (float) $filaResultado['bono_permanencia'],      // G
-            (float) $filaResultado['bono_cumpleanos'],       // H
-            (float) $filaResultado['prima_vacacional'],      // I
-            "=SUM({$rangoPercepciones})",                     // J
-            (float) $filaResultado['deduccion_faltas'],      // K
-            (float) $filaResultado['deduccion_prestamo'],    // L
-            (float) $filaResultado['deduccion_caja_ahorro'],// M
-            (float) $filaResultado['deduccion_infonavit'],   // N
-            (float) $filaResultado['deduccion_isr'],         // O
-            (float) $filaResultado['deduccion_imss'],        // P
-            (float) $filaResultado['deduccion_otro'],        // Q
-            "=SUM({$rangoDeducciones})",                      // R
-            "={$colTotalPercepciones}-{$colTotalDeducciones}", // S
+            $filaResultado['dias_retardo'], // Columna D (R)
+            $filaResultado['dias_falta'],   // Columna E (F)
+            (float) $filaResultado['sueldo_quincenal'],
+            (float) $filaResultado['bono_permanencia'],
+            (float) $filaResultado['bono_cumpleanos'],
+            (float) $filaResultado['prima_vacacional'],
+            "=SUM({$rangoPercepciones})",
+            (float) $filaResultado['deduccion_faltas'],
+            (float) $filaResultado['deduccion_prestamo'],
+            (float) $filaResultado['deduccion_caja_ahorro'],
+            (float) $filaResultado['deduccion_infonavit'],
+            (float) $filaResultado['deduccion_isr'],
+            (float) $filaResultado['deduccion_imss'],
+            (float) $filaResultado['deduccion_otro'],
+            "=SUM({$rangoDeducciones})",
+            "={$colTotalPercepciones}-{$colTotalDeducciones}",
         ];
     }
 
@@ -181,8 +231,10 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
     {
         $formatoMonedaConCero = '$ #,##0.00;[Red]-$ #,##0.00;"$ "0.00';
         return [
-            'F:S' => $formatoMonedaConCero, // El rango de formato de moneda es de la F a la S
-            'B' => NumberFormat::FORMAT_DATE_DDMMYYYY // La columna B ahora es la fecha
+            'F:S' => $formatoMonedaConCero,
+            'B' => NumberFormat::FORMAT_DATE_DDMMYYYY,
+            'D' => NumberFormat::FORMAT_NUMBER,
+            'E' => NumberFormat::FORMAT_NUMBER,
         ];
     }
 
@@ -221,7 +273,7 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                     $totalsRow = $lastDataRow + 2;
                     $sheet->setCellValue("A{$totalsRow}", 'TOTALES:');
 
-                    $columnsToSum = ['F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S'];
+                    $columnsToSum = ['D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S'];
                     foreach ($columnsToSum as $column) {
                         $sheet->setCellValue("{$column}{$totalsRow}", "=SUM({$column}3:{$column}{$lastDataRow})");
                     }
