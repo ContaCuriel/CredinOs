@@ -17,11 +17,12 @@ RUN apt-get update && apt-get install -y \
         nginx \
         libpq-dev \
         gettext \
-    && docker-php-ext-install pdo pdo_pgsql \
-    # --- AÑADIDO PARA REDIS ---
+        # --- AÑADIDO PARA LA EXTENSIÓN ZIP ---
+        libzip-dev \
+    && docker-php-ext-install pdo pdo_pgsql zip \
+    # --- FIN DE AÑADIDO ---
     && pecl install redis \
     && docker-php-ext-enable redis \
-    # --- FIN DE AÑADIDO ---
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Copiar los archivos de la aplicación y las dependencias ya instaladas desde la etapa del constructor
