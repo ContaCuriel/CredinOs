@@ -51,7 +51,6 @@
                 </div>
                 @endcan
 
-                {{-- --- INICIO DEL NUEVO WIDGET --- --}}
                 @can('ver-widget-contratos-vencer')
                 <div class="col-md-6 col-lg-4 mb-4">
                     <div class="card border-warning">
@@ -78,9 +77,8 @@
                     </div>
                 </div>
                 @endcan
-                {{-- --- FIN DEL NUEVO WIDGET --- --}}
-
-
+                
+                {{-- --- INICIO DE LA CORRECCIÓN DEL WIDGET DE CUMPLEAÑOS --- --}}
                 @can('ver-widget-cumpleanos')
                 <div class="col-md-6 col-lg-4 mb-4">
                     <div class="card">
@@ -92,6 +90,16 @@
                                         <li class="list-group-item">
                                             {{ $empleado->nombre_completo }} 
                                             ({{ \Carbon\Carbon::parse($empleado->fecha_nacimiento)->format('d') }})
+                                            
+                                            {{-- Indicador de bono de cumpleaños --}}
+                                            @if($empleado->esElegibleParaBono)
+                                                <i class="bi bi-gift-fill text-primary" title="Elegible para bono de cumpleaños"></i>
+                                            @endif
+                                            
+                                            <br>
+                                            <small class="text-muted">
+                                                {{ $empleado->sucursal ? $empleado->sucursal->nombre_sucursal : 'Sin Sucursal' }}
+                                            </small>
                                         </li>
                                     @endforeach
                                 </ul>
@@ -102,6 +110,7 @@
                     </div>
                 </div>
                 @endcan
+                {{-- --- FIN DE LA CORRECCIÓN --- --}}
 
                 @can('ver-widget-aniversarios')
                 <div class="col-md-6 col-lg-4 mb-4">
