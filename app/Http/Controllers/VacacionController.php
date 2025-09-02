@@ -51,8 +51,8 @@ class VacacionController extends Controller
             $anosCompletosServicio = (int) $fechaIngreso->diffInYears($fechaCorte);
             $empleado->anos_servicio_completados = $anosCompletosServicio;
             
-            $vacacionesDetallado = $empleado->getVacacionesDetallado($fechaCorte);
-            $empleado->total_dias_restantes = $vacacionesDetallado['total_a_pagar'];
+            $detalleVacaciones = $empleado->getDetalleVacaciones($fechaCorte);
+            $empleado->total_dias_restantes = $detalleVacaciones['saldo_final'];
         }
 
         $todasLasSucursales = Sucursal::orderBy('nombre_sucursal')->get();
