@@ -95,7 +95,7 @@ class Empleado extends Model
 
         // 2. Calcular días ganados PROPORCIONALMENTE en el año de servicio actual (el que no se ha completado).
         $inicioAnoActual = $fechaIngreso->copy()->addYears($anosCompletos);
-        $diasTrabajadosAnoActual = $fechaCorte->diffInDays($inicioAnoActual);
+        $diasTrabajadosAnoActual = $fechaCorte->diffInDays($inicioAnoActual) + 1; // +1 para ser inclusivo
         $diasDerechoAnoActual = $this->getDiasVacacionesParaAnoDeServicio($anosCompletos + 1);
         
         $diasGanadosProporcionales = 0;
