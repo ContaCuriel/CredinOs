@@ -162,7 +162,8 @@ class VacacionController extends Controller
         
         // Solo mostramos esta fila si el empleado trabajó al menos un día en este nuevo periodo.
         // Usamos isSameDayOrAfter para incluir el caso de que la baja sea el mismo día del aniversario.
-        if ($fechaCorte->isSameDayOrAfter($inicioUltimoPeriodo)) {
+        if ($fechaCorte->isSameOrAfter($inicioUltimoPeriodo)) {
+
             $anoDeServicioFinal = $anosCompletosServicio + 1;
             $finPeriodoLabel = $inicioUltimoPeriodo->copy()->addYear()->subDay();
 
