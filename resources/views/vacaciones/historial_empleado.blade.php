@@ -5,13 +5,20 @@
                 <div>
                     <h5 class="mb-0">Historial de Vacaciones: {{ $empleado->nombre_completo }}</h5>
                     <p class="text-sm mb-0">
-                        Antigüedad: 
-                        @if ($empleado->fecha_ingreso)
-                            {{ \Carbon\Carbon::parse($empleado->fecha_ingreso)->diffForHumans(null, true, false, 2) }}
-                        @else
-                            N/A
-                        @endif
-                    </p>
+    Antigüedad: 
+    @if ($empleado->fecha_ingreso)
+        @php
+            $fechaIngreso = \Carbon\Carbon::parse($empleado->fecha_ingreso);
+            // La fecha final es la fecha de baja si existe, si no, es la fecha actual.
+            $fechaFinal = ($empleado->status === 'Baja' && $empleado->fecha_baja)
+                ? \Carbon\Carbon::parse($empleado->fecha_baja)
+                : \Carbon\Carbon::now();
+        @endphp
+        {{ $fechaIngreso->diffForHumans($fechaFinal, ['parts' => 2, 'syntax' => \Carbon\CarbonInterface::DIFF_ABSOLUTE]) }}
+    @else
+        N/A
+    @endif
+</p>
                 </div>
                 <div>
                     <a href="{{ route('vacaciones.create', ['id_empleado' => $empleado->id_empleado]) }}" class="btn btn-success me-2">
