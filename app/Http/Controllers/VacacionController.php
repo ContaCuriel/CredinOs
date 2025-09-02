@@ -138,7 +138,8 @@ class VacacionController extends Controller
         
         // Bucle para Años Completados (la lógica aquí es de presentación, no de cálculo).
         for ($ano = 1; $ano <= $anosCompletosServicio; $ano++) {
-            $diasCompletosCorrespondientes = $this->getDiasVacacionesParaAnoDeServicio($ano);
+            $diasCompletosCorrespondientes = $empleado->getDiasVacacionesParaAnoDeServicio($ano);
+
             $diasTomadosEsteAno = $periodosTomados->where('ano_servicio_correspondiente', $ano)->sum('dias_tomados');
             
             $historialVacacional[] = [
