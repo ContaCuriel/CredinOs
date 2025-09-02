@@ -128,14 +128,12 @@ class VacacionController extends Controller
                 ? Carbon::parse($empleado->fecha_baja)
                 : Carbon::now();
 
-            // Usamos la función del modelo que ya está corregida para obtener el total final.
             $vacacionesDetallado = $empleado->getVacacionesDetallado($fechaCorte);
             $totalDiasRestantesGeneral = $vacacionesDetallado['total_a_pagar'];
 
             $fechaIngreso = Carbon::parse($empleado->fecha_ingreso);
-            $anosCompletosServicio = $fechaIngreso->diffInYears($fechaCorte);
+            $anosCompletosServicio = (int) $fechaIngreso->diffInYears($fechaCorte);
 
-            // 1. Mostramos los años de servicio ya completados.
             for ($anoDeServicio = 1; $anoDeServicio <= $anosCompletosServicio; $anoDeServicio++) {
                 $diasCorrespondientes = $empleado->getDiasVacacionesParaAnoDeServicio($anoDeServicio);
                 $diasTomadosEsteAno = $periodosTomados->where('ano_servicio_correspondiente', $anoDeServicio)->sum('dias_tomados');
@@ -153,7 +151,6 @@ class VacacionController extends Controller
                 ];
             }
             
-            // 2. Mostramos siempre el periodo actual o final para dar contexto.
             $anoDeServicioEnCurso = $anosCompletosServicio + 1;
             $inicioAnoEnCurso = $fechaIngreso->copy()->addYears($anosCompletosServicio);
             $finAnoServicioEnCurso = $inicioAnoEnCurso->copy()->addYear()->subDay();
@@ -165,7 +162,7 @@ class VacacionController extends Controller
             $estado = ($empleado->status === 'Baja') ? 'Finalizado' : 'En Curso';
             
             $historialVacacional[] = [
-                'ano_servicio' => $anoDeServicioEnCurso,
+                'ano_servicio' => (int) $anoDeServicioEnCurso,
                 'periodo_servicio_label' => $inicioAnoEnCurso->translatedFormat('d M Y') . ' - ' . $finAnoServicioEnCurso->translatedFormat('d M Y'),
                 'dias_correspondientes' => round($diasProporcionalesVac, 2),
                 'dias_tomados' => $diasTomadosAnoEnCurso,
@@ -177,4 +174,5 @@ class VacacionController extends Controller
         return view('vacaciones.historial_empleado', compact('empleado', 'historialVacacional', 'periodosTomados', 'totalDiasRestantesGeneral'));
     }
 
+    // ... otros métodos ...
 }
