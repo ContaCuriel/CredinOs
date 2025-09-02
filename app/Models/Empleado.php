@@ -73,10 +73,6 @@ class Empleado extends Model
     // --- INICIO DE LA CORRECCIÓN ---
     /**
      * Calcula de forma precisa el saldo de vacaciones de un empleado hasta una fecha de corte específica.
-     * Esta versión es robusta y maneja correctamente a empleados con menos de un año de servicio.
-     *
-     * @param Carbon $fechaCorte La fecha hasta la que se calcularán las vacaciones.
-     * @return array
      */
     public function getVacacionesDetallado(Carbon $fechaCorte): array
     {
@@ -85,7 +81,8 @@ class Empleado extends Model
         }
 
         $fechaIngreso = Carbon::parse($this->fecha_ingreso);
-        $anosCompletos = $fechaIngreso->diffInYears($fechaCorte);
+        // CORRECCIÓN: Nos aseguramos de que los años completos sean siempre un número entero.
+        $anosCompletos = (int) $fechaIngreso->diffInYears($fechaCorte);
 
         // 1. Calcular días ganados por TODOS los años de servicio COMPLETADOS.
         $diasGanadosPorAnosCompletos = 0;
@@ -93,7 +90,7 @@ class Empleado extends Model
             $diasGanadosPorAnosCompletos += $this->getDiasVacacionesParaAnoDeServicio($i);
         }
 
-        // 2. Calcular días ganados PROPORCIONALMENTE en el año de servicio actual (el que no se ha completado).
+        // 2. Calcular días ganados PROPORCIONALMENTE en el año de servicio actual.
         $inicioAnoActual = $fechaIngreso->copy()->addYears($anosCompletos);
         $diasTrabajadosAnoActual = $fechaCorte->diffInDays($inicioAnoActual);
         $diasDerechoAnoActual = $this->getDiasVacacionesParaAnoDeServicio($anosCompletos + 1);
@@ -103,7 +100,7 @@ class Empleado extends Model
            $diasGanadosProporcionales = ($diasDerechoAnoActual / 365) * $diasTrabajadosAnoActual;
         }
 
-        // 3. Sumar todo para obtener el TOTAL de días ganados en la historia del empleado.
+        // 3. Sumar todo para obtener el TOTAL de días ganados.
         $totalDiasGanados = $diasGanadosPorAnosCompletos + $diasGanadosProporcionales;
 
         // 4. Obtener el total de días que ya ha tomado.
@@ -112,9 +109,9 @@ class Empleado extends Model
         // 5. El saldo final es el total ganado menos el total tomado.
         $totalAPagar = $totalDiasGanados - $totalDiasTomados;
 
-        // Para la visualización, mantenemos la estructura anterior con cálculos correctos
+        // Para la visualización, calculamos el saldo de años anteriores.
         $diasTomadosEnAnosAnteriores = PeriodoVacacional::where('id_empleado', $this->id_empleado)
-            ->where('ano_servicio_correspondiente', '<=', $anosCompletos)
+            ->where('ano_servicio_correspondiente', '<=', $anosCompletos) // Esta consulta ahora es segura.
             ->sum('dias_tomados');
 
         $saldoAnterior = $diasGanadosPorAnosCompletos - $diasTomadosEnAnosAnteriores;
