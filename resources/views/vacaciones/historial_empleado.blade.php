@@ -65,8 +65,11 @@
                                         <td class="text-center">
                                             @if ($item['estado'] == 'Completado')
                                                 <span class="badge bg-secondary">Completado</span>
-                                            @else
+                                            @elseif ($item['estado'] == 'En Curso')
                                                 <span class="badge bg-primary">En Curso</span>
+                                            @else
+                                                {{-- NUEVA CONDICIÓN PARA EMPLEADOS DE BAJA --}}
+                                                <span class="badge bg-dark">Finalizado</span>
                                             @endif
                                         </td>
                                     </tr>
