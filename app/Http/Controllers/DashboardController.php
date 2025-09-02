@@ -30,16 +30,13 @@ class DashboardController extends Controller
         $data['nombreUsuario'] = $user->name;
         $data['mensajeEspecial'] = null;
 
-        // Buscamos al empleado que corresponde al usuario logueado
         $empleadoLogueado = Empleado::where('nombre_completo', $user->name)->first();
 
         if ($empleadoLogueado) {
             $hoy = Carbon::today();
-            // Verificar cumpleaños
             if ($empleadoLogueado->fecha_nacimiento && Carbon::parse($empleadoLogueado->fecha_nacimiento)->isBirthday($hoy)) {
                 $data['mensajeEspecial'] = '¡Feliz Cumpleaños! Te deseamos un día increíble.';
             }
-            // Verificar aniversario (y que no sea el primer día de trabajo)
             $fechaIngreso = Carbon::parse($empleadoLogueado->fecha_ingreso);
             if ($fechaIngreso->month == $hoy->month && $fechaIngreso->day == $hoy->day && !$fechaIngreso->isToday()) {
                 $anos = $fechaIngreso->diffInYears($hoy);
@@ -52,7 +49,6 @@ class DashboardController extends Controller
         if ($user->can('ver-widget-contratos-vencer')) {
             $data['contratosPorVencer'] = Contrato::whereNotNull('fecha_fin')
                 ->whereBetween('fecha_fin', [Carbon::today(), Carbon::today()->addDays(15)])
-                // Filtramos para que solo muestre contratos de empleados cuyo estado es 'Alta'.
                 ->whereHas('empleado', function ($query) {
                     $query->where('status', 'Alta');
                 })
@@ -61,30 +57,40 @@ class DashboardController extends Controller
                 ->get();
         }
 
+        // --- INICIO DE LA CORRECCIÓN DEL WIDGET DE CONTRATOS VENCIDOS ---
         // Widget: Contratos Vencidos No Renovados (Últimos 7 días)
-        if ($user->can('ver-widget-contratos-vencer')) { // Usamos el mismo permiso
-            $haceSieteDias = Carbon::today()->subDays(7);
-            $hoy = Carbon::today();
+        if ($user->can('ver-widget-contratos-vencer')) {
+            $haceSieteDias = Carbon::today()->subDays(7)->startOfDay();
+            $hoy = Carbon::today()->endOfDay();
 
-            $data['contratosVencidosRecientemente'] = Empleado::where('status', 'Alta')
-                ->whereHas('ultimoContrato', function ($query) use ($haceSieteDias, $hoy) {
-                    $query->whereBetween('fecha_fin', [$haceSieteDias, $hoy]);
-                })
+            // 1. Obtenemos todos los empleados activos con su último contrato registrado.
+            $empleadosActivos = Empleado::where('status', 'Alta')
                 ->with(['puesto', 'sucursal', 'ultimoContrato'])
                 ->get();
-        }
 
-        // --- INICIO DE LA CORRECCIÓN DEL WIDGET DE CUMPLEAÑOS ---
+            // 2. Filtramos la colección en PHP para asegurar la lógica correcta.
+            $data['contratosVencidosRecientemente'] = $empleadosActivos->filter(function ($empleado) use ($haceSieteDias, $hoy) {
+                // Si el empleado no tiene un último contrato, lo ignoramos.
+                if (!$empleado->ultimoContrato || !$empleado->ultimoContrato->fecha_fin) {
+                    return false;
+                }
+                
+                // Verificamos si la fecha de fin del último contrato está en el rango de los últimos 7 días.
+                $fechaFin = Carbon::parse($empleado->ultimoContrato->fecha_fin);
+                return $fechaFin->isBetween($haceSieteDias, $hoy);
+            });
+        }
+        // --- FIN DE LA CORRECCIÓN ---
+
         // Widget: Cumpleaños del Mes
         if ($user->can('ver-widget-cumpleanos')) {
             $hoy = Carbon::today();
-            $cumpleaneros = Empleado::with('sucursal') // Cargamos la sucursal para evitar N+1 queries
+            $cumpleaneros = Empleado::with('sucursal')
                 ->where('status', 'Alta')
                 ->whereMonth('fecha_nacimiento', $hoy->month)
                 ->orderByRaw('EXTRACT(DAY FROM fecha_nacimiento) ASC')
                 ->get();
 
-            // Añadimos la lógica para saber si son elegibles para el bono
             $cumpleaneros->map(function ($empleado) use ($hoy) {
                 if ($empleado->fecha_ingreso) {
                     $fechaCumpleanos = Carbon::parse($empleado->fecha_nacimiento)->year($hoy->year);
@@ -95,30 +101,23 @@ class DashboardController extends Controller
                 }
                 return $empleado;
             });
-
             $data['cumpleanerosDelMes'] = $cumpleaneros;
         }
-        // --- FIN DE LA CORRECCIÓN ---
-
 
         // Widget: Aniversarios Laborales del Mes
         if ($user->can('ver-widget-aniversarios')) {
             $hoy = Carbon::today();
             
-            // 1. Obtenemos a todos los que cumplen años este mes
             $aniversarios = Empleado::where('status', 'Alta')
                 ->whereMonth('fecha_ingreso', $hoy->month)
                 ->orderByRaw('EXTRACT(DAY FROM fecha_ingreso) ASC')
                 ->get()
-                // 2. Mapeamos la colección para añadir el cálculo correcto de años
                 ->map(function ($empleado) use ($hoy) {
                     $fechaIngreso = Carbon::parse($empleado->fecha_ingreso);
-                    // Calculamos los años que CUMPLIRÁ este mes
                     $anosCelebrando = $hoy->year - $fechaIngreso->year;
-                    $empleado->anosCelebrando = $anosCelebrando; // Añadimos la propiedad al objeto
+                    $empleado->anosCelebrando = $anosCelebrando;
                     return $empleado;
                 })
-                // 3. Filtramos para quitar a los que cumplen 0 años (recién ingresados)
                 ->filter(function ($empleado) {
                     return $empleado->anosCelebrando > 0;
                 });
@@ -172,3 +171,4 @@ class DashboardController extends Controller
         return view('dashboard', $data);
     }
 }
+
