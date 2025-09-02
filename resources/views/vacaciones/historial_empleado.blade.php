@@ -85,7 +85,7 @@
                             <tfoot>
                                 <tr class="table-light">
                                     <td colspan="4" class="text-end fw-bold">TOTAL DE DÍAS RESTANTES A LA FECHA:</td>
-                                    <td class="text-center fw-bold fs-5 text-primary">{{ round($totalDiasRestantesGeneral, 2) }}</td>
+                                    <td class="text-center fw-bold fs-5 text-primary">{{ number_format($totalDiasRestantesGeneral, 2, '.', '') }}</td>
                                     <td></td>
                                 </tr>
                             </tfoot>

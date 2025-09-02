@@ -174,9 +174,9 @@ if ($fechaCorte->gte($inicioUltimoPeriodo)) {
             $historialVacacional[] = [
                 'ano_servicio' => $anoDeServicioFinal,
                 'periodo_servicio_label' => $inicioUltimoPeriodo->translatedFormat('d M Y') . ' - ' . $finPeriodoLabel->translatedFormat('d M Y'),
-                'dias_correspondientes' => round($diasProporcionales, 2),
+'dias_correspondientes' => number_format($diasProporcionales, 2, '.', ''),
                 'dias_tomados' => $diasTomadosUltimoAno,
-                'dias_restantes' => round($diasProporcionales - $diasTomadosUltimoAno, 2),
+'dias_restantes' => number_format($diasProporcionales - $diasTomadosUltimoAno, 2, '.', ''),
                 'estado' => ($empleado->status === 'Baja') ? 'Finalizado' : 'En Curso',
             ];
         }
