@@ -5,20 +5,13 @@
                 <div>
                     <h5 class="mb-0">Historial de Vacaciones: {{ $empleado->nombre_completo }}</h5>
                     <p class="text-sm mb-0">
-    Antigüedad: 
-    @if ($empleado->fecha_ingreso)
-        @php
-            $fechaIngreso = \Carbon\Carbon::parse($empleado->fecha_ingreso);
-            // La fecha final es la fecha de baja si existe, si no, es la fecha actual.
-            $fechaFinal = ($empleado->status === 'Baja' && $empleado->fecha_baja)
-                ? \Carbon\Carbon::parse($empleado->fecha_baja)
-                : \Carbon\Carbon::now();
-        @endphp
-        {{ $fechaIngreso->diffForHumans($fechaFinal, ['parts' => 2, 'syntax' => \Carbon\CarbonInterface::DIFF_ABSOLUTE]) }}
-    @else
-        N/A
-    @endif
-</p>
+                        Antigüedad: 
+                        @if ($empleado->fecha_ingreso)
+                            {{ \Carbon\Carbon::parse($empleado->fecha_ingreso)->diffForHumans(null, true, false, 2) }}
+                        @else
+                            N/A
+                        @endif
+                    </p>
                 </div>
                 <div>
                     <a href="{{ route('vacaciones.create', ['id_empleado' => $empleado->id_empleado]) }}" class="btn btn-success me-2">
@@ -72,11 +65,8 @@
                                         <td class="text-center">
                                             @if ($item['estado'] == 'Completado')
                                                 <span class="badge bg-secondary">Completado</span>
-                                            @elseif ($item['estado'] == 'En Curso')
-                                                <span class="badge bg-primary">En Curso</span>
                                             @else
-                                                {{-- NUEVA CONDICIÓN PARA EMPLEADOS DE BAJA --}}
-                                                <span class="badge bg-dark">Finalizado</span>
+                                                <span class="badge bg-primary">En Curso</span>
                                             @endif
                                         </td>
                                     </tr>
@@ -85,7 +75,7 @@
                             <tfoot>
                                 <tr class="table-light">
                                     <td colspan="4" class="text-end fw-bold">TOTAL DE DÍAS RESTANTES A LA FECHA:</td>
-                                    <td class="text-center fw-bold fs-5 text-primary">{{ number_format($totalDiasRestantesGeneral, 2, '.', '') }}</td>
+                                    <td class="text-center fw-bold fs-5 text-primary">{{ round($totalDiasRestantesGeneral, 2) }}</td>
                                     <td></td>
                                 </tr>
                             </tfoot>
@@ -131,4 +121,5 @@
             </div>
         </div>
     </div>
-</x-app-layout> 
+</x-app-layout>
+

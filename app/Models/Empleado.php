@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\PeriodoVacacional;
-use App\Models\DeduccionEmpleado;
+use App\Models\DeduccionEmpleado; // <-- LÍNEA AÑADIDA
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 
@@ -17,11 +17,33 @@ class Empleado extends Model
     protected $primaryKey = 'id_empleado';
 
     protected $fillable = [
-        'nombre_completo', 'id_puesto', 'id_sucursal', 'status', 'fecha_ingreso', 'fecha_nacimiento',
-        'nacionalidad', 'sexo', 'estado_civil', 'direccion', 'telefono', 'curp', 'rfc', 'nss',
-        'cuenta_bancaria', 'banco', 'contacto_emerg_nombre', 'contacto_emerg_telefono',
-        'info_cartas_recomendacion', 'fecha_baja', 'motivo_baja', 'estado_imss', 'fecha_alta_imss',
-        'fecha_baja_imss', 'id_patron_imss', 'id_horario', 'finiquito_firmado_path',
+        'nombre_completo',
+        'id_puesto',
+        'id_sucursal',
+        'status',
+        'fecha_ingreso',
+        'fecha_nacimiento',
+        'nacionalidad',
+        'sexo',
+        'estado_civil',
+        'direccion',
+        'telefono',
+        'curp',
+        'rfc',
+        'nss',
+        'cuenta_bancaria',
+        'banco',
+        'contacto_emerg_nombre',
+        'contacto_emerg_telefono',
+        'info_cartas_recomendacion',
+        'fecha_baja',
+        'motivo_baja',
+        'estado_imss',
+        'fecha_alta_imss',
+        'fecha_baja_imss',
+        'id_patron_imss',
+        'id_horario',
+        'finiquito_firmado_path',
     ];
 
     protected $casts = [
@@ -64,82 +86,81 @@ class Empleado extends Model
         return $this->belongsTo(Horario::class, 'id_horario', 'id_horario');
     }
     
+    // ▼▼▼ FUNCIÓN AÑADIDA ▼▼▼
+    /**
+     * Define la relación: Un empleado puede tener muchas deducciones.
+     * Esta relación solo trae las deducciones que tienen el estatus 'Activo'.
+     */
     public function deduccionesActivas()
     {
         return $this->hasMany(DeduccionEmpleado::class, 'id_empleado', 'id_empleado')
                     ->where('status', 'Activo');
     }
+    // ▲▲▲ FIN DE LA FUNCIÓN AÑADIDA ▲▲▲
 
-    // --- INICIO DE LA CORRECCIÓN ---
-    /**
-     * Calcula de forma precisa el saldo de vacaciones de un empleado hasta una fecha de corte específica.
-     * Esta versión es robusta y maneja correctamente a empleados con menos de un año de servicio.
-     *
-     * @param Carbon $fechaCorte La fecha hasta la que se calcularán las vacaciones.
-     * @return array
-     */
-    public function getDetalleVacaciones(Carbon $fechaCorte): array
-{
-    if (!$this->fecha_ingreso || $fechaCorte->isBefore($this->fecha_ingreso)) {
+
+    public function getVacacionesDetallado(Carbon $fechaCorte): array
+    {
+        if (!$this->fecha_ingreso) {
+            return ['saldo_anterior' => 0, 'proporcional_actual' => 0, 'total_a_pagar' => 0];
+        }
+
+        $fechaIngreso = Carbon::parse($this->fecha_ingreso);
+        $anosCompletos = $fechaIngreso->diffInYears($fechaCorte);
+
+        // 1. Saldo de periodos de servicio ya completados
+        $diasGanadosAnosCompletos = 0;
+        for ($i = 1; $i <= $anosCompletos; $i++) {
+            $diasGanadosAnosCompletos += $this->getDiasVacacionesParaAnoDeServicio($i);
+        }
+        $totalDiasTomados = PeriodoVacacional::where('id_empleado', $this->id_empleado)->sum('dias_tomados');
+        $saldoAnterior = $diasGanadosAnosCompletos - $totalDiasTomados;
+
+        // 2. Días proporcionales del año de servicio actual
+        $inicioAnoActual = $fechaIngreso->copy()->addYears($anosCompletos);
+        $diasTrabajadosAnoActual = $fechaCorte->diffInDays($inicioAnoActual);
+        $diasDerechoAnoActual = $this->getDiasVacacionesParaAnoDeServicio($anosCompletos + 1);
+        
+        $diasProporcionales = 0;
+        if ($diasTrabajadosAnoActual > 0) {
+            $diasProporcionales = ($diasDerechoAnoActual / 365) * $diasTrabajadosAnoActual;
+        }
+
+        // 3. Resultado final
+        $totalRestante = $saldoAnterior + $diasProporcionales;
+
         return [
-            'total_devengado' => 0.0,
-            'total_tomado' => 0.0,
-            'saldo_final' => 0.0,
-            'proporcional_ultimo_periodo' => 0.0,
+            'saldo_anterior' => round($saldoAnterior, 2),
+            'proporcional_actual' => round($diasProporcionales, 2),
+            'total_a_pagar' => round(max(0, $totalRestante), 2)
         ];
     }
 
-    $fechaIngreso = Carbon::parse($this->fecha_ingreso);
-    $anosCompletos = $fechaIngreso->diffInYears($fechaCorte);
-    $diasPorAnosCompletos = 0.0;
+    /**
+     * Función auxiliar que devuelve los días de vacaciones por ley.
+     */
+    public function getDiasVacacionesParaAnoDeServicio(int $anoDeServicio): int
+    {
+        if ($anoDeServicio < 1) return 0;
+        if ($anoDeServicio == 1) return 12;
+        if ($anoDeServicio == 2) return 14;
+        if ($anoDeServicio == 3) return 16;
+        if ($anoDeServicio == 4) return 18;
+        if ($anoDeServicio == 5) return 20;
+        if ($anoDeServicio >= 6 && $anoDeServicio <= 10) return 22;
+        if ($anoDeServicio >= 11 && $anoDeServicio <= 15) return 24;
+        if ($anoDeServicio >= 16 && $anoDeServicio <= 20) return 26;
+        if ($anoDeServicio >= 21 && $anoDeServicio <= 25) return 28;
+        if ($anoDeServicio >= 26 && $anoDeServicio <= 30) return 30;
+        if ($anoDeServicio >= 31) return 32;
 
-    // 1. Sumar los días correspondientes a cada AÑO COMPLETO de servicio.
-    for ($i = 1; $i <= $anosCompletos; $i++) {
-        $diasPorAnosCompletos += $this->getDiasVacacionesParaAnoDeServicio($i);
+        return 32;
     }
 
-    // 2. Calcular los días PROPORCIONALES del último año de servicio (el que está "en curso" o fue el final).
-    $inicioUltimoPeriodo = $fechaIngreso->copy()->addYears($anosCompletos);
-    $diasTrabajadosUltimoPeriodo = $fechaCorte->diffInDays($inicioUltimoPeriodo) + 1;
-    $anoCorrespondienteUltimoPeriodo = $anosCompletos + 1;
-    $diasDerechoUltimoPeriodo = $this->getDiasVacacionesParaAnoDeServicio($anoCorrespondienteUltimoPeriodo);
-    
-    $diasProporcionales = 0.0;
-    if ($diasTrabajadosUltimoPeriodo > 0) {
-        $diasProporcionales = ($diasDerechoUltimoPeriodo / 365.0) * $diasTrabajadosUltimoPeriodo;
+    protected function nombreCompleto(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => strtoupper($value),
+        );
     }
-
-    // 3. Calcular los totales.
-    $totalDevengado = $diasPorAnosCompletos + $diasProporcionales;
-    $totalTomados = (float) PeriodoVacacional::where('id_empleado', $this->id_empleado)->sum('dias_tomados');
-    $saldoFinal = $totalDevengado - $totalTomados;
-
-    return [
-        'total_devengado' => $totalDevengado,
-        'total_tomado' => $totalTomados,
-        'saldo_final' => $saldoFinal,
-        'proporcional_ultimo_periodo' => $diasProporcionales,
-    ];
-}
-
-/**
- * Función auxiliar que devuelve los días de vacaciones por ley (LFT).
- */
-public function getDiasVacacionesParaAnoDeServicio(int $anoDeServicio): int
-{
-    if ($anoDeServicio < 1) return 0;
-    if ($anoDeServicio == 1) return 12;
-    if ($anoDeServicio == 2) return 14;
-    if ($anoDeServicio == 3) return 16;
-    if ($anoDeServicio == 4) return 18;
-    if ($anoDeServicio == 5) return 20;
-    if ($anoDeServicio >= 6 && $anoDeServicio <= 10) return 22;
-    if ($anoDeServicio >= 11 && $anoDeServicio <= 15) return 24;
-    if ($anoDeServicio >= 16 && $anoDeServicio <= 20) return 26;
-    if ($anoDeServicio >= 21 && $anoDeServicio <= 25) return 28;
-    if ($anoDeServicio >= 26 && $anoDeServicio <= 30) return 30;
-    if ($anoDeServicio >= 31) return 32;
-
-    return 32; // Default para años muy altos
-}
 }
