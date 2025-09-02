@@ -78,79 +78,47 @@ class Empleado extends Model
      * @param Carbon $fechaCorte La fecha hasta la que se calcularán las vacaciones.
      * @return array
      */
-    public function getVacacionesDetallado(Carbon $fechaCorte): array
-    {
-        if (!$this->fecha_ingreso || $fechaCorte->isBefore(Carbon::parse($this->fecha_ingreso))) {
-            return ['saldo_anterior' => 0, 'proporcional_actual' => 0, 'total_a_pagar' => 0];
-        }
-
-        $fechaIngreso = Carbon::parse($this->fecha_ingreso);
-        $anosCompletos = (int) $fechaIngreso->diffInYears($fechaCorte);
-
-        // 1. Calcular días ganados por TODOS los años de servicio COMPLETADOS.
-        $diasGanadosPorAnosCompletos = 0;
-        for ($i = 1; $i <= $anosCompletos; $i++) {
-            $diasGanadosPorAnosCompletos += $this->getDiasVacacionesParaAnoDeServicio($i);
-        }
-
-        // 2. Calcular días ganados PROPORCIONALMENTE en el año de servicio actual (el que no se ha completado).
-        $inicioAnoActual = $fechaIngreso->copy()->addYears($anosCompletos);
-        $diasTrabajadosAnoActual = $fechaCorte->diffInDays($inicioAnoActual) + 1; // +1 para ser inclusivo
-        $diasDerechoAnoActual = $this->getDiasVacacionesParaAnoDeServicio($anosCompletos + 1);
-        
-        $diasGanadosProporcionales = 0;
-        if ($diasTrabajadosAnoActual > 0) {
-           $diasGanadosProporcionales = ($diasDerechoAnoActual / 365) * $diasTrabajadosAnoActual;
-        }
-
-        // 3. Sumar todo para obtener el TOTAL de días ganados en la historia del empleado.
-        $totalDiasGanados = $diasGanadosPorAnosCompletos + $diasGanadosProporcionales;
-
-        // 4. Obtener el total de días que ya ha tomado.
-        $totalDiasTomados = PeriodoVacacional::where('id_empleado', $this->id_empleado)->sum('dias_tomados');
-
-        // 5. El saldo final es el total ganado menos el total tomado.
-        $totalAPagar = $totalDiasGanados - $totalDiasTomados;
-
-        // Para la visualización, mantenemos la estructura anterior con cálculos correctos
-        $diasTomadosEnAnosAnteriores = PeriodoVacacional::where('id_empleado', $this->id_empleado)
-            ->where('ano_servicio_correspondiente', '<=', $anosCompletos)
-            ->sum('dias_tomados');
-
-        $saldoAnterior = $diasGanadosPorAnosCompletos - $diasTomadosEnAnosAnteriores;
-
+    public function getDetalleVacaciones(Carbon $fechaCorte): array
+{
+    if (!$this->fecha_ingreso || $fechaCorte->isBefore($this->fecha_ingreso)) {
         return [
-            'saldo_anterior' => round($saldoAnterior, 2),
-            'proporcional_actual' => round($diasGanadosProporcionales, 2),
-            'total_a_pagar' => round(max(0, $totalAPagar), 2),
+            'total_devengado' => 0.0,
+            'total_tomado' => 0.0,
+            'saldo_final' => 0.0,
+            'proporcional_ultimo_periodo' => 0.0,
         ];
     }
-    // --- FIN DE LA CORRECCIÓN ---
 
-    /**
-     * Función auxiliar que devuelve los días de vacaciones por ley.
-     */
-    public function getDiasVacacionesParaAnoDeServicio(int $anoDeServicio): int
-    {
-        if ($anoDeServicio < 1) return 0;
-        if ($anoDeServicio == 1) return 12;
-        if ($anoDeServicio == 2) return 14;
-        if ($anoDeServicio == 3) return 16;
-        if ($anoDeServicio == 4) return 18;
-        if ($anoDeServicio == 5) return 20;
-        if ($anoDeServicio >= 6 && $anoDeServicio <= 10) return 22;
-        if ($anoDeServicio >= 11 && $anoDeServicio <= 15) return 24;
-        if ($anoDeServicio >= 16 && $anoDeServicio <= 20) return 26;
-        if ($anoDeServicio >= 21 && $anoDeServicio <= 25) return 28;
-        if ($anoDeServicio >= 26 && $anoDeServicio <= 30) return 30;
-        if ($anoDeServicio >= 31) return 32;
-        return 32;
+    $fechaIngreso = Carbon::parse($this->fecha_ingreso);
+    $anosCompletos = $fechaIngreso->diffInYears($fechaCorte);
+    $diasPorAnosCompletos = 0.0;
+
+    // 1. Sumar los días correspondientes a cada AÑO COMPLETO de servicio.
+    for ($i = 1; $i <= $anosCompletos; $i++) {
+        $diasPorAnosCompletos += $this->getDiasVacacionesParaAnoDeServicio($i);
     }
 
-    protected function nombreCompleto(): Attribute
-    {
-        return Attribute::make(
-            get: fn ($value) => strtoupper($value),
-        );
+    // 2. Calcular los días PROPORCIONALES del último año de servicio (el que está "en curso" o fue el final).
+    $inicioUltimoPeriodo = $fechaIngreso->copy()->addYears($anosCompletos);
+    $diasTrabajadosUltimoPeriodo = $fechaCorte->diffInDays($inicioUltimoPeriodo) + 1;
+    $anoCorrespondienteUltimoPeriodo = $anosCompletos + 1;
+    $diasDerechoUltimoPeriodo = $this->getDiasVacacionesParaAnoDeServicio($anoCorrespondienteUltimoPeriodo);
+    
+    $diasProporcionales = 0.0;
+    if ($diasTrabajadosUltimoPeriodo > 0) {
+        $diasProporcionales = ($diasDerechoUltimoPeriodo / 365.0) * $diasTrabajadosUltimoPeriodo;
     }
+
+    // 3. Calcular los totales.
+    $totalDevengado = $diasPorAnosCompletos + $diasProporcionales;
+    $totalTomados = (float) PeriodoVacacional::where('id_empleado', $this->id_empleado)->sum('dias_tomados');
+    $saldoFinal = $totalDevengado - $totalTomados;
+
+    return [
+        'total_devengado' => $totalDevengado,
+        'total_tomado' => $totalTomados,
+        'saldo_final' => $saldoFinal,
+        'proporcional_ultimo_periodo' => $diasProporcionales,
+    ];
+}
 }
