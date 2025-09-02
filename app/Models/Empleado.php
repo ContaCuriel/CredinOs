@@ -121,4 +121,25 @@ class Empleado extends Model
         'proporcional_ultimo_periodo' => $diasProporcionales,
     ];
 }
+
+/**
+ * Función auxiliar que devuelve los días de vacaciones por ley (LFT).
+ */
+public function getDiasVacacionesParaAnoDeServicio(int $anoDeServicio): int
+{
+    if ($anoDeServicio < 1) return 0;
+    if ($anoDeServicio == 1) return 12;
+    if ($anoDeServicio == 2) return 14;
+    if ($anoDeServicio == 3) return 16;
+    if ($anoDeServicio == 4) return 18;
+    if ($anoDeServicio == 5) return 20;
+    if ($anoDeServicio >= 6 && $anoDeServicio <= 10) return 22;
+    if ($anoDeServicio >= 11 && $anoDeServicio <= 15) return 24;
+    if ($anoDeServicio >= 16 && $anoDeServicio <= 20) return 26;
+    if ($anoDeServicio >= 21 && $anoDeServicio <= 25) return 28;
+    if ($anoDeServicio >= 26 && $anoDeServicio <= 30) return 30;
+    if ($anoDeServicio >= 31) return 32;
+
+    return 32; // Default para años muy altos
+}
 }
