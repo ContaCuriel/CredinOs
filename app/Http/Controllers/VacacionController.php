@@ -11,7 +11,7 @@ use App\Models\Sucursal;
 class VacacionController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Muestra la lista de resumen de vacaciones.
      */
     public function index(Request $request)
     {
@@ -43,20 +43,14 @@ class VacacionController extends Controller
                            ->withQueryString();
 
         foreach ($empleados as $empleado) {
-            // --- INICIO DE LA CORRECCIÓN ---
-            // Determinamos la fecha de corte para el cálculo de vacaciones.
-            // Si el empleado está de baja y tiene una fecha de baja, esa será la fecha final.
-            // De lo contrario, usamos la fecha de hoy.
             $fechaCorte = ($empleado->status === 'Baja' && $empleado->fecha_baja)
                 ? Carbon::parse($empleado->fecha_baja)
                 : Carbon::now();
-            // --- FIN DE LA CORRECCIÓN ---
 
             $fechaIngreso = Carbon::parse($empleado->fecha_ingreso);
             $anosCompletosServicio = (int) $fechaIngreso->diffInYears($fechaCorte);
             $empleado->anos_servicio_completados = $anosCompletosServicio;
             
-            // Pasamos la fecha de corte correcta al método de cálculo.
             $vacacionesDetallado = $empleado->getVacacionesDetallado($fechaCorte);
             $empleado->total_dias_restantes = $vacacionesDetallado['total_a_pagar'];
         }
@@ -73,7 +67,7 @@ class VacacionController extends Controller
     }
 
     /**
-     * Show the form for creating a new resource.
+     * Muestra el formulario para crear un nuevo periodo vacacional.
      */
     public function create(Request $request)
     {
@@ -87,7 +81,7 @@ class VacacionController extends Controller
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Guarda un nuevo periodo vacacional.
      */
     public function store(Request $request)
     {
@@ -119,7 +113,7 @@ class VacacionController extends Controller
     /**
      * Muestra el historial detallado de vacaciones de un empleado específico.
      */
-     public function historialPorEmpleado(Request $request, Empleado $empleado)
+    public function historialPorEmpleado(Request $request, Empleado $empleado)
     {
         $periodosTomados = PeriodoVacacional::where('id_empleado', $empleado->id_empleado)
             ->orderBy('fecha_inicio', 'asc')
@@ -183,35 +177,4 @@ class VacacionController extends Controller
         return view('vacaciones.historial_empleado', compact('empleado', 'historialVacacional', 'periodosTomados', 'totalDiasRestantesGeneral'));
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(PeriodoVacacional $periodoVacacional)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(PeriodoVacacional $periodoVacacional)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, PeriodoVacacional $periodoVacacional)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(PeriodoVacacional $periodoVacacional)
-    {
-        //
-    }
 }
