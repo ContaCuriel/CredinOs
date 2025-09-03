@@ -2,16 +2,12 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use Spatie\Multitenancy\Contracts\IsTenant;
-use Spatie\Multitenancy\TenantCollection; // <<< AÑADIR ESTA LÍNEA
+// SE CAMBIA EL 'use' PARA APUNTAR AL MODELO BASE DEL PAQUETE
+use Spatie\Multitenancy\Models\Tenant as BaseTenant;
 
-class Tenant extends Model implements IsTenant
+// LA CLASE AHORA EXTIENDE EL MODELO DEL PAQUETE, LO CUAL INCLUYE TODO LO NECESARIO
+class Tenant extends BaseTenant
 {
-    use HasFactory;
-    // <<< SE HA ELIMINADO LA LÍNEA 'use UsesTenantModel;' >>>
-
     /**
      * The attributes that are mass assignable.
      *
@@ -36,10 +32,6 @@ class Tenant extends Model implements IsTenant
         'db_password',
     ];
 
-    // <<< SE AÑADE ESTE MÉTODO PARA CUMPLIR CON EL CONTRATO IsTenant >>>
-    public function newCollection(array $models = []): TenantCollection
-    {
-        return new TenantCollection($models);
-    }
+    // Ya no necesitamos el método newCollection ni 'implements IsTenant'
+    // porque la clase BaseTenant ya se encarga de todo.
 }
-
