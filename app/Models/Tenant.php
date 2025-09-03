@@ -9,6 +9,7 @@ use Spatie\Multitenancy\Contracts\IsTenant; // <<< AÑADIR ESTA LÍNEA
 class Tenant extends Model implements IsTenant // <<< MODIFICAR ESTA LÍNEA
 {
     use HasFactory;
+    use UsesTenantModel;
 
     /**
      * The attributes that are mass assignable.
