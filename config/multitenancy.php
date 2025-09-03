@@ -37,7 +37,8 @@ return [
      * El nombre de la conexión a la base de datos de los tenants.
      * Debe coincidir con el nombre en config/database.php
      */
-    'tenant_database_connection_name' => 'tenant',
+    'tenant_database_connection_name' => 'pgsql',
+
 
     /*
      * Esta clase determina el tenant actual para la petición.
