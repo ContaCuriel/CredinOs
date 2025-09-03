@@ -57,10 +57,9 @@ return [
      * DEBE ESTAR HABILITADA.
      */
     'switch_tenant_tasks' => [
-        SwitchTenantDatabaseTask::class,
-        // Puedes añadir otras tareas aquí si las necesitas, como:
-        // \Spatie\Multitenancy\Tasks\PrefixCacheTask::class,
-    ],
+    SwitchTenantDatabaseTask::class,
+    \Spatie\Multitenancy\Tasks\PrefixCacheTask::class,
+],
 
     /*
      * El modelo que usas para almacenar la información de tus tenants (empresas).
