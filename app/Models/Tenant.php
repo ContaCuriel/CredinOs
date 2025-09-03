@@ -4,7 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Spatie\Multitenancy\Contracts\IsTenant; // <<< AÑADIR ESTA LÍNEA
+use Spatie\Multitenancy\Contracts\IsTenant;
+use Spatie\Multitenancy\Models\Concerns\UsesTenantModel;
 
 class Tenant extends Model implements IsTenant // <<< MODIFICAR ESTA LÍNEA
 {
