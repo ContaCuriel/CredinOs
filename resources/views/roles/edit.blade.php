@@ -2,7 +2,6 @@
     <div class="container-fluid py-4">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                {{-- CAMBIO 1: Título de la página --}}
                 <h5 class="mb-0">Editar Rol: {{ $role->name }}</h5>
                 <a href="{{ route('roles.index') }}" class="btn btn-outline-secondary btn-sm">
                     <i class="bi bi-arrow-left"></i> Volver a la Lista
@@ -20,50 +19,67 @@
                     </div>
                 @endif
 
-                {{-- CAMBIO 2: La acción ahora apunta a 'roles.update' y usamos el método PUT --}}
                 <form action="{{ route('roles.update', $role->id) }}" method="POST">
                     @csrf
-                    @method('PUT') {{-- Directiva para indicar que es una actualización --}}
+                    @method('PUT')
 
                     <div class="row">
                         <div class="col-md-12 mb-3">
                             <label for="name" class="form-label">Nombre del Rol:</label>
-                            {{-- CAMBIO 3: Precargamos el nombre actual del rol --}}
                             <input type="text" name="name" id="name" class="form-control" value="{{ old('name', $role->name) }}" required>
                         </div>
-                        <div class="col-md-12">
-                            <label class="form-label">Asignar Permisos:</label>
-                            <div class="row">
-                                @php $group = ''; @endphp
-                                @foreach($permissions as $permission)
-                                    @php
-                                        $currentGroup = explode('-', $permission->name)[2] ?? explode('-', $permission->name)[1] ?? 'general';
-                                        if ($group !== $currentGroup) {
-                                            $group = $currentGroup;
-                                            echo '<h6 class="mt-3 text-primary text-capitalize col-12">' . str_replace('_', ' ', $group) . '</h6>';
-                                        }
-                                    @endphp
-                                    <div class="col-md-3">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" name="permissions[]" value="{{ $permission->name }}" id="perm_{{ $permission->id }}"
-                                                {{-- CAMBIO 4: Marcamos el checkbox si el rol ya tiene este permiso --}}
-                                                {{ in_array($permission->name, $rolePermissions) ? 'checked' : '' }}
-                                            >
-                                            <label class="form-check-label" for="perm_{{ $permission->id }}">
-                                                {{ $permission->name }}
-                                            </label>
-                                        </div>
-                                    </div>
-                                @endforeach
-                            </div>
-                        </div>
                     </div>
+
+                    <hr>
+                    <h6 class="mb-3">Asignar Permisos:</h6>
+
+                    {{-- Checkbox para seleccionar/deseleccionar todos --}}
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="selectAll">
+                        <label class="form-check-label" for="selectAll">
+                            <strong>Seleccionar / Deseleccionar Todos</strong>
+                        </label>
+                    </div>
+
+                    <div class="row">
+                        @foreach($permissionsByGroup as $groupName => $permissions)
+                            <div class="col-md-6 col-lg-4 mb-4">
+                                <div class="card h-100">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">{{ $groupName }}</h6>
+                                    </div>
+                                    <div class="card-body pt-2">
+                                        @foreach($permissions as $permission)
+                                            <div class="form-check">
+                                                <input class="form-check-input permission-checkbox" type="checkbox" name="permissions[]" value="{{ $permission->name }}" id="perm_{{ $permission->id }}"
+                                                    {{ in_array($permission->name, $rolePermissions) ? 'checked' : '' }}
+                                                >
+                                                <label class="form-check-label" for="perm_{{ $permission->id }}">
+                                                    {{ $permission->name }}
+                                                </label>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+
                     <div class="text-center mt-4">
-                        {{-- CAMBIO 5: Cambiamos el texto del botón --}}
                         <button type="submit" class="btn btn-info">Actualizar Rol</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
+
+    @push('scripts')
+    <script>
+        // Script para manejar el "Seleccionar Todos"
+        document.getElementById('selectAll').addEventListener('click', function(event) {
+            let checkboxes = document.querySelectorAll('.permission-checkbox');
+            checkboxes.forEach(checkbox => checkbox.checked = event.target.checked);
+        });
+    </script>
+    @endpush
 </x-app-layout>
