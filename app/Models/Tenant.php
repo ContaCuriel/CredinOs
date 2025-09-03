@@ -8,6 +8,15 @@ use Spatie\Multitenancy\Models\Tenant as BaseTenant;
 // LA CLASE AHORA EXTIENDE EL MODELO DEL PAQUETE, LO CUAL INCLUYE TODO LO NECESARIO
 class Tenant extends BaseTenant
 {
+    // <<< INICIO DE LA CORRECCIÓN >>>
+    /**
+     * The connection name for the model.
+     *
+     * @var string|null
+     */
+    protected $connection = 'pgsql';
+    // <<< FIN DE LA CORRECCIÓN >>>
+
     /**
      * The attributes that are mass assignable.
      *
