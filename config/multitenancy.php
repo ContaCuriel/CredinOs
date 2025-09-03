@@ -30,7 +30,8 @@ return [
      * El nombre de la conexión a la base de datos del landlord.
      * Debe coincidir con el nombre en config/database.php
      */
-    'landlord_database_connection_name' => 'landlord',
+    'landlord_database_connection_name' => 'pgsql',
+
 
     /*
      * El nombre de la conexión a la base de datos de los tenants.
