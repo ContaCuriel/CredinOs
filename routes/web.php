@@ -53,7 +53,7 @@ Route::post('/asistencia/registrar-incidencia', [AsistenciaController::class, 'r
 
 // --- RUTAS QUE REQUIEREN AUTENTICACIÓN ---
 Route::middleware('auth')->group(function () {
-    
+
     // --- DASHBOARD Y PERFIL ---
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -67,7 +67,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/groups/{group}/remove-member/{client}', [GroupController::class, 'removeMember'])->name('groups.members.remove');
 
     Route::resource('creditos', CreditoController::class);
-    
+
     // --- RECURSOS HUMANOS ---
     Route::middleware('can:ver-menu-rh')->group(function () {
         // Empleados
@@ -88,7 +88,7 @@ Route::middleware('auth')->group(function () {
         // Vacaciones
         Route::resource('vacaciones', VacacionController::class)->only(['index', 'create', 'store'])->middleware('can:ver-vacaciones');
         Route::get('/vacaciones/historial/{empleado}', [VacacionController::class, 'historialPorEmpleado'])->name('vacaciones.historial')->middleware('can:ver-vacaciones');
-        
+
         // Deducciones
         Route::resource('deducciones', DeduccionController::class)
     ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
@@ -109,7 +109,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/finiquitos/{empleado}/upload-signed', [FiniquitoController::class, 'uploadSigned'])->name('finiquitos.uploadSigned');
         Route::get('/finiquitos/{empleado}/view-signed', [FiniquitoController::class, 'viewSigned'])->name('finiquitos.viewSigned');
 
- // --- Módulo de Renuncia Voluntaria ---
+   // --- Módulo de Renuncia Voluntaria ---
     Route::get('/renuncias/crear', [App\Http\Controllers\RenunciaController::class, 'create'])
          ->name('renuncias.create')
          ->middleware('can:ver-renuncias'); // Solo quien pueda 'ver-renuncias' accede
@@ -133,23 +133,23 @@ Route::middleware('auth')->group(function () {
         Route::get('/aguinaldo', [AguinaldoController::class, 'index'])->name('aguinaldo.index')->middleware('can:ver-aguinaldo');
         Route::post('/aguinaldo/calcular', [AguinaldoController::class, 'calcular'])->name('aguinaldo.calcular')->middleware('can:calcular-aguinaldo');
         Route::post('/aguinaldo/exportar', [AguinaldoController::class, 'exportar'])->name('aguinaldo.exportar')->middleware('can:exportar-aguinaldo');
-        
+
    // 1. Rutas específicas primero para que no choquen con el resource.
         Route::get('/gastos/aprobaciones', [GastoController::class, 'approvalIndex'])->name('gastos.approvals')->middleware('can:aprobar-gastos');
         Route::get('/gastos/crear', [GastoController::class, 'create'])->name('gastos.create'); // El 'create' de resource funciona, pero así es más explícito.
-        
+
         // 2. Rutas con parámetros
         Route::post('/gastos/{gasto}/aprobar', [GastoController::class, 'approve'])->name('gastos.approve')->middleware('can:aprobar-gastos');
         Route::post('/gastos/{gasto}/rechazar', [GastoController::class, 'reject'])->name('gastos.reject')->middleware('can:aprobar-gastos');
         Route::get('/gastos/{gasto}/comprobante', [GastoController::class, 'verComprobante'])->name('gastos.verComprobante');
-        
+
         // 3. La ruta resource al final, para que maneje las rutas estándar restantes.
         // He excluido 'create' y 'show' para evitar conflictos.
         Route::resource('gastos', GastoController::class)->except(['create', 'show']);
 
         // --- REPORTES ---
     Route::get('/reportes/gastos-por-sucursal', [ReporteController::class, 'gastosPorSucursal'])->name('reportes.gastos.sucursal')->middleware('can:ver-reportes');
-    
+
     Route::get('/reportes/gastos-por-sucursal/exportar', [ReporteController::class, 'exportarGastosPorSucursal'])->name('reportes.gastos.sucursal.exportar')->middleware('can:ver-reportes');
 
     // Añade esta ruta junto a tus otras rutas de reportes
@@ -161,7 +161,7 @@ Route::middleware('auth')->group(function () {
          ->name('reportes.export_income_statement')
          ->middleware('can:ver-reportes');
 
-      Route::get('/reportes/export/income-statement/pdf', [ReporteController::class, 'exportIncomeStatementPDF'])
+     Route::get('/reportes/export/income-statement/pdf', [ReporteController::class, 'exportIncomeStatementPDF'])
          ->name('reportes.export_income_statement_pdf')
          ->middleware('can:ver-reportes');
 
@@ -222,7 +222,7 @@ Route::middleware('auth')->group(function () {
 
          Route::get('/reportes/balanza-comprobacion', [ReporteController::class, 'trialBalance'])
              ->name('reportes.balanza_comprobacion') // Nuevo nombre
-             ->middleware('can:ver-reportes'); 
+             ->middleware('can:ver-reportes');
 
          Route::get('/reportes/estado-resultados', [ReporteController::class, 'incomeStatement'])
        ->name('reportes.income_statement')
@@ -251,22 +251,48 @@ Route::middleware('auth')->group(function () {
         Route::get('/patrones/{patron}/logo', [PatronController::class, 'editLogo'])->name('patrones.logo.edit');
         Route::post('/patrones/{patron}/logo', [PatronController::class, 'updateLogo'])->name('patrones.logo.update');
         // --- FIN DE LÍNEAS NUEVAS ---
-        
+
         // --- CORRECCIÓN PARA PATRONES ---
         // Eliminamos .only() para generar todas las rutas del CRUD
         Route::resource('patrones', PatronController::class)->middleware([
             'can:ver-patrones',
             // Puedes añadir permisos más específicos si los tienes
-            // 'can:crear-patrones', 
+            // 'can:crear-patrones',
             // 'can:editar-patrones',
             // 'can:eliminar-patrones',
         ]);
-        
+
         Route::resource('horarios', HorarioController::class)->middleware('can:ver-horarios');
         Route::resource('categorias', CategoriaController::class)->except(['show']);
     });
 });
 
+// <<< INICIO DE LA CORRECCIÓN DE EMERGENCIA - BORRAR DESPUÉS DE USAR >>>
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Log;
+
+Route::get('/limpieza-total-emergencia/kG9pW2sR8z', function () {
+    try {
+        // Limpia todas las cachés de Laravel
+        Artisan::call('optimize:clear');
+        Log::info('Cachés de Laravel limpiadas (optimize:clear).');
+
+        // Limpia la caché de permisos para todos los inquilinos (el comando que ya funciona)
+        Artisan::call('tenants:artisan "permission:cache-reset"');
+        Log::info('Caché de permisos de inquilinos limpiada.');
+
+        // Vacía la base de datos de caché de Redis (la que usa la app)
+        Illuminate\Support\Facades\Redis::connection('cache')->flushdb();
+        Log::info('Caché de Redis (conexión cache) vaciada.');
+
+        return "LIMPIEZA TOTAL COMPLETADA. Por favor, revisa el módulo de roles ahora.";
+
+    } catch (Exception $e) {
+        Log::error('Error durante la limpieza total de emergencia: ' . $e->getMessage());
+        return "Ocurrió un error. Revisa los logs de Render.";
+    }
+});
+// <<< FIN DE LA CORRECCIÓN DE EMERGENCIA >>>
+
 // Incluir rutas de autenticación de Laravel
 require __DIR__.'/auth.php';
-
