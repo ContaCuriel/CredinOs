@@ -56,13 +56,9 @@ class RoleController extends Controller
      */
     public function edit(Role $role)
     {
-        // <<< PRUEBA DE DIAGNÓSTICO >>>
-        // Esta línea detendrá la ejecución y nos mostrará un mensaje.
-        // Si vemos este mensaje, el archivo es el correcto. Si no, el servidor está atascado.
-        dd('¡Hola! Estás ejecutando la versión MÁS RECIENTE del RoleController.');
-
         $permissionsByGroup = $this->getGroupedPermissions();
         $rolePermissions = $role->permissions->pluck('name')->toArray();
+
         return view('roles.edit', compact('role', 'permissionsByGroup', 'rolePermissions'));
     }
     
