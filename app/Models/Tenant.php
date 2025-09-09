@@ -2,24 +2,15 @@
 
 namespace App\Models;
 
-// SE CAMBIA EL 'use' PARA APUNTAR AL MODELO BASE DEL PAQUETE
 use Spatie\Multitenancy\Models\Tenant as BaseTenant;
+use Spatie\Multitenancy\Models\Concerns\UsesTenantConnection; // <-- 1. IMPORTANTE: Importar el Trait
 
-// LA CLASE AHORA EXTIENDE EL MODELO DEL PAQUETE, LO CUAL INCLUYE TODO LO NECESARIO
 class Tenant extends BaseTenant
 {
-    /**
-     * The connection name for the model.
-     *
-     * @var string|null
-     */
-    protected $connection = 'pgsql';
+    use UsesTenantConnection; // <-- 2. IMPORTANTE: Usar el Trait
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array
-     */
+    protected $connection = 'pgsql'; // Esto es correcto, busca tenants en la DB central
+
     protected $fillable = [
         'name',
         'domain',
@@ -30,25 +21,27 @@ class Tenant extends BaseTenant
         'db_password',
     ];
 
-    /**
-     * The attributes that should be hidden for arrays.
-     *
-     * @var array
-     */
     protected $hidden = [
         'db_password',
     ];
 
-    // <<< INICIO DE LA CORRECCIÓN FINAL >>>
     /**
-     * Obtiene el nombre de la base de datos para este inquilino.
-     * Esto le dice al paquete dónde encontrar la base de datos del inquilino.
+     * Este método es llamado por el Trait `UsesTenantConnection`.
+     * Le dice al sistema cómo construir la configuración de la base de datos
+     * para este inquilino específico, usando las columnas de este modelo.
      *
-     * @return string
+     * @return array
      */
-    public function getDatabaseName(): string
+    public function getDatabaseConfig(): array
     {
-        return $this->db_database;
+        return array_merge(
+            config('database.connections.tenant'), // Carga la plantilla de conexión 'tenant'
+            [
+                'host'     => $this->db_host,
+                'database' => $this->db_database,
+                'username' => $this->db_username,
+                'password' => $this->db_password,
+            ]
+        );
     }
-    // <<< FIN DE LA CORRECCIÓN FINAL >>>
 }
