@@ -2,6 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Log;
 use App\Models\User;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\EmpleadoController;
@@ -60,7 +62,7 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-     // --- MÓDULO DE PRUEBA ---
+      // --- MÓDULO DE PRUEBA ---
     Route::get('/prueba', [PruebaController::class, 'index'])
         ->name('prueba.index')
         ->middleware('can:ver-modulo-prueba');
@@ -114,14 +116,14 @@ Route::middleware('auth')->group(function () {
         Route::post('/finiquitos/{empleado}/upload-signed', [FiniquitoController::class, 'uploadSigned'])->name('finiquitos.uploadSigned');
         Route::get('/finiquitos/{empleado}/view-signed', [FiniquitoController::class, 'viewSigned'])->name('finiquitos.viewSigned');
 
-   // --- Módulo de Renuncia Voluntaria ---
-    Route::get('/renuncias/crear', [App\Http\Controllers\RenunciaController::class, 'create'])
-         ->name('renuncias.create')
-         ->middleware('can:ver-renuncias'); // Solo quien pueda 'ver-renuncias' accede
+        // --- Módulo de Renuncia Voluntaria ---
+        Route::get('/renuncias/crear', [App\Http\Controllers\RenunciaController::class, 'create'])
+             ->name('renuncias.create')
+             ->middleware('can:ver-renuncias'); // Solo quien pueda 'ver-renuncias' accede
 
-    Route::post('/renuncias/exportar-pdf', [App\Http\Controllers\RenunciaController::class, 'exportarPdf'])
-         ->name('renuncias.exportar.pdf')
-         ->middleware('can:generar-renuncias'); // Solo quien pueda 'generar-renuncias' envía el form
+        Route::post('/renuncias/exportar-pdf', [App\Http\Controllers\RenunciaController::class, 'exportarPdf'])
+             ->name('renuncias.exportar.pdf')
+             ->middleware('can:generar-renuncias'); // Solo quien pueda 'generar-renuncias' envía el form
 
 
         // Gestión IMSS
@@ -132,14 +134,14 @@ Route::middleware('auth')->group(function () {
         Route::get('/imss/{empleado}/carta-patronal-pdf', [ImssController::class, 'generarCartaPatronal'])->name('imss.cartaPatronalPdf')->middleware('can:tramitar-imss');
     });
 
-   // --- CONTABILIDAD ---
+    // --- CONTABILIDAD ---
     Route::middleware('can:ver-menu-contabilidad')->group(function () {
         // Aguinaldo
         Route::get('/aguinaldo', [AguinaldoController::class, 'index'])->name('aguinaldo.index')->middleware('can:ver-aguinaldo');
         Route::post('/aguinaldo/calcular', [AguinaldoController::class, 'calcular'])->name('aguinaldo.calcular')->middleware('can:calcular-aguinaldo');
         Route::post('/aguinaldo/exportar', [AguinaldoController::class, 'exportar'])->name('aguinaldo.exportar')->middleware('can:exportar-aguinaldo');
 
-   // 1. Rutas específicas primero para que no choquen con el resource.
+        // 1. Rutas específicas primero para que no choquen con el resource.
         Route::get('/gastos/aprobaciones', [GastoController::class, 'approvalIndex'])->name('gastos.approvals')->middleware('can:aprobar-gastos');
         Route::get('/gastos/crear', [GastoController::class, 'create'])->name('gastos.create'); // El 'create' de resource funciona, pero así es más explícito.
 
@@ -153,24 +155,24 @@ Route::middleware('auth')->group(function () {
         Route::resource('gastos', GastoController::class)->except(['create', 'show']);
 
         // --- REPORTES ---
-    Route::get('/reportes/gastos-por-sucursal', [ReporteController::class, 'gastosPorSucursal'])->name('reportes.gastos.sucursal')->middleware('can:ver-reportes');
+        Route::get('/reportes/gastos-por-sucursal', [ReporteController::class, 'gastosPorSucursal'])->name('reportes.gastos.sucursal')->middleware('can:ver-reportes');
 
-    Route::get('/reportes/gastos-por-sucursal/exportar', [ReporteController::class, 'exportarGastosPorSucursal'])->name('reportes.gastos.sucursal.exportar')->middleware('can:ver-reportes');
+        Route::get('/reportes/gastos-por-sucursal/exportar', [ReporteController::class, 'exportarGastosPorSucursal'])->name('reportes.gastos.sucursal.exportar')->middleware('can:ver-reportes');
 
-    // Añade esta ruta junto a tus otras rutas de reportes
-    Route::get('/reportes/export/trial-balance', [ReporteController::class, 'exportTrialBalance'])
-     ->name('reportes.export_trial_balance')
-     ->middleware('can:ver-reportes');
+        // Añade esta ruta junto a tus otras rutas de reportes
+        Route::get('/reportes/export/trial-balance', [ReporteController::class, 'exportTrialBalance'])
+          ->name('reportes.export_trial_balance')
+          ->middleware('can:ver-reportes');
 
-    Route::get('/reportes/export/income-statement', [ReporteController::class, 'exportIncomeStatement'])
-         ->name('reportes.export_income_statement')
-         ->middleware('can:ver-reportes');
+        Route::get('/reportes/export/income-statement', [ReporteController::class, 'exportIncomeStatement'])
+              ->name('reportes.export_income_statement')
+              ->middleware('can:ver-reportes');
 
-     Route::get('/reportes/export/income-statement/pdf', [ReporteController::class, 'exportIncomeStatementPDF'])
-         ->name('reportes.export_income_statement_pdf')
-         ->middleware('can:ver-reportes');
+         Route::get('/reportes/export/income-statement/pdf', [ReporteController::class, 'exportIncomeStatementPDF'])
+              ->name('reportes.export_income_statement_pdf')
+              ->middleware('can:ver-reportes');
 
-         Route::post('/creditos/{credito}/disburse', [CreditoController::class, 'disburse'])->name('creditos.disburse');
+          Route::post('/creditos/{credito}/disburse', [CreditoController::class, 'disburse'])->name('creditos.disburse');
 
         Route::post('/installments/{installment}/pay', [PaymentController::class, 'store'])->name('payments.store');
 
@@ -182,25 +184,25 @@ Route::middleware('auth')->group(function () {
 
         // Ruta para la API interna que devuelve los miembros de un grupo
         Route::get('/api/groups/{group}/members', [App\Http\Controllers\GroupController::class, 'getMembers'])
-            ->name('groups.members')
-            ->middleware(['auth']);
+               ->name('groups.members')
+               ->middleware(['auth']);
 
         // Ruta para el buscador de clientes con AJAX
         // Correcto, con diagonal invertida
         Route::get('/api/clientes/search', [App\Http\Controllers\ClienteController::class, 'search'])
-            ->name('clientes.search')
-            ->middleware(['auth']);
+               ->name('clientes.search')
+               ->middleware(['auth']);
 
 
          // Ruta para el endpoint de análisis con IA
         Route::post('/reportes/generate-analysis', [ReporteController::class, 'generateAnalysis'])
-             ->name('reports.generate_analysis')
-             ->middleware('can:ver-reportes');
+                    ->name('reports.generate_analysis')
+                    ->middleware('can:ver-reportes');
 
          // Ruta para el Balance General
         Route::get('/reportes/balance-general', [ReporteController::class, 'balanceSheet'])
-             ->name('reportes.balance_sheet')
-             ->middleware('can:ver-reportes');
+                    ->name('reportes.balance_sheet')
+                    ->middleware('can:ver-reportes');
 
         // Rutas para exportación y análisis del Balance General
         Route::get('/reportes/export/balance-sheet', [ReporteController::class, 'exportBalanceSheet'])->name('reportes.export_balance_sheet')->middleware('can:ver-reportes');
@@ -208,28 +210,28 @@ Route::middleware('auth')->group(function () {
         Route::post('/reportes/generate-balance-sheet-analysis', [ReporteController::class, 'generateBalanceSheetAnalysis'])->name('reportes.generate_balance_sheet_analysis')->middleware('can:ver-reportes');
 
        Route::resource('accounts', AccountController::class)->middleware([
-             'can:ver-cuentas',      // 'index', 'show'
-             'can:crear-cuentas',    // 'create', 'store'
-             'can:editar-cuentas',   // 'edit', 'update'
-             'can:eliminar-cuentas', // 'destroy'
+                     'can:ver-cuentas',    // 'index', 'show'
+                     'can:crear-cuentas',    // 'create', 'store'
+                     'can:editar-cuentas',   // 'edit', 'update'
+                     'can:eliminar-cuentas', // 'destroy'
        ]);
 
         // Pólizas Contables (Libro de Diario)
         Route::get('journals', [JournalController::class, 'index'])
-             ->name('journals.index')
-             ->middleware('can:ver-polizas');
+                     ->name('journals.index')
+                     ->middleware('can:ver-polizas');
 
         Route::resource('grupos', GroupController::class)->middleware(['auth']);
 
         Route::get('journals/{journal}', [JournalController::class, 'show'])
-             ->name('journals.show')
-             ->middleware('can:ver-detalle-polizas');
+                     ->name('journals.show')
+                     ->middleware('can:ver-detalle-polizas');
 
-         Route::get('/reportes/balanza-comprobacion', [ReporteController::class, 'trialBalance'])
-             ->name('reportes.balanza_comprobacion') // Nuevo nombre
-             ->middleware('can:ver-reportes');
+        Route::get('/reportes/balanza-comprobacion', [ReporteController::class, 'trialBalance'])
+                     ->name('reportes.balanza_comprobacion') // Nuevo nombre
+                     ->middleware('can:ver-reportes');
 
-         Route::get('/reportes/estado-resultados', [ReporteController::class, 'incomeStatement'])
+        Route::get('/reportes/estado-resultados', [ReporteController::class, 'incomeStatement'])
        ->name('reportes.income_statement')
        ->middleware('can:ver-reportes'); // Reutilizamos el permiso existente.
 
@@ -272,32 +274,58 @@ Route::middleware('auth')->group(function () {
     });
 });
 
-// <<< INICIO DE LA CORRECCIÓN DE EMERGENCIA - BORRAR DESPUÉS DE USAR >>>
-use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Log;
-
-Route::get('/limpieza-total-emergencia/kG9pW2sR8z', function () {
-    try {
-        // Limpia todas las cachés de Laravel
-        Artisan::call('optimize:clear');
-        Log::info('Cachés de Laravel limpiadas (optimize:clear).');
-
-        // Limpia la caché de permisos para todos los inquilinos (el comando que ya funciona)
-        Artisan::call('tenants:artisan "permission:cache-reset"');
-        Log::info('Caché de permisos de inquilinos limpiada.');
-
-        // Vacía la base de datos de caché de Redis (la que usa la app)
-        Illuminate\Support\Facades\Redis::connection('cache')->flushdb();
-        Log::info('Caché de Redis (conexión cache) vaciada.');
-
-        return "LIMPIEZA TOTAL COMPLETADA. Por favor, revisa el módulo de roles ahora.";
-
-    } catch (Exception $e) {
-        Log::error('Error durante la limpieza total de emergencia: ' . $e->getMessage());
-        return "Ocurrió un error. Revisa los logs de Render.";
+// --- RUTA DE LIMPIEZA TOTAL ---
+// Accede a esta ruta para forzar la limpieza de todas las cachés desde el proceso web.
+Route::get('/super-admin/clear-everything/{secret_key}', function ($secret_key) {
+    // Clave secreta para evitar accesos no autorizados.
+    if ($secret_key !== 'Mexico97') {
+        abort(403, 'Acceso no autorizado.');
     }
+
+    $output = [];
+    $errors = [];
+
+    try {
+        // Limpia OPcache (si es posible)
+        if (function_exists('opcache_reset')) {
+            opcache_reset();
+            $output[] = 'OPcache reseteado.';
+        } else {
+            $output[] = 'La función opcache_reset() no está disponible.';
+        }
+
+        // Ejecuta los comandos de Artisan y captura la salida
+        Artisan::call('permission:cache-reset');
+        $output[] = 'permission:cache-reset -> ' . Artisan::output();
+
+        Artisan::call('cache:clear');
+        $output[] = 'cache:clear -> ' . Artisan::output();
+
+        Artisan::call('config:clear');
+        $output[] = 'config:clear -> ' . Artisan::output();
+
+        Artisan::call('view:clear');
+        $output[] = 'view:clear -> ' . Artisan::output();
+
+        Artisan::call('route:clear');
+        $output[] = 'route:clear -> ' . Artisan::output();
+
+    } catch (\Exception $e) {
+        Log::error("Error en la ruta de limpieza total: " . $e->getMessage());
+        $errors[] = "SE PRODUJO UN ERROR: " . $e->getMessage();
+    }
+
+    // Devuelve una respuesta visual
+    $html = "<h1>Resultados de la Limpieza Total</h1>";
+    if (!empty($output)) {
+        $html .= "<h2>Comandos Ejecutados:</h2><pre>" . implode("\n", $output) . "</pre>";
+    }
+    if (!empty($errors)) {
+        $html .= "<h2>Errores:</h2><pre style='color:red;'>" . implode("\n", $errors) . "</pre>";
+    }
+
+    return $html;
 });
-// <<< FIN DE LA CORRECCIÓN DE EMERGENCIA >>>
 
 // Incluir rutas de autenticación de Laravel
 require __DIR__.'/auth.php';
