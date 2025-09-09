@@ -240,6 +240,14 @@
             <li class="nav-item"><a class="nav-link {{ request()->routeIs('profile.edit') ? 'active' : '' }}" href="{{ route('profile.edit') }}"><i class="bi bi-person-circle"></i> Mi Perfil</a></li>
             @can('ver-usuarios')<li class="nav-item"><a class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}" href="{{ route('users.index') }}"><i class="bi bi-person-gear"></i> Usuarios del Sistema</a></li>@endcan
             @can('ver-roles')<li class="nav-item"><a class="nav-link {{ request()->routeIs('roles.*') ? 'active' : '' }}" href="{{ route('roles.index') }}"><i class="bi bi-shield-lock-fill"></i> Roles y Permisos</a></li>@endcan
+@can('ver-modulo-prueba')
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('prueba.index') ? 'active' : '' }}" href="{{ route('prueba.index') }}">
+                    <i class="bi bi-joystick"></i> Módulo de Prueba
+                </a>
+            </li>
+            @endcan
+            
         </ul>
         @endcan
 

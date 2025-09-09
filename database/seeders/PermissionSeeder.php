@@ -71,6 +71,11 @@ class PermissionSeeder extends Seeder
                 'ver-tipos-credito', 'crear-tipos-credito', 'editar-tipos-credito', 'eliminar-tipos-credito',
                 'ver-tasas-interes', 'crear-tasas-interes', 'editar-tasas-interes', 'eliminar-tasas-interes',
             ],
+
+            'Módulo de Prueba' => [
+                'ver-modulo-prueba',
+                'usar-modulo-prueba',
+            ],
         ];
 
         // Crear los permisos en la base de datos

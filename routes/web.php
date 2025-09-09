@@ -60,6 +60,11 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
+     // --- MÓDULO DE PRUEBA ---
+    Route::get('/prueba', [PruebaController::class, 'index'])
+        ->name('prueba.index')
+        ->middleware('can:ver-modulo-prueba');
+
     // --- SECCIÓN DE CRÉDITOS ---
     Route::resource('clientes', ClienteController::class);
     Route::resource('groups', GroupController::class);
