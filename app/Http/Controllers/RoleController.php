@@ -54,20 +54,12 @@ class RoleController extends Controller
     /**
      * Muestra el formulario para editar un rol existente.
      */
-    public function edit(Role $role): View
+    public function edit(Role $role)
     {
         $permissionsByGroup = $this->getGroupedPermissions();
+        $rolePermissions = $role->permissions->pluck('name')->toArray();
 
-        // -----------------------------------------------------------------
-        // INICIO DE LA MODIFICACIÓN DE DEPURACIÓN
-        // Esta línea detendrá la ejecución y volcará el contenido exacto
-        // de los permisos que el proceso web está viendo en este momento.
-        // -----------------------------------------------------------------
-        dd($permissionsByGroup);
-
-        $rolePermissions = $role->permissions->pluck('name')->all();
-
-        return view('admin.roles.edit', compact('role', 'permissionsByGroup', 'rolePermissions'));
+        return view('roles.edit', compact('role', 'permissionsByGroup', 'rolePermissions'));
     }
     
     /**
