@@ -54,12 +54,29 @@ class RoleController extends Controller
     /**
      * Muestra el formulario para editar un rol existente.
      */
-    public function edit(Role $role)
+    public function edit(Role $role): View
     {
-        $permissionsByGroup = $this->getGroupedPermissions();
-        $rolePermissions = $role->permissions->pluck('name')->toArray();
+        // --- INICIO DE LA MODIFICACIÓN DE DIAGNÓSTICO ---
+        // Esta línea detendrá la ejecución y nos mostrará la configuración
+        // exacta de la base de datos que está usando este proceso web.
+        // ---
+        
+        // Primero vemos cuál es la conexión por defecto
+        $default_connection = config('database.default');
 
-        return view('roles.edit', compact('role', 'permissionsByGroup', 'rolePermissions'));
+        // Luego vemos los detalles de esa conexión
+        $connection_details = config('database.connections.' . $default_connection);
+        
+        dd([
+            'CONEXION_POR_DEFECTO' => $default_connection,
+            'DETALLES_DE_CONEXION' => $connection_details
+        ]);
+
+        // El código original nunca se ejecutará
+        $permissionsByGroup = $this->getGroupedPermissions();
+        $rolePermissions = $role->permissions->pluck('name')->all();
+
+        return view('admin.roles.edit', compact('role', 'permissionsByGroup', 'rolePermissions'));
     }
     
     /**
