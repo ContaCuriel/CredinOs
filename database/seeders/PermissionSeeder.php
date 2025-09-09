@@ -75,7 +75,7 @@ class PermissionSeeder extends Seeder
             'Módulo de Prueba' => [
                 'ver-modulo-prueba',
                 'usar-modulo-prueba',
-            ],
+            ],  
         ];
 
         // Crear los permisos en la base de datos
