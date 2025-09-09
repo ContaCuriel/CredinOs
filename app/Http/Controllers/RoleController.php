@@ -55,29 +55,22 @@ class RoleController extends Controller
      * Muestra el formulario para editar un rol existente.
      */
     public function edit(Role $role): View
-    {
-        // --- INICIO DE LA MODIFICACIÓN DE DIAGNÓSTICO ---
-        // Esta línea detendrá la ejecución y nos mostrará la configuración
-        // exacta de la base de datos que está usando este proceso web.
-        // ---
-        
-        // Primero vemos cuál es la conexión por defecto
-        $default_connection = config('database.default');
+{
+    // Usamos la fachada DB para una consulta SQL cruda
+    $totalPermissions = \Illuminate\Support\Facades\DB::table('permissions')->count();
 
-        // Luego vemos los detalles de esa conexión
-        $connection_details = config('database.connections.' . $default_connection);
-        
-        dd([
-            'CONEXION_POR_DEFECTO' => $default_connection,
-            'DETALLES_DE_CONEXION' => $connection_details
-        ]);
+    // Buscamos específicamente uno de los nuevos permisos
+    $renunciaPermission = \Illuminate\Support\Facades\DB::table('permissions')->where('name', 'like', '%renuncia%')->get();
+    $pruebaPermission = \Illuminate\Support\Facades\DB::table('permissions')->where('name', 'like', '%prueba%')->get();
 
-        // El código original nunca se ejecutará
-        $permissionsByGroup = $this->getGroupedPermissions();
-        $rolePermissions = $role->permissions->pluck('name')->all();
-
-        return view('admin.roles.edit', compact('role', 'permissionsByGroup', 'rolePermissions'));
-    }
+    dd([
+        'CONTEXTO' => 'Petición WEB',
+        'Total de permisos contados en la tabla' => $totalPermissions,
+        'Permiso "Renuncia" encontrado' => $renunciaPermission,
+        'Permiso "Prueba" encontrado' => $pruebaPermission,
+        'Configuración de Conexión Activa' => config('database.connections.' . config('database.default'))
+    ]);
+}
     
     /**
      * Helper privado para obtener los permisos agrupados.
