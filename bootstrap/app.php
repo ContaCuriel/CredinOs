@@ -3,7 +3,6 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-// --- AÑADE ESTA LÍNEA EN LA PARTE SUPERIOR ---
 use Spatie\Multitenancy\MultitenancyServiceProvider;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -19,12 +18,16 @@ return Application::configure(basePath: dirname(__DIR__))
         //
     })
     ->withCommands([
-        // Ya no necesitamos este comando, pero lo dejamos por ahora
         \App\Console\Commands\DebugMigrations::class,
     ])
-    // --- AÑADE ESTA SECCIÓN PARA REGISTRAR EL PAQUETE ---
     ->withProviders([
         MultitenancyServiceProvider::class,
     ])
-    // ----------------------------------------------------
+    // --- AÑADE ESTA SECCIÓN NUCLEAR ---
+    ->booting(function (Application $app) {
+        // Forzamos al migrador de Laravel a que conozca nuestra ruta de tenants.
+        // Esto se ejecuta cada vez que la aplicación arranca.
+        $app->make('migrator')->path(database_path('migrations/tenant'));
+    })
+    // ---------------------------------
     ->create();
