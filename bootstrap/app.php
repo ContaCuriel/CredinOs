@@ -18,7 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         //
     })
     ->withCommands([
-        \App\Console\Commands\DebugMigrations::class,
+        \App\Console\Commands\MigrateAllTenants::class,
     ])
     ->withProviders([
         MultitenancyServiceProvider::class,
