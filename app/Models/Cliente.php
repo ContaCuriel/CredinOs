@@ -13,29 +13,41 @@ class Cliente extends Model
     protected $table = 'clientes';
     protected $primaryKey = 'id_cliente';
 
-    protected $fillable = [
-    'nombre',
-    'apellido_paterno',
-    'apellido_materno',
-    'curp',
-    'rfc',
-    'telefono_celular',
-    'email',
-    'calle',
-    'numero',
-    'colonia',
-    'codigo_postal',
-    'municipio',
-    'estado',
-    'id_sucursal',
-    // --- NUEVOS CAMPOS ---
-    'ocupacion',
-    'nombre_negocio',
-    'giro_negocio',
-    'antiguedad_negocio',
-    'ingresos_mensuales',
-    'gastos_mensuales',
-];
+     protected $fillable = [
+        // Campos que ya tenías
+        'nombre',
+        'apellido_paterno',
+        'apellido_materno',
+        'curp',
+        'rfc',
+        'telefono_celular',
+        'email',
+        'calle',
+        'numero',
+        'colonia',
+        'codigo_postal',
+        'municipio',
+        'estado',
+        'id_sucursal',
+        'ocupacion',
+        'nombre_negocio',
+        'giro_negocio',
+        'antiguedad_negocio',
+        'ingresos_mensuales',
+        'gastos_mensuales',
+
+        // Nuevos campos de la migración
+        'fecha_nacimiento',
+        'genero',
+        'vencimiento_ine',
+        'estado_nacimiento',
+        'nacionalidad',
+        'estado_civil',
+        'numero_hijos',
+        'dependientes_economicos',
+        'fecha_comprobante_domicilio',
+        'destino_credito',
+    ];
 
     // Relación con Sucursal
     public function sucursal()
