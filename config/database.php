@@ -65,20 +65,18 @@ return [
         
         // <<< INICIO DE LA CORRECCIÓN >>>
         'tenant' => [
-            'driver'         => 'pgsql',
-            'host'           => env('DB_HOST_TENANT'), // Es buena práctica usar variables separadas si es posible
-            'port'           => env('DB_PORT_TENANT'),
-            'database'       => null, // CAMBIO 1: Puesto a null para claridad
-            'username'       => env('DB_USERNAME_TENANT'),
-            'password'       => env('DB_PASSWORD_TENANT'),
-            'charset'        => 'utf8',
-            'prefix'         => '',
-            'search_path'    => 'public',
-            'sslmode'        => 'prefer',
-            
-            // CAMBIO 2: ¡LA LÍNEA QUE FALTABA!
-            'migrations'     => database_path('migrations/tenant'),
-        ],
+    'driver'         => 'pgsql',
+    'host'           => env('DB_HOST'), // Usar la misma variable que pgsql
+    'port'           => env('DB_PORT'), // Usar la misma variable que pgsql
+    'database'       => null,
+    'username'       => env('DB_USERNAME'), // Usar la misma variable que pgsql
+    'password'       => env('DB_PASSWORD'), // Usar la misma variable que pgsql
+    'charset'        => 'utf8',
+    'prefix'         => '',
+    'search_path'    => 'public',
+    'sslmode'        => 'prefer',
+    'migrations'     => database_path('migrations/tenant'),
+],
         // <<< FIN DE LA CORRECCIÓN >>>
 
         'sqlsrv' => [

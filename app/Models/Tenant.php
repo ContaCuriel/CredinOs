@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use Spatie\Multitenancy\Models\Tenant as BaseTenant;
-use Spatie\Multitenancy\Models\Concerns\UsesTenantConnection; // <-- 1. IMPORTANTE: Importar el Trait
+use Spatie\Multitenancy\Models\Concerns\IsTenant;
 
 class Tenant extends BaseTenant
 {

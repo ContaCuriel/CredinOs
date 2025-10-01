@@ -33,7 +33,7 @@
                                     <div class="row">
                                         <div class="col-md-4 mb-3"><label class="form-label">Nombre(s) <span class="text-danger">*</span></label><input type="text" class="form-control" name="nombre" value="{{ old('nombre') }}" required></div>
                                         <div class="col-md-4 mb-3"><label class="form-label">Apellido Paterno <span class="text-danger">*</span></label><input type="text" class="form-control" name="apellido_paterno" value="{{ old('apellido_paterno') }}" required></div>
-                                        <div class="col-md-4 mb-3"><label class="form-label">Apellido Materno</label><input type="text" class="form-control" name="apellido_materno" value="{{ old('apellido_materno') }}" required></div>
+                                        <div class="col-md-4 mb-3"><label class="form-label">Apellido Materno</label><input type="text" class="form-control" name="apellido_materno" value="{{ old('apellido_materno') }}"></div>
                                     </div>
                                     <div class="row">
                                         <div class="col-md-4 mb-3"><label class="form-label">Fecha de Nacimiento <span class="text-danger">*</span></label><input type="date" class="form-control" name="fecha_nacimiento" value="{{ old('fecha_nacimiento') }}" required></div>
