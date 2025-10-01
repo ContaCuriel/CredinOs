@@ -3,6 +3,8 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+// --- AÑADE ESTA LÍNEA EN LA PARTE SUPERIOR ---
+use Spatie\Multitenancy\MultitenancyServiceProvider;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -11,16 +13,18 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        // --- AÑADE ESTA LÍNEA AQUÍ ---
-        // Usamos prepend para que se ejecute antes que cualquier otro middleware.
-        $middleware->prepend(\App\Http\Middleware\IdentifyTenant::class);
+        //
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
     })
-
     ->withCommands([
+        // Ya no necesitamos este comando, pero lo dejamos por ahora
         \App\Console\Commands\DebugMigrations::class,
     ])
-
+    // --- AÑADE ESTA SECCIÓN PARA REGISTRAR EL PAQUETE ---
+    ->withProviders([
+        MultitenancyServiceProvider::class,
+    ])
+    // ----------------------------------------------------
     ->create();
