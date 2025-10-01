@@ -3,13 +3,20 @@
 namespace App\Models;
 
 use Spatie\Multitenancy\Models\Tenant as BaseTenant;
-use Spatie\Multitenancy\Models\Concerns\IsTenant;
+// ¡ESTA ES LA LÍNEA QUE FALTABA!
+use Spatie\Multitenancy\Models\Concerns\UsesTenantConnection; 
 
 class Tenant extends BaseTenant
 {
-    use UsesTenantConnection; // <-- 2. IMPORTANTE: Usar el Trait
+    // AHORA ESTA LÍNEA FUNCIONARÁ PORQUE LA HEMOS IMPORTADO ARRIBA
+    use UsesTenantConnection;
 
-    protected $connection = 'pgsql'; // Esto es correcto, busca tenants en la DB central
+    /**
+     * Forzamos a este modelo a usar SIEMPRE la conexión del landlord (central).
+     * Esta es la clave para que el sistema pueda encontrar la lista de tenants.
+     * @var string
+     */
+    protected $connection = 'pgsql'; 
 
     protected $fillable = [
         'name',
@@ -27,8 +34,7 @@ class Tenant extends BaseTenant
 
     /**
      * Este método es llamado por el Trait `UsesTenantConnection`.
-     * Le dice al sistema cómo construir la configuración de la base de datos
-     * para este inquilino específico, usando las columnas de este modelo.
+     * Construye la configuración de la base de datos para este inquilino específico.
      *
      * @return array
      */
@@ -44,8 +50,14 @@ class Tenant extends BaseTenant
             ]
         );
     }
-
-      public function getDatabaseName(): string
+    
+    /**
+     * Sobrescribimos este método para que el paquete Spatie sepa que tu columna
+     * para el nombre de la base de datos se llama 'db_database'.
+     *
+     * @return string
+     */
+    public function getDatabaseName(): string
     {
         return $this->db_database;
     }
