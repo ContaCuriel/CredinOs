@@ -6,26 +6,28 @@ use Spatie\Multitenancy\Tasks\SwitchTenantDatabaseTask;
 use Spatie\Multitenancy\TenantDatabaseNames\DatabaseNameFromTenant; // <--- Añade esta importación
 
 return [
-
-
-
-/*
- * La ruta donde se encuentran las migraciones de los tenants.
- */
+    /*
+     * El nombre de la conexión a la base de datos de los tenants.
+     */
     'tenant_database_connection_name' => 'tenant',
 
-/*
- * El nombre de la tabla de migraciones de los tenants.
- */
-'tenant_migrations_table' => 'migrations',
+    /*
+     * El nombre de la tabla de migraciones de los tenants.
+     */
+    'tenant_migrations_table' => 'migrations',
 
-/*
- * La ruta donde se encuentran las migraciones del landlord.
- */
-'landlord_migrations_path' => database_path('migrations/landlord'), // La nueva carpeta
-    
-'current_tenant_database_name_strategy' => DatabaseNameFromTenant::class,
-    
+    /*
+     * La ruta donde se encuentran las migraciones del landlord.
+     */
+    'landlord_migrations_path' => database_path('migrations/landlord'), // La nueva carpeta
+
+    /*
+     * La ruta donde se encuentran las migraciones de los tenants.
+     */
+    'tenant_migrations_path' => database_path('migrations/tenant'), // <--- ¡ESTA ES LA LÍNEA QUE DEBES AÑADIR!
+
+    'current_tenant_database_name_strategy' => DatabaseNameFromTenant::class,
+
     /*
      * El nombre de la conexión a la base de datos del landlord.
      * Debe coincidir con el nombre en config/database.php
@@ -37,7 +39,7 @@ return [
      * El nombre de la conexión a la base de datos de los tenants.
      * Debe coincidir con el nombre en config/database.php
      */
-    'tenant_database_connection_name' => 'tenant',
+    // 'tenant_database_connection_name' => 'tenant',  // Esta línea está duplicada, la comento por limpieza.
 
 
     /*
@@ -57,9 +59,9 @@ return [
      * DEBE ESTAR HABILITADA.
      */
     'switch_tenant_tasks' => [
-    SwitchTenantDatabaseTask::class,
-    \Spatie\Multitenancy\Tasks\PrefixCacheTask::class,
-],
+        SwitchTenantDatabaseTask::class,
+        \Spatie\Multitenancy\Tasks\PrefixCacheTask::class,
+    ],
 
     /*
      * El modelo que usas para almacenar la información de tus tenants (empresas).
