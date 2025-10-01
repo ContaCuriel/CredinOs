@@ -44,4 +44,9 @@ class Tenant extends BaseTenant
             ]
         );
     }
+
+      public function getDatabaseName(): string
+    {
+        return $this->db_database;
+    }
 }
