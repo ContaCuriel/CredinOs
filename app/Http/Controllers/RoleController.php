@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Illuminate\View\View;
 use Database\Seeders\PermissionSeeder; // Importamos el Seeder
 
 class RoleController extends Controller
@@ -54,15 +55,11 @@ class RoleController extends Controller
     /**
      * Muestra el formulario para editar un rol existente.
      */
-    public function edit(Role $role): View
+    public function edit(Role $role): View // <-- Esta 'View' ahora será reconocida correctamente
 {
-    // Obtiene todos los permisos disponibles, agrupados para la vista
     $permissionsByGroup = $this->getGroupedPermissions();
-
-    // Obtiene los nombres de los permisos que este rol ya tiene asignados
     $rolePermissions = $role->permissions->pluck('name')->all();
 
-    // Devuelve la vista 'roles.edit' con los datos necesarios
     return view('roles.edit', compact('role', 'permissionsByGroup', 'rolePermissions'));
 }
     
