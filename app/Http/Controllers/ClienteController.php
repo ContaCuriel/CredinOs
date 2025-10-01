@@ -158,7 +158,7 @@ class ClienteController extends Controller
             // Sección 1: Datos Personales
             'nombre' => 'required|string|max:255',
             'apellido_paterno' => 'required|string|max:255',
-            'apellido_materno' => 'required|string|max:255',
+            'apellido_materno' => 'nullable|string|max:255',
             'fecha_nacimiento' => "required|date|after_or_equal:$minAgeDate|before_or_equal:$maxAgeDate",
             'genero' => 'required|string|in:Masculino,Femenino,Otro',
             'curp' => $curpRule,

@@ -33,7 +33,7 @@
                                     <div class="row">
                                         <div class="col-md-4 mb-3"><label class="form-label">Nombre(s) <span class="text-danger">*</span></label><input type="text" class="form-control" name="nombre" value="{{ old('nombre') }}" required></div>
                                         <div class="col-md-4 mb-3"><label class="form-label">Apellido Paterno <span class="text-danger">*</span></label><input type="text" class="form-control" name="apellido_paterno" value="{{ old('apellido_paterno') }}" required></div>
-                                        <div class="col-md-4 mb-3"><label class="form-label">Apellido Materno <span class="text-danger">*</span></label><input type="text" class="form-control" name="apellido_materno" value="{{ old('apellido_materno') }}" required></div>
+                                        <div class="col-md-4 mb-3"><label class="form-label">Apellido Materno</label><input type="text" class="form-control" name="apellido_materno" value="{{ old('apellido_materno') }}" required></div>
                                     </div>
                                     <div class="row">
                                         <div class="col-md-4 mb-3"><label class="form-label">Fecha de Nacimiento <span class="text-danger">*</span></label><input type="date" class="form-control" name="fecha_nacimiento" value="{{ old('fecha_nacimiento') }}" required></div>
@@ -49,10 +49,48 @@
                                         <div class="col-md-4 mb-3"><label class="form-label">CURP</label><input type="text" class="form-control text-uppercase" name="curp" value="{{ old('curp') }}"></div>
                                     </div>
                                     <div class="row">
-                                        <div class="col-md-4 mb-3"><label class="form-label">Vencimiento del INE <span class="text-danger">*</span></label><input type="date" class="form-control" name="vencimiento_ine" value="{{ old('vencimiento_ine') }}" required></div>
-                                        <div class="col-md-4 mb-3"><label class="form-label">Estado de Nacimiento <span class="text-danger">*</span></label><input type="text" class="form-control" name="estado_nacimiento" value="{{ old('estado_nacimiento') }}" required></div>
-                                        <div class="col-md-4 mb-3"><label class="form-label">Nacionalidad <span class="text-danger">*</span></label><input type="text" class="form-control" name="nacionalidad" value="{{ old('nacionalidad', 'Mexicana') }}" required></div>
-                                    </div>
+    <div class="col-md-4 mb-3"><label class="form-label">Vencimiento del INE <span class="text-danger">*</span></label><input type="date" class="form-control" name="vencimiento_ine" value="{{ old('vencimiento_ine', $cliente->vencimiento_ine ?? '') }}" required></div>
+    <div class="col-md-4 mb-3">
+        <label class="form-label">Estado de Nacimiento <span class="text-danger">*</span></label>
+        {{-- CAMBIO A SELECT --}}
+        <select class="form-select" name="estado_nacimiento" required>
+            <option value="" disabled {{ old('estado_nacimiento', $cliente->estado_nacimiento ?? '') ? '' : 'selected' }}>Seleccione un estado...</option>
+            <option value="AGUASCALIENTES">AGUASCALIENTES</option>
+            <option value="BAJA CALIFORNIA">BAJA CALIFORNIA</option>
+            <option value="BAJA CALIFORNIA SUR">BAJA CALIFORNIA SUR</option>
+            <option value="CAMPECHE">CAMPECHE</option>
+            <option value="CHIAPAS">CHIAPAS</option>
+            <option value="CHIHUAHUA">CHIHUAHUA</option>
+            <option value="CIUDAD DE MEXICO">CIUDAD DE MEXICO</option>
+            <option value="COAHUILA">COAHUILA</option>
+            <option value="COLIMA">COLIMA</option>
+            <option value="DURANGO">DURANGO</option>
+            <option value="GUANAJUATO">GUANAJUATO</option>
+            <option value="GUERRERO">GUERRERO</option>
+            <option value="HIDALGO">HIDALGO</option>
+            <option value="JALISCO">JALISCO</option>
+            <option value="MEXICO">MEXICO</option>
+            <option value="MICHOACAN">MICHOACAN</option>
+            <option value="MORELOS">MORELOS</option>
+            <option value="NAYARIT">NAYARIT</option>
+            <option value="NUEVO LEON">NUEVO LEON</option>
+            <option value="OAXACA">OAXACA</option>
+            <option value="PUEBLA">PUEBLA</option>
+            <option value="QUERETARO">QUERETARO</option>
+            <option value="QUINTANA ROO">QUINTANA ROO</option>
+            <option value="SAN LUIS POTOSI">SAN LUIS POTOSI</option>
+            <option value="SINALOA">SINALOA</option>
+            <option value="SONORA">SONORA</option>
+            <option value="TABASCO">TABASCO</option>
+            <option value="TAMAULIPAS">TAMAULIPAS</option>
+            <option value="TLAXCALA">TLAXCALA</option>
+            <option value="VERACRUZ">VERACRUZ</option>
+            <option value="YUCATAN">YUCATAN</option>
+            <option value="ZACATECAS">ZACATECAS</option>
+        </select>
+    </div>
+    <div class="col-md-4 mb-3"><label class="form-label">Nacionalidad <span class="text-danger">*</span></label><input type="text" class="form-control" name="nacionalidad" value="{{ old('nacionalidad', $cliente->nacionalidad ?? 'Mexicana') }}" required></div>
+</div>
                                     <div class="row">
                                          <div class="col-md-4 mb-3"><label class="form-label">Estado Civil <span class="text-danger">*</span></label><input type="text" class="form-control" name="estado_civil" value="{{ old('estado_civil') }}" required></div>
                                          <div class="col-md-4 mb-3"><label class="form-label">Número de Hijos <span class="text-danger">*</span></label><input type="number" class="form-control" name="numero_hijos" value="{{ old('numero_hijos', 0) }}" min="0" required></div>
@@ -78,24 +116,41 @@
                         </div>
 
                         <div class="accordion-item">
-                            <h2 class="accordion-header">
-                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
-                                    <strong>Sección 2: Datos Laborales</strong>
-                                </button>
-                            </h2>
-                            <div id="collapseTwo" class="accordion-collapse collapse" data-bs-parent="#accordionCliente">
-                                <div class="accordion-body">
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3"><label class="form-label">Nombre del Negocio <span class="text-danger">*</span></label><input type="text" class="form-control" name="nombre_negocio" value="{{ old('nombre_negocio') }}" required></div>
-                                        <div class="col-md-6 mb-3"><label class="form-label">Giro del Negocio <span class="text-danger">*</span></label><input type="text" class="form-control" name="giro_negocio" value="{{ old('giro_negocio') }}" required></div>
-                                    </div>
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3"><label class="form-label">Destino del Crédito <span class="text-danger">*</span></label><input type="text" class="form-control" name="destino_credito" value="{{ old('destino_credito') }}" required></div>
-                                        <div class="col-md-6 mb-3"><label class="form-label">Antigüedad del Negocio (años) <span class="text-danger">*</span></label><input type="number" class="form-control" name="antiguedad_negocio" value="{{ old('antiguedad_negocio') }}" min="0" required></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+    <h2 class="accordion-header" id="headingTwo">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+            <strong>Sección 2: Datos Laborales</strong>
+        </button>
+    </h2>
+    <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#accordionCliente">
+        <div class="accordion-body">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Nombre del Negocio <span class="text-danger">*</span></label>
+                    {{-- NAME CORREGIDO: nombre_negocio --}}
+                    <input type="text" class="form-control" name="nombre_negocio" value="{{ old('nombre_negocio', $cliente->nombre_negocio ?? '') }}" required>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Giro del Negocio <span class="text-danger">*</span></label>
+                     {{-- NAME CORREGIDO: giro_negocio --}}
+                    <input type="text" class="form-control" name="giro_negocio" value="{{ old('giro_negocio', $cliente->giro_negocio ?? '') }}" required>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Destino del Crédito <span class="text-danger">*</span></label>
+                     {{-- NAME CORREGIDO: destino_credito --}}
+                    <input type="text" class="form-control" name="destino_credito" value="{{ old('destino_credito', $cliente->destino_credito ?? '') }}" required>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Antigüedad del Negocio (años) <span class="text-danger">*</span></label>
+                     {{-- NAME CORREGIDO Y TIPO CORRECTO: antiguedad_negocio, tipo number --}}
+                    <input type="number" class="form-control" name="antiguedad_negocio" value="{{ old('antiguedad_negocio', $cliente->antiguedad_negocio ?? '') }}" min="0" required>
+                </div>
+            </div>
+            {{-- Puedes agregar aquí la dirección del negocio si es necesario --}}
+        </div>
+    </div>
+</div>
 
                         <div class="accordion-item">
                             <h2 class="accordion-header">
