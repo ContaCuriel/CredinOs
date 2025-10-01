@@ -56,20 +56,14 @@ class RoleController extends Controller
      */
     public function edit(Role $role): View
 {
-    // Usamos la fachada DB para una consulta SQL cruda
-    $totalPermissions = \Illuminate\Support\Facades\DB::table('permissions')->count();
+    // Obtiene todos los permisos disponibles, agrupados para la vista
+    $permissionsByGroup = $this->getGroupedPermissions();
 
-    // Buscamos específicamente uno de los nuevos permisos
-    $renunciaPermission = \Illuminate\Support\Facades\DB::table('permissions')->where('name', 'like', '%renuncia%')->get();
-    $pruebaPermission = \Illuminate\Support\Facades\DB::table('permissions')->where('name', 'like', '%prueba%')->get();
+    // Obtiene los nombres de los permisos que este rol ya tiene asignados
+    $rolePermissions = $role->permissions->pluck('name')->all();
 
-    dd([
-        'CONTEXTO' => 'Petición WEB',
-        'Total de permisos contados en la tabla' => $totalPermissions,
-        'Permiso "Renuncia" encontrado' => $renunciaPermission,
-        'Permiso "Prueba" encontrado' => $pruebaPermission,
-        'Configuración de Conexión Activa' => config('database.connections.' . config('database.default'))
-    ]);
+    // Devuelve la vista 'roles.edit' con los datos necesarios
+    return view('roles.edit', compact('role', 'permissionsByGroup', 'rolePermissions'));
 }
     
     /**
