@@ -20,7 +20,8 @@ class MigrateAllTenants extends Command
         $tenants = Tenant::all();
 
         if ($tenants->isEmpty()) {
-            $this.->warn('No se encontraron tenants para migrar.');
+            // LÍNEA CORREGIDA: Se eliminó el punto (.) antes de la flecha (->)
+            $this->warn('No se encontraron tenants para migrar.');
             return 0;
         }
 
@@ -28,17 +29,13 @@ class MigrateAllTenants extends Command
             $this->info("--- Tenant: {$tenant->name} (ID: {$tenant->id}) ---");
             $this->line("Cambiando a la base de datos: {$tenant->getDatabaseName()}");
 
-            // Purga la conexión 'tenant' para asegurar que no hay datos viejos
             DB::purge('tenant');
 
-            // Establece la configuración de la base de datos para este tenant
             Config::set('database.connections.tenant.host', $tenant->db_host);
             Config::set('database.connections.tenant.database', $tenant->getDatabaseName());
             Config::set('database.connections.tenant.username', $tenant->db_username);
             Config::set('database.connections.tenant.password', $tenant->db_password);
             
-            // Llama al comando 'migrate' de Laravel con parámetros explícitos
-            // Esta es la forma más robusta y simple.
             $this->call('migrate', [
                 '--database' => 'tenant',
                 '--path' => 'database/migrations/tenant',
