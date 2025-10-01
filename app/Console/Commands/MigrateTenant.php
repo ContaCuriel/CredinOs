@@ -22,7 +22,12 @@ class MigrateTenant extends Command
             return;
         }
 
-        // 1. Configurar la conexión de la base de datos dinámicamente
+        // --- INICIO DE LA CORRECCIÓN CLAVE ---
+        // 1. Purgar cualquier conexión en caché para asegurar que se use la nueva configuración.
+        DB::purge('tenant_migration');
+
+        // 2. Configurar la conexión de la base de datos dinámicamente.
+        // La clave 'schema' => 'public' le dice a Laravel que establezca el search_path.
         Config::set('database.connections.tenant_migration', [
             'driver'    => 'pgsql',
             'host'      => $tenant->db_host,
@@ -32,22 +37,15 @@ class MigrateTenant extends Command
             'password'  => $tenant->db_password,
             'charset'   => 'utf8',
             'prefix'    => '',
-            'schema'    => 'public', // Se mantiene para consistencia
-            'sslmode'   => 'require', // Se asegura de usar SSL
+            'schema'    => 'public',
+            'sslmode'   => 'require',
         ]);
-        
-        // --- INICIO DE LA CORRECCIÓN CLAVE ---
-        // 2. Establecer esta conexión como la predeterminada para el Facade DB
-        DB::setDefaultConnection('tenant_migration');
-
-        // 3. Forzar el camino de búsqueda (search_path) al esquema 'public'
-        // Esta es la instrucción que resuelve el problema de "tabla duplicada".
-        DB::statement('SET search_path TO public');
         // --- FIN DE LA CORRECCIÓN CLAVE ---
 
         $this->info("Running migrations for tenant: {$tenant->name}...");
 
-        // 4. Ejecutar el comando de migración en la conexión ya configurada
+        // 3. Ejecutar el comando de migración en la conexión del inquilino.
+        // El comando 'migrate' de Laravel usará la configuración que acabamos de definir.
         $this->call('migrate', [
             '--database' => 'tenant_migration',
             '--path' => 'database/migrations',
