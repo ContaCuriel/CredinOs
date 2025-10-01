@@ -91,9 +91,19 @@ class FiniquitoController extends Controller
         $empleado = Empleado::with('puesto')->find($data['id_empleado']);
         $patron = Patron::find($data['id_patron'] ?? null);
 
+        $fechaIngreso = Carbon::parse($empleado->fecha_ingreso);
         $fechaBaja = Carbon::parse($data['fecha_final']);
-        $diaDeBaja = $fechaBaja->day;
-        $diasLaboradosPeriodo = ($diaDeBaja <= 15) ? $diaDeBaja : ($diaDeBaja - 15);
+
+        // ================== LÓGICA DE CÁLCULO CORREGIDA (APLICADA TAMBIÉN AQUÍ) ==================
+        $inicioQuincenaTeorico = null;
+        if ($fechaBaja->day <= 15) {
+            $inicioQuincenaTeorico = $fechaBaja->copy()->startOfMonth();
+        } else {
+            $inicioQuincenaTeorico = $fechaBaja->copy()->day(16);
+        }
+        $fechaInicioCalculo = $fechaIngreso->greaterThan($inicioQuincenaTeorico) ? $fechaIngreso : $inicioQuincenaTeorico;
+        $diasLaboradosPeriodo = $fechaInicioCalculo->diffInDays($fechaBaja) + 1;
+        // ======================================================================================
 
         $totalPercepciones = 0;
         $percepcionesKeys = ['dias_laborados_monto', 'aguinaldo_monto', 'vacaciones_monto', 'prima_vacacional_monto', 'monto_3_meses', 'monto_prima_antiguedad', 'caja_ahorro_monto', 'gratificacion_monto'];
@@ -112,7 +122,7 @@ class FiniquitoController extends Controller
         $exportData['total_deducciones'] = $totalDeducciones;
         $exportData['neto_a_pagar'] = $netoAPagar;
         $exportData['fecha_final_formateada'] = $fechaBaja->format('d/m/Y');
-        $exportData['dias_laborados_dias'] = $diasLaboradosPeriodo;
+        $exportData['dias_laborados_dias'] = $diasLaboradosPeriodo; // Se usa el valor corregido
         $exportData['vacaciones_dias_restantes'] = $data['dias_vacaciones_manuales'];
         
         $titulos = ['dias_laborados' => 'PAGO DE DÍAS LABORADOS', 'finiquito' => 'RECIBO DE FINIQUITO', 'liquidacion' => 'RECIBO DE LIQUIDACIÓN'];
@@ -135,7 +145,7 @@ class FiniquitoController extends Controller
      * Realiza el cálculo inicial desde cero, incluyendo la gratificación.
      */
    private function obtenerCalculoInicial(Request $request): array
-    {
+   {
         $validator = Validator::make($request->all(), [
             'id_empleado' => 'required|exists:empleados,id_empleado',
             'fecha_final' => 'required|date',
@@ -169,8 +179,24 @@ class FiniquitoController extends Controller
 
         $resultados['gratificacion_monto'] = (float) $request->input('gratificacion_monto', 0);
 
-        $diaDeBaja = $fechaBaja->day;
-        $diasLaboradosPeriodo = ($diaDeBaja <= 15) ? $diaDeBaja : ($diaDeBaja - 15);
+        // ================== LÓGICA DE CÁLCULO DE DÍAS LABORADOS CORREGIDA ==================
+        // 1. Determinar el inicio teórico de la quincena actual basado en la fecha de baja.
+        $inicioQuincenaTeorico = null;
+        if ($fechaBaja->day <= 15) {
+            // Si la baja es en la primera quincena, el periodo empieza el día 1 del mes.
+            $inicioQuincenaTeorico = $fechaBaja->copy()->startOfMonth();
+        } else {
+            // Si es en la segunda, el periodo empieza el día 16.
+            $inicioQuincenaTeorico = $fechaBaja->copy()->day(16);
+        }
+
+        // 2. La fecha real para iniciar el cálculo es la más tardía entre el ingreso y el inicio de la quincena.
+        $fechaInicioCalculo = $fechaIngreso->greaterThan($inicioQuincenaTeorico) ? $fechaIngreso : $inicioQuincenaTeorico;
+
+        // 3. Calcular la diferencia de días. Se suma 1 para que el cálculo sea inclusivo.
+        $diasLaboradosPeriodo = $fechaInicioCalculo->diffInDays($fechaBaja) + 1;
+        // =================================================================================
+
         $resultados['dias_laborados_monto'] = $diasLaboradosPeriodo * $salarioDiario;
         $resultados['dias_laborados_dias'] = $diasLaboradosPeriodo;
 
@@ -184,18 +210,9 @@ class FiniquitoController extends Controller
             $resultados['prima_vacacional_monto'] = $resultados['vacaciones_monto'] * 0.25;
             $resultados['vacaciones_dias_restantes'] = $diasTotalesAPagar;
             
-            // Obtener el inicio del año de la fecha de baja
             $inicioAnoActual = Carbon::parse($fechaBaja->format('Y-01-01'));
-
-            // Determinar la fecha de inicio para el cálculo del aguinaldo:
-            // Si la fecha de ingreso es posterior al inicio del año actual, se usa la fecha de ingreso.
-            // De lo contrario, se usa el inicio del año actual (1 de enero).
             $fechaInicioAguinaldo = $fechaIngreso->greaterThan($inicioAnoActual) ? $fechaIngreso : $inicioAnoActual;
-
-            // Calcular los días trabajados desde la fecha de inicio del aguinaldo hasta la fecha de baja
-            // Se suma 1 para incluir el día de la baja.
             $diasTrabajadosParaAguinaldo = $fechaInicioAguinaldo->diffInDays($fechaBaja) + 1;
-
             $aguinaldoProporcional = ($salarioDiario * 15 / 365) * $diasTrabajadosParaAguinaldo;
             $resultados['aguinaldo_monto'] = $aguinaldoProporcional;
         }
@@ -208,7 +225,7 @@ class FiniquitoController extends Controller
         return $resultados;
     }
 
-public function exportarRenunciaPdf(Request $request)
+    public function exportarRenunciaPdf(Request $request)
     {
         // 1. Validar los datos necesarios
         $validatedData = $request->validate([
@@ -254,7 +271,7 @@ public function exportarRenunciaPdf(Request $request)
         return $pdf->stream($nombreArchivo);
     }
 
-      public function uploadSigned(Request $request, Empleado $empleado)
+    public function uploadSigned(Request $request, Empleado $empleado)
     {
         $request->validate([
             'documento_firmado' => 'required|file|mimes:pdf|max:2048', // Acepta solo PDF de hasta 2MB
@@ -293,6 +310,3 @@ public function exportarRenunciaPdf(Request $request)
         return Storage::disk('public')->response($empleado->finiquito_firmado_path);
     }
 }
-
-
-
