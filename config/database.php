@@ -8,10 +8,6 @@ return [
     |--------------------------------------------------------------------------
     | Default Database Connection Name
     |--------------------------------------------------------------------------
-    |
-    | Aquí especificamos que nuestra conexión por defecto en producción
-    | debe ser 'pgsql', que es lo que usamos en Render.
-    |
     */
 
     'default' => env('DB_CONNECTION', 'pgsql'),
@@ -20,11 +16,6 @@ return [
     |--------------------------------------------------------------------------
     | Database Connections
     |--------------------------------------------------------------------------
-    |
-    | Aquí están todas las conexiones de base de datos definidas.
-    | Hemos limpiado las conexiones personalizadas ('landlord', 'tenant')
-    | porque nuestro middleware las maneja dinámicamente.
-    |
     */
 
     'connections' => [
@@ -71,21 +62,22 @@ return [
             'search_path' => 'public',
             'sslmode' => 'prefer',
         ],
-
+        
         // <<< INICIO DE LA CORRECCIÓN >>>
         'tenant' => [
-            'driver' => 'pgsql',
-            'url' => env('DB_URL'),
-            'host' => env('DB_HOST', '127.0.0.1'),
-            'port' => env('DB_PORT', '5432'),
-            'database' => env('DB_DATABASE', 'laravel'), // El paquete ignorará este valor
-            'username' => env('DB_USERNAME', 'root'),
-            'password' => env('DB_PASSWORD', ''),
-            'charset' => 'utf8',
-            'prefix' => '',
-            'prefix_indexes' => true,
-            'search_path' => 'public',
-            'sslmode' => 'prefer',
+            'driver'         => 'pgsql',
+            'host'           => env('DB_HOST_TENANT'), // Es buena práctica usar variables separadas si es posible
+            'port'           => env('DB_PORT_TENANT'),
+            'database'       => null, // CAMBIO 1: Puesto a null para claridad
+            'username'       => env('DB_USERNAME_TENANT'),
+            'password'       => env('DB_PASSWORD_TENANT'),
+            'charset'        => 'utf8',
+            'prefix'         => '',
+            'search_path'    => 'public',
+            'sslmode'        => 'prefer',
+            
+            // CAMBIO 2: ¡LA LÍNEA QUE FALTABA!
+            'migrations'     => database_path('migrations/tenant'),
         ],
         // <<< FIN DE LA CORRECCIÓN >>>
 
