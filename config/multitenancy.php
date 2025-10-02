@@ -24,7 +24,7 @@ return [
     /*
      * La ruta donde se encuentran las migraciones de los tenants.
      */
-    'tenant_migrations_path' => database_path('migrations/tenant'), // <--- ¡ESTA ES LA LÍNEA QUE DEBES AÑADIR!
+    'tenant_migrations_path' => database_path('migrations/tenant'),
 
     'current_tenant_database_name_strategy' => DatabaseNameFromTenant::class,
 
@@ -46,12 +46,13 @@ return [
      * Esta clase determina el tenant actual para la petición.
      * DomainTenantFinder es perfecto para tu caso de uso con subdominios.
      */
-    //'tenant_finder' => DomainTenantFinder::class,
+    'tenant_finder' => DomainTenantFinder::class, // <--- CAMBIO 1: DESCOMENTADO
 
     /*
-     * El nombre del atributo en tu modelo `Tenant` que contiene el subdominio.
+     * El nombre del atributo en tu modelo `Tenant` que contiene el dominio.
+     * La columna en tu BD se llama 'domain', no 'subdominio'.
      */
-    //'domain_key' => 'subdominio',
+    'domain_key' => 'domain', // <--- CAMBIO 2: DESCOMENTADO Y CORREGIDO A 'domain'
 
     /*
      * Estas tareas se ejecutan al cambiar de tenant. La más importante
