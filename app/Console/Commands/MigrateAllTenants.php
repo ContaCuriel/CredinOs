@@ -11,12 +11,11 @@ class MigrateAllTenants extends Command
 {
     protected $signature = 'tenants:migrate-custom';
 
-    protected $description = 'Usa el migrator de Laravel directamente para evitar el bug de "duplicate table".';
+    protected $description = 'Ejecuta las migraciones para todos los tenants usando el método run() del migrador.';
 
     public function handle()
     {
         $this->info('Iniciando migración directa para todos los tenants...');
-
         $tenants = Tenant::all();
 
         foreach ($tenants as $tenant) {
@@ -31,26 +30,31 @@ class MigrateAllTenants extends Command
 
             // Preparamos el migrador de Laravel
             $migrator = app('migrator');
-            $migrator->setConnection('tenant'); // ¡Importante! Usar la conexión del tenant
+            $migrator->setConnection('tenant'); // Usar la conexión del tenant
 
-            // Obtenemos la ruta de las migraciones
-            $path = database_path('migrations/tenant');
-
-            // Obtenemos las migraciones pendientes
-            $pendingMigrations = $migrator->pendingMigrations($path, $migrator->getRepository()->getRan());
-
-            if (empty($pendingMigrations)) {
-                $this->info('No hay migraciones pendientes para ejecutar.');
-                continue; // Pasa al siguiente tenant
+            // Si la tabla de migraciones no existe, el migrador la creará automáticamente.
+            if (! $migrator->repositoryExists()) {
+                 $this->line('Tabla de migraciones no encontrada, creando...');
+                 $this->call('migrate:install', ['--database' => 'tenant']);
             }
 
-            // Ejecutamos solo las migraciones pendientes
-            $this->line('Ejecutando migraciones pendientes...');
-            $migrator->runPending($pendingMigrations);
+            // Obtenemos la ruta de las migraciones
+            $migrationsPath = database_path('migrations/tenant');
+
+            // Ejecutamos las migraciones pendientes desde la ruta correcta.
+            // El método run() es PÚBLICO y se encarga de todo el proceso.
+            $this->line('Buscando y ejecutando migraciones pendientes...');
+            $migrator->run([$migrationsPath]);
 
             // Imprimimos los resultados
-            foreach ($migrator->getNotes() as $note) {
-                $this->info(strip_tags($note)); // strip_tags para limpiar la salida
+            $notes = $migrator->getNotes();
+            if (empty($notes)) {
+                $this->info('No había migraciones nuevas que ejecutar.');
+            } else {
+                foreach ($notes as $note) {
+                    // Usamos strip_tags para limpiar la salida y que se vea bien
+                    $this->info(strip_tags($note));
+                }
             }
         }
 
