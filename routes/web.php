@@ -41,6 +41,21 @@ use App\Http\Controllers\ReconciliationController;
 |--------------------------------------------------------------------------
 */
 
+Route::get('/test-tenant', function (Request $request) {
+    $host = $request->getHost();
+    echo "Laravel está viendo el host: <b>" . $host . "</b><br><br>";
+
+    $tenant = Tenant::where('domain', $host)->first();
+
+    if ($tenant) {
+        echo "<h2>¡ÉXITO! Se encontró un tenant para este host.</h2>";
+        // ... (resto del mensaje de éxito) ...
+    } else {
+        echo "<h2>FALLO: NO se encontró ningún tenant con el dominio '{$host}'.</h2>";
+        // ... (resto del mensaje de fallo con las posibles soluciones) ...
+    }
+});
+
 // --- RUTAS PÚBLICAS ---
 Route::get('/', function () {
     return view('auth.login');
