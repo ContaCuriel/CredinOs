@@ -6,36 +6,39 @@ return [
     'default' => env('DB_CONNECTION', 'pgsql'),
 
     'connections' => [
-        // Conexión para la base de datos CENTRAL (landlord)
-        'pgsql' => [
-            'driver'         => 'pgsql',
-            'url'            => env('DATABASE_URL'), // La forma más segura para Render
-            'host'           => env('DB_HOST', '127.0.0.1'),
-            'port'           => env('DB_PORT', '5432'),
-            'database'       => env('DB_DATABASE'),
-            'username'       => env('DB_USERNAME'),
-            'password'       => env('DB_PASSWORD'),
-            'charset'        => 'utf8',
-            'prefix'         => '',
-            'search_path'    => 'public',
-            'sslmode'        => 'prefer',
-            'migrations'     => 'migrations', // Ruta por defecto para migraciones del landlord
-        ],
+    // Conexión para la base de datos CENTRAL (landlord)
+    'pgsql' => [
+        'driver'         => 'pgsql',
+        'url'            => env('DATABASE_URL'),
+        'host'           => env('DB_HOST'),
+        'port'           => env('DB_PORT'),
+        'database'       => env('DB_DATABASE'),
+        'username'       => env('DB_USERNAME'),
+        'password'       => env('DB_PASSWORD'),
+        'charset'        => 'utf8',
+        'prefix'         => '',
+        'search_path'    => 'public',
+        'sslmode'        => 'prefer',
+        // Le decimos que sus migraciones están en la carpeta por defecto 'migrations'
+        'migrations'     => 'migrations', 
+    ],
+
 
         // Plantilla para las bases de datos de TENANTS (inquilinos)
         'tenant' => [
-            'driver'         => 'pgsql',
-            'host'           => null, // Se llena dinámicamente
-            'port'           => null, // Se llena dinámicamente
-            'database'       => null, // Se llena dinámicamente
-            'username'       => null, // Se llena dinámicamente
-            'password'       => null, // Se llena dinámicamente
-            'charset'        => 'utf8',
-            'prefix'         => '',
-            'search_path'    => 'public',
-            'sslmode'        => 'prefer',
-            'migrations'     => database_path('migrations/tenant'), // Ruta para migraciones de tenants
-        ],
+        'driver'         => 'pgsql',
+        'host'           => null,
+        'port'           => null,
+        'database'       => null,
+        'username'       => null,
+        'password'       => null,
+        'charset'        => 'utf8',
+        'prefix'         => '',
+        'search_path'    => 'public',
+        'sslmode'        => 'prefer',
+        // Le decimos que sus migraciones están en 'migrations/tenant'
+        'migrations'     => database_path('migrations/tenant'),
+    ],
     ],
 
     'migrations' => 'migrations',
