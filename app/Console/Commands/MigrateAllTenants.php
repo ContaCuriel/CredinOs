@@ -11,22 +11,18 @@ class MigrateAllTenants extends Command
 {
     protected $signature = 'tenants:migrate-custom';
 
-    protected $description = 'Ejecuta UNA migración específica de forma manual y segura en todos los tenants.';
+    protected $description = 'Ejecuta la migración de clientes de forma 100% manual.';
 
     public function handle()
     {
-        // ¡IMPORTANTE! Revisa que este nombre coincida EXACTAMENTE con tu archivo de migración.
         $migrationFile = '2025_10_01_103420_update_clientes_and_create_referencias_table';
-
         $this->info("Iniciando ejecución manual y segura para la migración: {$migrationFile}");
-        
         $tenants = Tenant::all();
 
         foreach ($tenants as $tenant) {
             $this->info("--- Procesando Tenant: {$tenant->name} ---");
 
             try {
-                // Configura la conexión dinámicamente
                 Config::set('database.connections.tenant.host', $tenant->db_host);
                 Config::set('database.connections.tenant.database', $tenant->getDatabaseName());
                 Config::set('database.connections.tenant.username', $tenant->db_username);
@@ -35,17 +31,15 @@ class MigrateAllTenants extends Command
 
                 $connection = DB::connection('tenant');
                 
-                // PASO 1: VERIFICAR SI LA MIGRACIÓN YA SE EJECUTÓ
                 $ran = $connection->table('migrations')->where('migration', $migrationFile)->exists();
 
                 if ($ran) {
-                    $this->info("-> La migración ya existe en este tenant. Saltando.");
-                    continue; // Pasa al siguiente tenant
+                    $this->info("-> La migración ya fue ejecutada en este tenant. Saltando.");
+                    continue;
                 }
 
                 $this->line('-> La migración está pendiente. Ejecutando SQL manualmente...');
 
-                // PASO 2: EJECUTAR EL SQL (NO DESTRUCTIVO)
                 $connection->statement("
                     ALTER TABLE clientes
                     ADD COLUMN IF NOT EXISTS fecha_nacimiento DATE NULL,
@@ -60,6 +54,12 @@ class MigrateAllTenants extends Command
                     ADD COLUMN IF NOT EXISTS destino_credito VARCHAR(255) NULL;
                 ");
                 $this->info("-> Columnas añadidas a la tabla 'clientes' (si no existían).");
+
+                // --- ¡LA LÍNEA QUE FALTABA! ---
+                // Le decimos a la base de datos que id_cliente es la llave primaria.
+                $connection->statement("ALTER TABLE clientes ADD PRIMARY KEY (id_cliente);");
+                $this->info("-> Llave primaria añadida a 'id_cliente'.");
+                // ---------------------------------
 
                 $connection->statement("
                     CREATE TABLE IF NOT EXISTS cliente_referencias (
@@ -78,7 +78,6 @@ class MigrateAllTenants extends Command
                 ");
                 $this->info("-> Tabla 'cliente_referencias' creada (si no existía).");
 
-                // PASO 3: REGISTRAR LA MIGRACIÓN EN LA TABLA 'migrations'
                 $batch = $connection->table('migrations')->max('batch') + 1;
                 $connection->table('migrations')->insert([
                     'migration' => $migrationFile,
@@ -90,7 +89,6 @@ class MigrateAllTenants extends Command
                 $this->error("Ocurrió un error: " . $e->getMessage());
             }
         }
-
         $this->info('¡Proceso manual completado!');
     }
 }
