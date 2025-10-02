@@ -162,9 +162,10 @@ class ClienteController extends Controller
             'fecha_nacimiento' => "required|date|after_or_equal:$minAgeDate|before_or_equal:$maxAgeDate",
             'genero' => 'required|string|in:Masculino,Femenino,Otro',
             'curp' => $curpRule,
-            'vencimiento_ine' => 'required|date|after_or_equal:today',
-            'estado_nacimiento' => 'required|string|max:100',
+        'vencimiento_ine' => 'required|integer|digits:4|gte:' . date('Y'), // CAMBIO: Ahora valida un año de 4 dígitos mayor o igual al actual
+        'estado_civil' => 'required|string|in:Soltero(a),Casado(a),Divorciado(a),Viudo(a),Unión Libre', // CAMBIO: Ahora es una lista
             'nacionalidad' => 'required|string|max:100',
+            'telefono_fijo' => 'nullable|string|max:20', // NUEVO
             'estado_civil' => 'required|string|max:50',
             'numero_hijos' => 'required|integer|min:0',
             'dependientes_economicos' => 'required|integer|min:0',
@@ -175,11 +176,15 @@ class ClienteController extends Controller
             'municipio' => 'required|string|max:255',
             'estado' => 'required|string|max:255',
             'fecha_comprobante_domicilio' => "required|date|between:$minProofDate,$maxProofDate",
+            'anios_domicilio' => 'required|integer|min:0', // NUEVO
+            'tipo_vivienda' => 'required|string|in:Propia,Rentada,Familiar,Hipotecada', // NUEVO
+
+
 
             // Sección 2: Datos Laborales
             'nombre_negocio' => 'required|string|max:255',
-            'giro_negocio' => 'required|string|max:255',
-            'destino_credito' => 'required|string|max:255',
+        'giro_negocio' => 'required|string|in:Comercio,Servicios,Industria,Agropecuario,Otro', // CAMBIO: Ahora es una lista
+        'destino_credito' => 'required|string|in:Capital de Trabajo,Activo Fijo,Inversión,Otro', // CAMBIO: Ahora es una lista
             'antiguedad_negocio' => 'required|integer|min:0',
 
             // Sección 3: Referencias (valida que el array exista y tenga exactamente 2 elementos)

@@ -47,6 +47,9 @@ class Cliente extends Model
         'dependientes_economicos',
         'fecha_comprobante_domicilio',
         'destino_credito',
+        'telefono_fijo', // <-- AÑADIR
+        'anios_domicilio', // <-- AÑADIR
+        'tipo_vivienda', // <-- AÑADIR
     ];
 
     // Relación con Sucursal
