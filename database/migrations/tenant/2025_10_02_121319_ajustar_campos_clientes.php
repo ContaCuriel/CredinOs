@@ -1,77 +1,32 @@
 <?php
 
-namespace App\Console\Commands;
-
-use App\Models\Tenant;
-use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Config;
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
 
-class MigrateAllTenants extends Command
+return new class extends Migration
 {
-    protected $signature = 'tenants:migrate-custom';
-    protected $description = 'Ejecuta UNA migración específica de forma 100% manual y segura.';
-
-    public function handle()
+    public function up(): void
     {
-        // ¡IMPORTANTE! Asegúrate de que este nombre sea el correcto para tu nueva migración
-        $migrationFile = '2025_10_02_121319_ajustar_campos_clientes';
+        // Usamos una sentencia directa para la conversión en PostgreSQL
+        DB::statement('ALTER TABLE clientes ALTER COLUMN vencimiento_ine TYPE INTEGER USING EXTRACT(YEAR FROM vencimiento_ine)');
 
-        $this->info("Iniciando ejecución manual para la migración: {$migrationFile}");
-        $tenants = Tenant::all();
-
-        foreach ($tenants as $tenant) {
-            $this->info("--- Procesando Tenant: {$tenant->name} ---");
-
-            try {
-                // Configura la conexión dinámicamente
-                Config::set('database.connections.tenant.host', $tenant->db_host);
-                Config::set('database.connections.tenant.database', $tenant->getDatabaseName());
-                Config::set('database.connections.tenant.username', $tenant->db_username);
-                Config::set('database.connections.tenant.password', $tenant->db_password);
-                DB::purge('tenant');
-                $connection = DB::connection('tenant');
-
-                // Verificamos si la tabla de migraciones existe, si no, la creamos
-                if (! $connection->getSchemaBuilder()->hasTable('migrations')) {
-                    $this->info('-> Tabla de migraciones no existe, creando...');
-                    $this->call('migrate:install', ['--database' => 'tenant']);
-                }
-
-                // Verificamos si la migración específica YA se ha ejecutado
-                $ran = $connection->table('migrations')->where('migration', 'like', "%{$migrationFile}%")->exists();
-                if ($ran) {
-                    $this->info("-> La migración '{$migrationFile}' ya fue ejecutada. Saltando.");
-                    continue;
-                }
-
-                $this->line("-> Ejecutando SQL para la migración '{$migrationFile}'...");
-
-                // EJECUTAMOS EL SQL DE LA MIGRACIÓN DIRECTAMENTE
-                $connection->statement('ALTER TABLE clientes ALTER COLUMN vencimiento_ine TYPE INTEGER USING EXTRACT(YEAR FROM vencimiento_ine)');
-                $connection->statement("
-                    ALTER TABLE clientes
-                    ADD COLUMN IF NOT EXISTS telefono_fijo VARCHAR(255) NULL,
-                    ADD COLUMN IF NOT EXISTS anios_domicilio INT NULL,
-                    ADD COLUMN IF NOT EXISTS tipo_vivienda VARCHAR(255) NULL;
-                ");
-                $this->info("-> Columnas añadidas/modificadas en la tabla 'clientes'.");
-
-                // Registramos la migración en la tabla 'migrations' para no volver a correrla
-                $batch = $connection->table('migrations')->max('batch') + 1;
-                $connection->table('migrations')->insert([
-                    // Buscamos el nombre completo del archivo para ser exactos
-                    'migration' => collect(\File::files(database_path('migrations/tenant')))
-                                    ->first(fn($file) => str_contains($file->getFilename(), $migrationFile))
-                                    ->getFilenameWithoutExtension(),
-                    'batch' => $batch
-                ]);
-                $this->info("-> Migración registrada en la tabla 'migrations'. ¡Éxito!");
-
-            } catch (\Exception $e) {
-                $this->error("Ocurrió un error: " . $e->getMessage());
-            }
-        }
-        $this->info('¡Proceso manual completado!');
+        // El resto de los cambios se quedan igual
+        Schema::table('clientes', function (Blueprint $table) {
+            $table->string('telefono_fijo')->nullable()->after('telefono_celular');
+            $table->integer('anios_domicilio')->unsigned()->nullable()->after('fecha_comprobante_domicilio');
+            $table->string('tipo_vivienda')->nullable()->after('anios_domicilio');
+        });
     }
-}
+
+    public function down(): void
+    {
+        // También usamos una sentencia directa para revertir el cambio
+        DB::statement("ALTER TABLE clientes ALTER COLUMN vencimiento_ine TYPE DATE USING make_date(vencimiento_ine, 12, 31)");
+        
+        Schema::table('clientes', function (Blueprint $table) {
+            $table->dropColumn(['telefono_fijo', 'anios_domicilio', 'tipo_vivienda']);
+        });
+    }
+};
