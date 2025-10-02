@@ -12,8 +12,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-    $middleware->web(append: [
-        \App\Http\Middleware\IdentifyTenant::class, // <-- TU MIDDLEWARE PERSONALIZADO
+    // Hacemos que IdentifyTenant sea un middleware GLOBAL que se ejecuta
+    // ANTES que la mayoría de los demás, incluyendo el router.
+    $middleware->prepend([
+        \App\Http\Middleware\IdentifyTenant::class,
     ]);
 })
     ->withExceptions(function (Exceptions $exceptions) {
