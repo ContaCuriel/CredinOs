@@ -4,11 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Multitenancy\Models\Concerns\UsesTenantConnection;
 
 // Cambiado el nombre de la clase a DeduccionEmpleado
 class DeduccionEmpleado extends Model
 {
-    use HasFactory;
+    use HasFactory, UsesTenantConnection;
 
     // La tabla ahora se llama 'deducciones_empleados'
     protected $table = 'deducciones_empleados';
