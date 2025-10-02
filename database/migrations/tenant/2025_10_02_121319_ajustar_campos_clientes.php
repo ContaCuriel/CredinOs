@@ -3,16 +3,17 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB; // <-- 1. ASEGÚRATE DE AÑADIR ESTA LÍNEA
 
 return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('clientes', function (Blueprint $table) {
-            // 1. Cambiar vencimiento_ine a solo el año (INTEGER)
-            $table->integer('vencimiento_ine')->nullable()->change();
+        // Usamos una sentencia directa para la conversión en PostgreSQL
+        DB::statement('ALTER TABLE clientes ALTER COLUMN vencimiento_ine TYPE INTEGER USING EXTRACT(YEAR FROM vencimiento_ine)');
 
-            // 2. Añadir nuevos campos
+        // El resto de los cambios se quedan igual
+        Schema::table('clientes', function (Blueprint $table) {
             $table->string('telefono_fijo')->nullable()->after('telefono_celular');
             $table->integer('anios_domicilio')->unsigned()->nullable()->after('fecha_comprobante_domicilio');
             $table->string('tipo_vivienda')->nullable()->after('anios_domicilio');
@@ -21,11 +22,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        // También usamos una sentencia directa para revertir el cambio
+        DB::statement("ALTER TABLE clientes ALTER COLUMN vencimiento_ine TYPE DATE USING make_date(vencimiento_ine, 12, 31)");
+        
         Schema::table('clientes', function (Blueprint $table) {
-            // Revertir el cambio de vencimiento_ine a DATE
-            $table->date('vencimiento_ine')->nullable()->change();
-
-            // Eliminar las columnas añadidas
             $table->dropColumn(['telefono_fijo', 'anios_domicilio', 'tipo_vivienda']);
         });
     }
