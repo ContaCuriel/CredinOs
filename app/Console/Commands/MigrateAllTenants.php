@@ -10,12 +10,8 @@ use Illuminate\Support\Facades\Log;
 
 class MigrateAllTenants extends Command
 {
-    /**
-     * Renombramos el comando para que su propósito sea claro.
-     */
     protected $signature = 'tenants:apply-schema-fix';
-
-    protected $description = 'Aplica todas las correcciones de esquema pendientes directamente con SQL.';
+    protected $description = 'Aplica todas las correcciones de esquema pendientes de forma segura e idempotente.';
 
     public function handle()
     {
@@ -36,18 +32,10 @@ class MigrateAllTenants extends Command
 
                 $this->line("-> Aplicando correcciones de esquema...");
 
-                // 1. Asegurar que la tabla `migrations` exista
-                $connection->statement("
-                    CREATE TABLE IF NOT EXISTS migrations (
-                        id SERIAL PRIMARY KEY,
-                        migration VARCHAR(255) NOT NULL,
-                        batch INT NOT NULL
-                    );
-                ");
+                // 1. Asegurar tablas y columnas (estas operaciones son seguras de correr múltiples veces)
+                $connection->statement("CREATE TABLE IF NOT EXISTS migrations (id SERIAL PRIMARY KEY, migration VARCHAR(255) NOT NULL, batch INT NOT NULL);");
                 $this->info("-> Tabla 'migrations' asegurada.");
 
-
-                // 2. Aplicar TODOS los cambios a la tabla 'clientes' de una vez
                 $connection->statement("
                     ALTER TABLE clientes
                     ADD COLUMN IF NOT EXISTS fecha_nacimiento DATE NULL,
@@ -64,8 +52,7 @@ class MigrateAllTenants extends Command
                     ADD COLUMN IF NOT EXISTS tipo_vivienda VARCHAR(255) NULL;
                 ");
                 $this->info("-> Columnas de la tabla 'clientes' aseguradas.");
-
-                // 3. Crear la tabla de referencias si no existe
+                
                 $connection->statement("
                     CREATE TABLE IF NOT EXISTS cliente_referencias (
                         id BIGSERIAL PRIMARY KEY,
@@ -79,18 +66,19 @@ class MigrateAllTenants extends Command
                 ");
                 $this->info("-> Tabla 'cliente_referencias' asegurada.");
 
-                // 4. Convertir la columna 'vencimiento_ine' a AÑO (INTEGER)
-                // Este es el único paso que podría fallar si ya se corrió, por eso el try-catch
-                try {
-                    DB::statement('ALTER TABLE clientes ALTER COLUMN vencimiento_ine TYPE INTEGER USING EXTRACT(YEAR FROM vencimiento_ine)');
+                // 2. Convertir 'vencimiento_ine' SÓLO SI es necesario
+                $columnType = $connection->table('information_schema.columns')
+                    ->where('table_schema', 'public')
+                    ->where('table_name', 'clientes')
+                    ->where('column_name', 'vencimiento_ine')
+                    ->value('data_type');
+
+                if ($columnType !== 'integer') {
+                    $this->line("-> Convirtiendo 'vencimiento_ine' de {$columnType} a INTEGER...");
+                    $connection->statement('ALTER TABLE clientes ALTER COLUMN vencimiento_ine TYPE INTEGER USING EXTRACT(YEAR FROM vencimiento_ine)');
                     $this->info("-> Columna 'vencimiento_ine' convertida a AÑO.");
-                } catch (\Illuminate\Database\QueryException $e) {
-                    // Si falla porque ya es integer, es un "error bueno". Lo ignoramos.
-                    if (str_contains($e->getMessage(), 'column "vencimiento_ine" is of type integer')) {
-                        $this->warn("-> La columna 'vencimiento_ine' ya era de tipo INTEGER. Saltando.");
-                    } else {
-                        throw $e; // Si es otro error, sí lo lanzamos.
-                    }
+                } else {
+                    $this->warn("-> La columna 'vencimiento_ine' ya es de tipo INTEGER. Saltando conversión.");
                 }
 
                 $this->info("-> ¡Esquema corregido exitosamente para {$tenant->name}!");
