@@ -12,12 +12,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        // AÑADE ESTO PARA QUE LAS RUTAS WEB SEPAN DEL TENANT
-        $middleware->web(append: [
-            \Spatie\Multitenancy\Http\Middleware\NeedsTenant::class,
-            \Spatie\Multitenancy\Http\Middleware\EnsureValidTenantSession::class,
-        ]);
-    })
+    $middleware->web(append: [
+        \App\Http\Middleware\IdentifyTenant::class, // <-- TU MIDDLEWARE PERSONALIZADO
+    ]);
+})
     ->withExceptions(function (Exceptions $exceptions) {
         //
     })
