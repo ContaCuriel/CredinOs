@@ -269,31 +269,42 @@
             </ul>
         @endcan
     </div>
-</nav>
-            <div class="sidebar-backdrop"></div>
-            <main class="px-md-4">
-                {{ $slot }}
-            </main>
-        </div>
-    </div>
+</nav> {{-- Cierre de tu <nav> del sidebar --}}
 
-    {{-- Tu JavaScript Original y Funcional --}}
-    <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const body = document.body;
-        const sidebarMenu = document.getElementById('sidebarMenu');
-        const desktopToggle = document.getElementById('sidebarToggle');
-        const mobileToggler = document.querySelector('.navbar-toggler');
-        const backdrop = document.querySelector('.sidebar-backdrop');
-        const mainContent = document.querySelector('main');
-        const menuLinks = document.querySelectorAll('#sidebarMenu .nav-link');
+        <div class="sidebar-backdrop"></div>
         
+        <main class="px-md-4">
+            {{ $slot }}
+        </main>
+
+    </div> {{-- Cierre de tu <div class="row"> --}}
+</div> {{-- Cierre de tu <div class="container-fluid"> --}}
+
+
+{{-- ========= INICIO DE LA SECCIÓN DE SCRIPTS CORREGIDA ========= --}}
+
+{{-- 1. Cargar librerías principales primero (como Bootstrap) --}}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+
+{{-- 2. Tu JavaScript personalizado que se usa en todo el layout (el del sidebar) --}}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const body = document.body;
+    const sidebarMenu = document.getElementById('sidebarMenu');
+    const desktopToggle = document.getElementById('sidebarToggle');
+    const mobileToggler = document.querySelector('.navbar-toggler');
+    const backdrop = document.querySelector('.sidebar-backdrop');
+    const mainContent = document.querySelector('main');
+    const menuLinks = document.querySelectorAll('#sidebarMenu .nav-link');
+    
+    // Asegurarse que sidebarMenu existe antes de crear la instancia
+    if (sidebarMenu) {
         const bsCollapse = new bootstrap.Collapse(sidebarMenu, { toggle: false });
 
         const openSidebar = () => {
             body.classList.remove('sidebar-collapsed');
-            backdrop.classList.add('show');
-            mainContent.style.marginLeft = '250px'; // Ajuste para empujar contenido
+            if(backdrop) backdrop.classList.add('show');
+            if(mainContent) mainContent.style.marginLeft = '250px';
             localStorage.setItem('sidebarState', 'expanded');
         };
 
@@ -302,8 +313,8 @@
                 bsCollapse.hide();
             } else {
                 body.classList.add('sidebar-collapsed');
-                backdrop.classList.remove('show');
-                mainContent.style.marginLeft = '0'; // Ajuste para que el contenido ocupe todo
+                if(backdrop) backdrop.classList.remove('show');
+                if(mainContent) mainContent.style.marginLeft = '0';
                 localStorage.setItem('sidebarState', 'collapsed');
             }
         };
@@ -318,39 +329,46 @@
             });
         }
 
-        if (sidebarMenu) {
-            sidebarMenu.addEventListener('show.bs.collapse', () => {
-                body.classList.remove('sidebar-collapsed');
-                backdrop.classList.add('show');
-            });
-            sidebarMenu.addEventListener('hide.bs.collapse', () => {
-                body.classList.add('sidebar-collapsed');
-                backdrop.classList.remove('show');
-            });
-        }
-
-        if(mainContent) mainContent.addEventListener('click', () => { if (!body.classList.contains('sidebar-collapsed')) closeSidebar(); });
-        if(backdrop) backdrop.addEventListener('click', () => { if (!body.classList.contains('sidebar-collapsed')) closeSidebar(); });
-        menuLinks.forEach(link => { link.addEventListener('click', () => { if (!body.classList.contains('sidebar-collapsed')) closeSidebar(); }); });
-
-        // Corregido: La lógica inicial debe estar fuera de los listeners
-        if (window.innerWidth >= 768) {
-            if (localStorage.getItem('sidebarState') === 'collapsed') {
-                body.classList.add('sidebar-collapsed');
-                mainContent.style.marginLeft = '0';
-            } else {
-                body.classList.remove('sidebar-collapsed');
-                mainContent.style.marginLeft = '250px';
-            }
-        } else {
+        sidebarMenu.addEventListener('show.bs.collapse', () => {
+            body.classList.remove('sidebar-collapsed');
+            if(backdrop) backdrop.classList.add('show');
+        });
+        sidebarMenu.addEventListener('hide.bs.collapse', () => {
             body.classList.add('sidebar-collapsed');
-            mainContent.style.marginLeft = '0';
+            if(backdrop) backdrop.classList.remove('show');
+        });
+
+        if(mainContent) mainContent.addEventListener('click', () => { if (window.innerWidth < 768 && !body.classList.contains('sidebar-collapsed')) closeSidebar(); });
+        if(backdrop) backdrop.addEventListener('click', () => { if (!body.classList.contains('sidebar-collapsed')) closeSidebar(); });
+        
+        // Esta lógica es para cerrar el menú en móvil al hacer clic en un enlace
+        menuLinks.forEach(link => { 
+            link.addEventListener('click', () => { 
+                if (window.innerWidth < 768 && sidebarMenu.classList.contains('show')) {
+                    closeSidebar(); 
+                }
+            }); 
+        });
+    }
+
+    // Lógica inicial para el estado del sidebar en escritorio
+    if (window.innerWidth >= 768) {
+        if (localStorage.getItem('sidebarState') === 'collapsed') {
+            body.classList.add('sidebar-collapsed');
+            if(mainContent) mainContent.style.marginLeft = '0';
+        } else {
+            body.classList.remove('sidebar-collapsed');
+            if(mainContent) mainContent.style.marginLeft = '250px';
         }
-    });
-    </script>
+    } else {
+        body.classList.add('sidebar-collapsed');
+        if(mainContent) mainContent.style.marginLeft = '0';
+    }
+});
+</script>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+{{-- 3. Finalmente, el "stack" para los scripts específicos de cada página --}}
+@stack('scripts')
 
-    @stack('scripts')
 </body>
 </html>
