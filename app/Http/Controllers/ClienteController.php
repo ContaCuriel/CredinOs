@@ -32,30 +32,21 @@ class ClienteController extends Controller
      * Guarda un nuevo cliente y sus referencias en la base de datos.
      */
     public function store(Request $request)
-    {
-        // Validamos los datos usando nuestro método centralizado de reglas
-        $validatedData = $request->validate($this->getValidationRules());
+{
+    $validatedData = $request->validate($this->getValidationRules());
 
-        try {
-            // Usamos una transacción para asegurar la integridad de los datos
-            DB::beginTransaction();
+    // --- LÍNEA DE DEPURACIÓN ---
+    // Esto detendrá la ejecución y nos mostrará exactamente qué datos se van a guardar.
+    dd($validatedData);
+    // ---------------------------
 
-            // Creamos el cliente con los datos principales
-            $cliente = Cliente::create($validatedData);
-            
-            // Usamos la relación para crear las referencias asociadas
-            $cliente->referencias()->createMany($validatedData['referencias']);
-
-            DB::commit(); // Si todo salió bien, confirmamos los cambios
-
-        } catch (\Exception $e) {
-            DB::rollBack(); // Si algo falla, revertimos todo
-            // Redirigimos de vuelta con un mensaje de error y los datos del formulario
-            return back()->with('error', 'Ocurrió un error al registrar el cliente: ' . $e->getMessage())->withInput();
-        }
-
-        return redirect()->route('clientes.index')->with('success', 'Cliente registrado exitosamente.');
-    }
+    // El resto del código no se ejecutará por ahora
+    try {
+        DB::beginTransaction();
+        // ... (el resto de tu código de guardar)
+    } 
+    // ...
+}
 
     /**
      * Muestra el formulario para editar un cliente existente.
