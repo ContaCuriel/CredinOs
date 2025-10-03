@@ -34,6 +34,7 @@ use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\CreditoController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ReconciliationController;
+use App\Http\Controllers\Api\CodigoPostalController;
 
 /*
 |--------------------------------------------------------------------------
@@ -252,6 +253,9 @@ Route::middleware('auth')->group(function () {
     Route::middleware('can:ver-menu-configuracion')->group(function () {
         Route::resource('sucursales', SucursalController::class)->middleware('can:ver-sucursales');
         Route::resource('puestos', PuestoController::class)->middleware('can:ver-puestos');
+
+        Route::get('/api/cp/{cp}', [CodigoPostalController::class, 'getInfo'])->name('api.cp.info');
+
 
         // --- INICIO DE LÍNEAS NUEVAS ---
         // Estas dos rutas son solo para manejar la subida del logo de forma independiente.
