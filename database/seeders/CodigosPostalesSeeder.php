@@ -8,7 +8,7 @@ class CodigosPostalesSeeder extends Seeder
 {
     public function run(): void
     {
-        $path = storage_path('app/CPdescarga.txt'); // <-- ¡DEBES PONER EL ARCHIVO .txt AQUÍ!
+        $path = database_path('data/CPdescarga.txt'); // <-- ¡DEBES PONER EL ARCHIVO .txt AQUÍ!
         if (!file_exists($path)) {
             $this->command->error("El archivo CPdescarga.txt no se encontró en storage/app/");
             return;
