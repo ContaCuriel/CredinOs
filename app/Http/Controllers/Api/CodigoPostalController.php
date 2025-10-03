@@ -1,20 +1,30 @@
 <?php
+
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\CodigoPostal;
+use Illuminate\Support\Facades\DB; // <-- AÑADE/ASEGURA ESTE 'USE'
 
 class CodigoPostalController extends Controller
 {
     public function getInfo($cp)
     {
-        $resultados = CodigoPostal::where('codigo_postal', $cp)->get();
+        // --- LA CORRECCIÓN DEFINITIVA ---
+        // En lugar de usar el modelo Eloquent, usamos el Query Builder
+        // y le forzamos a usar la conexión 'pgsql' (la central).
+        // Esto es inmune a los problemas de caché del modelo.
+        $resultados = DB::connection('pgsql')
+                        ->table('codigos_postales')
+                        ->where('codigo_postal', $cp)
+                        ->get();
+        // ---------------------------------
 
         if ($resultados->isEmpty()) {
+            // Devolvemos 404 si no se encuentra, como debe ser.
             return response()->json(['error' => true, 'error_message' => 'CP no encontrado'], 404);
         }
 
-        // Formateamos la respuesta para que sea idéntica a la que esperaba el JavaScript
+        // El resto del código para formatear la respuesta se queda igual
         $formatted = $resultados->map(function ($item) {
             return [
                 'response' => [
