@@ -35,6 +35,9 @@ use App\Http\Controllers\CreditoController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ReconciliationController;
 use App\Http\Controllers\Api\CodigoPostalController;
+use App\Models\CodigoPostal;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Request; 
 
 /*
 |--------------------------------------------------------------------------
