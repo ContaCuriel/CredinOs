@@ -42,6 +42,24 @@ use App\Http\Controllers\Api\CodigoPostalController;
 |--------------------------------------------------------------------------
 */
 
+Route::get('/test-cp-model', function () {
+    try {
+        $modelo = new CodigoPostal();
+        $conexionDelModelo = $modelo->getConnectionName();
+
+        echo "La conexión por defecto de la aplicación en este momento es: <b>" . DB::getDefaultConnection() . "</b><br>";
+        echo "El modelo 'CodigoPostal' está configurado para usar la conexión: <b>" . $conexionDelModelo . "</b><br><br>";
+
+        if ($conexionDelModelo === 'pgsql') {
+            echo "<h2><span style='color:green;'>¡CONFIGURACIÓN CORRECTA!</span></h2> Tu modelo <u>app/Models/CodigoPostal.php</u> está bien configurado en el servidor. El problema es 100% la caché de Laravel.";
+        } else {
+            echo "<h2><span style='color:red;'>¡PROBLEMA ENCONTRADO!</span></h2> Tu modelo sigue usando la conexión '{$conexionDelModelo}'. El cambio `protected \$connection = 'pgsql';` <b>NO</b> está presente o no se está leyendo en el código que se ejecuta en el servidor.";
+        }
+    } catch (\Exception $e) {
+        return "Ocurrió un error al probar el modelo: " . $e->getMessage();
+    }
+});
+
 // --- RUTAS PÚBLICAS ---
 Route::get('/', function () {
     return view('auth.login');
