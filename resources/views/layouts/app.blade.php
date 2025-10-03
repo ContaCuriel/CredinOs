@@ -269,36 +269,28 @@
             </ul>
         @endcan
     </div>
-</nav> {{-- Cierre de tu <nav> del sidebar --}}
+</nav>
+            <div class="sidebar-backdrop"></div>
+            <main class="px-md-4">
+                {{ $slot }}
+            </main>
+        </div>
+    </div>
 
-        <div class="sidebar-backdrop"></div>
-        
-        <main class="px-md-4">
-            {{ $slot }}
-        </main>
+     {{-- 1. Cargar librerías principales primero --}}
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 
-    </div> {{-- Cierre de tu <div class="row"> --}}
-</div> {{-- Cierre de tu <div class="container-fluid"> --}}
+    {{-- 2. Tu JavaScript personalizado para el layout (el del sidebar) --}}
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const body = document.body;
+        const sidebarMenu = document.getElementById('sidebarMenu');
+        const desktopToggle = document.getElementById('sidebarToggle');
+        const backdrop = document.querySelector('.sidebar-backdrop');
+        const mainContent = document.querySelector('main');
 
+        if (!sidebarMenu) return; // Salir si no hay menú
 
-{{-- ========= INICIO DE LA SECCIÓN DE SCRIPTS CORREGIDA ========= --}}
-
-{{-- 1. Cargar librerías principales primero (como Bootstrap) --}}
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-
-{{-- 2. Tu JavaScript personalizado que se usa en todo el layout (el del sidebar) --}}
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const body = document.body;
-    const sidebarMenu = document.getElementById('sidebarMenu');
-    const desktopToggle = document.getElementById('sidebarToggle');
-    const mobileToggler = document.querySelector('.navbar-toggler');
-    const backdrop = document.querySelector('.sidebar-backdrop');
-    const mainContent = document.querySelector('main');
-    const menuLinks = document.querySelectorAll('#sidebarMenu .nav-link');
-    
-    // Asegurarse que sidebarMenu existe antes de crear la instancia
-    if (sidebarMenu) {
         const bsCollapse = new bootstrap.Collapse(sidebarMenu, { toggle: false });
 
         const openSidebar = () => {
@@ -321,11 +313,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (desktopToggle) {
             desktopToggle.addEventListener('click', () => {
-                if (body.classList.contains('sidebar-collapsed')) {
-                    openSidebar();
-                } else {
-                    closeSidebar();
-                }
+                body.classList.contains('sidebar-collapsed') ? openSidebar() : closeSidebar();
             });
         }
 
@@ -337,38 +325,26 @@ document.addEventListener('DOMContentLoaded', function () {
             body.classList.add('sidebar-collapsed');
             if(backdrop) backdrop.classList.remove('show');
         });
-
-        if(mainContent) mainContent.addEventListener('click', () => { if (window.innerWidth < 768 && !body.classList.contains('sidebar-collapsed')) closeSidebar(); });
-        if(backdrop) backdrop.addEventListener('click', () => { if (!body.classList.contains('sidebar-collapsed')) closeSidebar(); });
         
-        // Esta lógica es para cerrar el menú en móvil al hacer clic en un enlace
-        menuLinks.forEach(link => { 
-            link.addEventListener('click', () => { 
-                if (window.innerWidth < 768 && sidebarMenu.classList.contains('show')) {
-                    closeSidebar(); 
-                }
-            }); 
-        });
-    }
+        if(backdrop) {
+            backdrop.addEventListener('click', closeSidebar);
+        }
 
-    // Lógica inicial para el estado del sidebar en escritorio
-    if (window.innerWidth >= 768) {
-        if (localStorage.getItem('sidebarState') === 'collapsed') {
+        // Estado inicial del sidebar en escritorio
+        if (window.innerWidth >= 768) {
+            if (localStorage.getItem('sidebarState') === 'collapsed') {
+                body.classList.add('sidebar-collapsed');
+                if(mainContent) mainContent.style.marginLeft = '0';
+            }
+        } else {
             body.classList.add('sidebar-collapsed');
             if(mainContent) mainContent.style.marginLeft = '0';
-        } else {
-            body.classList.remove('sidebar-collapsed');
-            if(mainContent) mainContent.style.marginLeft = '250px';
         }
-    } else {
-        body.classList.add('sidebar-collapsed');
-        if(mainContent) mainContent.style.marginLeft = '0';
-    }
-});
-</script>
+    });
+    </script>
 
-{{-- 3. Finalmente, el "stack" para los scripts específicos de cada página --}}
-@stack('scripts')
+    {{-- 3. Finalmente, el "stack" para los scripts específicos de cada página --}}
+    @stack('scripts')
 
 </body>
 </html>
