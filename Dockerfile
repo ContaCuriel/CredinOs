@@ -17,9 +17,14 @@ RUN apt-get update && apt-get install -y \
         nginx \
         libpq-dev \
         gettext \
-        # --- AÑADIDO PARA LA EXTENSIÓN ZIP ---
         libzip-dev \
-    && docker-php-ext-install pdo pdo_pgsql zip \
+        # --- LIBRERÍAS NECESARIAS PARA GD ---
+        libpng-dev \
+        libjpeg62-turbo-dev \
+        libfreetype6-dev \
+        # --- FIN LIBRERÍAS GD ---
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install pdo pdo_pgsql zip gd \
     # --- FIN DE AÑADIDO ---
     && pecl install redis \
     && docker-php-ext-enable redis \
