@@ -4,90 +4,63 @@ namespace App\Console\Commands;
 
 use App\Models\Tenant;
 use Illuminate\Console\Command;
+use Illuminate\Database\Migrations\Migrator;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class MigrateAllTenants extends Command
 {
-    protected $signature = 'tenants:apply-schema-fix';
-    protected $description = 'Aplica todas las correcciones de esquema pendientes de forma segura e idempotente.';
+    // ¡CAMBIO IMPORTANTE! Renombramos el comando para el futuro
+    protected $signature = 'tenants:migrate';
+
+    protected $description = 'Comando universal y seguro para ejecutar migraciones pendientes en todos los tenants.';
 
     public function handle()
     {
-        $this->info('Iniciando reparación de esquema para todos los tenants...');
         $tenants = Tenant::all();
+        if ($tenants->isEmpty()) {
+            $this->warn('No se encontraron tenants para migrar.');
+            return;
+        }
 
         foreach ($tenants as $tenant) {
             $this->info("--- Procesando Tenant: {$tenant->name} ---");
 
-            try {
-                // Configura la conexión dinámicamente
-                Config::set('database.connections.tenant.host', $tenant->db_host);
-                Config::set('database.connections.tenant.database', $tenant->getDatabaseName());
-                Config::set('database.connections.tenant.username', $tenant->db_username);
-                Config::set('database.connections.tenant.password', $tenant->db_password);
-                DB::purge('tenant');
-                $connection = DB::connection('tenant');
+            // 1. Configurar la conexión dinámicamente
+            Config::set('database.connections.tenant.host', $tenant->db_host);
+            Config::set('database.connections.tenant.database', $tenant->getDatabaseName());
+            Config::set('database.connections.tenant.username', $tenant->db_username);
+            Config::set('database.connections.tenant.password', $tenant->db_password);
+            Config::set('database.connections.tenant.port', $tenant->db_port ?? 5432);
+            DB::purge('tenant');
 
-                $this->line("-> Aplicando correcciones de esquema...");
+            // 2. Preparar el migrador de Laravel
+            /** @var Migrator $migrator */
+            $migrator = app('migrator');
+            $migrator->setConnection('tenant');
 
-                // 1. Asegurar tablas y columnas (estas operaciones son seguras de correr múltiples veces)
-                $connection->statement("CREATE TABLE IF NOT EXISTS migrations (id SERIAL PRIMARY KEY, migration VARCHAR(255) NOT NULL, batch INT NOT NULL);");
-                $this->info("-> Tabla 'migrations' asegurada.");
+            // 3. Asegurar que la tabla de migraciones exista (de forma segura)
+            if (! $migrator->repositoryExists()) {
+                 $this.line('-> Tabla de migraciones no encontrada, creando...');
+                 $this->call('migrate:install', ['--database' => 'tenant']);
+            }
 
-                $connection->statement("
-                    ALTER TABLE clientes
-                    ADD COLUMN IF NOT EXISTS fecha_nacimiento DATE NULL,
-                    ADD COLUMN IF NOT EXISTS genero VARCHAR(20) NULL,
-                    ADD COLUMN IF NOT EXISTS estado_nacimiento VARCHAR(100) NULL,
-                    ADD COLUMN IF NOT EXISTS nacionalidad VARCHAR(100) DEFAULT 'Mexicana',
-                    ADD COLUMN IF NOT EXISTS estado_civil VARCHAR(50) NULL,
-                    ADD COLUMN IF NOT EXISTS numero_hijos INT DEFAULT 0,
-                    ADD COLUMN IF NOT EXISTS dependientes_economicos INT DEFAULT 0,
-                    ADD COLUMN IF NOT EXISTS fecha_comprobante_domicilio DATE NULL,
-                    ADD COLUMN IF NOT EXISTS destino_credito VARCHAR(255) NULL,
-                    ADD COLUMN IF NOT EXISTS telefono_fijo VARCHAR(255) NULL,
-                    ADD COLUMN IF NOT EXISTS anios_domicilio INT NULL,
-                    ADD COLUMN IF NOT EXISTS tipo_vivienda VARCHAR(255) NULL;
-                ");
-                $this->info("-> Columnas de la tabla 'clientes' aseguradas.");
-                
-                $connection->statement("
-                    CREATE TABLE IF NOT EXISTS cliente_referencias (
-                        id BIGSERIAL PRIMARY KEY,
-                        cliente_id BIGINT NOT NULL REFERENCES clientes(id_cliente) ON DELETE CASCADE,
-                        nombre_referencia VARCHAR(255) NOT NULL,
-                        parentesco VARCHAR(255) NOT NULL,
-                        telefono VARCHAR(255) NOT NULL,
-                        created_at TIMESTAMP(0) NULL,
-                        updated_at TIMESTAMP(0) NULL
-                    );
-                ");
-                $this->info("-> Tabla 'cliente_referencias' asegurada.");
+            // 4. Ejecutar las migraciones pendientes desde la ruta correcta
+            $migrationsPath = database_path('migrations/tenant');
+            $this->line('-> Buscando y ejecutando migraciones pendientes...');
 
-                // 2. Convertir 'vencimiento_ine' SÓLO SI es necesario
-                $columnType = $connection->table('information_schema.columns')
-                    ->where('table_schema', 'public')
-                    ->where('table_name', 'clientes')
-                    ->where('column_name', 'vencimiento_ine')
-                    ->value('data_type');
+            $migrator->run([$migrationsPath]);
 
-                if ($columnType !== 'integer') {
-                    $this->line("-> Convirtiendo 'vencimiento_ine' de {$columnType} a INTEGER...");
-                    $connection->statement('ALTER TABLE clientes ALTER COLUMN vencimiento_ine TYPE INTEGER USING EXTRACT(YEAR FROM vencimiento_ine)');
-                    $this->info("-> Columna 'vencimiento_ine' convertida a AÑO.");
-                } else {
-                    $this->warn("-> La columna 'vencimiento_ine' ya es de tipo INTEGER. Saltando conversión.");
+            // 5. Imprimir los resultados
+            $notes = $migrator->getNotes();
+            if (empty($notes)) {
+                $this->info('-> No había migraciones nuevas que ejecutar.');
+            } else {
+                foreach ($notes as $note) {
+                    $this->info(strip_tags($note));
                 }
-
-                $this->info("-> ¡Esquema corregido exitosamente para {$tenant->name}!");
-
-            } catch (\Exception $e) {
-                $this->error("Ocurrió un error en {$tenant->name}: " . $e->getMessage());
-                Log::error("Error migrando tenant {$tenant->name}: " . $e->getMessage());
             }
         }
-        $this->info('¡Proceso de reparación completado!');
+        $this->info('¡Migración de tenants completada!');
     }
 }
