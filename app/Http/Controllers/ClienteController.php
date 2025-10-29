@@ -96,8 +96,6 @@ class ClienteController extends Controller
     public function store(Request $request)
     {
 
-        dd($request->all());
-
         $validatedData = $request->validate($this->getValidationRules());
 
         try {
@@ -134,8 +132,6 @@ class ClienteController extends Controller
      */
     public function update(Request $request, Cliente $cliente)
     {
-
-        dd($request->all());
 
         $validatedData = $request->validate($this->getValidationRules($cliente->id_cliente));
 

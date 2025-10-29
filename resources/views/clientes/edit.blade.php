@@ -176,82 +176,82 @@
     </div>
 
     @push('scripts')
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const cpInput = document.getElementById('codigo_postal');
-        const coloniaContainer = document.getElementById('colonia_container');
-        const municipioInput = document.getElementById('municipio');
-        const estadoInput = document.getElementById('estado');
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const cpInput = document.getElementById('codigo_postal');
+            const coloniaContainer = document.getElementById('colonia_container');
+            const municipioInput = document.getElementById('municipio');
+            const estadoInput = document.getElementById('estado');
 
-        if (cpInput) {
-            cpInput.addEventListener('blur', function () {
-                const cp = this.value.trim();
-                if (cp.length === 5 && /^\d+$/.test(cp)) {
-                    
-                    // --- ¡CAMBIO IMPORTANTE AQUÍ! ---
-                    // Apuntamos a nuestra propia API interna en lugar de a una externa.
-                    fetch(`/api/cp/${cp}`)
-                    // ---------------------------------
+            if (cpInput) {
+                cpInput.addEventListener('blur', function () {
+                    const cp = this.value.trim();
+                    if (cp.length === 5 && /^\d+$/.test(cp)) {
+                        
+                        // --- ¡CAMBIO IMPORTANTE AQUÍ! ---
+                        // Apuntamos a nuestra propia API interna en lugar de a una externa.
+                        fetch(`/api/cp/${cp}`)
+                        // ---------------------------------
 
-                        .then(response => {
-                            if (!response.ok) throw new Error('CP no encontrado');
-                            return response.json();
-                        })
-                        .then(data => {
-                            if (!data || data.length === 0 || data.error) {
-                                 console.error('Respuesta de API inválida o CP no encontrado');
-                                 return;
-                            }
+                            .then(response => {
+                                if (!response.ok) throw new Error('CP no encontrado');
+                                return response.json();
+                            })
+                            .then(data => {
+                                if (!data || data.length === 0 || data.error) {
+                                     console.error('Respuesta de API inválida o CP no encontrado');
+                                     return;
+                                }
 
-                            municipioInput.value = data[0].response.municipio;
-                            estadoInput.value = data[0].response.estado;
+                                municipioInput.value = data[0].response.municipio;
+                                estadoInput.value = data[0].response.estado;
 
-                            const colonias = [...new Set(data.map(item => item.response.asentamiento))]; // Eliminar duplicados
-                            
-                            coloniaContainer.innerHTML = ''; 
+                                const colonias = [...new Set(data.map(item => item.response.asentamiento))]; // Eliminar duplicados
+                                
+                                coloniaContainer.innerHTML = ''; 
 
-                            if (colonias.length > 1) {
-                                let label = document.createElement('label');
-                                label.className = 'form-label visually-hidden';
-                                label.setAttribute('for', 'colonia');
-                                label.textContent = 'Colonia';
-                                coloniaContainer.appendChild(label);
+                                if (colonias.length > 1) {
+                                    let label = document.createElement('label');
+                                    label.className = 'form-label visually-hidden';
+                                    label.setAttribute('for', 'colonia');
+                                    label.textContent = 'Colonia';
+                                    coloniaContainer.appendChild(label);
 
-                                let select = document.createElement('select');
-                                select.className = 'form-select';
-                                select.name = 'colonia';
-                                select.id = 'colonia';
-                                select.required = true;
+                                    let select = document.createElement('select');
+                                    select.className = 'form-select';
+                                    select.name = 'colonia';
+                                    select.id = 'colonia';
+                                    select.required = true;
 
-                                colonias.forEach(nombreColonia => {
-                                    let option = document.createElement('option');
-                                    option.value = nombreColonia;
-                                    option.textContent = nombreColonia;
-                                    select.appendChild(option);
-                                });
-                                coloniaContainer.appendChild(select);
-                            } else {
-                                let label = document.createElement('label');
-                                label.className = 'form-label visually-hidden';
-                                label.setAttribute('for', 'colonia');
-                                label.textContent = 'Colonia';
-                                coloniaContainer.appendChild(label);
+                                    colonias.forEach(nombreColonia => {
+                                        let option = document.createElement('option');
+                                        option.value = nombreColonia;
+                                        option.textContent = nombreColonia;
+                                        select.appendChild(option);
+                                    });
+                                    coloniaContainer.appendChild(select);
+                                } else {
+                                    let label = document.createElement('label');
+                                    label.className = 'form-label visually-hidden';
+                                    label.setAttribute('for', 'colonia');
+                                    label.textContent = 'Colonia';
+                                    coloniaContainer.appendChild(label);
 
-                                let input = document.createElement('input');
-                                input.type = 'text';
-                                input.className = 'form-control';
-                                input.name = 'colonia';
-                                input.id = 'colonia';
-                                input.value = colonias[0] || '';
-                                input.required = true;
-                                coloniaContainer.appendChild(input);
-                            }
-                        })
-                        .catch(error => console.error('Error en la API de CP:', error));
-                }
-            });
-        }
-    });
-</script>
-@endpush
+                                    let input = document.createElement('input');
+                                    input.type = 'text';
+                                    input.className = 'form-control';
+                                    input.name = 'colonia';
+                                    input.id = 'colonia';
+                                    input.value = colonias[0] || '';
+                                    input.required = true;
+                                    coloniaContainer.appendChild(input);
+                                }
+                            })
+                            .catch(error => console.error('Error en la API de CP:', error));
+                    }
+                });
+            }
+        });
+    </script>
+    @endpush
 </x-app-layout>
