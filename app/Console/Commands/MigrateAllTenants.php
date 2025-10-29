@@ -51,17 +51,10 @@ class MigrateAllTenants extends Command
                 // Usamos run() para ejecutar las migraciones.
                 $migrator->run([$migrationsPath]);
 
-                // 5. Imprimir los resultados (FORMA CORREGIDA Y SEGURA)
-                // Obtenemos las notas del array de salida del migrador
-                $notes = $migrator->setOutput($this->output)->getNotes();
-                if (empty($notes)) {
-                    $this->info('-> No había migraciones nuevas que ejecutar.');
-                } else {
-                    // Si hubo notas (migraciones ejecutadas), las mostramos
-                    foreach ($notes as $note) {
-                        $this->info(strip_tags($note));
-                    }
-                }
+                // 5. Imprimir resultado (FORMA SIMPLE Y SEGURA)
+                // Simplemente informamos que se completó para este tenant.
+                // Ya no intentamos leer las "notas" que causaban el error.
+                $this->info("-> Migración finalizada para {$tenant->name}.");
 
             } catch (\Exception $e) {
                 $this->error("Error procesando tenant {$tenant->name}: " . $e->getMessage());
