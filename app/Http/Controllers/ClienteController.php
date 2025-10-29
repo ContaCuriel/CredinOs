@@ -97,6 +97,8 @@ class ClienteController extends Controller
     {
         $validatedData = $request->validate($this->getValidationRules());
 
+        dd($validatedData);
+
         try {
             DB::beginTransaction();
 
@@ -132,6 +134,8 @@ class ClienteController extends Controller
     public function update(Request $request, Cliente $cliente)
     {
         $validatedData = $request->validate($this->getValidationRules($cliente->id_cliente));
+
+        dd($validatedData);
 
         try {
             DB::beginTransaction();
