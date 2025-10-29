@@ -54,9 +54,12 @@ class Cliente extends Model
 
     // Relación con Sucursal
     public function sucursal()
-    {
-        return $this->belongsTo(Sucursal::class, 'id_sucursal', 'id_sucursal');
-    }
+{
+    return $this->belongsTo(Sucursal::class, 'id_sucursal')
+                ->withDefault([
+                    'nombre_sucursal' => 'Sin Asignar'
+                ]);
+}
 
     public function groups()
 {

@@ -163,30 +163,6 @@
                             </div>
                         </div>
 
-                        <div class="accordion-item">
-                            <h2 class="accordion-header">
-                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
-                                    <strong>Sección 4: Asignación</strong>
-                                </button>
-                            </h2>
-                            <div id="collapseFour" class="accordion-collapse collapse" data-bs-parent="#accordionCliente">
-                                <div class="accordion-body">
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">
-                                            <label for="id_sucursal" class="form-label">Sucursal <span class="text-danger">*</span></label>
-                                            <select class="form-select" name="id_sucursal" required>
-                                                <option value="" disabled selected>Selecciona una sucursal</option>
-                                                @foreach ($sucursales as $sucursal)
-                                                    <option value="{{ $sucursal->id_sucursal }}" @selected(old('id_sucursal') == $sucursal->id_sucursal)>
-                                                        {{ $sucursal->nombre_sucursal }}
-                                                    </option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
 
                     </div>
 

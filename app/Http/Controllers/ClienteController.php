@@ -87,8 +87,6 @@ class ClienteController extends Controller
             'referencias.*.parentesco' => 'required|string|max:100',
             'referencias.*.telefono' => 'required|string|max:20',
             
-            // Asignación
-            'id_sucursal' => 'required|exists:sucursales,id_sucursal',
         ];
     }
     
