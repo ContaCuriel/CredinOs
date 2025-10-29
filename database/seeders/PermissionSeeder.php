@@ -7,15 +7,16 @@ use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\PermissionRegistrar; // <--- Importante añadir esto
 
 class PermissionSeeder extends Seeder
 {
     public function run(): void
     {
-        // Resetear roles y permisos cacheados
-        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+        // 1. Resetear roles y permisos cacheados
+        app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // --- CREACIÓN DE PERMISOS ORGANIZADOS POR GRUPO ---
+        // 2. CREACIÓN DE PERMISOS ORGANIZADOS POR GRUPO
         $permissionsByGroup = [
             'Dashboard' => [
                 'ver-widget-contratos-vencer',
@@ -71,30 +72,41 @@ class PermissionSeeder extends Seeder
                 'ver-tipos-credito', 'crear-tipos-credito', 'editar-tipos-credito', 'eliminar-tipos-credito',
                 'ver-tasas-interes', 'crear-tasas-interes', 'editar-tasas-interes', 'eliminar-tasas-interes',
             ],
-
             'Módulo de Prueba' => [
                 'ver-modulo-prueba',
                 'usar-modulo-prueba',
             ],  
         ];
 
-        // Crear los permisos en la base de datos
+        // Crear los permisos en la base de datos (esto es seguro, usa firstOrCreate)
         foreach ($permissionsByGroup as $group => $permissions) {
             foreach ($permissions as $permission) {
-                Permission::firstOrCreate(['name' => $permission]);
+                Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
             }
         }
+        $this->command->info('Permisos creados o verificados.');
 
-        // --- CREACIÓN DE ROL Y USUARIO SUPER-ADMIN ---
-        $superAdminRole = Role::firstOrCreate(['name' => 'Super-Admin']);
-        $superAdminRole->givePermissionTo(Permission::all());
+        // 3. --- CREACIÓN DE ROL Y USUARIO SUPER-ADMIN (SOLO ESTE) ---
+        $superAdminRole = Role::firstOrCreate(['name' => 'Super-Admin', 'guard_name' => 'web']);
+        $superAdminRole->givePermissionTo(Permission::all()); // Asignar todos los permisos al Super-Admin
+        $this->command->info('Rol Super-Admin creado y sincronizado con todos los permisos.');
 
-        if (!User::where('email', 'superadmin@credinos.com')->exists()) {
+        // 4. --- CREAR EL USUARIO SUPER-ADMIN SOLICITADO ---
+        // Busca al usuario por el email
+        $user = User::where('email', 'curiel@facturame.org')->first();
+
+        if (!$user) {
+            // Si no existe, lo crea con los datos que pediste
             User::create([
                 'name' => 'Super Administrador',
-                'email' => 'superadmin@credinos.com',
-                'password' => Hash::make('password')
+                'email' => 'curiel@facturame.org',
+                'password' => Hash::make('Carcur97#')
             ])->assignRole($superAdminRole);
+            $this->command->info('Usuario Super-Admin (curiel@facturame.org) creado exitosamente.');
+        } else {
+            // Si ya existe, solo se asegura de que tenga el rol de Super-Admin
+            $user->assignRole($superAdminRole);
+            $this->command->info('Usuario Super-Admin (curiel@facturame.org) ya existía. Se le asignó el rol por si no lo tenía.');
         }
     }
 }

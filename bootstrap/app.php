@@ -23,6 +23,8 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withCommands([
         \App\Console\Commands\MigrateAllTenants::class,
+        \App\Console\Commands\SeedMultiTenantPermissions::class,
+        \App\Console\Commands\ClearTenantPermissionCache::class,
     ])
     ->withProviders([
         MultitenancyServiceProvider::class,
