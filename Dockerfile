@@ -30,6 +30,9 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-enable redis \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Copiar nuestra configuración de PHP para subidas de archivos
+COPY docker/php-uploads.ini /usr/local/etc/php/conf.d/99-uploads.ini    
+
 # Copiar los archivos de la aplicación y las dependencias ya instaladas desde la etapa del constructor
 COPY --from=builder /var/www/html .
 

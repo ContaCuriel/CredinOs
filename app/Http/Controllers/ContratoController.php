@@ -157,7 +157,7 @@ class ContratoController extends Controller
             'fecha_inicio' => 'required|date',
             'fecha_fin' => 'required|date|after_or_equal:fecha_inicio',
             // El archivo es opcional, debe ser PDF, y no pesar más de 5MB.
-            'contrato_firmado_file' => 'nullable|file|mimes:pdf|max:5120',
+            'contrato_firmado_file' => 'nullable|file|mimes:pdf|max:10240',
         ]);
 
         // 2. Preparamos los datos a actualizar, excluyendo el archivo por ahora.
