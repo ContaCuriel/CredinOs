@@ -15,6 +15,8 @@ class ClienteController extends Controller
      */
     public function index()
     {
+        // Tuvimos que añadir el trait UsesTenantConnection a Cliente, 
+        // así que esta consulta ya funciona en el contexto del tenant.
         $clientes = Cliente::with('sucursal')->orderBy('apellido_paterno')->paginate(15);
         return view('clientes.index', compact('clientes'));
     }
@@ -29,24 +31,90 @@ class ClienteController extends Controller
     }
 
     /**
-     * Guarda un nuevo cliente y sus referencias en la base de datos.
+     * Reglas de validación compartidas para no repetir código.
+     */
+    private function getValidationRules($clienteId = null): array
+    {
+        // Reglas de unicidad que cambian si estamos editando
+        $curpRule = 'nullable|string|max:18|unique:clientes,curp';
+        $emailRule = 'nullable|email|max:255|unique:clientes,email';
+        if ($clienteId) {
+            $curpRule .= ',' . $clienteId . ',id_cliente';
+            $emailRule .= ',' . $clienteId . ',id_cliente';
+        }
+
+        // Límites de edad (ej. entre 18 y 80 años)
+        $minDate = Carbon::now()->subYears(80)->toDateString();
+        $maxDate = Carbon::now()->subYears(18)->toDateString();
+        $currentYear = date('Y');
+
+        // Límite para comprobante de domicilio (3 meses)
+        $maxProofDate = Carbon::now()->toDateString();
+        $minProofDate = Carbon::now()->subMonths(3)->toDateString();
+
+        return [
+            // Sección 1: Datos Personales
+            'nombre' => 'required|string|max:255',
+            'apellido_paterno' => 'required|string|max:255',
+            'apellido_materno' => 'nullable|string|max:255', // Ya no es obligatorio
+            'fecha_nacimiento' => "required|date|after_or_equal:$minDate|before_or_equal:$maxDate",
+            'curp' => $curpRule,
+            'vencimiento_ine' => "required|integer|digits:4|gte:$currentYear", // Validar año
+            'estado_civil' => 'required|string|in:Soltero(a),Casado(a),Divorciado(a),Viudo(a),Unión Libre', // Lista
+            'telefono_celular' => 'required|string|max:20',
+            'telefono_fijo' => 'nullable|string|max:20', // Nuevo campo
+            
+            // Dirección
+            'codigo_postal' => 'required|string|max:10',
+            'colonia' => 'required|string|max:255',
+            'fecha_comprobante_domicilio' => "required|date|between:$minProofDate,$maxProofDate",
+            'municipio' => 'required|string|max:255',
+            'estado' => 'required|string|max:255',
+            'calle' => 'required|string|max:255',
+            'numero' => 'required|string|max:50',
+            'anios_domicilio' => 'required|integer|min:0', // Nuevo campo
+            'tipo_vivienda' => 'required|string|in:Propia,Rentada,Familiar,Hipotecada', // Nuevo campo (lista)
+
+            // Sección 2: Datos Laborales
+            'nombre_negocio' => 'required|string|max:255',
+            'giro_negocio' => 'required|string|in:Comercio,Servicios,Industria,Agropecuario,Otro', // Lista
+            'destino_credito' => 'required|string|in:Capital de Trabajo,Activo Fijo,Inversión,Otro', // Lista
+            'antiguedad_negocio' => 'required|integer|min:0',
+
+            // Sección 3: Referencias
+            'referencias' => 'required|array|size:2',
+            'referencias.*.nombre_referencia' => 'required|string|max:255',
+            'referencias.*.parentesco' => 'required|string|max:100',
+            'referencias.*.telefono' => 'required|string|max:20',
+            
+            // Asignación
+            'id_sucursal' => 'required|exists:sucursales,id_sucursal',
+        ];
+    }
+    
+    /**
+     * Guarda un nuevo cliente en la base de datos.
      */
     public function store(Request $request)
-{
-    $validatedData = $request->validate($this->getValidationRules());
+    {
+        $validatedData = $request->validate($this->getValidationRules());
 
-    // --- LÍNEA DE DEPURACIÓN ---
-    // Esto detendrá la ejecución y nos mostrará exactamente qué datos se van a guardar.
-    dd($validatedData);
-    // ---------------------------
+        try {
+            DB::beginTransaction();
 
-    // El resto del código no se ejecutará por ahora
-    try {
-        DB::beginTransaction();
-        // ... (el resto de tu código de guardar)
-    } 
-    // ...
-}
+            $cliente = Cliente::create($validatedData);
+            
+            // Guardar las referencias
+            $cliente->referencias()->createMany($validatedData['referencias']);
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Ocurrió un error al registrar el cliente: ' . $e->getMessage())->withInput();
+        }
+
+        return redirect()->route('clientes.index')->with('success', 'Cliente registrado exitosamente.');
+    }
 
     /**
      * Muestra el formulario para editar un cliente existente.
@@ -61,11 +129,10 @@ class ClienteController extends Controller
     }
 
     /**
-     * Actualiza un cliente específico y sus referencias en la base de datos.
+     * Actualiza un cliente específico en la base de datos.
      */
     public function update(Request $request, Cliente $cliente)
     {
-        // Validamos, pasando el ID del cliente para ignorarlo en las reglas 'unique'
         $validatedData = $request->validate($this->getValidationRules($cliente->id_cliente));
 
         try {
@@ -73,12 +140,11 @@ class ClienteController extends Controller
 
             $cliente->update($validatedData);
             
-            // Actualizamos referencias: la forma más simple es borrarlas y crearlas de nuevo
+            // Actualizar referencias: borrarlas y crearlas de nuevo
             $cliente->referencias()->delete();
             $cliente->referencias()->createMany($validatedData['referencias']);
 
             DB::commit();
-
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->with('error', 'Ocurrió un error al actualizar el cliente: ' . $e->getMessage())->withInput();
@@ -112,81 +178,10 @@ class ClienteController extends Controller
         $results = $clientes->map(function ($cliente) {
             return [
                 'id' => $cliente->id_cliente,
-                // Usamos el accesor getNombreCompletoAttribute() del modelo Cliente
                 'text' => $cliente->nombre_completo . ' (ID: ' . $cliente->id_cliente . ')'
             ];
         });
 
         return response()->json($results);
-    }
-
-    /**
-     * Define y centraliza las reglas de validación para no repetir código.
-     *
-     * @param int|null $clienteId El ID del cliente a ignorar en reglas 'unique' (para updates).
-     * @return array
-     */
-    private function getValidationRules(int $clienteId = null): array
-    {
-        // Reglas de unicidad que cambian si estamos editando
-        $curpRule = 'nullable|string|max:18|unique:clientes,curp';
-        $emailRule = 'nullable|email|max:255|unique:clientes,email';
-        
-        if ($clienteId) {
-            $curpRule .= ',' . $clienteId . ',id_cliente';
-            $emailRule .= ',' . $clienteId . ',id_cliente';
-        }
-
-        // Límites de edad (ej. entre 18 y 80 años)
-        $minAgeDate = Carbon::now()->subYears(80)->toDateString();
-        $maxAgeDate = Carbon::now()->subYears(18)->toDateString();
-
-        // Límite para comprobante de domicilio (máximo 3 meses de antigüedad)
-        $minProofDate = Carbon::now()->subMonths(3)->toDateString();
-        $maxProofDate = Carbon::now()->toDateString(); // No puede ser una fecha futura
-
-        return [
-            // Sección 1: Datos Personales
-            'nombre' => 'required|string|max:255',
-            'apellido_paterno' => 'required|string|max:255',
-            'apellido_materno' => 'nullable|string|max:255',
-            'fecha_nacimiento' => "required|date|after_or_equal:$minAgeDate|before_or_equal:$maxAgeDate",
-            'genero' => 'required|string|in:Masculino,Femenino,Otro',
-            'curp' => $curpRule,
-        'vencimiento_ine' => 'required|integer|digits:4|gte:' . date('Y'), // CAMBIO: Ahora valida un año de 4 dígitos mayor o igual al actual
-        'estado_civil' => 'required|string|in:Soltero(a),Casado(a),Divorciado(a),Viudo(a),Unión Libre', // CAMBIO: Ahora es una lista
-            'nacionalidad' => 'required|string|max:100',
-            'telefono_fijo' => 'nullable|string|max:20', // NUEVO
-            'estado_civil' => 'required|string|max:50',
-            'numero_hijos' => 'required|integer|min:0',
-            'dependientes_economicos' => 'required|integer|min:0',
-            'calle' => 'required|string|max:255',
-            'numero' => 'required|string|max:50',
-            'colonia' => 'required|string|max:255',
-            'codigo_postal' => 'required|string|max:10',
-            'municipio' => 'required|string|max:255',
-            'estado' => 'required|string|max:255',
-            'fecha_comprobante_domicilio' => "required|date|between:$minProofDate,$maxProofDate",
-            'anios_domicilio' => 'required|integer|min:0', // NUEVO
-            'tipo_vivienda' => 'required|string|in:Propia,Rentada,Familiar,Hipotecada', // NUEVO
-
-
-
-            // Sección 2: Datos Laborales
-            'nombre_negocio' => 'required|string|max:255',
-        'giro_negocio' => 'required|string|in:Comercio,Servicios,Industria,Agropecuario,Otro', // CAMBIO: Ahora es una lista
-        'destino_credito' => 'required|string|in:Capital de Trabajo,Activo Fijo,Inversión,Otro', // CAMBIO: Ahora es una lista
-            'antiguedad_negocio' => 'required|integer|min:0',
-
-            // Sección 3: Referencias (valida que el array exista y tenga exactamente 2 elementos)
-            'referencias' => 'required|array|size:2',
-            // Valida los campos dentro de cada elemento del array de referencias
-            'referencias.*.nombre_referencia' => 'required|string|max:255',
-            'referencias.*.parentesco' => 'required|string|max:100',
-            'referencias.*.telefono' => 'required|string|max:20',
-            
-            // Asignación
-            'id_sucursal' => 'required|exists:sucursales,id_sucursal',
-        ];
     }
 }
