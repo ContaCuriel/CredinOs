@@ -13,7 +13,7 @@ class Cliente extends Model
     protected $table = 'clientes';
     protected $primaryKey = 'id_cliente';
 
-     protected $fillable = [
+    protected $fillable = [
         // Campos que ya tenías
         'nombre',
         'apellido_paterno',
@@ -47,30 +47,49 @@ class Cliente extends Model
         'dependientes_economicos',
         'fecha_comprobante_domicilio',
         'destino_credito',
-        'telefono_fijo', // <-- AÑADIR
-        'anios_domicilio', // <-- AÑADIR
-        'tipo_vivienda', // <-- AÑADIR
+        'telefono_fijo',
+        'anios_domicilio',
+        'tipo_vivienda',
     ];
+
+    /**
+     * The attributes that should be cast to native types.
+     * ESTA ES LA SECCIÓN QUE FALTA
+     * @var array
+     */
+    protected $casts = [
+        // Casts para campos existentes
+        'antiguedad_negocio' => 'integer',
+        'ingresos_mensuales' => 'decimal:2',
+        'gastos_mensuales'   => 'decimal:2',
+        'id_sucursal'        => 'integer',
+
+        // Casts para los CAMPOS NUEVOS
+        'fecha_nacimiento'           => 'date',
+        'vencimiento_ine'            => 'integer',
+        'numero_hijos'               => 'integer',
+        'dependientes_economicos'    => 'integer',
+        'fecha_comprobante_domicilio' => 'date',
+        'anios_domicilio'            => 'integer',
+    ];
+
 
     // Relación con Sucursal
     public function sucursal()
-{
-    return $this->belongsTo(Sucursal::class, 'id_sucursal')
-                ->withDefault([
-                    'nombre_sucursal' => 'Sin Asignar'
-                ]);
-}
+    {
+        return $this->belongsTo(Sucursal::class, 'id_sucursal')
+                    ->withDefault([
+                        'nombre_sucursal' => 'Sin Asignar'
+                    ]);
+    }
 
     public function groups()
-{
-    return $this->belongsToMany(Group::class, 'client_group', 'client_id', 'group_id');
-}
+    {
+        return $this->belongsToMany(Group::class, 'client_group', 'client_id', 'group_id');
+    }
 
-public function creditos()
-{
-    return $this->morphMany(Credito::class, 'loanable');
-}
-
-
-
+    public function creditos()
+    {
+        return $this->morphMany(Credito::class, 'loanable');
+    }
 }
