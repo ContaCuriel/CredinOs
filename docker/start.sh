@@ -23,15 +23,16 @@ php artisan storage:link || echo "Storage link ya existe o falló, continuando..
 
 # --- MIGRACIONES Y BASE DE DATOS ---
 echo "4. Ejecutando migraciones CENTRALES..."
+# ESTE SÍ LLEVA --force (Es nativo de Laravel)
 php artisan migrate --force --no-interaction
 
 echo "5. Ejecutando migraciones de INQUILINOS (Tenants)..."
-# Usamos tu comando personalizado
-php artisan tenants:migrate --force
+# CORRECCIÓN: Quitamos --force porque tu comando custom no lo soporta
+php artisan tenants:migrate
 
 echo "6. Sembrando datos de INQUILINOS (Arreglo del Menú)..."
-# ¡AQUÍ ESTÁ LA SOLUCIÓN AL MENÚ FANTASMA!
-php artisan db:seed-tenants --force
+# CORRECCIÓN: Quitamos --force también aquí por precaución
+php artisan db:seed-tenants
 
 # --- CACHÉ Y OPTIMIZACIÓN ---
 echo "7. Limpiando y recacheando configuración..."
