@@ -10,11 +10,25 @@ use Spatie\Permission\PermissionRegistrar;
 
 class SeedMultiTenantPermissions extends Command
 {
-    protected $signature = 'db:seed-tenants {--tenant_id=}'; // Cambiado a --tenant_id
+    protected $signature = 'db:seed-tenants {--tenant_id=} {--force}';
     protected $description = 'Seeds permissions for all or a specific tenant database.';
 
     public function handle()
     {
+        // Si no se especifica un inquilino y no se está forzando la ejecución, pedir confirmación.
+        if (!$this->option('tenant_id') && !$this->option('force')) {
+            if (!$this->confirm('¿Estás seguro de que deseas ejecutar los seeders en TODOS los inquilinos? Esto podría afectar los datos de permisos y menús.')) {
+                $this->info('Operación cancelada por el usuario.');
+                return self::SUCCESS;
+            }
+        }
+
+        // Pasar la opción --force a las llamadas internas de db:seed si está presente
+        $seedOptions = [
+            '--class' => 'Database\\Seeders\\PermissionSeeder',
+            '--database' => 'tenant',
+        ];
+
         // 1. Obtener los tenants de la base de datos central
         $specificTenantId = $this->option('tenant_id');
 
@@ -54,10 +68,7 @@ class SeedMultiTenantPermissions extends Command
                 $this->comment("Caché de permisos de Spatie borrada para este inquilino.");
 
                 // Ejecutar el seeder de permisos para esta base de datos del inquilino
-                $this->call('db:seed', [
-                    '--class' => 'Database\\Seeders\\PermissionSeeder',
-                    '--database' => 'tenant', // Usar la conexión 'tenant' que acabamos de configurar
-                ]);
+                $this->call('db:seed', $seedOptions);
 
                 $this->info("Seeding de PermissionSeeder completado para <info>{$tenant->name}</info>.");
 
