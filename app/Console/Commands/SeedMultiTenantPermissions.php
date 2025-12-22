@@ -2,15 +2,15 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Tenant; // Importa el modelo Tenant
 use Illuminate\Console\Command;
+use App\Models\Tenant;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
-use Spatie\Permission\PermissionRegistrar;
 
 class SeedMultiTenantPermissions extends Command
 {
     protected $signature = 'db:seed-tenants {--tenant_id=} {--force}';
+
     protected $description = 'Seeds permissions for all or a specific tenant database.';
 
     public function handle()
@@ -23,7 +23,7 @@ class SeedMultiTenantPermissions extends Command
             }
         }
 
-        // Definimos si forzamos la ejecución (true si pasaste --force o si estás en local)
+        // Definimos si forzamos la ejecución
         $force = $this->option('force') ? true : false;
 
         $query = Tenant::query();
@@ -46,27 +46,25 @@ class SeedMultiTenantPermissions extends Command
 
                 $this->comment("Conectado a la DB: {$tenant->db_database}");
 
-                // --- AQUÍ ESTABA EL ERROR ---
-                // Pasamos explícitamente '--force' => true al comando hijo
+                // Ejecutar Seeder
                 $this->call('db:seed', [
                     '--class' => 'Database\\Seeders\\PermissionSeeder',
                     '--database' => 'tenant',
                     '--force' => $force 
                 ]);
 
-                // Limpiar caché
-                $this->call('tenants:clear-permission-cache', [
-                    '--tenant_id' => $tenant->id
-                ]);
-
-                $this->info("Seeding completado para {$tenant->name}.");
+                // --- CORRECCIÓN FINAL ---
+                // Limpiamos la caché directamente sin llamar a otro comando externo
+                app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+                
+                $this->info("Seeding y limpieza de caché completados para {$tenant->name}.");
 
             } catch (\Exception $e) {
                 $this->error("Error en {$tenant->name}: " . $e->getMessage());
             }
         }
 
-        $this->info('Proceso finalizado.');
+        $this->info('Proceso finalizado exitosamente.');
         return self::SUCCESS;
     }
 }
