@@ -35,19 +35,26 @@ class MigrateAllTenants extends Command
                 Config::set('database.connections.tenant.port', $tenant->db_port ?? 5432);
 
                 DB::purge('tenant');
-                
-                // Reconexión explícita para asegurar que Schema use la conexión correcta
-                DB::reconnect('tenant'); 
+                DB::reconnect('tenant');
 
                 /** @var \Illuminate\Database\Migrations\Migrator $migrator */
                 $migrator = app('migrator');
                 $migrator->setConnection('tenant');
 
-                // --- CORRECCIÓN: Usar Schema facade es más seguro ---
+                // --- BLOQUE CORREGIDO: Try-Catch Silencioso ---
                 if (!Schema::connection('tenant')->hasTable('migrations')) {
-                     $this->line('-> Creando tabla de migraciones...');
-                     $migrator->getRepository()->createRepository();
+                    try {
+                        $migrator->getRepository()->createRepository();
+                        $this->line('-> Tabla de migraciones creada.');
+                    } catch (\Exception $e) {
+                        // Código 42P07 es "Duplicate Table" en PostgreSQL.
+                        // Si es ese error, lo ignoramos porque significa que la tabla ya está lista.
+                        if ($e->getCode() !== '42P07') {
+                            $this->warn("Nota: " . $e->getMessage());
+                        }
+                    }
                 }
+                // ----------------------------------------------
 
                 $migrationsPath = database_path('migrations/tenant');
                 $migrator->run([$migrationsPath], ['pretend' => false, 'step' => false]);
@@ -55,7 +62,8 @@ class MigrateAllTenants extends Command
                 $this->info("-> OK.");
 
             } catch (\Exception $e) {
-                $this->error("Error en {$tenant->name}: " . $e->getMessage());
+                // Errores reales de conexión o migración sí los mostramos
+                $this->error("Error crítico en {$tenant->name}: " . $e->getMessage());
             }
         }
 
