@@ -149,34 +149,36 @@ class ContratoController extends Controller
      */
     public function update(Request $request, Contrato $contrato)
     {
-        // 1. Validación de datos, incluyendo el archivo opcional
+        // 1. Validación de datos
         $validatedData = $request->validate([
             'id_empleado' => 'required|exists:empleados,id_empleado',
             'patron_tipo' => 'required|string|in:fisica,moral',
             'tipo_contrato' => 'required|string|max:50',
             'fecha_inicio' => 'required|date',
             'fecha_fin' => 'required|date|after_or_equal:fecha_inicio',
-            // El archivo es opcional, debe ser PDF, y no pesar más de 5MB.
             'contrato_firmado_file' => 'nullable|file|mimes:pdf|max:10240',
         ]);
 
-        // 2. Preparamos los datos a actualizar, excluyendo el archivo por ahora.
         $dataToUpdate = $request->except(['_token', '_method', 'contrato_firmado_file']);
 
-        // 3. Lógica para manejar la subida del archivo
+        // 2. Obtener el ID del Tenant actual para la carpeta
+        // Usamos el helper de Spatie para identificar al inquilino actual
+        $tenantId = app(\Spatie\Multitenancy\Models\Tenant::class)->current()->id;
+
+        // 3. Lógica para manejar la subida del archivo por Tenant
         if ($request->hasFile('contrato_firmado_file')) {
-            // Si ya existía un archivo para este contrato, lo borramos para no acumular basura.
+            // Borrar el archivo viejo si existe para ahorrar espacio en el disco de 1GB
             if ($contrato->ruta_contrato_firmado) {
                 Storage::disk('public')->delete($contrato->ruta_contrato_firmado);
             }
 
-            // Guardamos el nuevo archivo en 'storage/app/public/contratos_firmados'
-            // y obtenemos la ruta para guardarla en la base de datos.
-            $path = $request->file('contrato_firmado_file')->store('contratos_firmados', 'public');
+            // GUARDADO ORGANIZADO: storage/app/public/tenant_{id}/contratos_firmados/archivo.pdf
+            $folder = "tenant_{$tenantId}/contratos_firmados";
+            $path = $request->file('contrato_firmado_file')->store($folder, 'public');
+            
             $dataToUpdate['ruta_contrato_firmado'] = $path;
         }
 
-        // 4. Actualizamos el contrato en la base de datos con todos los datos.
         $contrato->update($dataToUpdate);
 
         return redirect()->route('contratos.index')
