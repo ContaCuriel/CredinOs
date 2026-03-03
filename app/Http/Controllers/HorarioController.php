@@ -2,301 +2,134 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Horario;
 use Illuminate\Http\Request;
-use App\Models\Sucursal;
-use App\Models\Empleado;
-use App\Models\Asistencia;
-use Carbon\Carbon;
-use Carbon\CarbonPeriod;
 
-class AsistenciaController extends Controller
+class HorarioController extends Controller
 {
     /**
-     * Muestra la página principal de registro de asistencia diaria.
+     * Muestra la lista de horarios.
      */
-    public function index(Request $request)
+    public function index()
     {
-        $sucursales = Sucursal::where('status', 'Activa')->orderBy('nombre_sucursal')->get();
-        
-        $id_sucursal_seleccionada = $request->input('id_sucursal_seleccionada');
-        
-        $empleadosDeSucursal = collect(); 
-        $asistenciasHoy = collect();      
-        $sucursalSeleccionadaNombre = null;
-
-        if ($id_sucursal_seleccionada) {
-            if ($id_sucursal_seleccionada === 'todas') {
-                $sucursalSeleccionadaNombre = 'TODAS LAS SUCURSALES';
-                $empleadosDeSucursal = Empleado::with('sucursal')->where('status', 'Alta')
-                                              ->orderBy('nombre_completo')
-                                              ->get();
-            } else {
-                $sucursalActual = Sucursal::find($id_sucursal_seleccionada);
-                if ($sucursalActual) {
-                    $sucursalSeleccionadaNombre = $sucursalActual->nombre_sucursal;
-                }
-                $empleadosDeSucursal = Empleado::with('sucursal')->where('status', 'Alta')
-                                              ->where('id_sucursal', $id_sucursal_seleccionada)
-                                              ->orderBy('nombre_completo')
-                                              ->get();
-            }
-
-            if ($empleadosDeSucursal->isNotEmpty()) {
-                $fechaHoy = Carbon::today()->toDateString();
-                $asistenciasHoy = Asistencia::where('fecha', $fechaHoy)
-                                            ->whereIn('id_empleado', $empleadosDeSucursal->pluck('id_empleado'))
-                                            ->get()
-                                            ->keyBy('id_empleado');
-            }
-        }
-        
-        return view('asistencia.index', compact(
-            'sucursales', 
-            'id_sucursal_seleccionada',
-            'sucursalSeleccionadaNombre',
-            'empleadosDeSucursal',
-            'asistenciasHoy'
-        ));
+        $horarios = Horario::paginate(15);
+        return view('horarios.index', compact('horarios'));
     }
 
     /**
-     * Registra la entrada de un empleado y determina si es retardo.
+     * Muestra el formulario para crear un nuevo horario.
      */
-    public function registrarEntrada(Request $request)
+    public function create()
     {
-        $validatedData = $request->validate([
-            'id_empleado' => 'required|exists:empleados,id_empleado',
-            'id_sucursal_seleccionada' => 'required',
-            'hora_llegada_manual' => 'nullable|date_format:H:i', 
-        ]);
-
-        $empleado = Empleado::with('horario')->find($validatedData['id_empleado']);
-
-        if (!$empleado || !$empleado->horario) {
-            return redirect()->route('asistencia.index', ['id_sucursal_seleccionada' => $validatedData['id_sucursal_seleccionada']])
-                             ->with('error', 'Error: El empleado no tiene un horario asignado.');
-        }
-
-        $datosAsistencia = $this->determinarEstatusAsistencia($empleado, $request->hora_llegada_manual);
-
-        Asistencia::updateOrCreate(
-            ['id_empleado' => $validatedData['id_empleado'], 'fecha' => Carbon::today()->toDateString()],
-            $datosAsistencia
-        );
-
-        $mensajeExito = '¡Entrada registrada a las ' . Carbon::parse($datosAsistencia['hora_llegada'])->format('h:i A') . '! Estatus: ' . $datosAsistencia['status_asistencia'];
-        return redirect()->route('asistencia.index', ['id_sucursal_seleccionada' => $validatedData['id_sucursal_seleccionada']])
-                         ->with('success', $mensajeExito);
+        return view('horarios.create');
     }
 
     /**
-     * Guarda o actualiza la asistencia desde la vista de periodo.
+     * Guarda un nuevo horario con sus reglas de asistencia.
      */
-    public function guardarAsistenciaDia(Request $request)
+    public function store(Request $request)
     {
-        $validatedData = $request->validate([
-            'id_empleado_asistencia_dia' => 'required|exists:empleados,id_empleado',
-            'fecha_asistencia_dia' => 'required|date_format:Y-m-d',
-            'status_asistencia_dia' => 'required|string',
-            'hora_llegada_dia' => 'nullable|required_if:status_asistencia_dia,Presente|date_format:H:i',
-            'notas_incidencia_dia' => 'nullable|required_if:status_asistencia_dia,Incidencia|string|max:1000',
-            'id_sucursal_seleccionada' => 'nullable',
-            'tipo_periodo' => 'nullable',
-            'fecha_ref' => 'nullable'
+        $data = $request->validate([
+            'nombre_horario' => 'required|string|max:255',
+            'descripcion' => 'nullable|string',
+            'lunes_entrada' => 'nullable', 'lunes_salida' => 'nullable',
+            'martes_entrada' => 'nullable', 'martes_salida' => 'nullable',
+            'miercoles_entrada' => 'nullable', 'miercoles_salida' => 'nullable',
+            'jueves_entrada' => 'nullable', 'jueves_salida' => 'nullable',
+            'viernes_entrada' => 'nullable', 'viernes_salida' => 'nullable',
+            'sabado_entrada' => 'nullable', 'sabado_salida' => 'nullable',
+            'domingo_entrada' => 'nullable', 'domingo_salida' => 'nullable',
+            // Reglas avanzadas
+            'aplicar_reglas_avanzadas' => 'nullable',
+            'tolerancia_minutos' => 'nullable|numeric',
+            'retardo_menor_minutos_inicio' => 'nullable|numeric',
+            'retardo_menor_minutos_fin' => 'nullable|numeric',
+            'retardos_para_falta' => 'nullable|numeric',
+            'medio_dia_minutos_inicio' => 'nullable|numeric',
+            'medio_dia_minutos_fin' => 'nullable|numeric',
+            'falta_minutos_inicio' => 'nullable|numeric',
+            'castigo_falta_lun_vie' => 'nullable|numeric',
+            'castigo_falta_mar_jue_sab' => 'nullable|numeric',
         ]);
 
-        $datosAsistencia = [];
-
-        if ($validatedData['status_asistencia_dia'] == 'Presente') {
-            $empleado = Empleado::with('horario')->find($validatedData['id_empleado_asistencia_dia']);
-            if (!$empleado || !$empleado->horario) {
-                 return back()->with('error', 'El empleado no tiene un horario asignado.');
+        $dias = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
+        foreach ($dias as $dia) {
+            $data[$dia] = $request->has($dia);
+            if (!$data[$dia]) {
+                $data[$dia.'_entrada'] = null;
+                $data[$dia.'_salida'] = null;
             }
-            $datosAsistencia = $this->determinarEstatusAsistencia($empleado, $validatedData['hora_llegada_dia'], $validatedData['fecha_asistencia_dia']);
-        } else {
-            $datosAsistencia = [
-                'status_asistencia' => $validatedData['status_asistencia_dia'],
-                'hora_llegada' => null, 
-                'notas_incidencia' => ($validatedData['status_asistencia_dia'] == 'Incidencia') ? $validatedData['notas_incidencia_dia'] : null,
-            ];
         }
-        
-        Asistencia::updateOrCreate(
-            ['id_empleado' => $validatedData['id_empleado_asistencia_dia'], 'fecha' => $validatedData['fecha_asistencia_dia']],
-            $datosAsistencia
-        );
 
-        return redirect()->route('asistencia.vistaPeriodo', [
-            'id_sucursal_seleccionada' => $validatedData['id_sucursal_seleccionada'] ?? '',
-            'tipo_periodo' => $validatedData['tipo_periodo'] ?? 'semana',
-            'fecha_ref' => $validatedData['fecha_ref'] ?? today()->toDateString()
-        ])->with('success', '¡Asistencia guardada!');
+        $data['aplicar_reglas_avanzadas'] = $request->has('aplicar_reglas_avanzadas');
+
+        Horario::create($data);
+
+        return redirect()->route('horarios.index')->with('success', 'Horario creado exitosamente.');
     }
-    
+
     /**
-     * Método privado que contiene la lógica para determinar si es retardo.
+     * Muestra el formulario para editar un horario existente.
      */
-    private function determinarEstatusAsistencia(Empleado $empleado, ?string $horaManual, ?string $fecha = null): array
+    public function edit(Horario $horario)
     {
-        $fechaObjetivo = $fecha ? Carbon::parse($fecha) : Carbon::today();
-        
-        $mapaDias = [
-            1 => 'lunes', 2 => 'martes', 3 => 'miercoles', 4 => 'jueves',
-            5 => 'viernes', 6 => 'sabado', 7 => 'domingo'
-        ];
-        $nombreDia = $mapaDias[$fechaObjetivo->dayOfWeekIso];
-
-        $horaLlegadaString = $horaManual ?? Carbon::now()->format('H:i:s');
-        $horaLlegada = Carbon::createFromTimeString($horaLlegadaString);
-
-        $esLaborable = $empleado->horario->{$nombreDia};
-        $horaEntradaOficialString = $empleado->horario->{$nombreDia.'_entrada'};
-
-        if (!$esLaborable || !$horaEntradaOficialString) {
-            return ['hora_llegada' => $horaLlegadaString, 'status_asistencia' => 'Presente', 'notas_incidencia' => 'Registro en día no laborable.'];
-        }
-
-        $horaEntradaOficial = Carbon::createFromTimeString($horaEntradaOficialString);
-        // Código sugerido (más flexible)
-$tolerancia = $empleado->horario->aplicar_reglas_avanzadas 
-              ? ($empleado->horario->tolerancia_minutos ?? 0) 
-              : 10; // 10 por defecto si no hay reglas activas
-
-$horaEntradaConTolerancia = $horaEntradaOficial->copy()->addMinutes($tolerancia); 
-
-        if ($horaLlegada->gt($horaEntradaConTolerancia)) {
-            $minutosTarde = $horaLlegada->diffInMinutes($horaEntradaOficial);
-            return ['hora_llegada' => $horaLlegadaString, 'status_asistencia' => 'Retardo', 'notas_incidencia' => "Retardo de {$minutosTarde} minutos."];
-        }
-
-        return ['hora_llegada' => $horaLlegadaString, 'status_asistencia' => 'Presente', 'notas_incidencia' => null];
+        return view('horarios.edit', compact('horario'));
     }
 
-    public function registrarFalta(Request $request)
+    /**
+     * Actualiza el horario y sus reglas.
+     */
+    public function update(Request $request, Horario $horario)
     {
-        $validatedData = $request->validate([
-            'id_empleado' => 'required|exists:empleados,id_empleado',
-            'id_sucursal_seleccionada' => 'required',
+        $data = $request->validate([
+            'nombre_horario' => 'required|string|max:255',
+            'descripcion' => 'nullable|string',
+            'lunes_entrada' => 'nullable', 'lunes_salida' => 'nullable',
+            'martes_entrada' => 'nullable', 'martes_salida' => 'nullable',
+            'miercoles_entrada' => 'nullable', 'miercoles_salida' => 'nullable',
+            'jueves_entrada' => 'nullable', 'jueves_salida' => 'nullable',
+            'viernes_entrada' => 'nullable', 'viernes_salida' => 'nullable',
+            'sabado_entrada' => 'nullable', 'sabado_salida' => 'nullable',
+            'domingo_entrada' => 'nullable', 'domingo_salida' => 'nullable',
+            // Reglas avanzadas
+            'aplicar_reglas_avanzadas' => 'nullable',
+            'tolerancia_minutos' => 'nullable|numeric',
+            'retardo_menor_minutos_inicio' => 'nullable|numeric',
+            'retardo_menor_minutos_fin' => 'nullable|numeric',
+            'retardos_para_falta' => 'nullable|numeric',
+            'medio_dia_minutos_inicio' => 'nullable|numeric',
+            'medio_dia_minutos_fin' => 'nullable|numeric',
+            'falta_minutos_inicio' => 'nullable|numeric',
+            'castigo_falta_lun_vie' => 'nullable|numeric',
+            'castigo_falta_mar_jue_sab' => 'nullable|numeric',
         ]);
-        Asistencia::updateOrCreate(
-            ['id_empleado' => $validatedData['id_empleado'], 'fecha' => Carbon::today()],
-            ['hora_llegada' => null, 'status_asistencia' => 'Falta', 'notas_incidencia' => null]
-        );
-        return redirect()->route('asistencia.index', ['id_sucursal_seleccionada' => $validatedData['id_sucursal_seleccionada']])
-                         ->with('success', '¡Falta registrada exitosamente para el empleado!');
-    }
 
-    public function registrarBajaDia(Request $request)
-    {
-        $validatedData = $request->validate([
-            'id_empleado' => 'required|exists:empleados,id_empleado',
-            'id_sucursal_seleccionada' => 'required',
-        ]);
-        Asistencia::updateOrCreate(
-            ['id_empleado' => $validatedData['id_empleado'], 'fecha' => Carbon::today()],
-            ['hora_llegada' => null, 'status_asistencia' => 'Baja_Dia', 'notas_incidencia' => 'Empleado marcado como baja en esta fecha desde el módulo de asistencia.']
-        );
-        return redirect()->route('asistencia.index', ['id_sucursal_seleccionada' => $validatedData['id_sucursal_seleccionada']])
-                         ->with('success', '¡Baja del día registrada exitosamente para el empleado! Por favor, procesar en RH.');
-    }
-
-    public function registrarIncidencia(Request $request)
-    {
-        $validatedData = $request->validate([
-            'id_empleado' => 'required|exists:empleados,id_empleado',
-            'id_sucursal_seleccionada' => 'required',
-            'notas_incidencia_modal' => 'required|string|max:1000',
-        ]);
-        Asistencia::updateOrCreate(
-            ['id_empleado' => $validatedData['id_empleado'], 'fecha' => Carbon::today()],
-            ['hora_llegada' => null, 'status_asistencia' => 'Incidencia', 'notas_incidencia' => $validatedData['notas_incidencia_modal']]
-        );
-        return redirect()->route('asistencia.index', ['id_sucursal_seleccionada' => $validatedData['id_sucursal_seleccionada']])
-                         ->with('success', '¡Incidencia registrada exitosamente para el empleado!');
-    }
-
-    public function vistaPeriodo(Request $request)
-    {
-        $sucursales = Sucursal::where('status', 'Activa')->orderBy('nombre_sucursal')->get();
-        
-        $id_sucursal_seleccionada = $request->input('id_sucursal_seleccionada');
-        
-        $empleadosDeSucursal = collect();
-        $asistenciaProcesada = collect();
-        $sucursalSeleccionadaNombre = null;
-        $fechasDelPeriodo = collect();
-        $nombrePeriodo = "";
-        $fechaReferenciaNavegacion = $request->input('fecha_ref', Carbon::today()->toDateString());
-        $tipoPeriodo = $request->input('tipo_periodo', 'semana');
-        $fechaReferencia = Carbon::parse($fechaReferenciaNavegacion);
-
-        if ($tipoPeriodo == 'semana') {
-            $inicioPeriodo = $fechaReferencia->copy()->startOfWeek(Carbon::MONDAY);
-            $finPeriodo = $fechaReferencia->copy()->endOfWeek(Carbon::SUNDAY);
-            $nombrePeriodo = "Semana del " . $inicioPeriodo->translatedFormat('d M') . " al " . $finPeriodo->translatedFormat('d M Y');
-        } elseif ($tipoPeriodo == 'quincena') {
-            if ($fechaReferencia->day <= 15) {
-                $inicioPeriodo = $fechaReferencia->copy()->startOfMonth();
-                $finPeriodo = $fechaReferencia->copy()->startOfMonth()->addDays(14);
-                $nombrePeriodo = "1ra Quincena de " . $inicioPeriodo->translatedFormat('F Y');
-            } else {
-                $inicioPeriodo = $fechaReferencia->copy()->startOfMonth()->addDays(15);
-                $finPeriodo = $fechaReferencia->copy()->endOfMonth();
-                $nombrePeriodo = "2da Quincena de " . $inicioPeriodo->translatedFormat('F Y');
-            }
-        } elseif ($tipoPeriodo == 'mes') {
-            $inicioPeriodo = $fechaReferencia->copy()->startOfMonth();
-            $finPeriodo = $fechaReferencia->copy()->endOfMonth();
-            $nombrePeriodo = ucfirst($inicioPeriodo->translatedFormat('F Y'));
-        } else {
-            $inicioPeriodo = $fechaReferencia->copy()->startOfWeek(Carbon::MONDAY);
-            $finPeriodo = $fechaReferencia->copy()->endOfWeek(Carbon::SUNDAY);
-            $nombrePeriodo = "Semana del " . $inicioPeriodo->translatedFormat('d M') . " al " . $finPeriodo->translatedFormat('d M Y');
-            $tipoPeriodo = 'semana';
-        }
-
-        if (isset($inicioPeriodo) && isset($finPeriodo)) {
-            $periodo = CarbonPeriod::create($inicioPeriodo, $finPeriodo);
-            foreach ($periodo as $date) {
-                $fechasDelPeriodo->push($date->copy());
+        $dias = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
+        foreach ($dias as $dia) {
+            $data[$dia] = $request->has($dia);
+            if (!$data[$dia]) {
+                $data[$dia.'_entrada'] = null;
+                $data[$dia.'_salida'] = null;
             }
         }
 
-        if ($id_sucursal_seleccionada) {
-            if ($id_sucursal_seleccionada === 'todas') {
-                $sucursalSeleccionadaNombre = 'TODAS LAS SUCURSALES';
-                $empleadosDeSucursal = Empleado::with('sucursal')->where('status', 'Alta')->orderBy('nombre_completo')->get();
-            } else {
-                $sucursalActual = Sucursal::find($id_sucursal_seleccionada);
-                if ($sucursalActual) {
-                    $sucursalSeleccionadaNombre = $sucursalActual->nombre_sucursal;
-                }
-                $empleadosDeSucursal = Empleado::with('sucursal')->where('status', 'Alta')->where('id_sucursal', $id_sucursal_seleccionada)->orderBy('nombre_completo')->get();
-            }
+        $data['aplicar_reglas_avanzadas'] = $request->has('aplicar_reglas_avanzadas');
 
-            if ($empleadosDeSucursal->isNotEmpty() && isset($inicioPeriodo) && isset($finPeriodo)) {
-                $asistencias = Asistencia::whereIn('id_empleado', $empleadosDeSucursal->pluck('id_empleado'))
-                                          ->whereBetween('fecha', [$inicioPeriodo->toDateString(), $finPeriodo->toDateString()])->get();
-                foreach ($empleadosDeSucursal as $empleado) {
-                    $asistenciaProcesada[$empleado->id_empleado] = $asistencias
-                        ->where('id_empleado', $empleado->id_empleado)
-                        ->keyBy(function ($item) {
-                            return Carbon::parse($item->fecha)->toDateString();
-                        });
-                }
-            }
+        $horario->update($data);
+
+        return redirect()->route('horarios.index')->with('success', 'Horario actualizado exitosamente.');
+    }
+
+    /**
+     * Elimina un horario.
+     */
+    public function destroy(Horario $horario)
+    {
+        if ($horario->empleados()->count() > 0) {
+            return back()->with('error', 'No se puede eliminar el horario porque tiene empleados asignados.');
         }
-        
-        return view('asistencia.vista_periodo', compact(
-            'sucursales', 
-            'id_sucursal_seleccionada',
-            'sucursalSeleccionadaNombre',
-            'empleadosDeSucursal',
-            'asistenciaProcesada',
-            'fechasDelPeriodo',
-            'nombrePeriodo',
-            'tipoPeriodo',
-            'fechaReferencia'
-        ));
+
+        $horario->delete();
+        return redirect()->route('horarios.index')->with('success', 'Horario eliminado exitosamente.');
     }
 }
