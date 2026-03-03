@@ -16,9 +16,14 @@
                 {{-- Formulario de Filtros --}}
                 <form id="filterForm" method="GET" action="{{ route('asistencia.vistaPeriodo') }}" class="mb-3">
                     <div class="row align-items-end g-2">
-                        <div class="col-md-3"><label for="id_sucursal_seleccionada" class="form-label mb-1">Sucursal:</label><select class="form-select form-select-sm" id="id_sucursal_seleccionada" name="id_sucursal_seleccionada">
-                            <option value="">-- Seleccione Sucursal --</option>
-                            @foreach ($sucursales as $sucursal)<option value="{{ $sucursal->id_sucursal }}" {{ ($id_sucursal_seleccionada ?? '') == $sucursal->id_sucursal ? 'selected' : '' }}>{{ $sucursal->nombre_sucursal }}</option>@endforeach</select></div>
+                        <div class="col-md-3">
+                            <label for="id_sucursal_seleccionada" class="form-label mb-1">Sucursal:</label>
+                            <select class="form-select form-select-sm" id="id_sucursal_seleccionada" name="id_sucursal_seleccionada">
+                                <option value="">-- Seleccione Sucursal --</option>
+                                <option value="todas" {{ request('id_sucursal_seleccionada') == 'todas' ? 'selected' : '' }} class="fw-bold text-primary">-- TODAS LAS SUCURSALES --</option>
+                                @foreach ($sucursales as $sucursal)<option value="{{ $sucursal->id_sucursal }}" {{ ($id_sucursal_seleccionada ?? '') == $sucursal->id_sucursal ? 'selected' : '' }}>{{ $sucursal->nombre_sucursal }}</option>@endforeach
+                            </select>
+                        </div>
                         <div class="col-md-3"><label for="tipo_periodo" class="form-label mb-1">Ver por:</label><select class="form-select form-select-sm" name="tipo_periodo" id="tipo_periodo"><option value="semana" {{ ($tipoPeriodo ?? 'semana') == 'semana' ? 'selected' : '' }}>Semana</option><option value="quincena" {{ ($tipoPeriodo ?? '') == 'quincena' ? 'selected' : '' }}>Quincena</option><option value="mes" {{ ($tipoPeriodo ?? '') == 'mes' ? 'selected' : '' }}>Mes</option></select></div>
                         <div class="col-md-3"><label for="fecha_ref" class="form-label mb-1">Fecha de Referencia:</label><input type="date" name="fecha_ref" id="fecha_ref" class="form-control form-control-sm" value="{{ $fechaReferencia->toDateString() }}"></div>
                         <div class="col-md-1 d-flex align-items-end"><button type="submit" class="btn btn-primary btn-sm w-100">Ver</button></div>
@@ -56,7 +61,12 @@
                                 <tbody>
                                     @foreach ($empleadosDeSucursal as $empleado)
                                         <tr>
-                                            <td style="text-align: left; position: sticky; left: 0; background-color: #f8f9fa; z-index: 1;">{{ $empleado->nombre_completo }}</td>
+                                            <td style="text-align: left; position: sticky; left: 0; background-color: #f8f9fa; z-index: 1;">
+                                                <strong>{{ $empleado->nombre_completo }}</strong>
+                                                @if($id_sucursal_seleccionada === 'todas')
+                                                    <br><span style="font-size: 0.75em; color: #6c757d;"><i class="bi bi-shop"></i> {{ $empleado->sucursal->nombre_sucursal ?? '' }}</span>
+                                                @endif
+                                            </td>
                                             @foreach ($fechasDelPeriodo as $fecha)
                                                 @php
                                                     $fechaString = $fecha->toDateString();

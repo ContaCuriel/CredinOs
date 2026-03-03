@@ -32,6 +32,7 @@
                             <div class="input-group">
                                 <select class="form-select" id="id_sucursal_seleccionada" name="id_sucursal_seleccionada" onchange="this.form.submit()">
                                     <option value="">-- Seleccione una Sucursal --</option>
+                                    <option value="todas" {{ request('id_sucursal_seleccionada') == 'todas' ? 'selected' : '' }} class="fw-bold text-primary">-- TODAS LAS SUCURSALES --</option>
                                     @foreach ($sucursales as $sucursal)
                                         <option value="{{ $sucursal->id_sucursal }}" {{ request('id_sucursal_seleccionada') == $sucursal->id_sucursal ? 'selected' : '' }}>
                                             {{ $sucursal->nombre_sucursal }}
@@ -60,7 +61,12 @@
                                 <tbody>
                                     @foreach ($empleadosDeSucursal as $empleado)
                                         <tr>
-                                            <td>{{ $empleado->nombre_completo }}</td>
+                                            <td>
+                                                <strong>{{ $empleado->nombre_completo }}</strong>
+                                                @if($id_sucursal_seleccionada === 'todas')
+                                                    <br><small class="text-muted"><i class="bi bi-shop"></i> {{ $empleado->sucursal->nombre_sucursal ?? 'Sin sucursal' }}</small>
+                                                @endif
+                                            </td>
                                             
                                             @php
                                                 $asistenciaDelDia = $asistenciasHoy->get($empleado->id_empleado);
@@ -135,7 +141,7 @@
                             </table>
                         </div>
                     @else
-                        <div class="alert alert-warning mt-3 text-center">No hay empleados activos asignados a esta sucursal.</div>
+                        <div class="alert alert-warning mt-3 text-center">No hay empleados activos asignados.</div>
                     @endif
                 @else
                     <div class="alert alert-info mt-4 text-center">Por favor, seleccione una sucursal para registrar asistencia.</div>
