@@ -70,6 +70,70 @@
                     @endforeach
 
                     <hr class="mt-4">
+                    <h6 class="mb-3"><i class="bi bi-exclamation-triangle-fill text-warning"></i> Reglas de Asistencia y Penalizaciones (Opcional)</h6>
+                    
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" role="switch" id="aplicar_reglas_avanzadas" name="aplicar_reglas_avanzadas" value="1" {{ old('aplicar_reglas_avanzadas', $horario->aplicar_reglas_avanzadas) ? 'checked' : '' }}>
+                        <label class="form-check-label fw-bold" for="aplicar_reglas_avanzadas">Habilitar penalizaciones por retardos y faltas para este horario</label>
+                    </div>
+
+                    <div id="seccion_reglas_avanzadas" style="display: {{ old('aplicar_reglas_avanzadas', $horario->aplicar_reglas_avanzadas) ? 'block' : 'none' }}; background-color: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px solid #dee2e6;">
+                        
+                        <h6 class="text-primary fw-bold mb-3">1. Tolerancia y Retardos Menores</h6>
+                        <div class="row mb-4">
+                            <div class="col-md-3 mb-2">
+                                <label for="tolerancia_minutos" class="form-label small">Tolerancia (Minutos)</label>
+                                <input type="number" class="form-control form-control-sm" id="tolerancia_minutos" name="tolerancia_minutos" value="{{ old('tolerancia_minutos', $horario->tolerancia_minutos ?? 10) }}">
+                                <small class="text-muted" style="font-size: 0.75rem;">Ej: 10 (Sin castigo)</small>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label for="retardo_menor_minutos_inicio" class="form-label small">Inicio Retardo Menor</label>
+                                <input type="number" class="form-control form-control-sm" id="retardo_menor_minutos_inicio" name="retardo_menor_minutos_inicio" value="{{ old('retardo_menor_minutos_inicio', $horario->retardo_menor_minutos_inicio ?? 11) }}">
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label for="retardo_menor_minutos_fin" class="form-label small">Fin Retardo Menor</label>
+                                <input type="number" class="form-control form-control-sm" id="retardo_menor_minutos_fin" name="retardo_menor_minutos_fin" value="{{ old('retardo_menor_minutos_fin', $horario->retardo_menor_minutos_fin ?? 15) }}">
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label for="retardos_para_falta" class="form-label small">¿Cuántos Retardos = Falta?</label>
+                                <input type="number" class="form-control form-control-sm" id="retardos_para_falta" name="retardos_para_falta" value="{{ old('retardos_para_falta', $horario->retardos_para_falta ?? 3) }}">
+                                <small class="text-muted" style="font-size: 0.75rem;">Ej: 3</small>
+                            </div>
+                        </div>
+
+                        <h6 class="text-warning fw-bold mb-3">2. Medio Día y Faltas por Retraso</h6>
+                        <div class="row mb-4">
+                            <div class="col-md-4 mb-2">
+                                <label for="medio_dia_minutos_inicio" class="form-label small">Inicio Medio Día (Min)</label>
+                                <input type="number" class="form-control form-control-sm" id="medio_dia_minutos_inicio" name="medio_dia_minutos_inicio" value="{{ old('medio_dia_minutos_inicio', $horario->medio_dia_minutos_inicio ?? 16) }}">
+                            </div>
+                            <div class="col-md-4 mb-2">
+                                <label for="medio_dia_minutos_fin" class="form-label small">Fin Medio Día (Min)</label>
+                                <input type="number" class="form-control form-control-sm" id="medio_dia_minutos_fin" name="medio_dia_minutos_fin" value="{{ old('medio_dia_minutos_fin', $horario->medio_dia_minutos_fin ?? 30) }}">
+                                <small class="text-muted" style="font-size: 0.75rem;">Se descuenta medio día</small>
+                            </div>
+                            <div class="col-md-4 mb-2">
+                                <label for="falta_minutos_inicio" class="form-label small">Considerar FALTA desde (Min)</label>
+                                <input type="number" class="form-control form-control-sm" id="falta_minutos_inicio" name="falta_minutos_inicio" value="{{ old('falta_minutos_inicio', $horario->falta_minutos_inicio ?? 31) }}">
+                                <small class="text-muted" style="font-size: 0.75rem;">Se regresa al trabajador</small>
+                            </div>
+                        </div>
+
+                        <h6 class="text-danger fw-bold mb-3">3. Descuentos por Faltas Injustificadas</h6>
+                        <div class="row">
+                            <div class="col-md-6 mb-2">
+                                <label for="castigo_falta_lun_vie" class="form-label small">Días a descontar (Lunes o Viernes)</label>
+                                <input type="number" step="0.5" class="form-control form-control-sm" id="castigo_falta_lun_vie" name="castigo_falta_lun_vie" value="{{ old('castigo_falta_lun_vie', $horario->castigo_falta_lun_vie ?? 3) }}">
+                                <small class="text-muted" style="font-size: 0.75rem;">Ej: 3 (Día de falta + 2 de castigo)</small>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <label for="castigo_falta_mar_jue_sab" class="form-label small">Días a descontar (Mar/Mié/Jue/Sáb)</label>
+                                <input type="number" step="0.5" class="form-control form-control-sm" id="castigo_falta_mar_jue_sab" name="castigo_falta_mar_jue_sab" value="{{ old('castigo_falta_mar_jue_sab', $horario->castigo_falta_mar_jue_sab ?? 2) }}">
+                                <small class="text-muted" style="font-size: 0.75rem;">Ej: 2 (Día de falta + 1 de castigo)</small>
+                            </div>
+                        </div>
+                    </div>
+                    <hr class="mt-4">
                     <div class="text-end">
                         <a href="{{ route('horarios.index') }}" class="btn btn-secondary">Cancelar</a>
                         <button type="submit" class="btn btn-primary">Actualizar Horario</button>
@@ -80,7 +144,6 @@
     </div>
 
     @push('scripts')
-    {{-- Reutilizamos el mismo script de la vista de creación --}}
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             document.querySelectorAll('.dia-toggle').forEach(function(checkbox) {
@@ -100,6 +163,14 @@
                     }
                 });
             });
+
+            const toggleReglas = document.getElementById('aplicar_reglas_avanzadas');
+            const seccionReglas = document.getElementById('seccion_reglas_avanzadas');
+            if(toggleReglas) {
+                toggleReglas.addEventListener('change', function() {
+                    seccionReglas.style.display = this.checked ? 'block' : 'none';
+                });
+            }
         });
     </script>
     @endpush

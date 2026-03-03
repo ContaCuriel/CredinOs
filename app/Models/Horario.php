@@ -12,11 +12,6 @@ class Horario extends Model
     protected $table = 'horarios';
     protected $primaryKey = 'id_horario';
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
     protected $fillable = [
         'nombre_horario',
         'descripcion',
@@ -27,26 +22,19 @@ class Horario extends Model
         'viernes', 'viernes_entrada', 'viernes_salida',
         'sabado', 'sabado_entrada', 'sabado_salida',
         'domingo', 'domingo_entrada', 'domingo_salida',
+        // --- NUEVOS CAMPOS DE REGLAS ---
+        'aplicar_reglas_avanzadas',
+        'tolerancia_minutos',
+        'retardo_menor_minutos_inicio',
+        'retardo_menor_minutos_fin',
+        'retardos_para_falta',
+        'medio_dia_minutos_inicio',
+        'medio_dia_minutos_fin',
+        'falta_minutos_inicio',
+        'castigo_falta_lun_vie',
+        'castigo_falta_mar_jue_sab'
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array
-     */
-    protected $casts = [
-        'lunes' => 'boolean',
-        'martes' => 'boolean',
-        'miercoles' => 'boolean',
-        'jueves' => 'boolean',
-        'viernes' => 'boolean',
-        'sabado' => 'boolean',
-        'domingo' => 'boolean',
-    ];
-
-    /**
-     * Relación: Un Horario puede ser asignado a muchos Empleados.
-     */
     public function empleados()
     {
         return $this->hasMany(Empleado::class, 'id_horario', 'id_horario');
