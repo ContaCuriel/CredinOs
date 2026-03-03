@@ -157,7 +157,12 @@ class AsistenciaController extends Controller
         }
 
         $horaEntradaOficial = Carbon::createFromTimeString($horaEntradaOficialString);
-        $horaEntradaConTolerancia = $horaEntradaOficial->copy()->addMinutes(10); 
+        // Código sugerido (más flexible)
+$tolerancia = $empleado->horario->aplicar_reglas_avanzadas 
+              ? ($empleado->horario->tolerancia_minutos ?? 0) 
+              : 10; // 10 por defecto si no hay reglas activas
+
+$horaEntradaConTolerancia = $horaEntradaOficial->copy()->addMinutes($tolerancia); 
 
         if ($horaLlegada->gt($horaEntradaConTolerancia)) {
             $minutosTarde = $horaLlegada->diffInMinutes($horaEntradaOficial);
