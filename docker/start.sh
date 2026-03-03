@@ -23,8 +23,9 @@ php artisan migrate --force --no-interaction
 echo "5. Ejecutando migraciones de INQUILINOS..."
 php artisan tenants:migrate --force
 
-echo "6. Sembrando datos de INQUILINOS..."
-php artisan db:seed-tenants --force
+# --- CORRECCIÓN: Evitamos sembrar datos en cada reinicio para no borrar permisos ---
+# echo "6. Sembrando datos de INQUILINOS..."
+# php artisan db:seed-tenants --force
 
 # --- OPTIMIZACIÓN FINAL (Aquí aplicamos la sugerencia de Gemini) ---
 echo "7. Optimizando aplicación para producción..."
