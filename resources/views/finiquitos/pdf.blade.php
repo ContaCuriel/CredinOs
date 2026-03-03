@@ -110,6 +110,23 @@
                     <td class="text-right">${{ number_format($monto_prima_antiguedad, 2) }}</td>
                 </tr>
                 @endif
+                
+                {{-- =====> INICIO DE DEDUCCIONES / DESCUENTOS <===== --}}
+                @if(isset($prestamo_saldo) && $prestamo_saldo > 0)
+                <tr>
+                    <td>Descuento por préstamo</td>
+                    <td class="text-right">-${{ number_format($prestamo_saldo, 2) }}</td>
+                </tr>
+                @endif
+                
+                @if(isset($total_deducciones) && $total_deducciones > 0)
+                <tr>
+                    <td><strong>TOTAL DEDUCCIONES</strong></td>
+                    <td class="text-right"><strong>-${{ number_format($total_deducciones, 2) }}</strong></td>
+                </tr>
+                @endif
+                {{-- =====> FIN DE DEDUCCIONES / DESCUENTOS <===== --}}
+
                 <tr class="total-row">
                     <td>TOTAL A PAGAR AL TRABAJADOR</td>
                     <td class="text-right">${{ number_format($neto_a_pagar, 2) }}</td>
