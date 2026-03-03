@@ -293,7 +293,8 @@ Route::middleware('auth')->group(function () {
             // 'can:editar-patrones',
             // 'can:eliminar-patrones',
         ]);
-
+Route::get('/asistencia/resumen-incidencias', [AsistenciaController::class, 'resumenIncidencias'])->name('asistencia.resumenIncidencias');
+Route::get('/asistencia/exportar-pdf', [AsistenciaController::class, 'exportarResumenPDF'])->name('asistencia.exportarPDF');
         Route::resource('horarios', HorarioController::class)->middleware('can:ver-horarios');
         Route::resource('categorias', CategoriaController::class)->except(['show']);
     });

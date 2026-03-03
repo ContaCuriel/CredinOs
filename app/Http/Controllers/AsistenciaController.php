@@ -8,6 +8,7 @@ use App\Models\Empleado;
 use App\Models\Asistencia;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class AsistenciaController extends Controller
 {
@@ -295,4 +296,127 @@ class AsistenciaController extends Controller
             'fechaReferencia'
         ));
     }
+
+    public function resumenIncidencias(Request $request)
+{
+    $fechaInicio = $request->input('fecha_inicio', Carbon::today()->startOfOfMonth()->toDateString());
+    $fechaFin = $request->input('fecha_fin', Carbon::today()->toDateString());
+
+    // Traemos empleados con su horario y sus asistencias en el rango
+    $empleados = Empleado::with(['horario', 'sucursal', 'asistencias' => function($query) use ($fechaInicio, $fechaFin) {
+        $query->whereBetween('fecha', [$fechaInicio, $fechaFin]);
+    }])->where('status', 'Alta')->get();
+
+    $resumen = [];
+
+    foreach ($empleados as $empleado) {
+        $faltas = 0;
+        $retardosMenores = 0;
+        $mediosDias = 0;
+        $horario = $empleado->horario;
+
+        if (!$horario || !$horario->aplicar_reglas_avanzadas) continue;
+
+        foreach ($empleado->asistencias as $asistencia) {
+            if ($asistencia->status_asistencia == 'Falta') {
+                $faltas++;
+                continue;
+            }
+
+            if ($asistencia->hora_llegada) {
+                $llegada = Carbon::parse($asistencia->hora_llegada);
+                $diaSemana = strtolower(Carbon::parse($asistencia->fecha)->translatedFormat('l'));
+                $entradaOficialStr = $horario->{$diaSemana . '_entrada'};
+                
+                if ($entradaOficialStr) {
+                    $entradaOficial = Carbon::createFromTimeString($entradaOficialStr);
+                    $minutosTarde = $llegada->diffInMinutes($entradaOficial, false);
+
+                    if ($minutosTarde > 0) {
+                        if ($minutosTarde >= $horario->falta_minutos_inicio) {
+                            $faltas++;
+                        } elseif ($minutosTarde >= $horario->medio_dia_minutos_inicio) {
+                            $mediosDias += 0.5;
+                        } elseif ($minutosTarde >= $horario->retardo_menor_minutos_inicio) {
+                            $retardosMenores++;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Lógica de 3 retardos = 1 falta
+        $faltasPorRetardos = floor($retardosMenores / ($horario->retardos_para_falta ?? 3));
+        
+        $resumen[] = [
+            'empleado' => $empleado->nombre_completo,
+            'sucursal' => $empleado->sucursal->nombre_sucursal ?? 'N/A',
+            'faltas_directas' => $faltas,
+            'retardos_acumulados' => $retardosMenores,
+            'faltas_por_retardos' => $faltasPorRetardos,
+            'medios_dias' => $mediosDias,
+            'total_faltas_final' => $faltas + $faltasPorRetardos + $mediosDias
+        ];
+    }
+
+    return view('asistencia.resumen_incidencias', compact('resumen', 'fechaInicio', 'fechaFin'));
+}
+
+public function exportarResumenPDF(Request $request)
+{
+    $fechaInicio = $request->input('fecha_inicio');
+    $fechaFin = $request->input('fecha_fin');
+    
+    // Obtenemos los mismos datos que en la vista de resumen
+    // (Para no repetir código, lo ideal sería mover la lógica a un método privado)
+    $resumen = $this->obtenerDatosResumen($fechaInicio, $fechaFin); 
+
+    $pdf = Pdf::loadView('asistencia.pdf_resumen', compact('resumen', 'fechaInicio', 'fechaFin'));
+    
+    return $pdf->download("Resumen_Incidencias_{$fechaInicio}_al_{$fechaFin}.pdf");
+}
+
+// Método auxiliar para no duplicar código
+private function obtenerDatosResumen($fechaInicio, $fechaFin)
+{
+    $empleados = Empleado::with(['horario', 'sucursal', 'asistencias' => function($query) use ($fechaInicio, $fechaFin) {
+        $query->whereBetween('fecha', [$fechaInicio, $fechaFin]);
+    }])->where('status', 'Alta')->get();
+
+    $resumen = [];
+    foreach ($empleados as $empleado) {
+        $faltas = 0; $retardosMenores = 0; $mediosDias = 0;
+        $horario = $empleado->horario;
+        if (!$horario || !$horario->aplicar_reglas_avanzadas) continue;
+
+        foreach ($empleado->asistencias as $asistencia) {
+            if ($asistencia->status_asistencia == 'Falta') { $faltas++; continue; }
+            if ($asistencia->hora_llegada) {
+                $llegada = Carbon::parse($asistencia->hora_llegada);
+                $diaSemana = strtolower(Carbon::parse($asistencia->fecha)->translatedFormat('l'));
+                $entradaOficialStr = $horario->{$diaSemana . '_entrada'};
+                if ($entradaOficialStr) {
+                    $entradaOficial = Carbon::createFromTimeString($entradaOficialStr);
+                    $minutosTarde = $llegada->diffInMinutes($entradaOficial, false);
+                    if ($minutosTarde > 0) {
+                        if ($minutosTarde >= $horario->falta_minutos_inicio) { $faltas++; }
+                        elseif ($minutosTarde >= $horario->medio_dia_minutos_inicio) { $mediosDias += 0.5; }
+                        elseif ($minutosTarde >= $horario->retardo_menor_minutos_inicio) { $retardosMenores++; }
+                    }
+                }
+            }
+        }
+        $faltasPorRetardos = floor($retardosMenores / ($horario->retardos_para_falta ?? 3));
+        $resumen[] = [
+            'empleado' => $empleado->nombre_completo,
+            'sucursal' => $empleado->sucursal->nombre_sucursal ?? 'N/A',
+            'faltas_directas' => $faltas,
+            'retardos_acumulados' => $retardosMenores,
+            'faltas_por_retardos' => $faltasPorRetardos,
+            'medios_dias' => $mediosDias,
+            'total_faltas_final' => $faltas + $faltasPorRetardos + $mediosDias
+        ];
+    }
+    return $resumen;
+}
 }
