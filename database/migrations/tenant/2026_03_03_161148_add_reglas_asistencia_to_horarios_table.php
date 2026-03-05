@@ -12,10 +12,17 @@ return new class extends Migration
      */
     public function up()
     {
-        // Detectamos el esquema dinámicamente desde la conexión actual del inquilino
-        $schema = config('database.connections.tenant.schema');
+        // Detectamos el nombre de la base de datos actual para decidir el esquema
+        $dbName = DB::connection('tenant')->getDatabaseName();
+        $schema = 'public'; // Valor por defecto
 
-        // Usamos DB::statement para forzar la alteración en el esquema correcto (evitando las vistas en public)
+        if (str_contains($dbName, 'credintegra')) {
+            $schema = 'credintegra_db';
+        } elseif (str_contains($dbName, 'crediticia')) {
+            $schema = 'facturame_db';
+        }
+
+        // Ejecutamos el SQL con el esquema detectado
         DB::connection('tenant')->statement("
             ALTER TABLE \"$schema\".horarios 
             ADD COLUMN IF NOT EXISTS aplicar_reglas_avanzadas BOOLEAN DEFAULT FALSE,
@@ -29,12 +36,6 @@ return new class extends Migration
             ADD COLUMN IF NOT EXISTS castigo_falta_lun_vie DECIMAL(8, 2),
             ADD COLUMN IF NOT EXISTS castigo_falta_mar_jue_sab DECIMAL(8, 2)
         ");
-
-        // Agregamos los comentarios a las columnas para mantener la documentación
-        DB::connection('tenant')->statement("COMMENT ON COLUMN \"$schema\".horarios.tolerancia_minutos IS 'Ej. 10 (hasta las 8:10 no pasa nada)'");
-        DB::connection('tenant')->statement("COMMENT ON COLUMN \"$schema\".horarios.retardos_para_falta IS 'Ej. 3 retardos = 1 falta'");
-        DB::connection('tenant')->statement("COMMENT ON COLUMN \"$schema\".horarios.medio_dia_minutos_fin IS 'Descuenta medio día'");
-        DB::connection('tenant')->statement("COMMENT ON COLUMN \"$schema\".horarios.falta_minutos_inicio IS 'Se regresa a casa, cuenta como falta'");
     }
 
     /**
@@ -42,7 +43,14 @@ return new class extends Migration
      */
     public function down()
     {
-        $schema = config('database.connections.tenant.schema');
+        $dbName = DB::connection('tenant')->getDatabaseName();
+        $schema = 'public';
+
+        if (str_contains($dbName, 'credintegra')) {
+            $schema = 'credintegra_db';
+        } elseif (str_contains($dbName, 'crediticia')) {
+            $schema = 'facturame_db';
+        }
 
         DB::connection('tenant')->statement("
             ALTER TABLE \"$schema\".horarios 
