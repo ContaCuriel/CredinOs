@@ -312,19 +312,28 @@ class FiniquitoController extends Controller
 
     public function generarAvisoTerminacion($id_empleado)
 {
-    // Buscamos al empleado con su último contrato y sucursal
-    $empleado = \App\Models\Empleado::with(['sucursal', 'contratos' => function($query) {
-        $query->latest('fecha_inicio'); 
-    }])->findOrFail($id_empleado);
+    // 1. Buscamos al empleado cargando TODAS las relaciones necesarias:
+    // - sucursal (para municipio/estado)
+    // - puesto (para el nombre del puesto)
+    // - contratos (el más reciente, incluyendo su propio patrón)
+    $empleado = \App\Models\Empleado::with(['sucursal', 'puesto', 'contratos' => function($query) {
+        $query->where('status', 'Activo')->latest('fecha_inicio'); 
+    }, 'contratos.patron'])->findOrFail($id_empleado);
 
-    // Si no tiene contrato, avisamos para evitar error en el PDF
-    if ($empleado->contratos->isEmpty()) {
-        return back()->with('error', 'El empleado no tiene contratos registrados. Es necesario uno para obtener la fecha de vencimiento.');
+    // 2. Extraemos el contrato activo
+    $contrato = $empleado->contratos->first();
+
+    // 3. Validación de seguridad
+    if (!$contrato) {
+        return back()->with('error', 'El empleado no tiene un contrato ACTIVO. Es necesario uno para obtener las fechas legales y el patrón.');
     }
 
-    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('documentos.generales.aviso_terminacion', compact('empleado'));
+    // 4. Definimos el patrón (el que viene amarrado al contrato)
+    $patron = $contrato->patron;
+
+    // 5. Generamos el PDF pasando las 3 variables que usa la vista
+    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('documentos.generales.aviso_terminacion', compact('empleado', 'contrato', 'patron'));
     
-    // Lo abrimos en una pestaña nueva (stream)
-    return $pdf->stream("Aviso_Terminacion_{$empleado->nombre_completo}.pdf");
+    return $pdf->stream("Aviso_Terminacion_" . \Illuminate\Support\Str::slug($empleado->nombre_completo) . ".pdf");
 }
 }
