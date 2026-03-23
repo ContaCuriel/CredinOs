@@ -9,6 +9,7 @@
         .text-justify { text-align: justify; }
         .text-center { text-align: center; }
         .fw-bold { font-weight: bold; }
+        .uppercase { text-transform: uppercase; }
         .mt-4 { margin-top: 2rem; }
         .mt-5 { margin-top: 3.5rem; }
         .signature-line { width: 220px; border-bottom: 1px solid black; margin: 0 auto; margin-top: 4rem; }
@@ -30,7 +31,15 @@
     </div>
 
     <div class="mt-4 text-justify">
-        <p>Por medio de la presente, <span class="fw-bold">{{ $patron->razon_social ?? $patron->nombre_comercial }}</span>, le notifica formalmente la conclusión de la prestación de sus servicios, con base en los siguientes puntos:</p>
+        <p>
+            Por medio de la presente, <span class="fw-bold uppercase">{{ $patron->razon_social ?? $patron->nombre_comercial }}</span>, 
+            @if ($patron->tipo_persona == 'moral' && $patron->representante_legal)
+                REPRESENTADA EN ESTE ACTO POR EL C. <span class="fw-bold uppercase">{{ $patron->representante_legal }}</span>,
+            @elseif ($patron->tipo_persona == 'fisica')
+                POR SU PROPIO DERECHO,
+            @endif
+            en su carácter de "EL CONTRATANTE", le notifica formalmente la conclusión de la prestación de sus servicios, con base en los siguientes puntos:
+        </p>
 
         <p><span class="fw-bold">1. ANTECEDENTE:</span> Con fecha <span class="fw-bold">{{ \Carbon\Carbon::parse($contrato->fecha_inicio)->translatedFormat('d \d\e F \d\e Y') }}</span>, usted suscribió un Contrato de Prestación de Servicios Profesionales con esta empresa para el puesto de <span class="fw-bold">{{ $empleado->puesto->nombre_puesto ?? 'NO ESPECIFICADO' }}</span>, con una vigencia determinada.</p>
 
@@ -45,7 +54,14 @@
         <div style="float: left; width: 50%; text-align: center;">
             <p>ATENTAMENTE,</p>
             <div class="signature-line"></div>
-            <p class="fw-bold">{{ $patron->razon_social ?? $patron->nombre_comercial }}</p>
+            <p class="fw-bold">
+                @if ($patron->tipo_persona == 'moral' && $patron->representante_legal)
+                    {{ $patron->representante_legal }}<br>
+                    <small>Representante Legal de {{ $patron->razon_social }}</small>
+                @else
+                    {{ $patron->razon_social }}
+                @endif
+            </p>
         </div>
         <div style="float: right; width: 50%; text-align: center;">
             <p>RECIBÍ ORIGINAL (ACUSE)</p>
