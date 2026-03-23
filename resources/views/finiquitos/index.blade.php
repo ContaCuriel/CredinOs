@@ -288,35 +288,42 @@
         }
 
         function prepararEnvio(format) {
-            const form = document.getElementById('form_export');
-            
-            // LÓGICA PARA EL NUEVO BOTÓN
-            if (format === 'aviso') {
-                const idEmp = empleadoSelect.value;
-                form.action = "{{ route('finiquitos.avisoTerminacion', '') }}/" + idEmp;
-                form.method = "GET";
-                form.submit();
-                return;
-            }
+    const form = document.getElementById('form_export');
+    const idEmp = empleadoSelect.value;
 
-            // Lógica existente
-            if (format === 'pdf') form.action = "{{ route('finiquitos.export.pdf') }}";
-            else if (format === 'renuncia') form.action = "{{ route('finiquitos.export.renuncia.pdf') }}";
-            else if (format === 'excel') form.action = "{{ route('finiquitos.export.excel') }}";
-            
-            form.method = "POST";
-            document.getElementById('export_id_empleado').value = empleadoSelect.value;
-            document.getElementById('export_fecha_final').value = fechaFinalInput.value;
-            document.getElementById('export_tipo_calculo').value = document.querySelector('.btn-group .active')?.id.replace('btn_calc_', '') || 'finiquito';
-            document.getElementById('export_id_patron').value = patronManualSelect.value;
+    if (!idEmp) {
+        alert('Por favor, seleccione un empleado primero.');
+        return;
+    }
 
-            ['dias_laborados_monto', 'aguinaldo_monto', 'vacaciones_monto', 'prima_vacacional_monto', 'monto_3_meses', 'monto_prima_antiguedad', 'caja_ahorro_monto', 'prestamo_saldo', 'gratificacion_monto'].forEach(id => {
-                const val = document.getElementById(id)?.value || 0;
-                document.getElementById('export_' + id).value = val;
-            });
-            form.submit();
-        }
+    // LÓGICA CORREGIDA PARA EL NUEVO BOTÓN
+    if (format === 'aviso') {
+        // Construimos la URL manualmente para evitar el error de Laravel Blade
+        // Usamos la URL base y le concatenamos el ID
+        const urlBase = "{{ url('finiquitos/aviso-terminacion') }}";
+        form.action = urlBase + "/" + idEmp;
+        form.method = "GET";
+        form.submit();
+        return;
+    }
 
+    // Lógica existente para los otros botones
+    if (format === 'pdf') form.action = "{{ route('finiquitos.export.pdf') }}";
+    else if (format === 'renuncia') form.action = "{{ route('finiquitos.export.renuncia.pdf') }}";
+    else if (format === 'excel') form.action = "{{ route('finiquitos.export.excel') }}";
+    
+    form.method = "POST";
+    document.getElementById('export_id_empleado').value = idEmp;
+    document.getElementById('export_fecha_final').value = fechaFinalInput.value;
+    document.getElementById('export_tipo_calculo').value = document.querySelector('.btn-group .active')?.id.replace('btn_calc_', '') || 'finiquito';
+    document.getElementById('export_id_patron').value = patronManualSelect.value;
+
+    ['dias_laborados_monto', 'aguinaldo_monto', 'vacaciones_monto', 'prima_vacacional_monto', 'monto_3_meses', 'monto_prima_antiguedad', 'caja_ahorro_monto', 'prestamo_saldo', 'gratificacion_monto'].forEach(id => {
+        const val = document.getElementById(id)?.value || 0;
+        document.getElementById('export_' + id).value = val;
+    });
+    form.submit();
+}
         document.getElementById('btn_export_aviso_terminacion').addEventListener('click', () => prepararEnvio('aviso'));
         document.getElementById('btn_export_pdf').addEventListener('click', () => prepararEnvio('pdf'));
         document.getElementById('btn_export_renuncia').addEventListener('click', () => prepararEnvio('renuncia'));
