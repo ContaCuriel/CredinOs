@@ -309,4 +309,22 @@ class FiniquitoController extends Controller
         // Devuelve el archivo para ser mostrado en el navegador
         return Storage::disk('public')->response($empleado->finiquito_firmado_path);
     }
+
+    public function generarAvisoTerminacion($id_empleado)
+{
+    // Buscamos al empleado con su último contrato y sucursal
+    $empleado = \App\Models\Empleado::with(['sucursal', 'contratos' => function($query) {
+        $query->latest('fecha_inicio'); 
+    }])->findOrFail($id_empleado);
+
+    // Si no tiene contrato, avisamos para evitar error en el PDF
+    if ($empleado->contratos->isEmpty()) {
+        return back()->with('error', 'El empleado no tiene contratos registrados. Es necesario uno para obtener la fecha de vencimiento.');
+    }
+
+    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('documentos.generales.aviso_terminacion', compact('empleado'));
+    
+    // Lo abrimos en una pestaña nueva (stream)
+    return $pdf->stream("Aviso_Terminacion_{$empleado->nombre_completo}.pdf");
+}
 }
