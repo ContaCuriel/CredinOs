@@ -70,5 +70,15 @@
         </div>
     </div>
 
+    <div class="mt-5 border-top pt-4">
+        <p class="text-center fw-bold">ACUSE DE RECIBO Y CONFORMIDAD</p>
+        <p class="text-justify small">
+            Recibí el original del presente aviso y manifiesto estar de acuerdo en que la relación jurídica termina por vencimiento de contrato, dándome por pagado de cualquier concepto a mi favor.
+        </p>
+        <p class="mt-3">Nombre: <strong>{{ $empleado->nombre_completo }}</strong></p>
+        <p>Fecha: ____/____/_______</p>
+        <p>Firma: ___________________________</p>
+    </div>
+
 </body>
 </html>

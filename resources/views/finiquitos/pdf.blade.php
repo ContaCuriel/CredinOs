@@ -9,8 +9,8 @@
         .container { width: 100%; margin: 0 auto; }
         .header { text-align: center; height: 100px; margin-bottom: 20px;}
         .header img { max-width: 250px; max-height: 90px; }
-        .title { background-color: #f2f2f2; padding: 5px; text-align: center; font-weight: bold; font-size: 16px; margin-bottom: 5px; border-bottom: 2px solid #333; }
-        .employee-name { text-align: center; font-weight: bold; font-size: 14px; margin-bottom: 20px; }
+        .title { background-color: #f2f2f2; padding: 5px; text-align: center; font-weight: bold; font-size: 16px; margin-bottom: 5px; border-bottom: 2px solid #333; text-transform: uppercase; }
+        .employee-name { text-align: center; font-weight: bold; font-size: 14px; margin-bottom: 20px; text-transform: uppercase; }
         .section-title { font-weight: bold; margin-top: 20px; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px;}
         .info-table, .breakdown-table { width: 100%; border-collapse: collapse; }
         .info-table td { padding: 5px; }
@@ -32,17 +32,29 @@
             @endif
         </div>
 
-        <div class="title">{{ $titulo_documento }}</div>
+        {{-- TÍTULO INTELIGENTE --}}
+        <div class="title">
+            @if($esContratoDeHonorarios)
+                PAGO DE HONORARIOS DEVENGADOS
+            @else
+                {{ $titulo_documento }}
+            @endif
+        </div>
+        
         <div class="employee-name">{{ $empleado->nombre_completo }}</div>
 
-        <div class="section-title">Información Laboral</div>
+        {{-- SECCIÓN DE INFORMACIÓN INTELIGENTE --}}
+        <div class="section-title">
+            {{ $esContratoDeHonorarios ? 'Información Del Prestador de Servicios' : 'Información Laboral' }}
+        </div>
+        
         <table class="info-table">
             <tr>
                 <td>Fecha de ingreso:</td>
                 <td class="text-right">{{ $empleado->fecha_ingreso->format('d/m/Y') }}</td>
             </tr>
             <tr>
-                <td>Salario por día:</td>
+                <td>{{ $esContratoDeHonorarios ? 'Honorarios diarios equivalentes:' : 'Salario por día:' }}</td>
                 <td class="text-right">${{ number_format($salarioDiario, 2) }}</td>
             </tr>
             <tr>
@@ -62,10 +74,15 @@
             <tbody>
                 @if($dias_laborados_monto > 0)
                 <tr>
-                    <td>Días Laborados ({{ $dias_laborados_dias }} días)</td>
+                    <td>
+                        {{ $esContratoDeHonorarios ? 'Honorarios Devengados' : 'Días Laborados' }} 
+                        ({{ $dias_laborados_dias }} días)
+                    </td>
                     <td class="text-right">${{ number_format($dias_laborados_monto, 2) }}</td>
                 </tr>
                 @endif
+                
+                {{-- Conceptos comunes --}}
                 @if($aguinaldo_monto > 0)
                 <tr>
                     <td>Aguinaldo</td>
@@ -84,44 +101,26 @@
                     <td class="text-right">${{ number_format($prima_vacacional_monto, 2) }}</td>
                 </tr>
                 @endif
-                {{-- =====> INICIO DE LA MODIFICACIÓN <===== --}}
                 @if(isset($gratificacion_monto) && $gratificacion_monto > 0)
                 <tr>
                     <td>Gratificación</td>
                     <td class="text-right">${{ number_format($gratificacion_monto, 2) }}</td>
                 </tr>
                 @endif
-                {{-- =====> FIN DE LA MODIFICACIÓN <===== --}}
-                @if($caja_ahorro_monto > 0)
-                <tr>
-                    <td>Caja de ahorro</td>
-                    <td class="text-right">${{ number_format($caja_ahorro_monto, 2) }}</td>
-                </tr>
-                @endif
-                @if($monto_3_meses > 0)
-                <tr>
-                    <td>3 Meses de salario (Indemnización)</td>
-                    <td class="text-right">${{ number_format($monto_3_meses, 2) }}</td>
-                </tr>
-                @endif
-                @if($monto_prima_antiguedad > 0)
-                <tr>
-                    <td>Prima de antigüedad</td>
-                    <td class="text-right">${{ number_format($monto_prima_antiguedad, 2) }}</td>
-                </tr>
-                @endif
-                
-                {{-- =====> INICIO DE DEDUCCIONES / DESCUENTOS <===== --}}
+
+                {{-- Deducciones --}}
                 @if(isset($prestamo_saldo) && $prestamo_saldo > 0)
                 <tr>
                     <td>Descuento por préstamo</td>
                     <td class="text-right">-${{ number_format($prestamo_saldo, 2) }}</td>
                 </tr>
                 @endif
-                {{-- =====> FIN DE DEDUCCIONES / DESCUENTOS <===== --}}
 
+                {{-- TOTAL INTELIGENTE --}}
                 <tr class="total-row">
-                    <td>TOTAL A PAGAR AL TRABAJADOR</td>
+                    <td>
+                        {{ $esContratoDeHonorarios ? 'TOTAL A PAGAR POR HONORARIOS DEVENGADOS' : 'TOTAL A PAGAR AL TRABAJADOR' }}
+                    </td>
                     <td class="text-right">${{ number_format($neto_a_pagar, 2) }}</td>
                 </tr>
             </tbody>
@@ -129,7 +128,7 @@
 
         <div class="signature-section">
             <div class="signature-line"></div>
-            Recibí de entera conformidad
+            Recibi de entera conformidad
             <br>
             <strong>{{ $empleado->nombre_completo }}</strong>
         </div>
