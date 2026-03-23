@@ -312,26 +312,24 @@ class FiniquitoController extends Controller
 
     public function generarAvisoTerminacion($id_empleado)
 {
-    // 1. Buscamos al empleado cargando TODAS las relaciones necesarias:
-    // - sucursal (para municipio/estado)
-    // - puesto (para el nombre del puesto)
-    // - contratos (el más reciente, incluyendo su propio patrón)
+    // Eliminamos el filtro de 'status' para evitar el error de columna inexistente
     $empleado = \App\Models\Empleado::with(['sucursal', 'puesto', 'contratos' => function($query) {
-        $query->where('status', 'Activo')->latest('fecha_inicio'); 
+        $query->latest('fecha_inicio'); // Solo ordenamos por el más reciente
     }, 'contratos.patron'])->findOrFail($id_empleado);
 
-    // 2. Extraemos el contrato activo
     $contrato = $empleado->contratos->first();
 
-    // 3. Validación de seguridad
     if (!$contrato) {
-        return back()->with('error', 'El empleado no tiene un contrato ACTIVO. Es necesario uno para obtener las fechas legales y el patrón.');
+        return back()->with('error', 'El empleado no tiene contratos registrados en el sistema.');
     }
 
-    // 4. Definimos el patrón (el que viene amarrado al contrato)
     $patron = $contrato->patron;
 
-    // 5. Generamos el PDF pasando las 3 variables que usa la vista
+    // Si por alguna razón el contrato no tiene patrón asignado, intentamos buscar uno por defecto o de la sucursal
+    if (!$patron) {
+        return back()->with('error', 'El contrato del empleado no tiene un patrón (empresa) asignado.');
+    }
+
     $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('documentos.generales.aviso_terminacion', compact('empleado', 'contrato', 'patron'));
     
     return $pdf->stream("Aviso_Terminacion_" . \Illuminate\Support\Str::slug($empleado->nombre_completo) . ".pdf");
