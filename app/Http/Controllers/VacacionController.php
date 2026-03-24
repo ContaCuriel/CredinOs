@@ -72,67 +72,71 @@ class VacacionController extends Controller
     public function historialJson($id_empleado)
 {
     try {
-        // Buscamos al empleado usando el namespace completo para evitar fallos
-        $empleado = \App\Models\Empleado::find($id_empleado);
+        $empleado = \App\Models\Empleado::findOrFail($id_empleado);
         
-        if (!$empleado) {
-            return response()->json(['error' => 'Empleado no encontrado'], 404);
-        }
+        // Obtenemos los periodos tomados (Igual que en tu vista de historial)
+        $periodosTomados = \App\Models\PeriodoVacacional::where('id_empleado', $empleado->id_empleado)
+                            ->orderBy('fecha_inicio', 'asc')
+                            ->get();
 
-        // IMPORTANTE: Llamamos al modelo PeriodoVacacional con su ruta completa
-        // para que no dependa de los 'use' de arriba que podrían estar mal.
-        $periodosTomados = \App\Models\PeriodoVacacional::where('id_empleado', $empleado->id_empleado)->get();
+        $historialVacacional = [];
         
-        $historial = [];
-        $fechaIngreso = \Carbon\Carbon::parse($empleado->fecha_ingreso);
-        
-        // Fecha de corte: Baja o Hoy
-        $fechaCorte = ($empleado->status === 'Baja' && $empleado->fecha_baja)
-            ? \Carbon\Carbon::parse($empleado->fecha_baja)
-            : \Carbon\Carbon::now();
-
-        $anosCompletos = (int) $fechaIngreso->diffInYears($fechaCorte);
-
-        // 1. Años completados (Historial cerrado)
-        for ($i = 1; $i <= $anosCompletos; $i++) {
-            $diasDerecho = $empleado->getDiasVacacionesParaAnoDeServicio($i);
-            $tomados = $periodosTomados->where('ano_servicio_correspondiente', $i)->sum('dias_tomados');
+        if ($empleado->fecha_ingreso) {
+            $fechaIngreso = \Carbon\Carbon::parse($empleado->fecha_ingreso);
             
-            $inicio = $fechaIngreso->copy()->addYears($i - 1);
-            $fin = $fechaIngreso->copy()->addYears($i)->subDay();
+            // Fecha de corte (Baja o Hoy)
+            $fechaCorte = ($empleado->status === 'Baja' && $empleado->fecha_baja)
+                ? \Carbon\Carbon::parse($empleado->fecha_baja)
+                : \Carbon\Carbon::now();
+            
+            $anosCompletosServicio = $fechaIngreso->diffInYears($fechaCorte);
 
-            $historial[] = [
-                'año_servicio' => $i,
-                'periodo' => $inicio->format('d/m/y') . ' - ' . $fin->format('d/m/y'),
-                'dias_restantes' => number_format($diasDerecho - $tomados, 2),
-                'estado' => 'Completado'
+            // 1. CÁLCULO DE AÑOS COMPLETADOS
+            for ($anoDeServicio = 1; $anoDeServicio <= $anosCompletosServicio; $anoDeServicio++) {
+                $diasCorrespondientes = $empleado->getDiasVacacionesParaAnoDeServicio($anoDeServicio);
+                $diasTomadosEsteAno = $periodosTomados->where('ano_servicio_correspondiente', $anoDeServicio)->sum('dias_tomados');
+                
+                $inicioAnoServicio = $fechaIngreso->copy()->addYears($anoDeServicio - 1);
+                $finAnoServicio = $fechaIngreso->copy()->addYears($anoDeServicio)->subDay();
+
+                $historialVacacional[] = [
+                    'ano_servicio' => $anoDeServicio,
+                    'periodo' => $inicioAnoServicio->format('d/m/Y') . ' - ' . $finAnoServicio->format('d/m/Y'),
+                    'dias_correspondientes' => $diasCorrespondientes,
+                    'dias_tomados' => $diasTomadosEsteAno,
+                    'dias_restantes' => number_format($diasCorrespondientes - $diasTomadosEsteAno, 2),
+                    'estado' => 'Completado'
+                ];
+            }
+
+            // 2. CÁLCULO PROPORCIONAL DEL AÑO EN CURSO
+            $anoDeServicioEnCurso = (int)$anosCompletosServicio + 1;
+            $diasTotalesAnoEnCurso = $empleado->getDiasVacacionesParaAnoDeServicio($anoDeServicioEnCurso);
+            $inicioAnoEnCurso = $fechaIngreso->copy()->addYears((int)$anosCompletosServicio);
+            
+            // Calculamos proporcional por meses como lo hace tu historial
+            $mesesCompletosEnAnoEnCurso = $inicioAnoEnCurso->diffInMonths($fechaCorte); 
+            $diasProporcionalesVac = ($diasTotalesAnoEnCurso / 12) * $mesesCompletosEnAnoEnCurso;
+            
+            $diasTomadosAnoEnCurso = $periodosTomados->where('ano_servicio_correspondiente', $anoDeServicioEnCurso)->sum('dias_tomados');
+            $saldoProporcional = $diasProporcionalesVac - $diasTomadosAnoEnCurso;
+
+            $historialVacacional[] = [
+                'ano_servicio' => $anoDeServicioEnCurso,
+                'periodo' => $inicioAnoEnCurso->format('d/m/Y') . ' - En curso',
+                'dias_correspondientes' => number_format($diasProporcionalesVac, 2),
+                'dias_tomados' => $diasTomadosAnoEnCurso,
+                'dias_restantes' => number_format($saldoProporcional, 2),
+                'estado' => 'En Curso'
             ];
         }
 
-        // 2. Año en curso (Proporcional)
-        $anoActual = $anosCompletos + 1;
-        $diasTotalesAno = $empleado->getDiasVacacionesParaAnoDeServicio($anoActual);
-        $inicioActual = $fechaIngreso->copy()->addYears($anosCompletos);
-        
-        $diasTranscurridos = $inicioActual->diffInDays($fechaCorte);
-        $proporcional = ($diasTotalesAno / 365) * $diasTranscurridos;
-        $tomadosActual = $periodosTomados->where('ano_servicio_correspondiente', $anoActual)->sum('dias_tomados');
-
-        $historial[] = [
-            'año_servicio' => $anoActual,
-            'periodo' => $inicioActual->format('d/m/y') . ' - Corte',
-            'dias_restantes' => number_format($proporcional - $tomadosActual, 2),
-            'estado' => 'En Curso'
-        ];
-
-        return response()->json($historial);
+        return response()->json($historialVacacional);
 
     } catch (\Exception $e) {
-        // Esto devolverá el error real a la consola de F12 para que sepamos qué línea falló
         return response()->json([
             'error' => $e->getMessage(),
-            'line' => $e->getLine(),
-            'file' => $e->getFile()
+            'line' => $e->getLine()
         ], 500);
     }
 }

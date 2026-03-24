@@ -243,13 +243,13 @@ document.addEventListener('DOMContentLoaded', function () {
             html += '<thead class="table-dark"><tr><th>Año</th><th>Periodo</th><th>Restantes</th></tr></thead><tbody>';
             
             data.forEach(row => {
-                const statusClass = row.estado === 'En Curso' ? 'text-primary fw-bold' : '';
-                html += `<tr>
-                    <td class="text-center">${Math.floor(row.año_servicio)}</td>
-                    <td>${row.periodo}</td>
-                    <td class="text-end ${statusClass}">${row.dias_restantes}</td>
-                </tr>`;
-            });
+    const statusClass = row.estado === 'En Curso' ? 'text-primary fw-bold' : '';
+    html += `<tr>
+        <td class="text-center">${row.ano_servicio}</td>
+        <td>${row.periodo}</td>
+        <td class="text-end ${statusClass}">${row.dias_restantes}</td>
+    </tr>`;
+});
 
             // Sumar totales asegurando que el formato numérico sea correcto
             const total = data.reduce((acc, curr) => {
