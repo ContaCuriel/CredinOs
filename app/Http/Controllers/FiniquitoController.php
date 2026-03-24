@@ -75,76 +75,82 @@ class FiniquitoController extends Controller
      * Método que toma los datos editados y los prepara para la exportación.
      */
     private function prepararDatosParaExportacion(Request $request): array
-    {
-        $request->validate([
-            'id_empleado' => 'required|exists:empleados,id_empleado',
-            'fecha_final' => 'required|date',
-            'tipo_calculo' => 'required',
-            'dias_vacaciones_manuales' => 'required|numeric',
-            'id_patron' => 'sometimes|exists:patrones,id_patron',
-            'gratificacion_monto' => 'nullable|numeric|min:0',
-            '*_monto' => 'sometimes|numeric'
-        ]);
+{
+    $request->validate([
+        'id_empleado' => 'required|exists:empleados,id_empleado',
+        'fecha_final' => 'required|date',
+        'tipo_calculo' => 'required',
+        'dias_vacaciones_manuales' => 'required|numeric',
+        'id_patron' => 'sometimes|exists:patrones,id_patron',
+        'gratificacion_monto' => 'nullable|numeric|min:0',
+        '*_monto' => 'sometimes|numeric'
+    ]);
 
-        $data = $request->all();
-        
-        // Cargamos el empleado con su puesto y el contrato para saber si es honorarios
-        $empleado = Empleado::with(['puesto', 'ultimoContrato'])->find($data['id_empleado']);
-        $patron = Patron::find($data['id_patron'] ?? null);
+    $data = $request->all();
+    
+    // Cargamos el empleado con su puesto y el contrato para saber si es honorarios
+    $empleado = Empleado::with(['puesto', 'ultimoContrato'])->find($data['id_empleado']);
+    $patron = Patron::find($data['id_patron'] ?? null);
 
-        // DETERMINAR SI ES HONORARIOS (Igual que en la renuncia)
-        $esContratoDeHonorarios = false;
-        if ($empleado->ultimoContrato && !empty($empleado->ultimoContrato->tipo_contrato)) {
-            if (Str::contains(strtolower($empleado->ultimoContrato->tipo_contrato), 'honorarios')) {
-                $esContratoDeHonorarios = true;
-            }
+    // DETERMINAR SI ES HONORARIOS
+    $esContratoDeHonorarios = false;
+    if ($empleado->ultimoContrato && !empty($empleado->ultimoContrato->tipo_contrato)) {
+        if (Str::contains(strtolower($empleado->ultimoContrato->tipo_contrato), 'honorarios')) {
+            $esContratoDeHonorarios = true;
         }
+    }
 
-        $fechaIngreso = Carbon::parse($empleado->fecha_ingreso);
-        $fechaBaja = Carbon::parse($data['fecha_final']);
+    $fechaIngreso = Carbon::parse($empleado->fecha_ingreso);
+    $fechaBaja = Carbon::parse($data['fecha_final']);
 
-        // LÓGICA DE CÁLCULO DE DÍAS (Se mantiene tu lógica)
-        $inicioQuincenaTeorico = ($fechaBaja->day <= 15) ? $fechaBaja->copy()->startOfMonth() : $fechaBaja->copy()->day(16);
-        $fechaInicioCalculo = $fechaIngreso->greaterThan($inicioQuincenaTeorico) ? $fechaIngreso : $inicioQuincenaTeorico;
-        $diasLaboradosPeriodo = $fechaInicioCalculo->diffInDays($fechaBaja) + 1;
+    // LÓGICA DE CÁLCULO DE DÍAS
+    $inicioQuincenaTeorico = ($fechaBaja->day <= 15) ? $fechaBaja->copy()->startOfMonth() : $fechaBaja->copy()->day(16);
+    $fechaInicioCalculo = $fechaIngreso->greaterThan($inicioQuincenaTeorico) ? $fechaIngreso : $inicioQuincenaTeorico;
+    $diasLaboradosPeriodo = $fechaInicioCalculo->diffInDays($fechaBaja) + 1;
 
-        $totalPercepciones = 0;
-        $percepcionesKeys = ['dias_laborados_monto', 'aguinaldo_monto', 'vacaciones_monto', 'prima_vacacional_monto', 'monto_3_meses', 'monto_prima_antiguedad', 'caja_ahorro_monto', 'gratificacion_monto'];
-        foreach($percepcionesKeys as $key){
-            $totalPercepciones += (float)($data[$key] ?? 0);
-        }
-        
-        $totalDeducciones = (float)($data['prestamo_saldo'] ?? 0);
-        $netoAPagar = $totalPercepciones - $totalDeducciones;
-
-        $exportData = $data;
-        $exportData['empleado'] = $empleado;
-        $exportData['patron'] = $patron;
-        $exportData['esContratoDeHonorarios'] = $esContratoDeHonorarios; // VARIABLE CLAVE PARA EL PDF
-        $exportData['salarioDiario'] = $empleado->puesto ? ($empleado->puesto->salario_mensual / 30) : 0;
-        $exportData['total_percepciones'] = $totalPercepciones;
-        $exportData['total_deducciones'] = $totalDeducciones;
-        $exportData['neto_a_pagar'] = $netoAPagar;
-        $exportData['fecha_final_formateada'] = $fechaBaja->format('d/m/Y');
-        $exportData['dias_laborados_dias'] = $diasLaboradosPeriodo;
-        $exportData['vacaciones_dias_restantes'] = $data['dias_vacaciones_manuales'];
-        
-        $titulos = ['dias_laborados' => 'PAGO DE DÍAS LABORADOS', 'finiquito' => 'RECIBO DE FINIQUITO', 'liquidacion' => 'RECIBO DE LIQUIDACIÓN'];
-        $exportData['titulo_documento'] = $titulos[$data['tipo_calculo']] ?? 'RECIBO DE PAGO';
-
-        // Lógica de Logo
-        $exportData['logo_base64'] = null;
-        if ($patron && $patron->logo_path) {
-            $logoPath = storage_path('app/public/' . $patron->logo_path); 
-            if (File::exists($logoPath)) {
-                $logoData = File::get($logoPath);
-                $exportData['logo_base64'] = 'data:' . File::mimeType($logoPath) . ';base64,' . base64_encode($logoData);
-            }
-        }
-        
-        return $exportData;
+    $totalPercepciones = 0;
+    $percepcionesKeys = ['dias_laborados_monto', 'aguinaldo_monto', 'vacaciones_monto', 'prima_vacacional_monto', 'monto_3_meses', 'monto_prima_antiguedad', 'caja_ahorro_monto', 'gratificacion_monto'];
+    foreach($percepcionesKeys as $key){
+        $totalPercepciones += (float)($data[$key] ?? 0);
     }
     
+    $totalDeducciones = (float)($data['prestamo_saldo'] ?? 0);
+    $netoAPagar = $totalPercepciones - $totalDeducciones;
+
+    $exportData = $data;
+    $exportData['empleado'] = $empleado;
+    $exportData['patron'] = $patron;
+    $exportData['esContratoDeHonorarios'] = $esContratoDeHonorarios;
+    $exportData['salarioDiario'] = $empleado->puesto ? ($empleado->puesto->salario_mensual / 30) : 0;
+    $exportData['total_percepciones'] = $totalPercepciones;
+    $exportData['total_deducciones'] = $totalDeducciones;
+    $exportData['neto_a_pagar'] = $netoAPagar;
+    $exportData['fecha_final_formateada'] = $fechaBaja->format('d/m/Y');
+    $exportData['dias_laborados_dias'] = $diasLaboradosPeriodo;
+    $exportData['vacaciones_dias_restantes'] = $data['dias_vacaciones_manuales'];
+
+    // === AGREGAR ESTOS MAPEOS PARA QUE APAREZCAN EN EL PDF ===
+    $exportData['caja_ahorro_monto'] = (float)($data['caja_ahorro_monto'] ?? 0);
+    $exportData['prestamo_saldo'] = (float)($data['prestamo_saldo'] ?? 0);
+    $exportData['monto_3_meses'] = (float)($data['monto_3_meses'] ?? 0);
+    $exportData['monto_prima_antiguedad'] = (float)($data['monto_prima_antiguedad'] ?? 0);
+    $exportData['gratificacion_monto'] = (float)($data['gratificacion_monto'] ?? 0);
+    // ========================================================
+    
+    $titulos = ['dias_laborados' => 'PAGO DE DÍAS LABORADOS', 'finiquito' => 'RECIBO DE FINIQUITO', 'liquidacion' => 'RECIBO DE LIQUIDACIÓN'];
+    $exportData['titulo_documento'] = $titulos[$data['tipo_calculo']] ?? 'RECIBO DE PAGO';
+
+    $exportData['logo_base64'] = null;
+    if ($patron && $patron->logo_path) {
+        $logoPath = storage_path('app/public/' . $patron->logo_path); 
+        if (File::exists($logoPath)) {
+            $logoData = File::get($logoPath);
+            $exportData['logo_base64'] = 'data:' . File::mimeType($logoPath) . ';base64,' . base64_encode($logoData);
+        }
+    }
+    
+    return $exportData;
+}
     /**
      * Realiza el cálculo inicial desde cero, incluyendo la gratificación.
      */
