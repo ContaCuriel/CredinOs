@@ -100,42 +100,45 @@ class Empleado extends Model
 
 
     public function getVacacionesDetallado(Carbon $fechaCorte): array
-    {
-        if (!$this->fecha_ingreso) {
-            return ['saldo_anterior' => 0, 'proporcional_actual' => 0, 'total_a_pagar' => 0];
-        }
-
-        $fechaIngreso = Carbon::parse($this->fecha_ingreso);
-        $anosCompletos = $fechaIngreso->diffInYears($fechaCorte);
-
-        // 1. Saldo de periodos de servicio ya completados
-        $diasGanadosAnosCompletos = 0;
-        for ($i = 1; $i <= $anosCompletos; $i++) {
-            $diasGanadosAnosCompletos += $this->getDiasVacacionesParaAnoDeServicio($i);
-        }
-        // Cambia esta línea dentro de getVacacionesDetallado en Empleado.php
-$totalDiasTomados = \App\Models\PeriodoVacacional::where('id_empleado', $this->id_empleado)->sum('dias_tomados');
-        $saldoAnterior = $diasGanadosAnosCompletos - $totalDiasTomados;
-
-        // 2. Días proporcionales del año de servicio actual
-        $inicioAnoActual = $fechaIngreso->copy()->addYears($anosCompletos);
-        $diasTrabajadosAnoActual = $fechaCorte->diffInDays($inicioAnoActual);
-        $diasDerechoAnoActual = $this->getDiasVacacionesParaAnoDeServicio($anosCompletos + 1);
-        
-        $diasProporcionales = 0;
-        if ($diasTrabajadosAnoActual > 0) {
-            $diasProporcionales = ($diasDerechoAnoActual / 365) * $diasTrabajadosAnoActual;
-        }
-
-        // 3. Resultado final
-        $totalRestante = $saldoAnterior + $diasProporcionales;
-
-        return [
-            'saldo_anterior' => round($saldoAnterior, 2),
-            'proporcional_actual' => round($diasProporcionales, 2),
-            'total_a_pagar' => round(max(0, $totalRestante), 2)
-        ];
+{
+    if (!$this->fecha_ingreso) {
+        return ['saldo_anterior' => 0, 'proporcional_actual' => 0, 'total_a_pagar' => 0];
     }
+
+    $fechaIngreso = Carbon::parse($this->fecha_ingreso)->startOfDay();
+    $fechaCorte = $fechaCorte->copy()->startOfDay();
+    
+    // 1. Años completos transcurridos
+    $anosCompletos = (int) $fechaIngreso->diffInYears($fechaCorte);
+
+    // 2. Cálculo de Saldo Anterior (Años ya cerrados)
+    $diasGanadosPasados = 0;
+    for ($i = 1; $i <= $anosCompletos; $i++) {
+        $diasGanadosPasados += $this->getDiasVacacionesParaAnoDeServicio($i);
+    }
+    
+    $totalTomados = \App\Models\PeriodoVacacional::where('id_empleado', $this->id_empleado)->sum('dias_tomados');
+    $saldoAnterior = $diasGanadosPasados - $totalTomados;
+
+    // 3. CÁLCULO PROPORCIONAL (Año en curso)
+    // El aniversario de este año fue:
+    $ultimoAniversario = $fechaIngreso->copy()->addYears($anosCompletos);
+    
+    // Días que han pasado desde el aniversario hasta la fecha de corte
+    $diasTranscurridos = $ultimoAniversario->diffInDays($fechaCorte);
+    
+    // Días que le corresponden por el año que está cursando (el siguiente al completo)
+    $diasDerechoAnoActual = $this->getDiasVacacionesParaAnoDeServicio($anosCompletos + 1);
+    
+    // Proporcional: (Días de derecho / 365 días del año) * días trabajados
+    $proporcional = ($diasDerechoAnoActual / 365) * $diasTranscurridos;
+
+    return [
+        'saldo_anterior' => round($saldoAnterior, 2),
+        'proporcional_actual' => round($proporcional, 2),
+        'total_a_pagar' => round(max(0, $saldoAnterior + $proporcional), 2)
+    ];
+}
 
     /**
      * Función auxiliar que devuelve los días de vacaciones por ley.
