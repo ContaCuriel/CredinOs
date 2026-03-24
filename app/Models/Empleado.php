@@ -113,7 +113,8 @@ class Empleado extends Model
         for ($i = 1; $i <= $anosCompletos; $i++) {
             $diasGanadosAnosCompletos += $this->getDiasVacacionesParaAnoDeServicio($i);
         }
-        $totalDiasTomados = PeriodoVacacional::where('id_empleado', $this->id_empleado)->sum('dias_tomados');
+        // Cambia esta línea dentro de getVacacionesDetallado en Empleado.php
+$totalDiasTomados = \App\Models\PeriodoVacacional::where('id_empleado', $this->id_empleado)->sum('dias_tomados');
         $saldoAnterior = $diasGanadosAnosCompletos - $totalDiasTomados;
 
         // 2. Días proporcionales del año de servicio actual

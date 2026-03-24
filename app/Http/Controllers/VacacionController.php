@@ -71,74 +71,42 @@ class VacacionController extends Controller
      */
     public function historialJson($id_empleado)
 {
-    try {
-        $empleado = \App\Models\Empleado::findOrFail($id_empleado);
+    $empleado = \App\Models\Empleado::findOrFail($id_empleado);
+    
+    // Obtenemos los datos usando la lógica que ya tienes en el modelo
+    $fechaCorte = ($empleado->status === 'Baja' && $empleado->fecha_baja)
+        ? \Carbon\Carbon::parse($empleado->fecha_baja)
+        : \Carbon\Carbon::now();
+
+    $resumen = $empleado->getVacacionesDetallado($fechaCorte);
+    $periodosTomados = \App\Models\PeriodoVacacional::where('id_empleado', $empleado->id_empleado)->get();
+
+    $historial = [];
+    $fechaIngreso = \Carbon\Carbon::parse($empleado->fecha_ingreso);
+    $anosCompletos = (int) $fechaIngreso->diffInYears($fechaCorte);
+
+    // Solo mandamos los periodos que tienen días restantes o movimiento
+    for ($i = 1; $i <= $anosCompletos; $i++) {
+        $diasDerecho = $empleado->getDiasVacacionesParaAnoDeServicio($i);
+        $tomados = $periodosTomados->where('ano_servicio_correspondiente', $i)->sum('dias_tomados');
         
-        // Obtenemos los periodos tomados (Igual que en tu vista de historial)
-        $periodosTomados = \App\Models\PeriodoVacacional::where('id_empleado', $empleado->id_empleado)
-                            ->orderBy('fecha_inicio', 'asc')
-                            ->get();
-
-        $historialVacacional = [];
-        
-        if ($empleado->fecha_ingreso) {
-            $fechaIngreso = \Carbon\Carbon::parse($empleado->fecha_ingreso);
-            
-            // Fecha de corte (Baja o Hoy)
-            $fechaCorte = ($empleado->status === 'Baja' && $empleado->fecha_baja)
-                ? \Carbon\Carbon::parse($empleado->fecha_baja)
-                : \Carbon\Carbon::now();
-            
-            $anosCompletosServicio = $fechaIngreso->diffInYears($fechaCorte);
-
-            // 1. CÁLCULO DE AÑOS COMPLETADOS
-            for ($anoDeServicio = 1; $anoDeServicio <= $anosCompletosServicio; $anoDeServicio++) {
-                $diasCorrespondientes = $empleado->getDiasVacacionesParaAnoDeServicio($anoDeServicio);
-                $diasTomadosEsteAno = $periodosTomados->where('ano_servicio_correspondiente', $anoDeServicio)->sum('dias_tomados');
-                
-                $inicioAnoServicio = $fechaIngreso->copy()->addYears($anoDeServicio - 1);
-                $finAnoServicio = $fechaIngreso->copy()->addYears($anoDeServicio)->subDay();
-
-                $historialVacacional[] = [
-                    'ano_servicio' => $anoDeServicio,
-                    'periodo' => $inicioAnoServicio->format('d/m/Y') . ' - ' . $finAnoServicio->format('d/m/Y'),
-                    'dias_correspondientes' => $diasCorrespondientes,
-                    'dias_tomados' => $diasTomadosEsteAno,
-                    'dias_restantes' => number_format($diasCorrespondientes - $diasTomadosEsteAno, 2),
-                    'estado' => 'Completado'
-                ];
-            }
-
-            // 2. CÁLCULO PROPORCIONAL DEL AÑO EN CURSO
-            $anoDeServicioEnCurso = (int)$anosCompletosServicio + 1;
-            $diasTotalesAnoEnCurso = $empleado->getDiasVacacionesParaAnoDeServicio($anoDeServicioEnCurso);
-            $inicioAnoEnCurso = $fechaIngreso->copy()->addYears((int)$anosCompletosServicio);
-            
-            // Calculamos proporcional por meses como lo hace tu historial
-            $mesesCompletosEnAnoEnCurso = $inicioAnoEnCurso->diffInMonths($fechaCorte); 
-            $diasProporcionalesVac = ($diasTotalesAnoEnCurso / 12) * $mesesCompletosEnAnoEnCurso;
-            
-            $diasTomadosAnoEnCurso = $periodosTomados->where('ano_servicio_correspondiente', $anoDeServicioEnCurso)->sum('dias_tomados');
-            $saldoProporcional = $diasProporcionalesVac - $diasTomadosAnoEnCurso;
-
-            $historialVacacional[] = [
-                'ano_servicio' => $anoDeServicioEnCurso,
-                'periodo' => $inicioAnoEnCurso->format('d/m/Y') . ' - En curso',
-                'dias_correspondientes' => number_format($diasProporcionalesVac, 2),
-                'dias_tomados' => $diasTomadosAnoEnCurso,
-                'dias_restantes' => number_format($saldoProporcional, 2),
-                'estado' => 'En Curso'
-            ];
-        }
-
-        return response()->json($historialVacacional);
-
-    } catch (\Exception $e) {
-        return response()->json([
-            'error' => $e->getMessage(),
-            'line' => $e->getLine()
-        ], 500);
+        $historial[] = [
+            'ano_servicio' => $i,
+            'periodo' => $fechaIngreso->copy()->addYears($i-1)->format('d/m/y') . ' - ' . $fechaIngreso->copy()->addYears($i)->subDay()->format('d/m/y'),
+            'dias_restantes' => number_format($diasDerecho - $tomados, 2),
+            'estado' => 'Completado'
+        ];
     }
+
+    // Añadimos el proporcional actual
+    $historial[] = [
+        'ano_servicio' => $anosCompletos + 1,
+        'periodo' => $fechaIngreso->copy()->addYears($anosCompletos)->format('d/m/y') . ' - Corte',
+        'dias_restantes' => $resumen['proporcional_actual'],
+        'estado' => 'En Curso'
+    ];
+
+    return response()->json($historial);
 }
 
     /**
