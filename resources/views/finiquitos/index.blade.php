@@ -211,19 +211,23 @@ document.addEventListener('DOMContentLoaded', function () {
     const tablaResultadosDiv = document.getElementById('tabla_resultados');
     const botonesCalculo = document.querySelectorAll('#btn_calc_dias_laborados, #btn_calc_finiquito, #btn_calc_liquidacion');
 
-    // Variable global para el sueldo (según tu controlador: salario_diario)
     let salarioDiarioGlobal = 0;
+
+    // Herramienta para limpiar números (Elimina comas y valida decimales)
+    const limpiarNumero = (val) => {
+        if (!val) return 0;
+        return parseFloat(String(val).replace(/,/g, '')) || 0;
+    };
 
     function toggleButtons() {
         const habilitar = empleadoSelect.value && fechaFinalInput.value && patronManualSelect.value;
         botonesCalculo.forEach(btn => btn.disabled = !habilitar);
     }
 
-    // 1. CARGA DE DATOS Y POPOVER (REPARADO)
+    // 1. CARGA DE POPOVER (VACACIONES)
     empleadoSelect.addEventListener('change', function() {
         const selectedOption = this.options[this.selectedIndex];
         const empId = this.value;
-        
         fechaIngresoInput.value = selectedOption.dataset.fecha_ingreso || '';
         fechaFinalInput.value = selectedOption.dataset.fecha_baja || '';
         toggleButtons();
@@ -232,40 +236,26 @@ document.addEventListener('DOMContentLoaded', function () {
             fetch(`/vacaciones/historial-json/${empId}`)
             .then(res => res.json())
             .then(data => {
-                let html = '<div style="font-size: 11px; width: 250px;"><table class="table table-sm mb-0">';
-                html += '<thead class="table-dark"><tr><th>Año</th><th>Periodo</th><th>Restantes</th></tr></thead><tbody>';
-                
+                let html = '<div style="font-size: 11px; width: 250px;"><table class="table table-sm mb-0"><thead class="table-dark"><tr><th>Año</th><th>Periodo</th><th>Restantes</th></tr></thead><tbody>';
                 data.forEach(row => {
                     const statusClass = row.estado === 'En Curso' ? 'text-primary fw-bold' : '';
                     html += `<tr><td class="text-center">${row.ano_servicio}</td><td>${row.periodo}</td><td class="text-end ${statusClass}">${row.dias_restantes}</td></tr>`;
                 });
-
-                const total = data.reduce((acc, curr) => acc + (parseFloat(String(curr.dias_restantes).replace(',', '')) || 0), 0).toFixed(2);
+                const total = data.reduce((acc, curr) => acc + limpiarNumero(curr.dias_restantes), 0).toFixed(2);
                 html += `</tbody><tfoot class="table-light fw-bold"><tr><td colspan="2">TOTAL:</td><td class="text-end text-danger">${total}</td></tr></tfoot></table></div>`;
-                
                 const el = document.getElementById('info_vacaciones');
                 const existingPopover = bootstrap.Popover.getInstance(el);
                 if (existingPopover) existingPopover.dispose();
-
-                new bootstrap.Popover(el, {
-                    content: html,
-                    html: true,
-                    trigger: 'hover focus',
-                    sanitize: false,
-                    container: 'body',
-                    placement: 'right'
-                });
-            })
-            .catch(err => console.error("Error historial:", err));
+                new bootstrap.Popover(el, { content: html, html: true, trigger: 'hover focus', container: 'body', placement: 'right', sanitize: false });
+            });
         }
     });
 
-    // 2. EJECUCIÓN DEL CÁLCULO
+    // 2. EJECUCIÓN CÁLCULO (POST)
     botonesCalculo.forEach(btn => {
         btn.addEventListener('click', function() {
             const tipoCalculo = this.id.replace('btn_calc_', '');
             document.getElementById('badge_tipo_calculo').textContent = tipoCalculo.replace('_', ' ').toUpperCase();
-            
             fetch("{{ route('finiquitos.calcular') }}", {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
@@ -279,20 +269,19 @@ document.addEventListener('DOMContentLoaded', function () {
             })
             .then(res => res.json())
             .then(data => {
-                // NOMBRE CORRECTO: salario_diario
-                salarioDiarioGlobal = parseFloat(data.salario_diario || 0);
+                salarioDiarioGlobal = limpiarNumero(data.salario_diario);
                 resultadosContainer.style.display = 'block';
                 construirTablaEditable(data);
             });
         });
     });
 
-    // 3. CONSTRUCCIÓN DE LA TABLA
+    // 3. CONSTRUCCIÓN TABLA
     function construirTablaEditable(data) {
         let p = ''; 
         const conceptos = [
             {
-                l: `Días Laborados <input type="number" id="input_dias_cantidad" class="form-control d-inline-block text-center" style="width: 70px; height: 28px; font-size: 13px; margin: 0 5px; display: inline-block !important;" value="${data.dias_laborados_dias || 0}"> d`, 
+                l: `Días Laborados <input type="number" id="input_dias_cantidad" class="form-control d-inline-block text-center" style="width: 70px; height: 28px; font-size: 13px; margin: 0 5px;" value="${data.dias_laborados_dias || 0}"> d`, 
                 i: 'dias_laborados_monto', 
                 v: data.dias_laborados_monto
             },
@@ -306,49 +295,57 @@ document.addEventListener('DOMContentLoaded', function () {
         ];
         
         conceptos.forEach(c => {
-            if(parseFloat(c.v) > 0 || c.i === 'dias_laborados_monto' || c.i === 'gratificacion_monto') {
-                p += `<tr><td class="ps-4 align-middle-custom">${c.l}</td><td class="text-end pe-4"><input type="number" step="0.01" id="${c.i}" class="monto-editable text-end monto-p" value="${parseFloat(c.v).toFixed(2)}"></td></tr>`;
+            if(limpiarNumero(c.v) > 0 || c.i === 'dias_laborados_monto' || c.i === 'gratificacion_monto') {
+                p += `<tr><td class="ps-4 align-middle-custom">${c.l}</td><td class="text-end pe-4"><input type="number" step="0.01" id="${c.i}" class="monto-editable text-end monto-p" value="${limpiarNumero(c.v).toFixed(2)}"></td></tr>`;
             }
         });
 
         tablaResultadosDiv.innerHTML = `
             <div id="tabla_resultados_wrapper">
                 <table class="table table-hover border bg-white shadow-sm">
-                    <thead class="table-dark"><tr><th class="ps-4 py-3">Concepto</th><th class="text-center py-3">Monto Editable ($)</th></tr></thead>
+                    <thead class="table-dark"><tr><th class="ps-4">Concepto</th><th class="text-center">Monto Editable ($)</th></tr></thead>
                     <tbody>
-                        <tr class="row-categoria"><td colspan="2" class="py-2 ps-3">Percepciones</td></tr>${p}
-                        <tr class="row-categoria"><td colspan="2" class="py-2 ps-3">Deducciones</td></tr>
-                        <tr><td class="ps-4 align-middle-custom">Deducciones / Préstamos</td><td class="text-end pe-4"><input type="number" step="0.01" id="prestamo_saldo" class="monto-editable text-end monto-d text-danger" value="${parseFloat(data.prestamo_saldo || 0).toFixed(2)}"></td></tr>
+                        <tr class="row-categoria"><td colspan="2">Percepciones</td></tr>${p}
+                        <tr class="row-categoria"><td colspan="2">Deducciones</td></tr>
+                        <tr><td class="ps-4 align-middle-custom">Deducciones / Préstamos</td><td class="text-end pe-4"><input type="number" step="0.01" id="prestamo_saldo" class="monto-editable text-end monto-d text-danger" value="${limpiarNumero(data.prestamo_saldo).toFixed(2)}"></td></tr>
                         <tr class="fs-5 fw-bold table-primary"><td class="text-end pe-4">Total Neto:</td><td class="text-end pe-4" id="neto_p">$0.00</td></tr>
                     </tbody>
                 </table>
             </div>`;
-        
         recalcularTotales();
     }
 
-    // 4. DELEGACIÓN DE EVENTOS (MEJORADO CON NOMBRE CORRECTO)
+    // 4. DELEGACIÓN DE EVENTOS (LA CLAVE DEL ÉXITO)
     document.addEventListener('input', function (e) {
+        // A. Si cambian los DÍAS LABORADOS
         if (e.target && e.target.id === 'input_dias_cantidad') {
             const montoInput = document.getElementById('dias_laborados_monto');
             if (montoInput && salarioDiarioGlobal > 0) {
                 const dias = parseFloat(e.target.value) || 0;
-                const nuevoMonto = dias * salarioDiarioGlobal;
-                montoInput.value = nuevoMonto.toFixed(2);
+                montoInput.value = (dias * salarioDiarioGlobal).toFixed(2);
+                
+                // 🔥 DISPARAR EVENTO MANUAL para que la lógica 'B' lo detecte
+                montoInput.dispatchEvent(new Event('input', { bubbles: true }));
             }
-            recalcularTotales();
+            return;
         }
 
+        // B. Si cambia cualquier MONTO (Manual o disparado por el paso A)
         if (e.target && e.target.classList.contains('monto-editable')) {
             recalcularTotales();
         }
     });
     
     function recalcularTotales() {
-        let tp = 0; document.querySelectorAll('.monto-p').forEach(i => tp += parseFloat(i.value) || 0);
-        let td = 0; document.querySelectorAll('.monto-d').forEach(i => td += parseFloat(i.value) || 0);
+        let tp = 0; 
+        document.querySelectorAll('.monto-p').forEach(i => tp += limpiarNumero(i.value));
+        let td = 0; 
+        document.querySelectorAll('.monto-d').forEach(i => td += limpiarNumero(i.value));
+        
         const netoElement = document.getElementById('neto_p');
-        if (netoElement) netoElement.textContent = `$${(tp - td).toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+        if (netoElement) {
+            netoElement.textContent = `$${(tp - td).toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+        }
     }
 
     // 5. EXPORTACIÓN
@@ -363,7 +360,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         form.method = "POST";
-        form.action = format === 'pdf' ? "{{ route('finiquitos.export.pdf') }}" : (format === 'excel' ? "{{ route('finiquitos.export.excel') }}" : "{{ route('finiquitos.export.renuncia.pdf') }}");
+        form.action = (format === 'pdf') ? "{{ route('finiquitos.export.pdf') }}" : 
+                     (format === 'excel') ? "{{ route('finiquitos.export.excel') }}" : 
+                     "{{ route('finiquitos.export.renuncia.pdf') }}";
         
         document.getElementById('export_id_empleado').value = idEmp;
         document.getElementById('export_fecha_final').value = fechaFinalInput.value;
@@ -375,7 +374,7 @@ document.addEventListener('DOMContentLoaded', function () {
         campos.forEach(id => {
             const val = document.getElementById(id);
             const hidden = document.getElementById('export_' + id);
-            if (hidden) hidden.value = val ? val.value : 0;
+            if (hidden) hidden.value = val ? limpiarNumero(val.value) : 0;
         });
         form.submit();
     }
