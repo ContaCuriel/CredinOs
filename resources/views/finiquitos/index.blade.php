@@ -211,45 +211,52 @@ document.addEventListener('DOMContentLoaded', function () {
     const tablaResultadosDiv = document.getElementById('tabla_resultados');
     const botonesCalculo = document.querySelectorAll('#btn_calc_dias_laborados, #btn_calc_finiquito, #btn_calc_liquidacion');
 
-    // Variable persistente en el scope del script
-    let sueldoDiarioGlobal = 0;
+    // Variable global para el sueldo (según tu controlador: salario_diario)
+    let salarioDiarioGlobal = 0;
 
     function toggleButtons() {
         const habilitar = empleadoSelect.value && fechaFinalInput.value && patronManualSelect.value;
         botonesCalculo.forEach(btn => btn.disabled = !habilitar);
     }
 
-    // 1. CARGA DE DATOS Y POPOVER
+    // 1. CARGA DE DATOS Y POPOVER (REPARADO)
     empleadoSelect.addEventListener('change', function() {
         const selectedOption = this.options[this.selectedIndex];
+        const empId = this.value;
+        
         fechaIngresoInput.value = selectedOption.dataset.fecha_ingreso || '';
         fechaFinalInput.value = selectedOption.dataset.fecha_baja || '';
         toggleButtons();
         
-        if (this.value) {
-            fetch(`/vacaciones/historial-json/${this.value}`).then(r => r.json()).then(data => {
-                let html = '<div style="font-size: 11px; width: 250px;"><table class="table table-sm mb-0"><thead><tr class="table-dark"><th>Año</th><th>Periodo</th><th>Restantes</th></tr></thead><tbody>';
+        if (empId) {
+            fetch(`/vacaciones/historial-json/${empId}`)
+            .then(res => res.json())
+            .then(data => {
+                let html = '<div style="font-size: 11px; width: 250px;"><table class="table table-sm mb-0">';
+                html += '<thead class="table-dark"><tr><th>Año</th><th>Periodo</th><th>Restantes</th></tr></thead><tbody>';
+                
                 data.forEach(row => {
                     const statusClass = row.estado === 'En Curso' ? 'text-primary fw-bold' : '';
                     html += `<tr><td class="text-center">${row.ano_servicio}</td><td>${row.periodo}</td><td class="text-end ${statusClass}">${row.dias_restantes}</td></tr>`;
                 });
+
                 const total = data.reduce((acc, curr) => acc + (parseFloat(String(curr.dias_restantes).replace(',', '')) || 0), 0).toFixed(2);
                 html += `</tbody><tfoot class="table-light fw-bold"><tr><td colspan="2">TOTAL:</td><td class="text-end text-danger">${total}</td></tr></tfoot></table></div>`;
                 
                 const el = document.getElementById('info_vacaciones');
                 const existingPopover = bootstrap.Popover.getInstance(el);
                 if (existingPopover) existingPopover.dispose();
-                
-                // Inicialización forzada del popover
-                new bootstrap.Popover(el, { 
-                    content: html, 
-                    html: true, 
-                    trigger: 'hover focus', 
-                    container: 'body', 
-                    placement: 'right',
-                    sanitize: false 
+
+                new bootstrap.Popover(el, {
+                    content: html,
+                    html: true,
+                    trigger: 'hover focus',
+                    sanitize: false,
+                    container: 'body',
+                    placement: 'right'
                 });
-            });
+            })
+            .catch(err => console.error("Error historial:", err));
         }
     });
 
@@ -272,8 +279,8 @@ document.addEventListener('DOMContentLoaded', function () {
             })
             .then(res => res.json())
             .then(data => {
-                // GUARDAR EL SUELDO DIARIO EN LA VARIABLE GLOBAL
-                sueldoDiarioGlobal = parseFloat(data.sueldo_diario || 0);
+                // NOMBRE CORRECTO: salario_diario
+                salarioDiarioGlobal = parseFloat(data.salario_diario || 0);
                 resultadosContainer.style.display = 'block';
                 construirTablaEditable(data);
             });
@@ -320,54 +327,49 @@ document.addEventListener('DOMContentLoaded', function () {
         recalcularTotales();
     }
 
-    // 4. DELEGACIÓN DE EVENTOS PARA EL RECÁLCULO (MEJORADO)
+    // 4. DELEGACIÓN DE EVENTOS (MEJORADO CON NOMBRE CORRECTO)
     document.addEventListener('input', function (e) {
-        // Manejo de la cantidad de DÍAS
         if (e.target && e.target.id === 'input_dias_cantidad') {
             const montoInput = document.getElementById('dias_laborados_monto');
-            if (montoInput && sueldoDiarioGlobal > 0) {
+            if (montoInput && salarioDiarioGlobal > 0) {
                 const dias = parseFloat(e.target.value) || 0;
-                const nuevoMonto = dias * sueldoDiarioGlobal;
+                const nuevoMonto = dias * salarioDiarioGlobal;
                 montoInput.value = nuevoMonto.toFixed(2);
             }
             recalcularTotales();
         }
 
-        // Manejo de cualquier MONTO editable
         if (e.target && e.target.classList.contains('monto-editable')) {
             recalcularTotales();
         }
     });
     
     function recalcularTotales() {
-        let tp = 0; 
-        document.querySelectorAll('.monto-p').forEach(i => tp += parseFloat(i.value) || 0);
-        let td = 0; 
-        document.querySelectorAll('.monto-d').forEach(i => td += parseFloat(i.value) || 0);
-        
+        let tp = 0; document.querySelectorAll('.monto-p').forEach(i => tp += parseFloat(i.value) || 0);
+        let td = 0; document.querySelectorAll('.monto-d').forEach(i => td += parseFloat(i.value) || 0);
         const netoElement = document.getElementById('neto_p');
-        if (netoElement) {
-            netoElement.textContent = `$${(tp - td).toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
-        }
+        if (netoElement) netoElement.textContent = `$${(tp - td).toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
     }
 
+    // 5. EXPORTACIÓN
     function prepararEnvio(format) {
         const form = document.getElementById('form_export');
+        const idEmp = empleadoSelect.value;
+        if (!idEmp) return;
+
         if (format === 'aviso') {
-            form.action = "{{ url('finiquitos/aviso-terminacion') }}/" + empleadoSelect.value;
+            form.action = "{{ url('finiquitos/aviso-terminacion') }}/" + idEmp;
             form.method = "GET"; form.submit(); return;
         }
 
         form.method = "POST";
         form.action = format === 'pdf' ? "{{ route('finiquitos.export.pdf') }}" : (format === 'excel' ? "{{ route('finiquitos.export.excel') }}" : "{{ route('finiquitos.export.renuncia.pdf') }}");
         
-        document.getElementById('export_id_empleado').value = empleadoSelect.value;
+        document.getElementById('export_id_empleado').value = idEmp;
         document.getElementById('export_fecha_final').value = fechaFinalInput.value;
         document.getElementById('export_id_patron').value = patronManualSelect.value;
         document.getElementById('export_dias_vacaciones_manuales').value = diasManualesInput.value || 0;
-        
-        const btnActive = document.querySelector('button.active');
-        document.getElementById('export_tipo_calculo').value = btnActive ? btnActive.id.replace('btn_calc_', '') : 'finiquito';
+        document.getElementById('export_tipo_calculo').value = document.querySelector('button.active')?.id.replace('btn_calc_', '') || 'finiquito';
 
         const campos = ['dias_laborados_monto', 'aguinaldo_monto', 'vacaciones_monto', 'prima_vacacional_monto', 'monto_3_meses', 'monto_prima_antiguedad', 'caja_ahorro_monto', 'prestamo_saldo', 'gratificacion_monto'];
         campos.forEach(id => {
