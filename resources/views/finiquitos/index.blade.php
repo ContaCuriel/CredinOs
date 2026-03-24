@@ -201,7 +201,6 @@
     @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    // 1. SELECTORES EXISTENTES
     const empleadoSelect = document.getElementById('id_empleado');
     const fechaIngresoInput = document.getElementById('fecha_ingreso');
     const fechaFinalInput = document.getElementById('fecha_final');
@@ -211,244 +210,156 @@ document.addEventListener('DOMContentLoaded', function () {
     const resultadosContainer = document.getElementById('resultados_finiquito_container');
     const tablaResultadosDiv = document.getElementById('tabla_resultados');
     const botonesCalculo = document.querySelectorAll('#btn_calc_dias_laborados, #btn_calc_finiquito, #btn_calc_liquidacion');
-    const docContainer = document.getElementById('documento_firmado_container');
-    const docContent = document.getElementById('documento_firmado_content');
 
-    // 2. INICIALIZACIÓN DEL POPOVER (NUEVO)
-    const infoIcon = document.getElementById('info_vacaciones');
-    const popoverVac = new bootstrap.Popover(infoIcon);
+    // Variable para capturar el sueldo diario real del servidor
+    let sueldoDiarioDetectado = 0;
 
     function toggleButtons() {
         const habilitar = empleadoSelect.value && fechaFinalInput.value && patronManualSelect.value;
         botonesCalculo.forEach(btn => btn.disabled = !habilitar);
     }
 
-    // 3. EVENTO CHANGE DE EMPLEADO (ACTUALIZADO)
     empleadoSelect.addEventListener('change', function() {
         const selectedOption = this.options[this.selectedIndex];
-        const empId = this.value;
-
-        // Lógica existente de fechas y documentos
         fechaIngresoInput.value = selectedOption.dataset.fecha_ingreso || '';
         fechaFinalInput.value = selectedOption.dataset.fecha_baja || '';
-        resultadosContainer.style.display = 'none';
         toggleButtons();
-
-        // --- INICIO LÓGICA DE HISTORIAL DE VACACIONES (NUEVO) ---
-        if (empId) {
-    fetch(`/vacaciones/historial-json/${empId}`) 
-        .then(res => res.json())
-        .then(data => {
-            let html = '<div style="font-size: 11px; width: 250px;"><table class="table table-sm mb-0">';
-            html += '<thead class="table-dark"><tr><th>Año</th><th>Periodo</th><th>Restantes</th></tr></thead><tbody>';
-            
-            data.forEach(row => {
-    const statusClass = row.estado === 'En Curso' ? 'text-primary fw-bold' : '';
-    html += `<tr>
-        <td class="text-center">${row.ano_servicio}</td>
-        <td>${row.periodo}</td>
-        <td class="text-end ${statusClass}">${row.dias_restantes}</td>
-    </tr>`;
-});
-
-            // Sumar totales asegurando que el formato numérico sea correcto
-            const total = data.reduce((acc, curr) => {
-                let valor = String(curr.dias_restantes).replace(',', '');
-                return acc + (parseFloat(valor) || 0);
-            }, 0).toFixed(2);
-
-            html += `</tbody><tfoot class="table-light fw-bold"><tr><td colspan="2">TOTAL:</td><td class="text-end text-danger">${total}</td></tr></tfoot></table></div>`;
-            
-            // ELIMINAR CUALQUIER INSTANCIA PREVIA
-            const el = document.getElementById('info_vacaciones');
-            const existingPopover = bootstrap.Popover.getInstance(el);
-            if (existingPopover) {
-                existingPopover.dispose();
-            }
-
-            // CREAR LA NUEVA INSTANCIA CON EL CONTENIDO DINÁMICO
-            new bootstrap.Popover(el, {
-                content: html,
-                html: true,
-                trigger: 'hover focus',
-                sanitize: false,
-                container: 'body',
-                placement: 'right' // Esto asegura que no se encime sobre el input
-            });
-        })
-        .catch(err => console.error("Error al obtener historial:", err));
-}
-        // --- FIN LÓGICA DE HISTORIAL DE VACACIONES ---
-
-        // Lógica existente de documentos firmados...
+        
         if (this.value) {
-            const finiquitoPath = selectedOption.dataset.finiquitoPath;
-            const viewUrl = selectedOption.dataset.finiquitoViewUrl;
-            const uploadUrl = selectedOption.dataset.finiquitoUploadUrl;
-            let htmlDoc = '';
-            if (finiquitoPath && finiquitoPath !== "null" && finiquitoPath !== "") {
-                htmlDoc = `<div class="alert alert-success p-2 small d-flex justify-content-between align-items-center">
-                            <span><i class="bi bi-check-circle-fill"></i> Documento subido.</span>
-                            <a href="${viewUrl}" class="btn btn-xs btn-info py-0 px-2" target="_blank">Ver</a>
-                        </div>`;
-            } else {
-                htmlDoc = `<p class="text-muted small">Sin documento firmado.</p>`;
-            }
-            htmlDoc += `<form action="${uploadUrl}" method="POST" enctype="multipart/form-data">
-                        @csrf
-                        <div class="input-group input-group-sm">
-                            <input type="file" class="form-control" name="documento_firmado" required>
-                            <button class="btn btn-primary" type="submit">Subir</button>
-                        </div>
-                    </form>`;
-            docContent.innerHTML = htmlDoc;
-            docContainer.style.display = 'block';
-        } else {
-            docContainer.style.display = 'none';
+            fetch(`/vacaciones/historial-json/${this.value}`).then(r => r.json()).then(data => {
+                let html = '<div style="font-size: 11px; width: 250px;"><table class="table table-sm mb-0"><thead><tr class="table-dark"><th>Año</th><th>Periodo</th><th>Restantes</th></tr></thead><tbody>';
+                data.forEach(row => {
+                    const statusClass = row.estado === 'En Curso' ? 'text-primary fw-bold' : '';
+                    html += `<tr><td class="text-center">${row.ano_servicio}</td><td>${row.periodo}</td><td class="text-end ${statusClass}">${row.dias_restantes}</td></tr>`;
+                });
+                const total = data.reduce((acc, curr) => acc + (parseFloat(String(curr.dias_restantes).replace(',', '')) || 0), 0).toFixed(2);
+                html += `</tbody><tfoot class="table-light fw-bold"><tr><td colspan="2">TOTAL:</td><td class="text-end text-danger">${total}</td></tr></tfoot></table></div>`;
+                const el = document.getElementById('info_vacaciones');
+                const pop = bootstrap.Popover.getInstance(el); if (pop) pop.dispose();
+                new bootstrap.Popover(el, { content: html, html: true, trigger: 'hover focus', container: 'body', placement: 'right' });
+            });
         }
     });
 
-        botonesCalculo.forEach(btn => {
-            btn.addEventListener('click', function(e) {
-                botonesCalculo.forEach(b => b.classList.remove('active', 'btn-info', 'btn-primary', 'btn-danger'));
-                botonesCalculo.forEach(b => b.classList.add('btn-outline-' + b.id.split('_')[2]));
-                this.classList.remove('btn-outline-' + this.id.split('_')[2]);
-                this.classList.add('active', 'btn-' + this.id.split('_')[2]);
-                handleCalculation.call(this, e);
-            });
-        });
-
-        function handleCalculation(e) {
+    botonesCalculo.forEach(btn => {
+        btn.addEventListener('click', function() {
             const tipoCalculo = this.id.replace('btn_calc_', '');
             document.getElementById('badge_tipo_calculo').textContent = tipoCalculo.replace('_', ' ').toUpperCase();
             
-            const payload = {
-                id_empleado: empleadoSelect.value,
-                fecha_final: fechaFinalInput.value,
-                tipo_calculo: tipoCalculo,
-                dias_vacaciones_manuales: diasManualesInput.value || 0,
-                gratificacion_monto: gratificacionInput.value || 0
-            };
-
-            const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-            tablaResultadosDiv.innerHTML = `<div class="text-center py-4"><div class="spinner-border text-primary"></div><p class="mt-2">Procesando cálculo...</p></div>`;
-            resultadosContainer.style.display = 'block';
-
             fetch("{{ route('finiquitos.calcular') }}", {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
-                body: JSON.stringify(payload)
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                body: JSON.stringify({
+                    id_empleado: empleadoSelect.value,
+                    fecha_final: fechaFinalInput.value,
+                    tipo_calculo: tipoCalculo,
+                    dias_vacaciones_manuales: diasManualesInput.value || 0,
+                    gratificacion_monto: gratificacionInput.value || 0
+                })
             })
-            .then(res => res.ok ? res.json() : Promise.reject(res))
-            .then(data => construirTablaEditable(data))
-            .catch(() => tablaResultadosDiv.innerHTML = `<div class="alert alert-danger">Error en el servidor. Revise la consola.</div>`);
-        }
-
-        // FUNCIÓN ACTUALIZADA PARA DISEÑO COMPACTO Y CENTRADO
-        function construirTablaEditable(data) {
-            let p = ''; 
-            const conceptos = [
-                {l: `Días Laborados (${data.dias_laborados_dias || 0} d)`, i: 'dias_laborados_monto', v: data.dias_laborados_monto},
-                {l: 'Aguinaldo Proporcional', i: 'aguinaldo_monto', v: data.aguinaldo_monto},
-                {l: 'Vacaciones', i: 'vacaciones_monto', v: data.vacaciones_monto},
-                {l: 'Prima Vacacional', i: 'prima_vacacional_monto', v: data.prima_vacacional_monto},
-                {l: 'Indemnización (90 días)', i: 'monto_3_meses', v: data.monto_3_meses},
-                {l: 'Prima de Antigüedad', i: 'monto_prima_antiguedad', v: data.monto_prima_antiguedad},
-                {l: 'Gratificación Especial', i: 'gratificacion_monto', v: data.gratificacion_monto || 0},
-                {l: 'Caja de Ahorro', i: 'caja_ahorro_monto', v: data.caja_ahorro_monto || 0}
-            ];
-            
-            conceptos.forEach(c => {
-                if(parseFloat(c.v) > 0 || c.i === 'gratificacion_monto') {
-                    p += `<tr>
-                            <td class="ps-4 align-middle-custom">${c.l}</td>
-                            <td class="text-end pe-4">
-                                <input type="number" step="0.01" id="${c.i}" class="monto-editable text-end monto-p" value="${parseFloat(c.v).toFixed(2)}">
-                            </td>
-                          </tr>`;
-                }
+            .then(res => res.json())
+            .then(data => {
+                // Guardamos el sueldo diario para los cálculos manuales
+                sueldoDiarioDetectado = parseFloat(data.sueldo_diario || 0);
+                resultadosContainer.style.display = 'block';
+                construirTablaEditable(data);
             });
-
-            let d = `<tr>
-                        <td class="ps-4 align-middle-custom">Saldo de Préstamo / Deducciones</td>
-                        <td class="text-end pe-4">
-                            <input type="number" step="0.01" id="prestamo_saldo" class="monto-editable text-end monto-d text-danger" value="${parseFloat(data.prestamo_saldo || 0).toFixed(2)}">
-                        </td>
-                      </tr>`;
-
-            tablaResultadosDiv.innerHTML = `
-                <div id="tabla_resultados_wrapper">
-                    <table class="table table-hover border bg-white shadow-sm">
-                        <thead class="table-dark">
-                            <tr>
-                                <th class="ps-4 py-3">Concepto</th>
-                                <th class="text-center py-3" style="width: 220px;">Monto Editable ($)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr class="row-categoria"><td colspan="2" class="py-2 ps-3">Percepciones</td></tr>
-                            ${p}
-                            <tr class="row-categoria"><td colspan="2" class="py-2 ps-3">Deducciones</td></tr>
-                            ${d}
-                            <tr class="fs-5 fw-bold table-primary">
-                                <td class="text-end pe-4 align-middle-custom">Total Neto a Pagar:</td>
-                                <td class="text-end pe-4 align-middle-custom" id="neto_p">$0.00</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>`;
-            
-            recalcularTotales();
-            document.querySelectorAll('.monto-p, .monto-d').forEach(i => i.addEventListener('input', recalcularTotales));
-        }
-        
-        function recalcularTotales() {
-            let tp = 0; document.querySelectorAll('.monto-p').forEach(i => tp += parseFloat(i.value) || 0);
-            let td = 0; document.querySelectorAll('.monto-d').forEach(i => td += parseFloat(i.value) || 0);
-            document.getElementById('neto_p').textContent = `$${(tp - td).toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
-        }
-
-        function prepararEnvio(format) {
-            const form = document.getElementById('form_export');
-            const idEmp = empleadoSelect.value;
-            if (!idEmp) { alert('Seleccione un empleado.'); return; }
-
-            if (format === 'aviso') {
-                form.action = "{{ url('finiquitos/aviso-terminacion') }}/" + idEmp;
-                form.method = "GET";
-                form.submit();
-                return;
-            }
-
-            if (format === 'pdf') form.action = "{{ route('finiquitos.export.pdf') }}";
-            else if (format === 'renuncia') form.action = "{{ route('finiquitos.export.renuncia.pdf') }}";
-            else if (format === 'excel') form.action = "{{ route('finiquitos.export.excel') }}";
-            
-            form.method = "POST";
-            document.getElementById('export_id_empleado').value = idEmp;
-            document.getElementById('export_fecha_final').value = fechaFinalInput.value;
-            document.getElementById('export_id_patron').value = patronManualSelect.value;
-            document.getElementById('export_dias_vacaciones_manuales').value = diasManualesInput.value || 0;
-
-            const btnActivo = document.querySelector('button.active');
-            document.getElementById('export_tipo_calculo').value = btnActivo ? btnActivo.id.replace('btn_calc_', '') : 'finiquito';
-
-            const campos = ['dias_laborados_monto', 'aguinaldo_monto', 'vacaciones_monto', 'prima_vacacional_monto', 'monto_3_meses', 'monto_prima_antiguedad', 'caja_ahorro_monto', 'prestamo_saldo', 'gratificacion_monto'];
-            campos.forEach(id => {
-                const inputTabla = document.getElementById(id);
-                const inputOculto = document.getElementById('export_' + id);
-                if (inputOculto) inputOculto.value = inputTabla ? inputTabla.value : 0;
-            });
-            form.submit();
-        }
-
-        document.getElementById('btn_export_aviso_terminacion').addEventListener('click', () => prepararEnvio('aviso'));
-        document.getElementById('btn_export_pdf').addEventListener('click', () => prepararEnvio('pdf'));
-        document.getElementById('btn_export_renuncia').addEventListener('click', () => prepararEnvio('renuncia'));
-        document.getElementById('btn_export_excel').addEventListener('click', () => prepararEnvio('excel'));
-
-        [fechaFinalInput, patronManualSelect].forEach(i => i.addEventListener('change', toggleButtons));
+        });
     });
-    </script>
+
+    function construirTablaEditable(data) {
+        let p = ''; 
+        const conceptos = [
+            {
+                l: `Días Laborados <input type="number" id="input_dias_cantidad" class="form-control d-inline-block text-center" style="width: 70px; height: 28px; font-size: 13px; margin: 0 5px; display: inline-block !important;" value="${data.dias_laborados_dias || 0}"> d`, 
+                i: 'dias_laborados_monto', 
+                v: data.dias_laborados_monto
+            },
+            {l: 'Aguinaldo Proporcional', i: 'aguinaldo_monto', v: data.aguinaldo_monto},
+            {l: 'Vacaciones', i: 'vacaciones_monto', v: data.vacaciones_monto},
+            {l: 'Prima Vacacional', i: 'prima_vacacional_monto', v: data.prima_vacacional_monto},
+            {l: 'Indemnización (90 días)', i: 'monto_3_meses', v: data.monto_3_meses},
+            {l: 'Prima de Antigüedad', i: 'monto_prima_antiguedad', v: data.monto_prima_antiguedad},
+            {l: 'Gratificación Especial', i: 'gratificacion_monto', v: data.gratificacion_monto || 0},
+            {l: 'Caja de Ahorro', i: 'caja_ahorro_monto', v: data.caja_ahorro_monto || 0}
+        ];
+        
+        conceptos.forEach(c => {
+            if(parseFloat(c.v) > 0 || c.i === 'dias_laborados_monto' || c.i === 'gratificacion_monto') {
+                p += `<tr><td class="ps-4 align-middle-custom">${c.l}</td><td class="text-end pe-4"><input type="number" step="0.01" id="${c.i}" class="monto-editable text-end monto-p" value="${parseFloat(c.v).toFixed(2)}"></td></tr>`;
+            }
+        });
+
+        tablaResultadosDiv.innerHTML = `
+            <div id="tabla_resultados_wrapper">
+                <table class="table table-hover border bg-white shadow-sm">
+                    <thead class="table-dark"><tr><th class="ps-4 py-3">Concepto</th><th class="text-center py-3">Monto Editable ($)</th></tr></thead>
+                    <tbody>
+                        <tr class="row-categoria"><td colspan="2" class="py-2 ps-3">Percepciones</td></tr>${p}
+                        <tr class="row-categoria"><td colspan="2" class="py-2 ps-3">Deducciones</td></tr>
+                        <tr><td class="ps-4 align-middle-custom">Deducciones / Préstamos</td><td class="text-end pe-4"><input type="number" step="0.01" id="prestamo_saldo" class="monto-editable text-end monto-d text-danger" value="${parseFloat(data.prestamo_saldo || 0).toFixed(2)}"></td></tr>
+                        <tr class="fs-5 fw-bold table-primary"><td class="text-end pe-4">Total Neto a Pagar:</td><td class="text-end pe-4" id="neto_p">$0.00</td></tr>
+                    </tbody>
+                </table>
+            </div>`;
+        
+        recalcularTotales();
+
+        // --- LÓGICA DE RECALCULO AUTOMÁTICO AL CAMBIAR DÍAS ---
+        const inputCantDias = document.getElementById('input_dias_cantidad');
+        const inputMontoDias = document.getElementById('dias_laborados_monto');
+
+        if(inputCantDias && inputMontoDias) {
+            inputCantDias.addEventListener('input', function() {
+                const dias = parseFloat(this.value) || 0;
+                const nuevoMonto = dias * sueldoDiarioDetectado;
+                inputMontoDias.value = nuevoMonto.toFixed(2);
+                recalcularTotales(); // Actualiza el Neto automáticamente
+            });
+        }
+
+        document.querySelectorAll('.monto-p, .monto-d').forEach(i => i.addEventListener('input', recalcularTotales));
+    }
+    
+    function recalcularTotales() {
+        let tp = 0; document.querySelectorAll('.monto-p').forEach(i => tp += parseFloat(i.value) || 0);
+        let td = 0; document.querySelectorAll('.monto-d').forEach(i => td += parseFloat(i.value) || 0);
+        document.getElementById('neto_p').textContent = `$${(tp - td).toLocaleString('es-MX', {minimumFractionDigits:2})}`;
+    }
+
+    function prepararEnvio(format) {
+        const form = document.getElementById('form_export');
+        if (format === 'aviso') {
+            form.action = "{{ url('finiquitos/aviso-terminacion') }}/" + empleadoSelect.value;
+            form.method = "GET"; form.submit(); return;
+        }
+
+        form.method = "POST";
+        form.action = format === 'pdf' ? "{{ route('finiquitos.export.pdf') }}" : (format === 'excel' ? "{{ route('finiquitos.export.excel') }}" : "{{ route('finiquitos.export.renuncia.pdf') }}");
+        
+        document.getElementById('export_id_empleado').value = empleadoSelect.value;
+        document.getElementById('export_fecha_final').value = fechaFinalInput.value;
+        document.getElementById('export_id_patron').value = patronManualSelect.value;
+        document.getElementById('export_dias_vacaciones_manuales').value = diasManualesInput.value || 0;
+        document.getElementById('export_tipo_calculo').value = document.querySelector('button.active').id.replace('btn_calc_', '');
+
+        const campos = ['dias_laborados_monto', 'aguinaldo_monto', 'vacaciones_monto', 'prima_vacacional_monto', 'monto_3_meses', 'monto_prima_antiguedad', 'caja_ahorro_monto', 'prestamo_saldo', 'gratificacion_monto'];
+        campos.forEach(id => {
+            const val = document.getElementById(id);
+            if (document.getElementById('export_' + id)) {
+                document.getElementById('export_' + id).value = val ? val.value : 0;
+            }
+        });
+        form.submit();
+    }
+
+    document.getElementById('btn_export_aviso_terminacion').addEventListener('click', () => prepararEnvio('aviso'));
+    document.getElementById('btn_export_pdf').addEventListener('click', () => prepararEnvio('pdf'));
+    document.getElementById('btn_export_renuncia').addEventListener('click', () => prepararEnvio('renuncia'));
+    document.getElementById('btn_export_excel').addEventListener('click', () => prepararEnvio('excel'));
+
+    [fechaFinalInput, patronManualSelect].forEach(i => i.addEventListener('change', toggleButtons));
+});
+</script>
     @endpush
 </x-app-layout>
