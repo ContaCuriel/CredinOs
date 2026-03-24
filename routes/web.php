@@ -138,6 +138,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/finiquitos/{empleado}/upload-signed', [FiniquitoController::class, 'uploadSigned'])->name('finiquitos.uploadSigned');
         Route::get('/finiquitos/{empleado}/view-signed', [FiniquitoController::class, 'viewSigned'])->name('finiquitos.viewSigned');
         Route::get('/finiquitos/aviso-terminacion/{id_empleado}', [App\Http\Controllers\FiniquitoController::class, 'generarAvisoTerminacion'])->name('finiquitos.avisoTerminacion');
+        Route::get('/vacaciones/historial-json/{id}', [VacacionController::class, 'getHistorialJson']);
 
         // --- Módulo de Renuncia Voluntaria ---
         Route::get('/renuncias/crear', [App\Http\Controllers\RenunciaController::class, 'create'])

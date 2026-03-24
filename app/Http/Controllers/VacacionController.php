@@ -85,6 +85,52 @@ class VacacionController extends Controller
         return view('vacaciones.create', compact('empleados', 'preseleccionado_empleado_id'));
     }
 
+    public function historialJson($id_empleado)
+    {
+        $empleado = Empleado::findOrFail($id_empleado);
+        $periodosTomados = PeriodoVacacional::where('id_empleado', $empleado->id_empleado)->get();
+        
+        $historial = [];
+        $fechaIngreso = Carbon::parse($empleado->fecha_ingreso);
+        $fechaCorte = ($empleado->status === 'Baja' && $empleado->fecha_baja)
+            ? Carbon::parse($empleado->fecha_baja)
+            : Carbon::now();
+
+        $anosCompletos = (int) $fechaIngreso->diffInYears($fechaCorte);
+
+        // 1. Años completados
+        for ($i = 1; $i <= $anosCompletos; $i++) {
+            $diasDerecho = $empleado->getDiasVacacionesParaAnoDeServicio($i);
+            $tomados = $periodosTomados->where('ano_servicio_correspondiente', $i)->sum('dias_tomados');
+            $inicio = $fechaIngreso->copy()->addYears($i - 1);
+            $fin = $fechaIngreso->copy()->addYears($i)->subDay();
+
+            $historial[] = [
+                'año_servicio' => $i,
+                'periodo' => $inicio->format('d/m/y') . '-' . $fin->format('d/m/y'),
+                'dias_restantes' => number_format($diasDerecho - $tomados, 2),
+                'estado' => 'Completado'
+            ];
+        }
+
+        // 2. Año en curso (Proporcional)
+        $anoActual = $anosCompletos + 1;
+        $diasTotalesAno = $empleado->getDiasVacacionesParaAnoDeServicio($anoActual);
+        $inicioActual = $fechaIngreso->copy()->addYears($anosCompletos);
+        $mesesProporcionales = $inicioActual->diffInMonths($fechaCorte);
+        $proporcional = ($diasTotalesAno / 12) * $mesesProporcionales;
+        $tomadosActual = $periodosTomados->where('ano_servicio_correspondiente', $anoActual)->sum('dias_tomados');
+
+        $historial[] = [
+            'año_servicio' => $anoActual,
+            'periodo' => $inicioActual->format('d/m/y') . '-Corte',
+            'dias_restantes' => number_format($proporcional - $tomadosActual, 2),
+            'estado' => 'En Curso'
+        ];
+
+        return response()->json($historial);
+    }
+
     /**
      * Guarda un nuevo periodo vacacional.
      */

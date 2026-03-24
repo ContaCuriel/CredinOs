@@ -100,9 +100,20 @@
                                 <input type="date" class="form-control form-control-sm" id="fecha_final" required>
                             </div>
                             <div class="col-md-4 mb-3">
-                                <label for="dias_vacaciones_manuales" class="form-label small fw-bold">Días Vacaciones</label>
-                                <input type="number" class="form-control form-control-sm" id="dias_vacaciones_manuales" step="0.01" placeholder="Ej: 19.54">
-                            </div>
+        <label for="dias_vacaciones_manuales" class="form-label small fw-bold">
+            Días Vacaciones 
+            <i class="bi bi-info-circle text-primary ms-1" 
+               id="info_vacaciones" 
+               style="cursor: pointer;" 
+               data-bs-toggle="popover" 
+               data-bs-trigger="hover focus"
+               title="Historial de Vacaciones" 
+               data-bs-html="true" 
+               data-bs-content="Seleccione un empleado para ver el resumen.">
+            </i>
+        </label>
+        <input type="number" class="form-control form-control-sm" id="dias_vacaciones_manuales" step="0.01" placeholder="Ej: 19.54">
+    </div>
                         </div>
                         <div class="row">
                             <div class="col-md-6 mb-3">
@@ -191,61 +202,99 @@
     </div>
 
     @push('scripts')
-    <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const empleadoSelect = document.getElementById('id_empleado');
-        const fechaIngresoInput = document.getElementById('fecha_ingreso');
-        const fechaFinalInput = document.getElementById('fecha_final');
-        const diasManualesInput = document.getElementById('dias_vacaciones_manuales');
-        const patronManualSelect = document.getElementById('id_patron_manual');
-        const gratificacionInput = document.getElementById('gratificacion_monto_inicial');
-        const resultadosContainer = document.getElementById('resultados_finiquito_container');
-        const tablaResultadosDiv = document.getElementById('tabla_resultados');
-        const botonesCalculo = document.querySelectorAll('#btn_calc_dias_laborados, #btn_calc_finiquito, #btn_calc_liquidacion');
-        const docContainer = document.getElementById('documento_firmado_container');
-        const docContent = document.getElementById('documento_firmado_content');
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // 1. SELECTORES EXISTENTES
+    const empleadoSelect = document.getElementById('id_empleado');
+    const fechaIngresoInput = document.getElementById('fecha_ingreso');
+    const fechaFinalInput = document.getElementById('fecha_final');
+    const diasManualesInput = document.getElementById('dias_vacaciones_manuales');
+    const patronManualSelect = document.getElementById('id_patron_manual');
+    const gratificacionInput = document.getElementById('gratificacion_monto_inicial');
+    const resultadosContainer = document.getElementById('resultados_finiquito_container');
+    const tablaResultadosDiv = document.getElementById('tabla_resultados');
+    const botonesCalculo = document.querySelectorAll('#btn_calc_dias_laborados, #btn_calc_finiquito, #btn_calc_liquidacion');
+    const docContainer = document.getElementById('documento_firmado_container');
+    const docContent = document.getElementById('documento_firmado_content');
 
-        function toggleButtons() {
-            const habilitar = empleadoSelect.value && fechaFinalInput.value && patronManualSelect.value;
-            botonesCalculo.forEach(btn => btn.disabled = !habilitar);
+    // 2. INICIALIZACIÓN DEL POPOVER (NUEVO)
+    const infoIcon = document.getElementById('info_vacaciones');
+    const popoverVac = new bootstrap.Popover(infoIcon);
+
+    function toggleButtons() {
+        const habilitar = empleadoSelect.value && fechaFinalInput.value && patronManualSelect.value;
+        botonesCalculo.forEach(btn => btn.disabled = !habilitar);
+    }
+
+    // 3. EVENTO CHANGE DE EMPLEADO (ACTUALIZADO)
+    empleadoSelect.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        const empId = this.value;
+
+        // Lógica existente de fechas y documentos
+        fechaIngresoInput.value = selectedOption.dataset.fecha_ingreso || '';
+        fechaFinalInput.value = selectedOption.dataset.fecha_baja || '';
+        resultadosContainer.style.display = 'none';
+        toggleButtons();
+
+        // --- INICIO LÓGICA DE HISTORIAL DE VACACIONES (NUEVO) ---
+        if (empId) {
+            fetch(`/vacaciones/historial-json/${empId}`) 
+                .then(res => res.json())
+                .then(data => {
+                    let html = '<div style="font-size: 11px; width: 220px;"><table class="table table-sm mb-0">';
+                    html += '<thead class="table-light"><tr><th>Año</th><th>Periodo</th><th>Restantes</th></tr></thead><tbody>';
+                    
+                    data.forEach(row => {
+                        const statusClass = row.estado === 'En Curso' ? 'text-primary fw-bold' : '';
+                        html += `<tr>
+                            <td class="text-center">${Math.floor(row.año_servicio)}</td>
+                            <td>${row.periodo}</td>
+                            <td class="text-end ${statusClass}">${row.dias_restantes}</td>
+                        </tr>`;
+                    });
+
+                    const total = data.reduce((acc, curr) => acc + parseFloat(curr.dias_restantes), 0).toFixed(2);
+                    html += `</tbody><tfoot class="table-light fw-bold"><tr><td colspan="2">TOTAL:</td><td class="text-end text-danger">${total}</td></tr></tfoot></table></div>`;
+                    
+                    // Actualizamos el contenido y refrescamos el popover
+                    infoIcon.setAttribute('data-bs-content', html);
+                })
+                .catch(err => {
+                    infoIcon.setAttribute('data-bs-content', 'Error al cargar historial.');
+                });
+        } else {
+            infoIcon.setAttribute('data-bs-content', 'Seleccione un empleado para ver el resumen.');
         }
+        // --- FIN LÓGICA DE HISTORIAL DE VACACIONES ---
 
-        empleadoSelect.addEventListener('change', function() {
-            const selectedOption = this.options[this.selectedIndex];
-            fechaIngresoInput.value = selectedOption.dataset.fecha_ingreso || '';
-            fechaFinalInput.value = selectedOption.dataset.fecha_baja || '';
-            resultadosContainer.style.display = 'none';
-            toggleButtons();
-
-            if (this.value) {
-                const finiquitoPath = selectedOption.dataset.finiquitoPath;
-                const viewUrl = selectedOption.dataset.finiquitoViewUrl;
-                const uploadUrl = selectedOption.dataset.finiquitoUploadUrl;
-                let html = '';
-
-                if (finiquitoPath && finiquitoPath !== "null" && finiquitoPath !== "") {
-                    html = `<div class="alert alert-success p-2 small d-flex justify-content-between align-items-center">
-                                <span><i class="bi bi-check-circle-fill"></i> Documento subido.</span>
-                                <a href="${viewUrl}" class="btn btn-xs btn-info py-0 px-2" target="_blank">Ver</a>
-                            </div>`;
-                } else {
-                    html = `<p class="text-muted small">Sin documento firmado.</p>`;
-                }
-
-                html += `<form action="${uploadUrl}" method="POST" enctype="multipart/form-data">
-                            @csrf
-                            <div class="input-group input-group-sm">
-                                <input type="file" class="form-control" name="documento_firmado" required>
-                                <button class="btn btn-primary" type="submit">Subir</button>
-                            </div>
-                        </form>`;
-                
-                docContent.innerHTML = html;
-                docContainer.style.display = 'block';
+        // Lógica existente de documentos firmados...
+        if (this.value) {
+            const finiquitoPath = selectedOption.dataset.finiquitoPath;
+            const viewUrl = selectedOption.dataset.finiquitoViewUrl;
+            const uploadUrl = selectedOption.dataset.finiquitoUploadUrl;
+            let htmlDoc = '';
+            if (finiquitoPath && finiquitoPath !== "null" && finiquitoPath !== "") {
+                htmlDoc = `<div class="alert alert-success p-2 small d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-check-circle-fill"></i> Documento subido.</span>
+                            <a href="${viewUrl}" class="btn btn-xs btn-info py-0 px-2" target="_blank">Ver</a>
+                        </div>`;
             } else {
-                docContainer.style.display = 'none';
+                htmlDoc = `<p class="text-muted small">Sin documento firmado.</p>`;
             }
-        });
+            htmlDoc += `<form action="${uploadUrl}" method="POST" enctype="multipart/form-data">
+                        @csrf
+                        <div class="input-group input-group-sm">
+                            <input type="file" class="form-control" name="documento_firmado" required>
+                            <button class="btn btn-primary" type="submit">Subir</button>
+                        </div>
+                    </form>`;
+            docContent.innerHTML = htmlDoc;
+            docContainer.style.display = 'block';
+        } else {
+            docContainer.style.display = 'none';
+        }
+    });
 
         botonesCalculo.forEach(btn => {
             btn.addEventListener('click', function(e) {
