@@ -359,9 +359,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // --- CORRECCIÓN PARA AVISO DE TERMINACIÓN ---
     if (format === 'aviso') {
-    // Usamos el nuevo nombre de la ruta
-    window.open(`/documentos/imprimir-aviso/${idEmp}`, '_blank');
-    return;
+        // Asegúrate de que apunte a la ruta que tienes en web.php
+        window.open(`/finiquitos/aviso-terminacion/${idEmp}`, '_blank');
+        return;
     }
 
     const form = document.getElementById('form_export');
@@ -403,6 +403,7 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('btn_export_pdf').addEventListener('click', () => prepararEnvio('pdf'));
     document.getElementById('btn_export_renuncia').addEventListener('click', () => prepararEnvio('renuncia'));
     document.getElementById('btn_export_excel').addEventListener('click', () => prepararEnvio('excel'));
+    document.getElementById('btn_export_aviso_terminacion').addEventListener('click', () => prepararEnvio('aviso'));
 
     [fechaFinalInput, patronManualSelect].forEach(i => i.addEventListener('change', toggleButtons));
 });
