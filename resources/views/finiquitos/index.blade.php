@@ -211,8 +211,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const tablaResultadosDiv = document.getElementById('tabla_resultados');
     const botonesCalculo = document.querySelectorAll('#btn_calc_dias_laborados, #btn_calc_finiquito, #btn_calc_liquidacion');
 
-    // Variable global persistente
-    let sueldoDiarioDetectado = 0;
+    // Variable persistente en el scope del script
+    let sueldoDiarioGlobal = 0;
 
     function toggleButtons() {
         const habilitar = empleadoSelect.value && fechaFinalInput.value && patronManualSelect.value;
@@ -239,7 +239,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 const el = document.getElementById('info_vacaciones');
                 const existingPopover = bootstrap.Popover.getInstance(el);
                 if (existingPopover) existingPopover.dispose();
-                new bootstrap.Popover(el, { content: html, html: true, trigger: 'hover focus', container: 'body', placement: 'right' });
+                
+                // Inicialización forzada del popover
+                new bootstrap.Popover(el, { 
+                    content: html, 
+                    html: true, 
+                    trigger: 'hover focus', 
+                    container: 'body', 
+                    placement: 'right',
+                    sanitize: false 
+                });
             });
         }
     });
@@ -263,8 +272,8 @@ document.addEventListener('DOMContentLoaded', function () {
             })
             .then(res => res.json())
             .then(data => {
-                // GUARDAR EL SUELDO DIARIO SIEMPRE
-                sueldoDiarioDetectado = parseFloat(data.sueldo_diario || 0);
+                // GUARDAR EL SUELDO DIARIO EN LA VARIABLE GLOBAL
+                sueldoDiarioGlobal = parseFloat(data.sueldo_diario || 0);
                 resultadosContainer.style.display = 'block';
                 construirTablaEditable(data);
             });
@@ -303,7 +312,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         <tr class="row-categoria"><td colspan="2" class="py-2 ps-3">Percepciones</td></tr>${p}
                         <tr class="row-categoria"><td colspan="2" class="py-2 ps-3">Deducciones</td></tr>
                         <tr><td class="ps-4 align-middle-custom">Deducciones / Préstamos</td><td class="text-end pe-4"><input type="number" step="0.01" id="prestamo_saldo" class="monto-editable text-end monto-d text-danger" value="${parseFloat(data.prestamo_saldo || 0).toFixed(2)}"></td></tr>
-                        <tr class="fs-5 fw-bold table-primary"><td class="text-end pe-4">Total Neto a Pagar:</td><td class="text-end pe-4" id="neto_p">$0.00</td></tr>
+                        <tr class="fs-5 fw-bold table-primary"><td class="text-end pe-4">Total Neto:</td><td class="text-end pe-4" id="neto_p">$0.00</td></tr>
                     </tbody>
                 </table>
             </div>`;
@@ -311,28 +320,31 @@ document.addEventListener('DOMContentLoaded', function () {
         recalcularTotales();
     }
 
-    // 4. DELEGACIÓN DE EVENTOS (ESTO EVITA QUE SE QUEDE EN CERO)
+    // 4. DELEGACIÓN DE EVENTOS PARA EL RECÁLCULO (MEJORADO)
     document.addEventListener('input', function (e) {
-        // Si cambian los DÍAS
+        // Manejo de la cantidad de DÍAS
         if (e.target && e.target.id === 'input_dias_cantidad') {
             const montoInput = document.getElementById('dias_laborados_monto');
-            if (montoInput) {
+            if (montoInput && sueldoDiarioGlobal > 0) {
                 const dias = parseFloat(e.target.value) || 0;
-                const nuevoMonto = dias * sueldoDiarioDetectado;
+                const nuevoMonto = dias * sueldoDiarioGlobal;
                 montoInput.value = nuevoMonto.toFixed(2);
             }
             recalcularTotales();
         }
 
-        // Si cambian los MONTOS
-        if (e.target && (e.target.classList.contains('monto-p') || e.target.classList.contains('monto-d'))) {
+        // Manejo de cualquier MONTO editable
+        if (e.target && e.target.classList.contains('monto-editable')) {
             recalcularTotales();
         }
     });
     
     function recalcularTotales() {
-        let tp = 0; document.querySelectorAll('.monto-p').forEach(i => tp += parseFloat(i.value) || 0);
-        let td = 0; document.querySelectorAll('.monto-d').forEach(i => td += parseFloat(i.value) || 0);
+        let tp = 0; 
+        document.querySelectorAll('.monto-p').forEach(i => tp += parseFloat(i.value) || 0);
+        let td = 0; 
+        document.querySelectorAll('.monto-d').forEach(i => td += parseFloat(i.value) || 0);
+        
         const netoElement = document.getElementById('neto_p');
         if (netoElement) {
             netoElement.textContent = `$${(tp - td).toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
@@ -353,7 +365,9 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('export_fecha_final').value = fechaFinalInput.value;
         document.getElementById('export_id_patron').value = patronManualSelect.value;
         document.getElementById('export_dias_vacaciones_manuales').value = diasManualesInput.value || 0;
-        document.getElementById('export_tipo_calculo').value = document.querySelector('button.active').id.replace('btn_calc_', '');
+        
+        const btnActive = document.querySelector('button.active');
+        document.getElementById('export_tipo_calculo').value = btnActive ? btnActive.id.replace('btn_calc_', '') : 'finiquito';
 
         const campos = ['dias_laborados_monto', 'aguinaldo_monto', 'vacaciones_monto', 'prima_vacacional_monto', 'monto_3_meses', 'monto_prima_antiguedad', 'caja_ahorro_monto', 'prestamo_saldo', 'gratificacion_monto'];
         campos.forEach(id => {
