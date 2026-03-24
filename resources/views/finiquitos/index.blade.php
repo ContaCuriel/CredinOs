@@ -359,9 +359,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // --- CORRECCIÓN PARA AVISO DE TERMINACIÓN ---
     if (format === 'aviso') {
-        // Abrimos en pestaña nueva para no perder lo que llevas calculado en la tabla
-        window.open("{{ url('finiquitos/aviso-terminacion') }}/" + idEmp, '_blank');
-        return;
+    // Usamos el nuevo nombre de la ruta
+    window.open(`/documentos/imprimir-aviso/${idEmp}`, '_blank');
+    return;
     }
 
     const form = document.getElementById('form_export');

@@ -137,7 +137,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/finiquitos/exportar-renuncia-pdf', [FiniquitoController::class, 'exportarRenunciaPdf'])->name('finiquitos.export.renuncia.pdf')->middleware('can:exportar-finiquitos');
         Route::post('/finiquitos/{empleado}/upload-signed', [FiniquitoController::class, 'uploadSigned'])->name('finiquitos.uploadSigned');
         Route::get('/finiquitos/{empleado}/view-signed', [FiniquitoController::class, 'viewSigned'])->name('finiquitos.viewSigned');
-        Route::get('/finiquitos/aviso-terminacion/{id_empleado}', [App\Http\Controllers\FiniquitoController::class, 'generarAvisoTerminacion'])->name('finiquitos.avisoTerminacion');
+        Route::get('/documentos/imprimir-aviso/{id_empleado}', [App\Http\Controllers\FiniquitoController::class, 'generarAvisoTerminacion'])->name('finiquitos.avisoTerminacion');
         Route::get('/vacaciones/historial-json/{id}', [VacacionController::class, 'historialJson']);
 
         // --- Módulo de Renuncia Voluntaria ---
