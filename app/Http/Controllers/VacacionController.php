@@ -72,30 +72,38 @@ class VacacionController extends Controller
     public function historialJson($id_empleado)
 {
     try {
-        // Buscamos al empleado
-        $empleado = \App\Models\Empleado::findOrFail($id_empleado);
+        // Buscamos al empleado usando el namespace completo para evitar fallos
+        $empleado = \App\Models\Empleado::find($id_empleado);
         
-        // Obtenemos sus periodos usando la ruta completa del modelo
-        $periodosTomados = \App\Models\PeriodoVacacional::where('id_empleado', $empleado->getKey())->get();
+        if (!$empleado) {
+            return response()->json(['error' => 'Empleado no encontrado'], 404);
+        }
+
+        // IMPORTANTE: Llamamos al modelo PeriodoVacacional con su ruta completa
+        // para que no dependa de los 'use' de arriba que podrían estar mal.
+        $periodosTomados = \App\Models\PeriodoVacacional::where('id_empleado', $empleado->id_empleado)->get();
         
         $historial = [];
         $fechaIngreso = \Carbon\Carbon::parse($empleado->fecha_ingreso);
+        
+        // Fecha de corte: Baja o Hoy
         $fechaCorte = ($empleado->status === 'Baja' && $empleado->fecha_baja)
             ? \Carbon\Carbon::parse($empleado->fecha_baja)
             : \Carbon\Carbon::now();
 
         $anosCompletos = (int) $fechaIngreso->diffInYears($fechaCorte);
 
-        // 1. Años cerrados
+        // 1. Años completados (Historial cerrado)
         for ($i = 1; $i <= $anosCompletos; $i++) {
             $diasDerecho = $empleado->getDiasVacacionesParaAnoDeServicio($i);
             $tomados = $periodosTomados->where('ano_servicio_correspondiente', $i)->sum('dias_tomados');
+            
             $inicio = $fechaIngreso->copy()->addYears($i - 1);
             $fin = $fechaIngreso->copy()->addYears($i)->subDay();
 
             $historial[] = [
                 'año_servicio' => $i,
-                'periodo' => $inicio->format('d/m/y') . '-' . $fin->format('d/m/y'),
+                'periodo' => $inicio->format('d/m/y') . ' - ' . $fin->format('d/m/y'),
                 'dias_restantes' => number_format($diasDerecho - $tomados, 2),
                 'estado' => 'Completado'
             ];
@@ -112,7 +120,7 @@ class VacacionController extends Controller
 
         $historial[] = [
             'año_servicio' => $anoActual,
-            'periodo' => $inicioActual->format('d/m/y') . '-Hoy',
+            'periodo' => $inicioActual->format('d/m/y') . ' - Corte',
             'dias_restantes' => number_format($proporcional - $tomadosActual, 2),
             'estado' => 'En Curso'
         ];
@@ -120,11 +128,11 @@ class VacacionController extends Controller
         return response()->json($historial);
 
     } catch (\Exception $e) {
-        // Si vuelve a fallar, el error aparecerá en la consola del navegador
+        // Esto devolverá el error real a la consola de F12 para que sepamos qué línea falló
         return response()->json([
             'error' => $e->getMessage(),
-            'file' => $e->getFile(),
-            'line' => $e->getLine()
+            'line' => $e->getLine(),
+            'file' => $e->getFile()
         ], 500);
     }
 }
