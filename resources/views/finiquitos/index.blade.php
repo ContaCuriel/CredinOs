@@ -213,7 +213,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let salarioDiarioGlobal = 0;
 
-    // Herramienta para limpiar números (Elimina comas y valida decimales)
+    // Limpieza robusta de números
     const limpiarNumero = (val) => {
         if (!val) return 0;
         return parseFloat(String(val).replace(/,/g, '')) || 0;
@@ -224,16 +224,15 @@ document.addEventListener('DOMContentLoaded', function () {
         botonesCalculo.forEach(btn => btn.disabled = !habilitar);
     }
 
-    // 1. CARGA DE POPOVER (VACACIONES)
+    // 1. CARGA DE POPOVER Y FECHAS
     empleadoSelect.addEventListener('change', function() {
-        const selectedOption = this.options[this.selectedIndex];
-        const empId = this.value;
-        fechaIngresoInput.value = selectedOption.dataset.fecha_ingreso || '';
-        fechaFinalInput.value = selectedOption.dataset.fecha_baja || '';
+        const opt = this.options[this.selectedIndex];
+        fechaIngresoInput.value = opt.dataset.fecha_ingreso || '';
+        fechaFinalInput.value = opt.dataset.fecha_baja || '';
         toggleButtons();
         
-        if (empId) {
-            fetch(`/vacaciones/historial-json/${empId}`)
+        if (this.value) {
+            fetch(`/vacaciones/historial-json/${this.value}`)
             .then(res => res.json())
             .then(data => {
                 let html = '<div style="font-size: 11px; width: 250px;"><table class="table table-sm mb-0"><thead class="table-dark"><tr><th>Año</th><th>Periodo</th><th>Restantes</th></tr></thead><tbody>';
@@ -243,26 +242,28 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
                 const total = data.reduce((acc, curr) => acc + limpiarNumero(curr.dias_restantes), 0).toFixed(2);
                 html += `</tbody><tfoot class="table-light fw-bold"><tr><td colspan="2">TOTAL:</td><td class="text-end text-danger">${total}</td></tr></tfoot></table></div>`;
+                
                 const el = document.getElementById('info_vacaciones');
-                const existingPopover = bootstrap.Popover.getInstance(el);
-                if (existingPopover) existingPopover.dispose();
+                const old = bootstrap.Popover.getInstance(el);
+                if (old) old.dispose();
                 new bootstrap.Popover(el, { content: html, html: true, trigger: 'hover focus', container: 'body', placement: 'right', sanitize: false });
             });
         }
     });
 
-    // 2. EJECUCIÓN CÁLCULO (POST)
+    // 2. EJECUCIÓN CÁLCULO
     botonesCalculo.forEach(btn => {
         btn.addEventListener('click', function() {
-            const tipoCalculo = this.id.replace('btn_calc_', '');
-            document.getElementById('badge_tipo_calculo').textContent = tipoCalculo.replace('_', ' ').toUpperCase();
+            const tipo = this.id.replace('btn_calc_', '');
+            document.getElementById('badge_tipo_calculo').textContent = tipo.replace('_', ' ').toUpperCase();
+            
             fetch("{{ route('finiquitos.calcular') }}", {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                 body: JSON.stringify({
                     id_empleado: empleadoSelect.value,
                     fecha_final: fechaFinalInput.value,
-                    tipo_calculo: tipoCalculo,
+                    tipo_calculo: tipo,
                     dias_vacaciones_manuales: diasManualesInput.value || 0,
                     gratificacion_monto: gratificacionInput.value || 0
                 })
@@ -303,11 +304,11 @@ document.addEventListener('DOMContentLoaded', function () {
         tablaResultadosDiv.innerHTML = `
             <div id="tabla_resultados_wrapper">
                 <table class="table table-hover border bg-white shadow-sm">
-                    <thead class="table-dark"><tr><th class="ps-4">Concepto</th><th class="text-center">Monto Editable ($)</th></tr></thead>
+                    <thead class="table-dark"><tr><th class="ps-4 py-3">Concepto</th><th class="text-center py-3">Monto Editable ($)</th></tr></thead>
                     <tbody>
-                        <tr class="row-categoria"><td colspan="2">Percepciones</td></tr>${p}
-                        <tr class="row-categoria"><td colspan="2">Deducciones</td></tr>
-                        <tr><td class="ps-4 align-middle-custom">Deducciones / Préstamos</td><td class="text-end pe-4"><input type="number" step="0.01" id="prestamo_saldo" class="monto-editable text-end monto-d text-danger" value="${limpiarNumero(data.prestamo_saldo).toFixed(2)}"></td></tr>
+                        <tr class="row-categoria"><td colspan="2" class="py-2 ps-3">Percepciones</td></tr>${p}
+                        <tr class="row-categoria"><td colspan="2" class="py-2 ps-3">Deducciones</td></tr>
+                        <tr><td class="ps-4 align-middle-custom">Préstamos / Deducciones</td><td class="text-end pe-4"><input type="number" step="0.01" id="prestamo_saldo" class="monto-editable text-end monto-d text-danger" value="${limpiarNumero(data.prestamo_saldo).toFixed(2)}"></td></tr>
                         <tr class="fs-5 fw-bold table-primary"><td class="text-end pe-4">Total Neto:</td><td class="text-end pe-4" id="neto_p">$0.00</td></tr>
                     </tbody>
                 </table>
@@ -315,22 +316,21 @@ document.addEventListener('DOMContentLoaded', function () {
         recalcularTotales();
     }
 
-    // 4. DELEGACIÓN DE EVENTOS (LA CLAVE DEL ÉXITO)
+    // 4. DELEGACIÓN DE EVENTOS (APLICANDO TU SOLUCIÓN)
     document.addEventListener('input', function (e) {
-        // A. Si cambian los DÍAS LABORADOS
+        // Caso A: Cambio en cantidad de días
         if (e.target && e.target.id === 'input_dias_cantidad') {
             const montoInput = document.getElementById('dias_laborados_monto');
             if (montoInput && salarioDiarioGlobal > 0) {
-                const dias = parseFloat(e.target.value) || 0;
+                const dias = limpiarNumero(e.target.value);
                 montoInput.value = (dias * salarioDiarioGlobal).toFixed(2);
-                
-                // 🔥 DISPARAR EVENTO MANUAL para que la lógica 'B' lo detecte
-                montoInput.dispatchEvent(new Event('input', { bubbles: true }));
             }
+            // 🔥 Recalcula directo sin intermediarios
+            recalcularTotales();
             return;
         }
 
-        // B. Si cambia cualquier MONTO (Manual o disparado por el paso A)
+        // Caso B: Cambio manual en cualquier monto
         if (e.target && e.target.classList.contains('monto-editable')) {
             recalcularTotales();
         }
@@ -342,13 +342,12 @@ document.addEventListener('DOMContentLoaded', function () {
         let td = 0; 
         document.querySelectorAll('.monto-d').forEach(i => td += limpiarNumero(i.value));
         
-        const netoElement = document.getElementById('neto_p');
-        if (netoElement) {
-            netoElement.textContent = `$${(tp - td).toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+        const neto = document.getElementById('neto_p');
+        if (neto) {
+            neto.textContent = `$${(tp - td).toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
         }
     }
 
-    // 5. EXPORTACIÓN
     function prepararEnvio(format) {
         const form = document.getElementById('form_export');
         const idEmp = empleadoSelect.value;
