@@ -103,14 +103,11 @@
         <label for="dias_vacaciones_manuales" class="form-label small fw-bold">
             Días Vacaciones 
             <i class="bi bi-info-circle text-primary ms-1" 
-               id="info_vacaciones" 
-               style="cursor: pointer;" 
-               data-bs-toggle="popover" 
-               data-bs-trigger="hover focus"
-               title="Historial de Vacaciones" 
-               data-bs-html="true" 
-               data-bs-content="Seleccione un empleado para ver el resumen.">
-            </i>
+   id="info_vacaciones" 
+   style="cursor: pointer;" 
+   data-bs-toggle="popover" 
+   title="Historial de Vacaciones">
+</i>
         </label>
         <input type="number" class="form-control form-control-sm" id="dias_vacaciones_manuales" step="0.01" placeholder="Ej: 19.54">
     </div>
@@ -239,43 +236,48 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // --- INICIO LÓGICA DE HISTORIAL DE VACACIONES (NUEVO) ---
         if (empId) {
-        fetch(`/vacaciones/historial-json/${empId}`) 
-            .then(res => res.json())
-            .then(data => {
-                let html = '<div style="font-size: 11px; width: 250px;"><table class="table table-sm mb-0">';
-                html += '<thead class="table-dark"><tr><th>Año</th><th>Periodo</th><th>Restantes</th></tr></thead><tbody>';
-                
-                data.forEach(row => {
-                    const statusClass = row.estado === 'En Curso' ? 'text-primary fw-bold' : '';
-                    html += `<tr>
-                        <td class="text-center">${Math.floor(row.año_servicio)}</td>
-                        <td>${row.periodo}</td>
-                        <td class="text-end ${statusClass}">${row.dias_restantes}</td>
-                    </tr>`;
-                });
+    fetch(`/vacaciones/historial-json/${empId}`) 
+        .then(res => res.json())
+        .then(data => {
+            let html = '<div style="font-size: 11px; width: 250px;"><table class="table table-sm mb-0">';
+            html += '<thead class="table-dark"><tr><th>Año</th><th>Periodo</th><th>Restantes</th></tr></thead><tbody>';
+            
+            data.forEach(row => {
+                const statusClass = row.estado === 'En Curso' ? 'text-primary fw-bold' : '';
+                html += `<tr>
+                    <td class="text-center">${Math.floor(row.año_servicio)}</td>
+                    <td>${row.periodo}</td>
+                    <td class="text-end ${statusClass}">${row.dias_restantes}</td>
+                </tr>`;
+            });
 
-                // Limpiamos comas por si el número viene formateado desde el servidor
-                const total = data.reduce((acc, curr) => {
-                    let valor = String(curr.dias_restantes).replace(',', '');
-                    return acc + (parseFloat(valor) || 0);
-                }, 0).toFixed(2);
+            // Sumar totales asegurando que el formato numérico sea correcto
+            const total = data.reduce((acc, curr) => {
+                let valor = String(curr.dias_restantes).replace(',', '');
+                return acc + (parseFloat(valor) || 0);
+            }, 0).toFixed(2);
 
-                html += `</tbody><tfoot class="table-light fw-bold"><tr><td colspan="2">TOTAL:</td><td class="text-end text-danger">${total}</td></tr></tfoot></table></div>`;
-                
-                // RE-INICIALIZACIÓN CRÍTICA
-                const instance = bootstrap.Popover.getInstance(infoIcon);
-                if (instance) instance.dispose(); 
+            html += `</tbody><tfoot class="table-light fw-bold"><tr><td colspan="2">TOTAL:</td><td class="text-end text-danger">${total}</td></tr></tfoot></table></div>`;
+            
+            // ELIMINAR CUALQUIER INSTANCIA PREVIA
+            const el = document.getElementById('info_vacaciones');
+            const existingPopover = bootstrap.Popover.getInstance(el);
+            if (existingPopover) {
+                existingPopover.dispose();
+            }
 
-                new bootstrap.Popover(infoIcon, {
-                    content: html,
-                    html: true,
-                    trigger: 'hover focus',
-                    sanitize: false,
-                    container: 'body' // Esto ayuda a que no se corte el diseño
-                });
-            })
-            .catch(err => console.error("Error:", err));
-    }
+            // CREAR LA NUEVA INSTANCIA CON EL CONTENIDO DINÁMICO
+            new bootstrap.Popover(el, {
+                content: html,
+                html: true,
+                trigger: 'hover focus',
+                sanitize: false,
+                container: 'body',
+                placement: 'right' // Esto asegura que no se encime sobre el input
+            });
+        })
+        .catch(err => console.error("Error al obtener historial:", err));
+}
         // --- FIN LÓGICA DE HISTORIAL DE VACACIONES ---
 
         // Lógica existente de documentos firmados...
