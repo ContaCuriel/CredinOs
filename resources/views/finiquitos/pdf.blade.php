@@ -67,11 +67,14 @@
             </thead>
             <tbody>
                 @if(($dias_laborados_monto ?? 0) > 0)
-                <tr>
-                    <td>{{ $esContratoDeHonorarios ? 'Honorarios Devengados' : 'Días Laborados' }} ({{ $dias_laborados_dias ?? 0 }} días)</td>
-                    <td class="text-right">${{ number_format($dias_laborados_monto, 2) }}</td>
-                </tr>
-                @endif
+<tr>
+    <td>
+        {{ $esContratoDeHonorarios ? 'Honorarios Devengados' : 'Días Laborados' }} 
+        ({{ $dias_laborados_dias ?? 0 }} días)
+    </td>
+    <td class="text-right">${{ number_format($dias_laborados_monto, 2) }}</td>
+</tr>
+@endif
                 
                 @if(($aguinaldo_monto ?? 0) > 0)
                 <tr>
