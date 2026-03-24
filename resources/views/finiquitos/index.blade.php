@@ -219,28 +219,59 @@ document.addEventListener('DOMContentLoaded', function () {
         botonesCalculo.forEach(btn => btn.disabled = !habilitar);
     }
 
+    // 2. EVENTO CHANGE DE EMPLEADO (FECHAS Y POPOVER CORREGIDO)
     empleadoSelect.addEventListener('change', function() {
         const selectedOption = this.options[this.selectedIndex];
+        const empId = this.value;
+        
         fechaIngresoInput.value = selectedOption.dataset.fecha_ingreso || '';
         fechaFinalInput.value = selectedOption.dataset.fecha_baja || '';
         toggleButtons();
         
-        if (this.value) {
-            fetch(`/vacaciones/historial-json/${this.value}`).then(r => r.json()).then(data => {
-                let html = '<div style="font-size: 11px; width: 250px;"><table class="table table-sm mb-0"><thead><tr class="table-dark"><th>Año</th><th>Periodo</th><th>Restantes</th></tr></thead><tbody>';
+        if (empId) {
+            fetch(`/vacaciones/historial-json/${empId}`)
+            .then(res => res.json())
+            .then(data => {
+                let html = '<div style="font-size: 11px; width: 250px;"><table class="table table-sm mb-0">';
+                html += '<thead class="table-dark"><tr><th>Año</th><th>Periodo</th><th>Restantes</th></tr></thead><tbody>';
+                
                 data.forEach(row => {
                     const statusClass = row.estado === 'En Curso' ? 'text-primary fw-bold' : '';
-                    html += `<tr><td class="text-center">${row.ano_servicio}</td><td>${row.periodo}</td><td class="text-end ${statusClass}">${row.dias_restantes}</td></tr>`;
+                    html += `<tr>
+                        <td class="text-center">${row.ano_servicio}</td>
+                        <td>${row.periodo}</td>
+                        <td class="text-end ${statusClass}">${row.dias_restantes}</td>
+                    </tr>`;
                 });
-                const total = data.reduce((acc, curr) => acc + (parseFloat(String(curr.dias_restantes).replace(',', '')) || 0), 0).toFixed(2);
+
+                const total = data.reduce((acc, curr) => {
+                    let valor = String(curr.dias_restantes).replace(',', '');
+                    return acc + (parseFloat(valor) || 0);
+                }, 0).toFixed(2);
+
                 html += `</tbody><tfoot class="table-light fw-bold"><tr><td colspan="2">TOTAL:</td><td class="text-end text-danger">${total}</td></tr></tfoot></table></div>`;
+                
+                // --- RE-INICIALIZACIÓN DEL POPOVER ---
                 const el = document.getElementById('info_vacaciones');
-                const pop = bootstrap.Popover.getInstance(el); if (pop) pop.dispose();
-                new bootstrap.Popover(el, { content: html, html: true, trigger: 'hover focus', container: 'body', placement: 'right' });
-            });
+                const existingPopover = bootstrap.Popover.getInstance(el);
+                if (existingPopover) {
+                    existingPopover.dispose();
+                }
+
+                new bootstrap.Popover(el, {
+                    content: html,
+                    html: true,
+                    trigger: 'hover focus',
+                    sanitize: false,
+                    container: 'body',
+                    placement: 'right'
+                });
+            })
+            .catch(err => console.error("Error al obtener historial:", err));
         }
     });
 
+    // 3. EVENTOS DE BOTONES DE CÁLCULO
     botonesCalculo.forEach(btn => {
         btn.addEventListener('click', function() {
             const tipoCalculo = this.id.replace('btn_calc_', '');
@@ -259,7 +290,6 @@ document.addEventListener('DOMContentLoaded', function () {
             })
             .then(res => res.json())
             .then(data => {
-                // Guardamos el sueldo diario para los cálculos manuales
                 sueldoDiarioDetectado = parseFloat(data.sueldo_diario || 0);
                 resultadosContainer.style.display = 'block';
                 construirTablaEditable(data);
@@ -267,6 +297,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    // 4. CONSTRUCCIÓN DE TABLA EDITABLE CON RECÁLCULO
     function construirTablaEditable(data) {
         let p = ''; 
         const conceptos = [
@@ -305,7 +336,7 @@ document.addEventListener('DOMContentLoaded', function () {
         
         recalcularTotales();
 
-        // --- LÓGICA DE RECALCULO AUTOMÁTICO AL CAMBIAR DÍAS ---
+        // Lógica de recálculo automático al cambiar cantidad de días
         const inputCantDias = document.getElementById('input_dias_cantidad');
         const inputMontoDias = document.getElementById('dias_laborados_monto');
 
@@ -314,7 +345,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const dias = parseFloat(this.value) || 0;
                 const nuevoMonto = dias * sueldoDiarioDetectado;
                 inputMontoDias.value = nuevoMonto.toFixed(2);
-                recalcularTotales(); // Actualiza el Neto automáticamente
+                recalcularTotales();
             });
         }
 
@@ -324,9 +355,10 @@ document.addEventListener('DOMContentLoaded', function () {
     function recalcularTotales() {
         let tp = 0; document.querySelectorAll('.monto-p').forEach(i => tp += parseFloat(i.value) || 0);
         let td = 0; document.querySelectorAll('.monto-d').forEach(i => td += parseFloat(i.value) || 0);
-        document.getElementById('neto_p').textContent = `$${(tp - td).toLocaleString('es-MX', {minimumFractionDigits:2})}`;
+        document.getElementById('neto_p').textContent = `$${(tp - td).toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
     }
 
+    // 5. PREPARAR ENVÍO A PDF/EXCEL
     function prepararEnvio(format) {
         const form = document.getElementById('form_export');
         if (format === 'aviso') {
