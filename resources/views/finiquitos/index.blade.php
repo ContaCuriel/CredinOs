@@ -296,10 +296,7 @@
         return;
     }
 
-    // LÓGICA CORREGIDA PARA EL NUEVO BOTÓN
     if (format === 'aviso') {
-        // Construimos la URL manualmente para evitar el error de Laravel Blade
-        // Usamos la URL base y le concatenamos el ID
         const urlBase = "{{ url('finiquitos/aviso-terminacion') }}";
         form.action = urlBase + "/" + idEmp;
         form.method = "GET";
@@ -307,21 +304,37 @@
         return;
     }
 
-    // Lógica existente para los otros botones
+    // Definir la ruta según el botón
     if (format === 'pdf') form.action = "{{ route('finiquitos.export.pdf') }}";
     else if (format === 'renuncia') form.action = "{{ route('finiquitos.export.renuncia.pdf') }}";
     else if (format === 'excel') form.action = "{{ route('finiquitos.export.excel') }}";
     
     form.method = "POST";
+
+    // SINCRONIZACIÓN DE DATOS (AQUÍ ESTABA EL ERROR)
     document.getElementById('export_id_empleado').value = idEmp;
     document.getElementById('export_fecha_final').value = fechaFinalInput.value;
-    document.getElementById('export_tipo_calculo').value = document.querySelector('.btn-group .active')?.id.replace('btn_calc_', '') || 'finiquito';
     document.getElementById('export_id_patron').value = patronManualSelect.value;
+    
+    // IMPORTANTE: Tomar el valor del input de la calculadora y pasarlo al oculto
+    const valVacaciones = document.getElementById('dias_vacaciones_manuales').value;
+    document.getElementById('export_dias_vacaciones_manuales').value = valVacaciones || 0;
 
-    ['dias_laborados_monto', 'aguinaldo_monto', 'vacaciones_monto', 'prima_vacacional_monto', 'monto_3_meses', 'monto_prima_antiguedad', 'caja_ahorro_monto', 'prestamo_saldo', 'gratificacion_monto'].forEach(id => {
-        const val = document.getElementById(id)?.value || 0;
-        document.getElementById('export_' + id).value = val;
+    // Sincronizar el tipo de cálculo (el que esté activo en los botones azules/rojos)
+    const btnActivo = document.querySelector('.btn-group .active') || document.querySelector('button.active');
+    document.getElementById('export_tipo_calculo').value = btnActivo ? btnActivo.id.replace('btn_calc_', '') : 'finiquito';
+
+    // Sincronizar montos editables de la tabla
+    const campos = ['dias_laborados_monto', 'aguinaldo_monto', 'vacaciones_monto', 'prima_vacacional_monto', 'monto_3_meses', 'monto_prima_antiguedad', 'caja_ahorro_monto', 'prestamo_saldo', 'gratificacion_monto'];
+    
+    campos.forEach(id => {
+        const inputTabla = document.getElementById(id);
+        const inputOculto = document.getElementById('export_' + id);
+        if (inputOculto) {
+            inputOculto.value = inputTabla ? inputTabla.value : 0;
+        }
     });
+
     form.submit();
 }
         document.getElementById('btn_export_aviso_terminacion').addEventListener('click', () => prepararEnvio('aviso'));
