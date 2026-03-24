@@ -88,11 +88,9 @@ class FiniquitoController extends Controller
 
     $data = $request->all();
     
-    // Cargamos el empleado con su puesto y el contrato para saber si es honorarios
     $empleado = Empleado::with(['puesto', 'ultimoContrato'])->find($data['id_empleado']);
     $patron = Patron::find($data['id_patron'] ?? null);
 
-    // DETERMINAR SI ES HONORARIOS
     $esContratoDeHonorarios = false;
     if ($empleado->ultimoContrato && !empty($empleado->ultimoContrato->tipo_contrato)) {
         if (Str::contains(strtolower($empleado->ultimoContrato->tipo_contrato), 'honorarios')) {
@@ -103,7 +101,7 @@ class FiniquitoController extends Controller
     $fechaIngreso = Carbon::parse($empleado->fecha_ingreso);
     $fechaBaja = Carbon::parse($data['fecha_final']);
 
-    // LÓGICA DE CÁLCULO DE DÍAS
+    // Lógica de cálculo de días
     $inicioQuincenaTeorico = ($fechaBaja->day <= 15) ? $fechaBaja->copy()->startOfMonth() : $fechaBaja->copy()->day(16);
     $fechaInicioCalculo = $fechaIngreso->greaterThan($inicioQuincenaTeorico) ? $fechaIngreso : $inicioQuincenaTeorico;
     $diasLaboradosPeriodo = $fechaInicioCalculo->diffInDays($fechaBaja) + 1;
@@ -129,13 +127,18 @@ class FiniquitoController extends Controller
     $exportData['dias_laborados_dias'] = $diasLaboradosPeriodo;
     $exportData['vacaciones_dias_restantes'] = $data['dias_vacaciones_manuales'];
 
-    // === AGREGAR ESTOS MAPEOS PARA QUE APAREZCAN EN EL PDF ===
-    $exportData['caja_ahorro_monto'] = (float)($data['caja_ahorro_monto'] ?? 0);
-    $exportData['prestamo_saldo'] = (float)($data['prestamo_saldo'] ?? 0);
+    // === ESTO ES LO QUE HACÍA QUE NO SALIERAN EN EL PDF ===
+    // Mapeamos los montos editables de la tabla al array de la vista
     $exportData['monto_3_meses'] = (float)($data['monto_3_meses'] ?? 0);
     $exportData['monto_prima_antiguedad'] = (float)($data['monto_prima_antiguedad'] ?? 0);
+    $exportData['caja_ahorro_monto'] = (float)($data['caja_ahorro_monto'] ?? 0);
+    $exportData['prestamo_saldo'] = (float)($data['prestamo_saldo'] ?? 0);
     $exportData['gratificacion_monto'] = (float)($data['gratificacion_monto'] ?? 0);
-    // ========================================================
+    $exportData['dias_laborados_monto'] = (float)($data['dias_laborados_monto'] ?? 0);
+    $exportData['aguinaldo_monto'] = (float)($data['aguinaldo_monto'] ?? 0);
+    $exportData['vacaciones_monto'] = (float)($data['vacaciones_monto'] ?? 0);
+    $exportData['prima_vacacional_monto'] = (float)($data['prima_vacacional_monto'] ?? 0);
+    // =====================================================
     
     $titulos = ['dias_laborados' => 'PAGO DE DÍAS LABORADOS', 'finiquito' => 'RECIBO DE FINIQUITO', 'liquidacion' => 'RECIBO DE LIQUIDACIÓN'];
     $exportData['titulo_documento'] = $titulos[$data['tipo_calculo']] ?? 'RECIBO DE PAGO';
