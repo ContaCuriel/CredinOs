@@ -234,6 +234,7 @@ class FiniquitoController extends Controller
             $resultados['monto_3_meses'] = $salarioDiario * 90;
             $resultados['monto_prima_antiguedad'] = ($salarioDiario * 12) * $anosCompletos;
         }
+        $resultados['salario_diario'] = $salarioDiario;
 
         return $resultados;
     }
