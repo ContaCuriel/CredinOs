@@ -30,6 +30,7 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
     protected string $sucursal_nombre;
     protected Collection $resultados;
     protected string $periodoTexto;
+    // IMPORTANTE: Se mantiene en 1 para que el mapeo sea correcto
     protected int $rowNumber = 1;
 
     public function __construct(string $periodo, int $sucursal_id)
@@ -59,7 +60,7 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             ->with(['puesto'])
             ->get();
 
-        // 1. ORDEN JERÁRQUICO (Gerente > Administrador > Coordinador > Asesores)
+        // --- ORDEN JERÁRQUICO ---
         $empleados = $empleadosRaw->sortBy(function($empleado) {
             $puesto = strtoupper($empleado->puesto->nombre_puesto ?? '');
             if (str_contains($puesto, 'GERENTE')) return 1;
@@ -81,9 +82,7 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             }
             
             $sueldoQuincenalBruto = $salarioDiario * $diasAPagar;
-            $bonoPermanencia = 0;
-            $bonoCumpleanos = 0;
-            $primaVacacional = 0;
+            $bonoPermanencia = 0; $bonoCumpleanos = 0; $primaVacacional = 0;
 
             if ($empleado->fecha_ingreso) {
                 $fechaIngreso = Carbon::parse($empleado->fecha_ingreso);
@@ -137,6 +136,7 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
     }
 
     public function collection(): Collection { return $this->resultados; }
+
     public function title(): string { return $this->sucursal_nombre; }
 
     public function headings(): array
@@ -151,7 +151,7 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
 
     public function map($filaResultado): array
     {
-        // 2. AJUSTE DE FILA (+2): El título es fila 1, la cabecera es fila 2. Los datos empiezan en fila 3.
+        // Se suma +2 para que las fórmulas de cada fila en las pestañas sean correctas (Título + Cabecera)
         $filaActual = $this->rowNumber + 2;
         $this->rowNumber++;
 
@@ -191,45 +191,28 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             AfterSheet::class => function(AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
                 $sheet->insertNewRowBefore(1, 1);
-                $tituloCompleto = 'NÓMINA ' . $this->periodoTexto;
-                $sheet->setCellValue('A1', $tituloCompleto);
-                $lastColumn = 'S';
-                $sheet->mergeCells('A1:'.$lastColumn.'1');
-                $sheet->getStyle('A1')->applyFromArray([
-                    'font' => ['bold' => true, 'size' => 14],
-                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER]
-                ]);
-                $sheet->getStyle('A2:'.$lastColumn.'2')->applyFromArray([
-                    'font' => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF']],
-                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF4F81BD']]
-                ]);
-                $sheet->getStyle('K2:R2')->applyFromArray([
-                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFD9534F']]
-                ]);
+                $sheet->setCellValue('A1', 'NÓMINA ' . $this->periodoTexto);
+                $sheet->mergeCells('A1:S1');
+                $sheet->getStyle('A1')->applyFromArray(['font' => ['bold' => true, 'size' => 14], 'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER]]);
+                $sheet->getStyle('A2:S2')->applyFromArray(['font' => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF4F81BD']]]);
+                $sheet->getStyle('K2:R2')->applyFromArray(['fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFD9534F']]]);
 
                 if ($this->resultados->count() > 0) {
                     $lastDataRow = $this->resultados->count() + 2;
-                    $sheet->getStyle('A2:'.$lastColumn . $lastDataRow)->applyFromArray([
-                        'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
-                    ]);
+                    $sheet->getStyle('A2:S'.$lastDataRow)->applyFromArray(['borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
+                    
                     $totalsRow = $lastDataRow + 2;
                     $sheet->setCellValue("A{$totalsRow}", 'TOTALES:');
                     $columnsToSum = ['F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S'];
                     foreach ($columnsToSum as $column) {
                         $sheet->setCellValue("{$column}{$totalsRow}", "=SUM({$column}3:{$column}{$lastDataRow})");
                     }
-                    $sheet->getStyle("A{$totalsRow}:{$lastColumn}{$totalsRow}")->applyFromArray([
-                        'font' => ['bold' => true],
-                        'borders' => ['top' => ['borderStyle' => Border::BORDER_THICK]]
-                    ]);
-                    $sheet->getStyle("F{$totalsRow}:{$lastColumn}{$totalsRow}")->getNumberFormat()
-                          ->setFormatCode(NumberFormat::FORMAT_CURRENCY_USD_SIMPLE);
-                    $cols = ['G','H','I','K','L','M','N','O','P','Q'];
-                    foreach ($cols as $col) {
+                    $sheet->getStyle("A{$totalsRow}:S{$totalsRow}")->applyFromArray(['font' => ['bold' => true], 'borders' => ['top' => ['borderStyle' => Border::BORDER_THICK]]]);
+                    $sheet->getStyle("F{$totalsRow}:S{$totalsRow}")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_CURRENCY_USD_SIMPLE);
+
+                    foreach (['G','H','I','K','L','M','N','O','P','Q'] as $col) {
                         $val = $sheet->getCell("{$col}{$totalsRow}")->getCalculatedValue();
-                        if (is_numeric($val) && abs($val) < 0.01) {
-                            $event->sheet->getColumnDimension($col)->setVisible(false);
-                        }
+                        if (is_numeric($val) && abs($val) < 0.01) { $event->sheet->getColumnDimension($col)->setVisible(false); }
                     }
                 }
             },
