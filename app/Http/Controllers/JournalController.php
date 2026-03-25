@@ -13,9 +13,9 @@ class JournalController extends Controller
      */
     public function index()
     {
-        // Obtenemos las pólizas ordenadas por la más reciente, con paginación.
-        // Cargamos la relación 'sourceable' para saber qué originó la póliza (un Gasto).
-        $journals = Journal::with('sourceable')
+        // CORRECCIÓN: Cargamos 'entries' para que el sum('debit') funcione 
+        // y 'sourceable' para identificar el origen.
+        $journals = Journal::with(['sourceable', 'entries'])
                             ->latest()
                             ->paginate(25);
                             
@@ -28,8 +28,7 @@ class JournalController extends Controller
      */
     public function show(Journal $journal)
     {
-        // Cargamos los asientos de la póliza (entries) y, para cada asiento,
-        // cargamos la información de la cuenta contable asociada.
+        // Cargamos los asientos y sus cuentas
         $journal->load('entries.account');
         
         return view('journals.show', compact('journal'));

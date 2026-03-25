@@ -23,14 +23,16 @@
                                 <td>{{ \Carbon\Carbon::parse($journal->date)->format('d/m/Y') }}</td>
                                 <td>{{ $journal->concept }}</td>
                                 <td>
-                                    @if ($journal->sourceable)
-                                        <span class="badge text-bg-info">
-                                            Gasto #{{ $journal->sourceable->id }}
-                                        </span>
-                                    @else
-                                        <span class="badge text-bg-secondary">Manual</span>
-                                    @endif
-                                </td>
+    @if ($journal->sourceable_type === 'App\Models\Gasto')
+        <span class="badge text-bg-info">Gasto #{{ $journal->sourceable_id }}</span>
+    @elseif ($journal->sourceable_type === 'App\Models\Placement')
+        <span class="badge text-bg-primary">Colocación #{{ $journal->sourceable_id }}</span>
+    @elseif ($journal->sourceable_type === 'App\Models\Recovery')
+        <span class="badge text-bg-success">Recuperación #{{ $journal->sourceable_id }}</span>
+    @else
+        <span class="badge text-bg-secondary">Manual</span>
+    @endif
+</td>
                                 {{-- Calculamos el total sumando los débitos (es igual a la suma de créditos) --}}
                                 <td class="text-end">${{ number_format($journal->entries->sum('debit'), 2) }}</td>
                                 <td class="text-center">
