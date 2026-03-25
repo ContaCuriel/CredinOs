@@ -49,6 +49,7 @@ class PlacementController extends Controller
                     'integer',
                     'min:1',
                     'max:12',
+                    // Regla para asegurar que la combinación de sucursal, año y mes sea única.
                     Rule::unique('placements')->where(function ($query) use ($request) {
                         return $query->where('sucursal_id', $request->sucursal_id)
                                      ->where('year', $request->year);
@@ -57,28 +58,29 @@ class PlacementController extends Controller
                 'amount' => 'required|numeric|min:0.01',
                 'notes' => 'nullable|string',
             ], [
+                // Mensajes de error personalizados
                 'month.unique' => 'Ya existe un registro de colocación para esta sucursal en el mes y año seleccionados.',
             ]);
 
-            // Forzamos la creación del registro
+            // Creamos el registro
             Placement::create([
                 'sucursal_id' => $validatedData['sucursal_id'],
-                'year' => $validatedData['year'],
-                'month' => $validatedData['month'],
-                'amount' => $validatedData['amount'],
-                'user_id' => \Illuminate\Support\Facades\Auth::id() ?? 1, // Previene error si la sesión se pierde
-                'notes' => $validatedData['notes'],
+                'year'        => $validatedData['year'],
+                'month'       => $validatedData['month'],
+                'amount'      => $validatedData['amount'],
+                'user_id'     => Auth::id() ?? 1,
+                'notes'       => $validatedData['notes'],
             ]);
 
             return redirect()->route('placements.index')
                 ->with('success', 'Registro de colocación guardado exitosamente. La póliza contable ha sido generada.');
 
         } catch (\Illuminate\Validation\ValidationException $e) {
-            // Si es error de validación del formulario, lo regresa normalmente
+            // Regresa al formulario con los errores de validación
             return redirect()->back()->withErrors($e->errors())->withInput();
             
         } catch (\Exception $e) {
-            // AQUI ESTÁ LA MAGIA: Si hay un error fatal, rompe la pantalla y te lo muestra
+            // MAGIA: Pantalla de error forzada si algo sale mal (Evita el "Procesando...")
             dd([
                 '¡ALERTA DE ERROR FATAL!' => 'El sistema falló al guardar.',
                 'MENSAJE DEL SERVIDOR' => $e->getMessage(),
@@ -87,3 +89,4 @@ class PlacementController extends Controller
             ]);
         }
     }
+}
