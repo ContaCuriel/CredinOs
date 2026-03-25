@@ -75,6 +75,7 @@
                 @endif
 
                 <div class="row border p-3 rounded bg-light">
+                    {{-- Columna Izquierda: Calculadora --}}
                     <div class="col-md-7">
                         <h6 class="mb-3 fw-bold text-primary">1. Seleccione Empleado y Fechas</h6>
                         <div class="row">
@@ -128,6 +129,7 @@
                         </div>
                     </div>
 
+                    {{-- Columna Derecha --}}
                     <div class="col-md-5 border-start">
                         <h6 class="mb-3 fw-bold text-primary">2. Elija el Tipo de Cálculo</h6>
                         <div class="d-grid gap-2">
@@ -138,6 +140,7 @@
                     </div>
                 </div>
 
+                {{-- Resultados --}}
                 <div id="resultados_finiquito_container" class="mt-4" style="display: none;">
                     <hr>
                     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -270,7 +273,14 @@
                 
                 conceptos.forEach(c => {
                     if(limpiarNumero(c.v) > 0 || c.i === 'dias_laborados_monto') {
-                        p += `<tr class="row-percepcion"><td class="ps-4">${c.l}</td><td class="text-end pe-4"><div class="input-moneda-wrapper"><input type="number" step="0.01" id="${c.i}" class="monto-editable monto-p" value="${limpiarNumero(c.v).toFixed(2)}"></div></td></tr>`;
+                        p += `<tr class="row-percepcion">
+                                <td class="ps-4">${c.l}</td>
+                                <td class="text-end pe-4">
+                                    <div class="input-moneda-wrapper">
+                                        <input type="number" step="0.01" id="${c.i}" class="monto-editable monto-p" value="${limpiarNumero(c.v).toFixed(2)}">
+                                    </div>
+                                </td>
+                              </tr>`;
                     }
                 });
 
@@ -281,7 +291,14 @@
                             <tbody>
                                 <tr class="row-categoria"><td colspan="2" class="py-2 ps-3">Percepciones (+)</td></tr>${p}
                                 <tr class="row-categoria"><td colspan="2" class="py-2 ps-3">Deducciones (-)</td></tr>
-                                <tr class="row-deduccion"><td class="ps-4">Deducciones / Préstamos</td><td class="text-end pe-4"><div class="input-moneda-wrapper"><input type="number" step="0.01" id="prestamo_saldo" class="monto-editable monto-d text-danger" value="${limpiarNumero(data.prestamo_saldo).toFixed(2)}"></div></td></tr>
+                                <tr class="row-deduccion">
+                                    <td class="ps-4">Deducciones / Préstamos</td>
+                                    <td class="text-end pe-4">
+                                        <div class="input-moneda-wrapper">
+                                            <input type="number" step="0.01" id="prestamo_saldo" class="monto-editable monto-d text-danger" value="${limpiarNumero(data.prestamo_saldo).toFixed(2)}">
+                                        </div>
+                                    </td>
+                                </tr>
                                 <tr class="fs-5 fw-bold table-primary"><td class="text-end pe-4">Total Neto a Pagar:</td><td class="text-end pe-4" id="neto_p" style="font-size: 1.5rem; color: #0d6efd;">$0.00</td></tr>
                             </tbody>
                         </table>
@@ -311,7 +328,12 @@
             function prepararEnvio(format) {
                 const idEmp = empleadoSelect.value;
                 if (!idEmp) return;
-                if (format === 'aviso') { window.open(`/finiquitos/aviso-terminacion/${idEmp}`, '_blank'); return; }
+                
+                // --- CORRECCIÓN AVISO (Usando URL absoluta) ---
+                if (format === 'aviso') { 
+                    window.open("{{ url('finiquitos/aviso-terminacion') }}/" + idEmp, '_blank'); 
+                    return; 
+                }
 
                 const form = document.getElementById('form_export');
                 form.method = "POST";
@@ -323,9 +345,7 @@
                 document.getElementById('export_fecha_final').value = fechaFinalInput.value;
                 document.getElementById('export_id_patron').value = patronManualSelect.value;
                 document.getElementById('export_dias_vacaciones_manuales').value = diasManualesInput.value || 0;
-                const btnActive = document.querySelector('button.active');
-                document.getElementById('export_tipo_calculo').value = btnActive ? btnActive.id.replace('btn_calc_', '') : 'finiquito';
-
+                
                 const campos = ['dias_laborados_monto', 'aguinaldo_monto', 'vacaciones_monto', 'prima_vacacional_monto', 'monto_3_meses', 'monto_prima_antiguedad', 'caja_ahorro_monto', 'prestamo_saldo', 'gratificacion_monto'];
                 campos.forEach(id => {
                     const val = document.getElementById(id);
