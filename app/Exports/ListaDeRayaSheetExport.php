@@ -56,10 +56,20 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
         $fechaInicioPeriodo = Carbon::parse($fechaInicioStr);
         $fechaFinPeriodo = Carbon::parse($fechaFinStr);
 
-        $empleados = Empleado::where('status', 'Alta')
+        // --- CAMBIO: Obtener empleados y aplicar ORDEN JERÁRQUICO ---
+        $empleadosRaw = Empleado::where('status', 'Alta')
             ->where('id_sucursal', $this->sucursal_id)
             ->with(['puesto'])
             ->get();
+
+        $empleados = $empleadosRaw->sortBy(function($empleado) {
+            $puesto = strtoupper($empleado->puesto->nombre_puesto ?? '');
+            if (str_contains($puesto, 'GERENTE')) return 1;
+            if (str_contains($puesto, 'ADMINISTRADOR')) return 2;
+            if (str_contains($puesto, 'COORDINADOR')) return 3;
+            if (str_contains($puesto, 'ASESOR')) return 4;
+            return 99; // Otros puestos al final
+        });
 
         $this->resultados = collect();
 
@@ -147,7 +157,8 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
 
     public function map($filaResultado): array
     {
-        $filaActual = $this->rowNumber + 1;
+        // --- CAMBIO: Se usa +2 para compensar la fila de título insertada después ---
+        $filaActual = $this->rowNumber + 2;
         $this->rowNumber++;
 
         $rangoPercepciones    = "F{$filaActual}:I{$filaActual}";
@@ -173,16 +184,17 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             (float) $filaResultado['deduccion_imss'],        // P
             (float) $filaResultado['deduccion_otro'],        // Q
             "=SUM({$rangoDeducciones})",                      // R
-            "={$colTotalPercepciones}-{$colTotalDeducciones}", // S
+            "=J{$filaActual}-R{$filaActual}",                // S
         ];
     }
 
+    // --- CAMBIO: Se llama columnFormats (en plural) ---
     public function columnFormats(): array
     {
         $formatoMonedaConCero = '$ #,##0.00;[Red]-$ #,##0.00;"$ "0.00';
         return [
-            'F:S' => $formatoMonedaConCero, // El rango de formato de moneda es de la F a la S
-            'B' => NumberFormat::FORMAT_DATE_DDMMYYYY // La columna B ahora es la fecha
+            'F:S' => $formatoMonedaConCero, 
+            'B' => NumberFormat::FORMAT_DATE_DDMMYYYY 
         ];
     }
 
@@ -255,4 +267,3 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
         return (float) $this->resultados->sum('neto_a_pagar');
     }
 }
-
