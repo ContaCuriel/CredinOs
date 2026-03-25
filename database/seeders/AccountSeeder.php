@@ -12,8 +12,11 @@ class AccountSeeder extends Seeder
      */
     public function run(): void
     {
-        // 1. Limpiamos la tabla usando DB Query directo (más seguro en tenants)
-        DB::table('accounts')->truncate();
+        // 1. Usamos la conexión 'tenant' obligatoriamente para afectar al esquema correcto
+        $tenantDB = DB::connection('tenant');
+
+        // Limpiamos la tabla del tenant específico de forma segura en Postgres
+        $tenantDB->statement('TRUNCATE accounts CASCADE;');
 
         $accounts = [
             // Cuentas de Mayor
@@ -57,16 +60,16 @@ class AccountSeeder extends Seeder
             ['name' => 'Comisiones bancarias', 'code' => '803.01', 'type' => 'gastos', 'parent_id' => '803'],
         ];
 
-        // 2. Insertamos usando DB::table (ignora fillable y asegura la conexión actual del tenant)
+        // 2. Insertamos en el TENANT
         foreach ($accounts as $acc) {
             $parentId = null;
             if ($acc['parent_id'] !== null) {
-                // Buscamos el ID real de la base de datos basado en el código padre
-                $parentRow = DB::table('accounts')->where('code', $acc['parent_id'])->first();
+                // Buscamos en el tenant
+                $parentRow = $tenantDB->table('accounts')->where('code', $acc['parent_id'])->first();
                 $parentId = $parentRow ? $parentRow->id : null;
             }
 
-            DB::table('accounts')->insert([
+            $tenantDB->table('accounts')->insert([
                 'name' => $acc['name'],
                 'code' => $acc['code'],
                 'type' => $acc['type'],
@@ -76,6 +79,6 @@ class AccountSeeder extends Seeder
             ]);
         }
 
-        $this->command->info('El catálogo de cuentas del SAT ha sido cargado con DB::table.');
+        $this->command->info('El catálogo de cuentas se insertó correctamente en el esquema del Tenant.');
     }
 }
