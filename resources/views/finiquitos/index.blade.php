@@ -351,55 +351,45 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // 5. EXPORTACIÓN
     function prepararEnvio(format) {
-    const idEmp = empleadoSelect.value;
-    if (!idEmp) {
-        alert('Por favor, selecciona un empleado primero.');
-        return;
-    }
-
-    // --- CORRECCIÓN PARA AVISO DE TERMINACIÓN ---
-    if (format === 'aviso') {
-        // Asegúrate de que apunte a la ruta que tienes en web.php
-        window.open(`/finiquitos/aviso-terminacion/${idEmp}`, '_blank');
-        return;
-    }
-
-    const form = document.getElementById('form_export');
-    form.method = "POST"; // PDF y Excel siempre deben ser POST para enviar los montos editados
-    
-    // Definir la ruta según el formato
-    if (format === 'pdf') {
-        form.action = "{{ route('finiquitos.export.pdf') }}";
-    } else if (format === 'excel') {
-        form.action = "{{ route('finiquitos.export.excel') }}";
-    } else if (format === 'renuncia') {
-        form.action = "{{ route('finiquitos.export.renuncia.pdf') }}";
-    }
-
-    // Llenar los campos ocultos con lo que hay actualmente en la pantalla
-    document.getElementById('export_id_empleado').value = idEmp;
-    document.getElementById('export_fecha_final').value = fechaFinalInput.value;
-    document.getElementById('export_id_patron').value = patronManualSelect.value;
-    document.getElementById('export_dias_vacaciones_manuales').value = diasManualesInput.value || 0;
-    
-    const btnActive = document.querySelector('button.active');
-    document.getElementById('export_tipo_calculo').value = btnActive ? btnActive.id.replace('btn_calc_', '') : 'finiquito';
-
-    // Mapear cada monto de la tabla a los campos hidden del formulario de envío
-    const campos = ['dias_laborados_monto', 'aguinaldo_monto', 'vacaciones_monto', 'prima_vacacional_monto', 'monto_3_meses', 'monto_prima_antiguedad', 'caja_ahorro_monto', 'prestamo_saldo', 'gratificacion_monto'];
-    
-    campos.forEach(id => {
-        const inputTabla = document.getElementById(id);
-        const inputHidden = document.getElementById('export_' + id);
-        if (inputHidden) {
-            // Usamos la función limpiarNumero para quitar comas antes de enviar al servidor
-            inputHidden.value = inputTabla ? limpiarNumero(inputTabla.value) : 0;
+        const idEmp = empleadoSelect.value;
+        if (!idEmp) {
+            alert('Por favor, selecciona un empleado primero.');
+            return;
         }
-    });
 
-    form.submit();
-}
+        // --- CORRECCIÓN AVISO (Ruta exacta) ---
+        if (format === 'aviso') {
+            window.open("/finiquitos/aviso-terminacion/" + idEmp, '_blank');
+            return;
+        }
 
+        const form = document.getElementById('form_export');
+        form.method = "POST";
+        
+        if (format === 'pdf') form.action = "{{ route('finiquitos.export.pdf') }}";
+        else if (format === 'excel') form.action = "{{ route('finiquitos.export.excel') }}";
+        else if (format === 'renuncia') form.action = "{{ route('finiquitos.export.renuncia.pdf') }}";
+
+        // Llenado de campos ocultos
+        document.getElementById('export_id_empleado').value = idEmp;
+        document.getElementById('export_fecha_final').value = fechaFinalInput.value;
+        document.getElementById('export_id_patron').value = patronManualSelect.value;
+        document.getElementById('export_dias_vacaciones_manuales').value = diasManualesInput.value || 0;
+        
+        const btnActive = document.querySelector('button.active');
+        document.getElementById('export_tipo_calculo').value = btnActive ? btnActive.id.replace('btn_calc_', '') : 'finiquito';
+
+        const campos = ['dias_laborados_monto', 'aguinaldo_monto', 'vacaciones_monto', 'prima_vacacional_monto', 'monto_3_meses', 'monto_prima_antiguedad', 'caja_ahorro_monto', 'prestamo_saldo', 'gratificacion_monto'];
+        campos.forEach(id => {
+            const inputTabla = document.getElementById(id);
+            const inputHidden = document.getElementById('export_' + id);
+            if (inputHidden) inputHidden.value = inputTabla ? limpiarNumero(inputTabla.value) : 0;
+        });
+
+        form.submit();
+    }
+
+    // 🔥 IMPORTANTE: Asegúrate de tener estas líneas al final de tu script:
     document.getElementById('btn_export_pdf').addEventListener('click', () => prepararEnvio('pdf'));
     document.getElementById('btn_export_renuncia').addEventListener('click', () => prepararEnvio('renuncia'));
     document.getElementById('btn_export_excel').addEventListener('click', () => prepararEnvio('excel'));
