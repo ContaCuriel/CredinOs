@@ -14,9 +14,8 @@ class AccountSeeder extends Seeder
      */
     public function run(): void
     {
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-        Account::truncate();
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        // Solución PostgreSQL: Limpia la tabla y las relaciones dependientes de forma segura
+        DB::statement('TRUNCATE accounts CASCADE;');
 
         // Nivel 1: Cuentas de Mayor
         $activo = Account::create(['name' => 'Activo', 'code' => '100', 'type' => 'activo']);
@@ -41,25 +40,22 @@ class AccountSeeder extends Seeder
 
         // --- Estructura de Ingresos ---
         $ingresosSub = Account::create(['name' => 'Ingresos', 'code' => '401', 'type' => 'ingresos', 'parent_id' => $ingresos->id]);
-            Account::create(['name' => 'Ingresos por intereses (actividad propia)', 'code' => '401.32', 'type' => 'ingresos', 'parent_id' => $ingresosSub->id]);
-            // NUEVA CUENTA
-            Account::create(['name' => 'Recuperación de cartera castigada', 'code' => '401.38', 'type' => 'ingresos', 'parent_id' => $ingresosSub->id]);
+        Account::create(['name' => 'Ingresos por intereses (actividad propia)', 'code' => '401.32', 'type' => 'ingresos', 'parent_id' => $ingresosSub->id]);
+        Account::create(['name' => 'Recuperación de cartera castigada', 'code' => '401.38', 'type' => 'ingresos', 'parent_id' => $ingresosSub->id]);
 
         // --- Estructura de Gastos ---
         $gastosGenerales = Account::create(['name' => 'Gastos generales', 'code' => '601', 'type' => 'gastos', 'parent_id' => $gastos->id]);
-            Account::create(['name' => 'Sueldos y salarios', 'code' => '601.01', 'type' => 'gastos', 'parent_id' => $gastosGenerales->id]);
-            Account::create(['name' => 'Comisiones a personal', 'code' => '601.03', 'type' => 'gastos', 'parent_id' => $gastosGenerales->id]);
-            Account::create(['name' => 'Previsión social', 'code' => '601.09', 'type' => 'gastos', 'parent_id' => $gastosGenerales->id]);
-            Account::create(['name' => 'Castigos (gastos no deducibles)', 'code' => '601.10', 'type' => 'gastos', 'parent_id' => $gastosGenerales->id]);
-            Account::create(['name' => 'Arrendamiento', 'code' => '601.21', 'type' => 'gastos', 'parent_id' => $gastosGenerales->id]);
-            Account::create(['name' => 'Telecomunicaciones', 'code' => '601.25', 'type' => 'gastos', 'parent_id' => $gastosGenerales->id]);
-            // ... (otras cuentas de gastos que ya teníamos)
+        Account::create(['name' => 'Sueldos y salarios', 'code' => '601.01', 'type' => 'gastos', 'parent_id' => $gastosGenerales->id]);
+        Account::create(['name' => 'Comisiones a personal', 'code' => '601.03', 'type' => 'gastos', 'parent_id' => $gastosGenerales->id]);
+        Account::create(['name' => 'Previsión social', 'code' => '601.09', 'type' => 'gastos', 'parent_id' => $gastosGenerales->id]);
+        Account::create(['name' => 'Castigos (gastos no deducibles)', 'code' => '601.10', 'type' => 'gastos', 'parent_id' => $gastosGenerales->id]);
+        Account::create(['name' => 'Arrendamiento', 'code' => '601.21', 'type' => 'gastos', 'parent_id' => $gastosGenerales->id]);
+        Account::create(['name' => 'Telecomunicaciones', 'code' => '601.25', 'type' => 'gastos', 'parent_id' => $gastosGenerales->id]);
 
         $gastosDeVenta = Account::create(['name' => 'Gastos de venta', 'code' => '701', 'type' => 'gastos', 'parent_id' => $gastos->id]);
-            // ... (cuentas de gastos de venta)
 
         $gastosFinancierosSub = Account::create(['name' => 'Gastos financieros', 'code' => '803', 'type' => 'gastos', 'parent_id' => $gastosFinancieros->id]);
-            Account::create(['name' => 'Comisiones bancarias', 'code' => '803.01', 'type' => 'gastos', 'parent_id' => $gastosFinancierosSub->id]);
+        Account::create(['name' => 'Comisiones bancarias', 'code' => '803.01', 'type' => 'gastos', 'parent_id' => $gastosFinancierosSub->id]);
 
         $this->command->info('El catálogo de cuentas del SAT (versión completa) ha sido cargado.');
     }
