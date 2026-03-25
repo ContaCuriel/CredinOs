@@ -224,47 +224,66 @@ class ReporteController extends Controller
 
 // --- NUEVOS MÉTODOS PARA BALANCE GENERAL ---
 
+    // ... dentro de ReporteController ...
+
     public function balanceSheet(Request $request)
     {
         $endDate = $request->input('end_date', Carbon::now()->toDateString());
+        $selectedSucursalId = $request->input('sucursal_id'); // <--- NUEVO: Captura sucursal
+        $sucursales = Sucursal::orderBy('nombre_sucursal')->get();
+
+        // Buscamos las cuentas raíz (asegúrate que estos códigos existan)
         $assetAccount = Account::where('code', '100')->first();
         $liabilityAccount = Account::where('code', '200')->first();
         $equityAccount = Account::where('code', '300')->first();
+        
+        // Cuentas para calcular la Utilidad del Periodo (Ingresos 400 vs Gastos 600)
         $incomeAccount = Account::where('code', '400')->first();
         $expenseAccounts = Account::whereIn('code', ['600', '800'])->get();
-        return view('reportes.balance_sheet', compact('endDate', 'assetAccount', 'liabilityAccount', 'equityAccount', 'incomeAccount', 'expenseAccounts'));
+
+        return view('reportes.balance_sheet', compact(
+            'endDate', 'selectedSucursalId', 'sucursales', 
+            'assetAccount', 'liabilityAccount', 'equityAccount', 
+            'incomeAccount', 'expenseAccounts'
+        ));
     }
 
     private function getBalanceSheetData(Request $request)
     {
         $endDate = $request->input('end_date', $request->query('end_date', now()->toDateString()));
+        $sucursalId = $request->input('sucursal_id', $request->query('sucursal_id')); // <--- NUEVO: Captura sucursal
+
         $assetAccount = Account::where('code', '100')->first();
         $liabilityAccount = Account::where('code', '200')->first();
         $equityAccount = Account::where('code', '300')->first();
         $incomeAccount = Account::where('code', '400')->first();
         $expenseAccounts = Account::whereIn('code', ['600', '800'])->get();
 
-        $totalAssets = $assetAccount ? $assetAccount->getInitialBalance($endDate) : 0;
-        $totalLiabilities = $liabilityAccount ? $liabilityAccount->getInitialBalance($endDate) : 0;
+        // IMPORTANTE: Debes asegurarte que el método getInitialBalance en el modelo Account 
+        // acepte un segundo parámetro para la sucursal: ->getInitialBalance($date, $sucursalId)
+        $totalAssets = $assetAccount ? $assetAccount->getInitialBalance($endDate, $sucursalId) : 0;
+        $totalLiabilities = $liabilityAccount ? $liabilityAccount->getInitialBalance($endDate, $sucursalId) : 0;
         
-        $incomeMovements = $incomeAccount ? $incomeAccount->getMovements('2000-01-01', $endDate) : ['debits' => 0, 'credits' => 0];
+        // Cálculo de Utilidad Neta del Periodo filtrada por sucursal
+        $incomeMovements = $incomeAccount ? $incomeAccount->getMovements('2000-01-01', $endDate, $sucursalId) : ['debits' => 0, 'credits' => 0];
         $totalIncome = $incomeMovements['credits'] - $incomeMovements['debits'];
-        $totalExpenses = 0;
-        if ($expenseAccounts) {
-            foreach($expenseAccounts as $expenseAccount) {
-                $expenseMovements = $expenseAccount->getMovements('2000-01-01', $endDate);
-                $totalExpenses += $expenseMovements['debits'] - $expenseMovements['credits'];
-            }
-        }
-        $netIncomeForPeriod = $totalIncome - $totalExpenses;
-        $equityBalance = $equityAccount ? $equityAccount->getInitialBalance($endDate) : 0;
-        $totalEquity = $equityBalance + $netIncomeForPeriod;
-        $totalLiabilitiesAndEquity = $totalLiabilities + $totalEquity;
         
+        $totalExpenses = 0;
+        foreach($expenseAccounts as $expenseAccount) {
+            $expenseMovements = $expenseAccount->getMovements('2000-01-01', $endDate, $sucursalId);
+            $totalExpenses += $expenseMovements['debits'] - $expenseMovements['credits'];
+        }
+
+        $netIncomeForPeriod = $totalIncome - $totalExpenses;
+        $equityBalance = $equityAccount ? $equityAccount->getInitialBalance($endDate, $sucursalId) : 0;
+        $totalEquity = $equityBalance + $netIncomeForPeriod;
+        
+        $totalLiabilitiesAndEquity = $totalLiabilities + $totalEquity;
         $companyName = $request->query('company_name', 'Nombre de Empresa no Especificado');
 
         return compact(
-            'endDate', 'companyName', 'assetAccount', 'liabilityAccount', 'equityAccount', 'incomeAccount', 'expenseAccounts',
+            'endDate', 'companyName', 'sucursalId', 'assetAccount', 'liabilityAccount', 
+            'equityAccount', 'incomeAccount', 'expenseAccounts',
             'totalAssets', 'totalLiabilities', 'netIncomeForPeriod', 'totalEquity', 'totalLiabilitiesAndEquity'
         );
     }

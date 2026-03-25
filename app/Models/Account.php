@@ -19,49 +19,46 @@ class Account extends Model
         'parent_id',
     ];
 
-    /**
-     * Define la relación para la cuenta padre.
-     */
     public function parent(): BelongsTo
     {
         return $this->belongsTo(Account::class, 'parent_id');
     }
 
-    /**
-     * Define la relación para las cuentas hijas.
-     */
     public function children(): HasMany
     {
         return $this->hasMany(Account::class, 'parent_id');
     }
 
-    /**
-     * Define la relación con los asientos contables.
-     */
     public function journalEntries(): HasMany
     {
         return $this->hasMany(JournalEntry::class);
     }
 
     /**
-     * Calcula los movimientos de una cuenta (y sus hijas) en un rango de fechas.
+     * Calcula los movimientos de una cuenta (y sus hijas) filtrando opcionalmente por sucursal.
      */
-    public function getMovements($startDate, $endDate)
+    public function getMovements($startDate, $endDate, $sucursalId = null)
     {
-        // CORRECCIÓN: Usamos un JOIN para filtrar por la fecha de la póliza.
-        $debits = $this->journalEntries()
+        $queryDebits = $this->journalEntries()
             ->join('journals', 'journal_entries.journal_id', '=', 'journals.id')
-            ->whereBetween('journals.date', [$startDate, $endDate])
-            ->sum('journal_entries.debit');
+            ->whereBetween('journals.date', [$startDate, $endDate]);
 
-        $credits = $this->journalEntries()
+        $queryCredits = $this->journalEntries()
             ->join('journals', 'journal_entries.journal_id', '=', 'journals.id')
-            ->whereBetween('journals.date', [$startDate, $endDate])
-            ->sum('journal_entries.credit');
+            ->whereBetween('journals.date', [$startDate, $endDate]);
 
-        // Suma recursiva de los movimientos de las cuentas hijas.
+        // FILTRO DE SUCURSAL
+        if ($sucursalId) {
+            $queryDebits->where('journals.id_sucursal', $sucursalId);
+            $queryCredits->where('journals.id_sucursal', $sucursalId);
+        }
+
+        $debits = $queryDebits->sum('journal_entries.debit');
+        $credits = $queryCredits->sum('journal_entries.credit');
+
+        // Suma recursiva de los movimientos de las cuentas hijas pasando la sucursal
         foreach ($this->children as $child) {
-            $childMovements = $child->getMovements($startDate, $endDate);
+            $childMovements = $child->getMovements($startDate, $endDate, $sucursalId);
             $debits += $childMovements['debits'];
             $credits += $childMovements['credits'];
         }
@@ -70,15 +67,16 @@ class Account extends Model
     }
 
     /**
-     * Calcula el saldo inicial de la cuenta (y sus hijas) antes de una fecha.
+     * Calcula el saldo inicial filtrando opcionalmente por sucursal.
      */
-    public function getInitialBalance($startDate)
+    public function getInitialBalance($startDate, $sucursalId = null)
     {
-        // Llama a una función auxiliar para obtener los totales brutos.
-        $rawBalance = $this->getRawBalanceBefore($startDate);
+        $rawBalance = $this->getRawBalanceBefore($startDate, $sucursalId);
         
-        // Calcula el saldo dependiendo de la naturaleza de la cuenta.
-        if (in_array($this->type, ['activo', 'gastos'])) {
+        // Normalizamos el tipo a minúsculas para evitar errores de comparación
+        $type = strtolower($this->type);
+
+        if (in_array($type, ['activo', 'asset', 'gastos', 'expense'])) {
             return $rawBalance['debits'] - $rawBalance['credits'];
         } else {
             return $rawBalance['credits'] - $rawBalance['debits'];
@@ -86,25 +84,29 @@ class Account extends Model
     }
 
     /**
-     * Función auxiliar recursiva para obtener el debe y haber acumulado.
-     * Esto corrige el error original.
+     * Función auxiliar recursiva para obtener el debe y haber acumulado con filtro de sucursal.
      */
-    protected function getRawBalanceBefore($startDate)
+    protected function getRawBalanceBefore($startDate, $sucursalId = null)
     {
-        // CORRECCIÓN: Usamos un JOIN para filtrar por la fecha de la póliza.
-        $debitsBefore = $this->journalEntries()
+        $queryDebits = $this->journalEntries()
             ->join('journals', 'journal_entries.journal_id', '=', 'journals.id')
-            ->where('journals.date', '<', $startDate)
-            ->sum('journal_entries.debit');
+            ->where('journals.date', '<', $startDate);
 
-        $creditsBefore = $this->journalEntries()
+        $queryCredits = $this->journalEntries()
             ->join('journals', 'journal_entries.journal_id', '=', 'journals.id')
-            ->where('journals.date', '<', $startDate)
-            ->sum('journal_entries.credit');
+            ->where('journals.date', '<', $startDate);
 
-        // Suma recursiva de los saldos de las cuentas hijas.
+        // FILTRO DE SUCURSAL
+        if ($sucursalId) {
+            $queryDebits->where('journals.id_sucursal', $sucursalId);
+            $queryCredits->where('journals.id_sucursal', $sucursalId);
+        }
+
+        $debitsBefore = $queryDebits->sum('journal_entries.debit');
+        $creditsBefore = $queryCredits->sum('journal_entries.credit');
+
         foreach ($this->children as $child) {
-            $childRawBalance = $child->getRawBalanceBefore($startDate);
+            $childRawBalance = $child->getRawBalanceBefore($startDate, $sucursalId);
             $debitsBefore += $childRawBalance['debits'];
             $creditsBefore += $childRawBalance['credits'];
         }
