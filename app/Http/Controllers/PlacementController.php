@@ -25,6 +25,11 @@ class PlacementController extends Controller
 
     public function store(Request $request)
     {
+        // PRUEBA DE FUEGO: Si quitas las dos diagonales (//) de la siguiente línea, 
+        // la página debe ponerse negra de inmediato al darle a Guardar. 
+        // Si no lo hace, el problema NO es PHP, es tu Javascript de la vista.
+        // dd('¡SÍ LLEGA AL CONTROLADOR!');
+
         try {
             $currentYear = Carbon::now()->year;
 
@@ -47,23 +52,22 @@ class PlacementController extends Controller
 
             Placement::create([
                 'sucursal_id' => $validatedData['sucursal_id'],
-                'year' => $validatedData['year'],
-                'month' => $validatedData['month'],
-                'amount' => $validatedData['amount'],
-                'user_id' => Auth::id() ?? 1,
-                'notes' => $validatedData['notes'],
+                'year'        => $validatedData['year'],
+                'month'       => $validatedData['month'],
+                'amount'      => $validatedData['amount'],
+                'user_id'     => Auth::id() ?? 1,
+                'notes'       => $validatedData['notes'],
             ]);
 
             return redirect()->route('placements.index')->with('success', 'Registro guardado exitosamente.');
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return redirect()->back()->withErrors($e->errors())->withInput();
-        } catch (\Exception $e) {
-            // ESTO ES LO QUE OBLIGARÁ A MOSTRAR EL ERROR EN PANTALLA
+        } catch (\Throwable $e) { // <--- ESTO ATRAPA ABSOLUTAMENTE TODO (Incluso Errores Fatales)
             dd([
                 '¡ALERTA DE ERROR FATAL!' => 'El sistema falló al guardar.',
-                'MENSAJE_DEL_SERVIDOR' => $e->getMessage(),
-                'ARCHIVO' => $e->getFile(),
+                'MENSAJE_EXACTO' => $e->getMessage(),
+                'ARCHIVO_DONDE_FALLO' => $e->getFile(),
                 'LINEA' => $e->getLine()
             ]);
         }
