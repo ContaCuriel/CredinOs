@@ -16,6 +16,7 @@ class PlacementController extends Controller
      */
     public function index()
     {
+        // Cargamos sucursal, user y journal (vital para ver la póliza creada)
         $placements = Placement::with(['sucursal', 'user', 'journal'])
                                 ->latest()
                                 ->paginate(20);
@@ -40,6 +41,7 @@ class PlacementController extends Controller
         $currentYear = Carbon::now()->year;
 
         $validatedData = $request->validate([
+            // Cambiado a id_sucursal para coincidir con tu migración/captura
             'sucursal_id' => 'required|exists:sucursales,id_sucursal',
             'year' => 'required|integer|min:2020|max:' . $currentYear,
             'month' => [
@@ -60,6 +62,7 @@ class PlacementController extends Controller
             'month.unique' => 'Ya existe un registro de colocación para esta sucursal en el mes y año seleccionados.',
         ]);
 
+        // Creamos el registro con TODOS tus campos originales
         Placement::create([
             'sucursal_id' => $validatedData['sucursal_id'],
             'year' => $validatedData['year'],
@@ -69,6 +72,8 @@ class PlacementController extends Controller
             'notes' => $validatedData['notes'],
         ]);
 
-        return redirect()->route('placements.index')->with('success', 'Registro de colocación guardado exitosamente. La póliza contable ha sido generada.');
+        // Redirección al index con el mensaje de éxito que ya tenías
+        return redirect()->route('placements.index')
+            ->with('success', 'Registro de colocación guardado exitosamente. La póliza contable ha sido generada.');
     }
 }
