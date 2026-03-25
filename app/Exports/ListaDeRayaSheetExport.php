@@ -30,8 +30,6 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
     protected string $sucursal_nombre;
     protected Collection $resultados;
     protected string $periodoTexto;
-    // CORRECCIÓN: El contador de filas debe empezar en 1.
-    // El mapeo de datos ocurre ANTES de que se inserte la fila del título en el evento AfterSheet.
     protected int $rowNumber = 1;
 
     public function __construct(string $periodo, int $sucursal_id)
@@ -56,10 +54,24 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
         $fechaInicioPeriodo = Carbon::parse($fechaInicioStr);
         $fechaFinPeriodo = Carbon::parse($fechaFinStr);
 
-        $empleados = Empleado::where('status', 'Alta')
+        // 1. Obtenemos los empleados originales
+        $empleadosRaw = Empleado::where('status', 'Alta')
             ->where('id_sucursal', $this->sucursal_id)
             ->with(['puesto'])
             ->get();
+
+        // 2. ORDEN JERÁRQUICO (Gerente > Administrador > Coordinador > Asesores)
+        // Se usa str_contains para incluir variables como "Gerente A", "Gerente B", etc.
+        $empleados = $empleadosRaw->sortBy(function($empleado) {
+            $puesto = strtoupper($empleado->puesto->nombre_puesto ?? '');
+            
+            if (str_contains($puesto, 'GERENTE')) return 1;
+            if (str_contains($puesto, 'ADMINISTRADOR')) return 2;
+            if (str_contains($puesto, 'COORDINADOR')) return 3;
+            if (str_contains($puesto, 'ASESOR')) return 4;
+            
+            return 99; // Otros puestos al final
+        });
 
         $this->resultados = collect();
 
@@ -147,7 +159,8 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
 
     public function map($filaResultado): array
     {
-        $filaActual = $this->rowNumber + 1;
+        // Se mantiene el ajuste a +2 para compensar la fila de título insertada después
+        $filaActual = $this->rowNumber + 2;
         $this->rowNumber++;
 
         $rangoPercepciones    = "F{$filaActual}:I{$filaActual}";
@@ -159,30 +172,30 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             $filaResultado['empleado_nombre'],
             $filaResultado['fecha_ingreso'] ? Carbon::parse($filaResultado['fecha_ingreso'])->format('d/m/Y') : 'N/A',
             $filaResultado['puesto'],
-            '', '', // Columnas D y E
-            (float) $filaResultado['sueldo_quincenal'],      // F
-            (float) $filaResultado['bono_permanencia'],      // G
-            (float) $filaResultado['bono_cumpleanos'],       // H
-            (float) $filaResultado['prima_vacacional'],      // I
-            "=SUM({$rangoPercepciones})",                     // J
-            (float) $filaResultado['deduccion_faltas'],      // K
-            (float) $filaResultado['deduccion_prestamo'],    // L
-            (float) $filaResultado['deduccion_caja_ahorro'],// M
-            (float) $filaResultado['deduccion_infonavit'],   // N
-            (float) $filaResultado['deduccion_isr'],         // O
-            (float) $filaResultado['deduccion_imss'],        // P
-            (float) $filaResultado['deduccion_otro'],        // Q
-            "=SUM({$rangoDeducciones})",                      // R
-            "={$colTotalPercepciones}-{$colTotalDeducciones}", // S
+            '', '', 
+            (float) $filaResultado['sueldo_quincenal'],
+            (float) $filaResultado['bono_permanencia'],
+            (float) $filaResultado['bono_cumpleanos'],
+            (float) $filaResultado['prima_vacacional'],
+            "=SUM({$rangoPercepciones})",
+            (float) $filaResultado['deduccion_faltas'],
+            (float) $filaResultado['deduccion_prestamo'],
+            (float) $filaResultado['deduccion_caja_ahorro'],
+            (float) $filaResultado['deduccion_infonavit'],
+            (float) $filaResultado['deduccion_isr'],
+            (float) $filaResultado['deduccion_imss'],
+            (float) $filaResultado['deduccion_otro'],
+            "=SUM({$rangoDeducciones})",
+            "={$colTotalPercepciones}-{$colTotalDeducciones}",
         ];
     }
 
-    public function columnFormats(): array
+    public function columnFormatting(): array
     {
         $formatoMonedaConCero = '$ #,##0.00;[Red]-$ #,##0.00;"$ "0.00';
         return [
-            'F:S' => $formatoMonedaConCero, // El rango de formato de moneda es de la F a la S
-            'B' => NumberFormat::FORMAT_DATE_DDMMYYYY // La columna B ahora es la fecha
+            'F:S' => $formatoMonedaConCero,
+            'B' => NumberFormat::FORMAT_DATE_DDMMYYYY
         ];
     }
 
@@ -255,4 +268,3 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
         return (float) $this->resultados->sum('neto_a_pagar');
     }
 }
-
