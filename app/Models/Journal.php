@@ -6,34 +6,36 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Journal extends Model
 {
     use HasFactory;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
     protected $fillable = [
-        'date', // <-- ¡ESTA ES LA LÍNEA QUE FALTABA!
+        'date',
         'concept',
+        'id_sucursal',    // <-- AGREGAR ESTO
+        'user_id',        // <-- AGREGAR ESTO
         'sourceable_id',
         'sourceable_type',
     ];
 
-    /**
-     * Una póliza tiene muchos asientos/movimientos.
-     */
     public function entries(): HasMany
     {
         return $this->hasMany(JournalEntry::class);
     }
 
-    /**
-     * Obtiene el modelo origen (Gasto, Venta, etc.) que generó esta póliza.
-     */
+    public function sucursal(): BelongsTo
+    {
+        return $this->belongsTo(Sucursal::class, 'id_sucursal');
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
     public function sourceable(): MorphTo
     {
         return $this->morphTo();

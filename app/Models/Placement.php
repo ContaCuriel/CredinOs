@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 
 class Placement extends Model
 {
@@ -18,6 +19,11 @@ class Placement extends Model
         'user_id',
         'notes',
     ];
+
+    public function journal(): MorphOne
+    {
+        return $this->morphOne(Journal::class, 'sourceable');
+    }
 
     /**
      * Una colocación pertenece a una sucursal.
