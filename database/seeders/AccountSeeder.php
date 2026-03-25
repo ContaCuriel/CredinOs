@@ -3,60 +3,79 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\Account;
 use Illuminate\Support\Facades\DB;
 
 class AccountSeeder extends Seeder
 {
     /**
      * Run the database seeds.
-     * Este seeder implementa una versión completa del catálogo de cuentas del SAT.
      */
     public function run(): void
     {
-        // Solución PostgreSQL: Limpia la tabla y las relaciones dependientes de forma segura
-        DB::statement('TRUNCATE accounts CASCADE;');
+        // 1. Limpiamos la tabla usando DB Query directo (más seguro en tenants)
+        DB::table('accounts')->truncate();
 
-        // Nivel 1: Cuentas de Mayor
-        $activo = Account::create(['name' => 'Activo', 'code' => '100', 'type' => 'activo']);
-        $pasivo = Account::create(['name' => 'Pasivo', 'code' => '200', 'type' => 'pasivo']);
-        $capital = Account::create(['name' => 'Capital Contable', 'code' => '300', 'type' => 'capital']);
-        $ingresos = Account::create(['name' => 'Ingresos', 'code' => '400', 'type' => 'ingresos']);
-        $costos = Account::create(['name' => 'Costos', 'code' => '500', 'type' => 'costos']);
-        $gastos = Account::create(['name' => 'Gastos de Operación', 'code' => '600', 'type' => 'gastos']);
-        $gastosFinancieros = Account::create(['name' => 'Gastos y Productos Financieros', 'code' => '800', 'type' => 'gastos']);
+        $accounts = [
+            // Cuentas de Mayor
+            ['name' => 'Activo', 'code' => '100', 'type' => 'activo', 'parent_id' => null],
+            ['name' => 'Pasivo', 'code' => '200', 'type' => 'pasivo', 'parent_id' => null],
+            ['name' => 'Capital Contable', 'code' => '300', 'type' => 'capital', 'parent_id' => null],
+            ['name' => 'Ingresos', 'code' => '400', 'type' => 'ingresos', 'parent_id' => null],
+            ['name' => 'Costos', 'code' => '500', 'type' => 'costos', 'parent_id' => null],
+            ['name' => 'Gastos de Operación', 'code' => '600', 'type' => 'gastos', 'parent_id' => null],
+            ['name' => 'Gastos y Productos Financieros', 'code' => '800', 'type' => 'gastos', 'parent_id' => null],
+            
+            // Activo a corto plazo
+            ['name' => 'Activo a corto plazo', 'code' => '100.01', 'type' => 'activo', 'parent_id' => '100'],
+            ['name' => 'Caja', 'code' => '101.01', 'type' => 'activo', 'parent_id' => '100.01'],
+            ['name' => 'Bancos', 'code' => '102.01', 'type' => 'activo', 'parent_id' => '100.01'],
+            ['name' => 'Clientes', 'code' => '105.01', 'type' => 'activo', 'parent_id' => '100.01'],
+            ['name' => 'IVA Acreditable', 'code' => '118.01', 'type' => 'activo', 'parent_id' => '100.01'],
+            
+            // Pasivo a corto plazo
+            ['name' => 'Pasivo a corto plazo', 'code' => '200.01', 'type' => 'pasivo', 'parent_id' => '200'],
+            ['name' => 'Proveedores', 'code' => '201.01', 'type' => 'pasivo', 'parent_id' => '200.01'],
+            ['name' => 'Impuestos por pagar', 'code' => '208.01', 'type' => 'pasivo', 'parent_id' => '200.01'],
+            
+            // Ingresos
+            ['name' => 'Ingresos', 'code' => '401', 'type' => 'ingresos', 'parent_id' => '400'],
+            ['name' => 'Ingresos por intereses (actividad propia)', 'code' => '401.32', 'type' => 'ingresos', 'parent_id' => '401'],
+            ['name' => 'Recuperación de cartera castigada', 'code' => '401.38', 'type' => 'ingresos', 'parent_id' => '401'],
+            
+            // Gastos Generales
+            ['name' => 'Gastos generales', 'code' => '601', 'type' => 'gastos', 'parent_id' => '600'],
+            ['name' => 'Sueldos y salarios', 'code' => '601.01', 'type' => 'gastos', 'parent_id' => '601'],
+            ['name' => 'Comisiones a personal', 'code' => '601.03', 'type' => 'gastos', 'parent_id' => '601'],
+            ['name' => 'Previsión social', 'code' => '601.09', 'type' => 'gastos', 'parent_id' => '601'],
+            ['name' => 'Castigos (gastos no deducibles)', 'code' => '601.10', 'type' => 'gastos', 'parent_id' => '601'],
+            ['name' => 'Arrendamiento', 'code' => '601.21', 'type' => 'gastos', 'parent_id' => '601'],
+            ['name' => 'Telecomunicaciones', 'code' => '601.25', 'type' => 'gastos', 'parent_id' => '601'],
+            
+            // Otros Gastos
+            ['name' => 'Gastos de venta', 'code' => '701', 'type' => 'gastos', 'parent_id' => '600'],
+            ['name' => 'Gastos financieros', 'code' => '803', 'type' => 'gastos', 'parent_id' => '800'],
+            ['name' => 'Comisiones bancarias', 'code' => '803.01', 'type' => 'gastos', 'parent_id' => '803'],
+        ];
 
-        // --- Estructura de Activo ---
-        $activoCorto = Account::create(['name' => 'Activo a corto plazo', 'code' => '100.01', 'type' => 'activo', 'parent_id' => $activo->id]);
-        Account::create(['name' => 'Caja', 'code' => '101.01', 'type' => 'activo', 'parent_id' => $activoCorto->id]);
-        Account::create(['name' => 'Bancos', 'code' => '102.01', 'type' => 'activo', 'parent_id' => $activoCorto->id]);
-        Account::create(['name' => 'Clientes', 'code' => '105.01', 'type' => 'activo', 'parent_id' => $activoCorto->id]);
-        Account::create(['name' => 'IVA Acreditable', 'code' => '118.01', 'type' => 'activo', 'parent_id' => $activoCorto->id]);
-        
-        // --- Estructura de Pasivo ---
-        $pasivoCorto = Account::create(['name' => 'Pasivo a corto plazo', 'code' => '200.01', 'type' => 'pasivo', 'parent_id' => $pasivo->id]);
-        Account::create(['name' => 'Proveedores', 'code' => '201.01', 'type' => 'pasivo', 'parent_id' => $pasivoCorto->id]);
-        Account::create(['name' => 'Impuestos por pagar', 'code' => '208.01', 'type' => 'pasivo', 'parent_id' => $pasivoCorto->id]);
+        // 2. Insertamos usando DB::table (ignora fillable y asegura la conexión actual del tenant)
+        foreach ($accounts as $acc) {
+            $parentId = null;
+            if ($acc['parent_id'] !== null) {
+                // Buscamos el ID real de la base de datos basado en el código padre
+                $parentRow = DB::table('accounts')->where('code', $acc['parent_id'])->first();
+                $parentId = $parentRow ? $parentRow->id : null;
+            }
 
-        // --- Estructura de Ingresos ---
-        $ingresosSub = Account::create(['name' => 'Ingresos', 'code' => '401', 'type' => 'ingresos', 'parent_id' => $ingresos->id]);
-        Account::create(['name' => 'Ingresos por intereses (actividad propia)', 'code' => '401.32', 'type' => 'ingresos', 'parent_id' => $ingresosSub->id]);
-        Account::create(['name' => 'Recuperación de cartera castigada', 'code' => '401.38', 'type' => 'ingresos', 'parent_id' => $ingresosSub->id]);
+            DB::table('accounts')->insert([
+                'name' => $acc['name'],
+                'code' => $acc['code'],
+                'type' => $acc['type'],
+                'parent_id' => $parentId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
 
-        // --- Estructura de Gastos ---
-        $gastosGenerales = Account::create(['name' => 'Gastos generales', 'code' => '601', 'type' => 'gastos', 'parent_id' => $gastos->id]);
-        Account::create(['name' => 'Sueldos y salarios', 'code' => '601.01', 'type' => 'gastos', 'parent_id' => $gastosGenerales->id]);
-        Account::create(['name' => 'Comisiones a personal', 'code' => '601.03', 'type' => 'gastos', 'parent_id' => $gastosGenerales->id]);
-        Account::create(['name' => 'Previsión social', 'code' => '601.09', 'type' => 'gastos', 'parent_id' => $gastosGenerales->id]);
-        Account::create(['name' => 'Castigos (gastos no deducibles)', 'code' => '601.10', 'type' => 'gastos', 'parent_id' => $gastosGenerales->id]);
-        Account::create(['name' => 'Arrendamiento', 'code' => '601.21', 'type' => 'gastos', 'parent_id' => $gastosGenerales->id]);
-        Account::create(['name' => 'Telecomunicaciones', 'code' => '601.25', 'type' => 'gastos', 'parent_id' => $gastosGenerales->id]);
-
-        $gastosDeVenta = Account::create(['name' => 'Gastos de venta', 'code' => '701', 'type' => 'gastos', 'parent_id' => $gastos->id]);
-
-        $gastosFinancierosSub = Account::create(['name' => 'Gastos financieros', 'code' => '803', 'type' => 'gastos', 'parent_id' => $gastosFinancieros->id]);
-        Account::create(['name' => 'Comisiones bancarias', 'code' => '803.01', 'type' => 'gastos', 'parent_id' => $gastosFinancierosSub->id]);
-
-        $this->command->info('El catálogo de cuentas del SAT (versión completa) ha sido cargado.');
+        $this->command->info('El catálogo de cuentas del SAT ha sido cargado con DB::table.');
     }
 }
