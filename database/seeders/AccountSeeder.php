@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Spatie\Multitenancy\Models\Tenant;
 
 class AccountSeeder extends Seeder
 {
@@ -12,11 +13,24 @@ class AccountSeeder extends Seeder
      */
     public function run(): void
     {
-        // 1. Usamos la conexión 'tenant' obligatoriamente para afectar al esquema correcto
-        $tenantDB = DB::connection('tenant');
+        // 1. Obtener el tenant actual al que el comando está apuntando
+        $currentTenant = Tenant::current();
 
-        // Limpiamos la tabla del tenant específico de forma segura en Postgres
-        $tenantDB->statement('TRUNCATE accounts CASCADE;');
+        if (!$currentTenant) {
+            $this->command->error("No se pudo detectar el Tenant actual.");
+            return;
+        }
+
+        // 2. Extraer el nombre de la base de datos / esquema del tenant
+        $schema = $currentTenant->database;
+
+        if (empty($schema)) {
+            $this->command->error("El Tenant no tiene un esquema definido.");
+            return;
+        }
+
+        // Limpiamos la tabla apuntando directamente al esquema en Postgres
+        DB::statement("TRUNCATE \"$schema\".accounts CASCADE;");
 
         $accounts = [
             // Cuentas de Mayor
@@ -60,16 +74,16 @@ class AccountSeeder extends Seeder
             ['name' => 'Comisiones bancarias', 'code' => '803.01', 'type' => 'gastos', 'parent_id' => '803'],
         ];
 
-        // 2. Insertamos en el TENANT
+        // 3. Insertamos usando la ruta completa "esquema.tabla"
         foreach ($accounts as $acc) {
             $parentId = null;
             if ($acc['parent_id'] !== null) {
-                // Buscamos en el tenant
-                $parentRow = $tenantDB->table('accounts')->where('code', $acc['parent_id'])->first();
+                // Buscamos usando el esquema
+                $parentRow = DB::table("$schema.accounts")->where('code', $acc['parent_id'])->first();
                 $parentId = $parentRow ? $parentRow->id : null;
             }
 
-            $tenantDB->table('accounts')->insert([
+            DB::table("$schema.accounts")->insert([
                 'name' => $acc['name'],
                 'code' => $acc['code'],
                 'type' => $acc['type'],
@@ -79,6 +93,6 @@ class AccountSeeder extends Seeder
             ]);
         }
 
-        $this->command->info('El catálogo de cuentas se insertó correctamente en el esquema del Tenant.');
+        $this->command->info("El catálogo de cuentas se insertó correctamente en el esquema: $schema");
     }
 }
