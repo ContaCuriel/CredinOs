@@ -45,39 +45,35 @@ class AccountingService
     // --- PÓLIZA DE COLOCACIÓN ---
     public function createJournalFromPlacement(Placement $placement): ?Journal
     {
-        try {
-            if (!$placement || $placement->journal()->exists()) return null;
+        if (!$placement || $placement->journal()->exists()) return null;
 
-            $clientesAccount = Account::where('code', '105.01')->first();
-            $bancoAccount = Account::where('code', '102.01')->first();
+        $clientesAccount = Account::where('code', '105.01')->first();
+        $bancoAccount = Account::where('code', '102.01')->first();
 
-            if (!$clientesAccount || !$bancoAccount) return null;
-
-            return DB::transaction(function () use ($placement, $clientesAccount, $bancoAccount) {
-                $fecha = Carbon::create($placement->year, $placement->month, 1)->endOfMonth()->format('Y-m-d');
-                $nombreSuc = $placement->sucursal ? $placement->sucursal->nombre_sucursal : "Sucursal";
-
-                $journal = Journal::create([
-                    'date'            => $fecha,
-                    'concept'         => "Colocación Mensual: $nombreSuc ({$placement->month}/{$placement->year})",
-                    'sourceable_id'   => $placement->id,
-                    'sourceable_type' => Placement::class,
-                    'sucursal_id'     => $placement->sucursal_id, // <--- CORREGIDO AQUÍ
-                    'user_id'         => $placement->user_id,
-                ]);
-
-                $journal->entries()->create(['account_id' => $clientesAccount->id, 'debit' => $placement->amount, 'credit' => 0]);
-                $journal->entries()->create(['account_id' => $bancoAccount->id, 'debit' => 0, 'credit' => $placement->amount]);
-
-                return $journal;
-            });
-
-        } catch (Throwable $e) {
-            Log::error("Error Placement: " . $e->getMessage());
-            return null; // Si esto falla, devuelve nulo en lugar de matar el proceso
+        // Si faltan las cuentas, forzamos un error fatal para que te des cuenta
+        if (!$clientesAccount || !$bancoAccount) {
+            throw new \Exception("ERROR CONTABLE: Faltan las cuentas 105.01 o 102.01 en el catálogo de esta empresa.");
         }
-    }
 
+        return DB::transaction(function () use ($placement, $clientesAccount, $bancoAccount) {
+            $fecha = Carbon::create($placement->year, $placement->month, 1)->endOfMonth()->format('Y-m-d');
+            $nombreSuc = $placement->sucursal ? $placement->sucursal->nombre_sucursal : "Sucursal";
+
+            $journal = Journal::create([
+                'date'            => $fecha,
+                'concept'         => "Colocación Mensual: $nombreSuc ({$placement->month}/{$placement->year})",
+                'sourceable_id'   => $placement->id,
+                'sourceable_type' => Placement::class,
+                'sucursal_id'     => $placement->sucursal_id,
+                'user_id'         => $placement->user_id,
+            ]);
+
+            $journal->entries()->create(['account_id' => $clientesAccount->id, 'debit' => $placement->amount, 'credit' => 0]);
+            $journal->entries()->create(['account_id' => $bancoAccount->id, 'debit' => 0, 'credit' => $placement->amount]);
+
+            return $journal;
+        });
+    }
     // --- PÓLIZA DE RECUPERACIÓN ---
     public function createJournalFromRecovery(Recovery $recovery): ?Journal
     {
