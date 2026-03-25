@@ -11,31 +11,18 @@ use Carbon\Carbon;
 
 class PlacementController extends Controller
 {
-    /**
-     * Muestra una lista de los registros de colocación.
-     */
     public function index()
     {
-        // Cargamos sucursal, user y journal (vital para ver la póliza creada)
-        $placements = Placement::with(['sucursal', 'user', 'journal'])
-                                ->latest()
-                                ->paginate(20);
-
+        $placements = Placement::with(['sucursal', 'user', 'journal'])->latest()->paginate(20);
         return view('placements.index', compact('placements'));
     }
 
-    /**
-     * Muestra el formulario para crear un nuevo registro de colocación.
-     */
     public function create()
     {
         $sucursales = Sucursal::orderBy('nombre_sucursal')->get();
         return view('placements.create', compact('sucursales'));
     }
 
-    /**
-     * Guarda un nuevo registro de colocación en la base de datos.
-     */
     public function store(Request $request)
     {
         try {
@@ -49,7 +36,6 @@ class PlacementController extends Controller
                     'integer',
                     'min:1',
                     'max:12',
-                    // Regla para asegurar que la combinación de sucursal, año y mes sea única.
                     Rule::unique('placements')->where(function ($query) use ($request) {
                         return $query->where('sucursal_id', $request->sucursal_id)
                                      ->where('year', $request->year);
@@ -57,33 +43,26 @@ class PlacementController extends Controller
                 ],
                 'amount' => 'required|numeric|min:0.01',
                 'notes' => 'nullable|string',
-            ], [
-                // Mensajes de error personalizados
-                'month.unique' => 'Ya existe un registro de colocación para esta sucursal en el mes y año seleccionados.',
             ]);
 
-            // Creamos el registro
             Placement::create([
                 'sucursal_id' => $validatedData['sucursal_id'],
-                'year'        => $validatedData['year'],
-                'month'       => $validatedData['month'],
-                'amount'      => $validatedData['amount'],
-                'user_id'     => Auth::id() ?? 1,
-                'notes'       => $validatedData['notes'],
+                'year' => $validatedData['year'],
+                'month' => $validatedData['month'],
+                'amount' => $validatedData['amount'],
+                'user_id' => Auth::id() ?? 1,
+                'notes' => $validatedData['notes'],
             ]);
 
-            return redirect()->route('placements.index')
-                ->with('success', 'Registro de colocación guardado exitosamente. La póliza contable ha sido generada.');
+            return redirect()->route('placements.index')->with('success', 'Registro guardado exitosamente.');
 
         } catch (\Illuminate\Validation\ValidationException $e) {
-            // Regresa al formulario con los errores de validación
             return redirect()->back()->withErrors($e->errors())->withInput();
-            
         } catch (\Exception $e) {
-            // MAGIA: Pantalla de error forzada si algo sale mal (Evita el "Procesando...")
+            // ESTO ES LO QUE OBLIGARÁ A MOSTRAR EL ERROR EN PANTALLA
             dd([
                 '¡ALERTA DE ERROR FATAL!' => 'El sistema falló al guardar.',
-                'MENSAJE DEL SERVIDOR' => $e->getMessage(),
+                'MENSAJE_DEL_SERVIDOR' => $e->getMessage(),
                 'ARCHIVO' => $e->getFile(),
                 'LINEA' => $e->getLine()
             ]);
