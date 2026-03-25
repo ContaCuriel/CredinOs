@@ -15,7 +15,7 @@ class Journal extends Model
     protected $fillable = [
         'date',
         'concept',
-        'id_sucursal',
+        'sucursal_id',
         'user_id',
         'sourceable_id',
         'sourceable_type',
@@ -28,7 +28,7 @@ class Journal extends Model
 
     public function sucursal(): BelongsTo
     {
-        return $this->belongsTo(Sucursal::class, 'id_sucursal');
+        return $this->belongsTo(Sucursal::class, 'sucursal_id');
     }
 
     public function user(): BelongsTo
