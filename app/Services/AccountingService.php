@@ -69,44 +69,62 @@ class AccountingService
 
     public function createJournalFromPlacement(Placement $placement): ?Journal
     {
+        Log::info("[ACCOUNTING_SERVICE] Iniciando póliza para colocación ID: {$placement->id}");
+
         if ($placement->journal()->exists()) {
+            Log::info("[ACCOUNTING_SERVICE] Colocación ID: {$placement->id} ya tiene póliza.");
             return null;
         }
 
-        // Usamos first() y validamos para evitar el bloqueo del sistema si no existe el código
+        // Buscamos las cuentas (asegúrate que existan estos códigos en tu catálogo)
         $clientesAccount = Account::where('code', '105.01')->first();
         $bancoAccount = Account::where('code', '102.01')->first();
 
         if (!$clientesAccount || !$bancoAccount) {
-            Log::error("[ACCOUNTING_SERVICE] No se encontraron cuentas 105.01 o 102.01 para Colocación.");
+            Log::error("[ACCOUNTING_SERVICE] Faltan cuentas 105.01 o 102.01 para Colocación.");
             return null;
         }
 
-        return DB::transaction(function () use ($placement, $clientesAccount, $bancoAccount) {
-            $journal = Journal::create([
-                // CORRECCIÓN: Fecha establecida como el último día del mes/año del registro
-                'date' => Carbon::create($placement->year, $placement->month, 1)->endOfMonth()->format('Y-m-d'),
-                'concept' => "Colocación de créditos Suc. {$placement->sucursal->nombre_sucursal} - {$placement->month}/{$placement->year}",
-                'sourceable_id' => $placement->id,
-                'sourceable_type' => Placement::class,
-                'id_sucursal' => $placement->sucursal_id, // Vital para reportes
-                'user_id' => $placement->user_id,
-            ]);
+        // Usamos un bloque try-catch GENERAL para que la contabilidad no truene el guardado.
+        try {
+            return DB::transaction(function () use ($placement, $clientesAccount, $bancoAccount) {
+                Log::info("[ACCOUNTING_SERVICE] Iniciando transacción para colocación ID: {$placement->id}");
 
-            $journal->entries()->create([
-                'account_id' => $clientesAccount->id,
-                'debit' => $placement->amount,
-                'credit' => 0,
-            ]);
+                // Fabricamos la fecha con seguridad, usando el día 1 y capturando el final del mes.
+                $fechaPpoliza = Carbon::create($placement->year, $placement->month, 1)->endOfMonth()->format('Y-m-d');
 
-            $journal->entries()->create([
-                'account_id' => $bancoAccount->id,
-                'debit' => 0,
-                'credit' => $placement->amount,
-            ]);
+                $journal = Journal::create([
+                    'date' => $fechaPpoliza, // Fecha del último día del mes contable
+                    'concept' => "Colocación de créditos Suc. {$placement->sucursal->nombre_sucursal} - {$placement->month}/{$placement->year}",
+                    'sourceable_id' => $placement->id,
+                    'sourceable_type' => Placement::class,
+                    'id_sucursal' => $placement->sucursal_id, // Vital para reportes
+                    'user_id' => $placement->user_id,
+                ]);
+                Log::info("[ACCOUNTING_SERVICE] Póliza (Journal) ID: {$journal->id} creada.");
 
-            return $journal;
-        });
+                // Asiento 1: CARGO a Clientes/Cartera (Activo aumenta)
+                $journal->entries()->create([
+                    'account_id' => $clientesAccount->id,
+                    'debit' => $placement->amount,
+                    'credit' => 0,
+                ]);
+
+                // Asiento 2: ABONO a Bancos/Caja (Activo disminuye)
+                $journal->entries()->create([
+                    'account_id' => $bancoAccount->id,
+                    'debit' => 0,
+                    'credit' => $placement->amount,
+                ]);
+
+                Log::info("[ACCOUNTING_SERVICE] ÉXITO: Póliza completada para colocación ID: {$placement->id}");
+                return $journal;
+            });
+        } catch (Exception $e) {
+            // Si la contabilidad falla, registramos el error en el log pero liberamos la pantalla.
+            Log::error("[ACCOUNTING_SERVICE] EXCEPCIÓN en colocación ID {$placement->id}: " . $e->getMessage());
+            return null;
+        }
     }
 
     public function createJournalFromRecovery(Recovery $recovery): ?Journal
