@@ -46,37 +46,59 @@ class AccountingService
     public function createJournalFromPlacement(Placement $placement): ?Journal
     {
         try {
-            if ($placement->journal()->exists()) return null;
+            // 1. Verificación básica
+            if (!$placement || $placement->journal()->exists()) return null;
 
+            // 2. Buscar cuentas (Asegúrate que estos códigos existan en tu DB)
             $clientesAccount = Account::where('code', '105.01')->first();
             $bancoAccount = Account::where('code', '102.01')->first();
 
             if (!$clientesAccount || !$bancoAccount) {
-                Log::error("Cuentas 105.01 o 102.01 no encontradas.");
+                Log::error("[ACCOUNTING] No se hallaron cuentas 105.01/102.01 para Placement ID: " . $placement->id);
                 return null;
             }
 
+            // 3. Ejecutar transacción
             return DB::transaction(function () use ($placement, $clientesAccount, $bancoAccount) {
-                // Seguridad: Usamos el ID si el nombre falla
-                $nombreSuc = $placement->sucursal->nombre_sucursal ?? "Sucursal #".$placement->sucursal_id;
+                
+                // Calculamos la fecha de póliza
                 $fecha = Carbon::create($placement->year, $placement->month, 1)->endOfMonth()->format('Y-m-d');
+                
+                // Intentamos obtener el nombre de la sucursal de forma segura
+                $nombreSuc = "Sucursal";
+                if ($placement->sucursal) {
+                    $nombreSuc = $placement->sucursal->nombre_sucursal;
+                }
 
+                // Creamos el Journal
                 $journal = Journal::create([
-                    'date' => $fecha,
-                    'concept' => "Colocación Mensual: $nombreSuc ({$placement->month}/{$placement->year})",
-                    'sourceable_id' => $placement->id,
+                    'date'            => $fecha,
+                    'concept'         => "Colocación Mensual: $nombreSuc ({$placement->month}/{$placement->year})",
+                    'sourceable_id'   => $placement->id,
                     'sourceable_type' => Placement::class,
-                    'id_sucursal' => $placement->sucursal_id,
-                    'user_id' => $placement->user_id,
+                    'id_sucursal'     => $placement->sucursal_id,
+                    'user_id'         => $placement->user_id,
                 ]);
 
-                $journal->entries()->create(['account_id' => $clientesAccount->id, 'debit' => $placement->amount, 'credit' => 0]);
-                $journal->entries()->create(['account_id' => $bancoAccount->id, 'debit' => 0, 'credit' => $placement->amount]);
+                // Creamos los asientos uno por uno (es más seguro que createMany para debuggear)
+                $journal->entries()->create([
+                    'account_id' => $clientesAccount->id,
+                    'debit'      => $placement->amount,
+                    'credit'     => 0,
+                ]);
 
+                $journal->entries()->create([
+                    'account_id' => $bancoAccount->id,
+                    'debit'      => 0,
+                    'credit'     => $placement->amount,
+                ]);
+
+                Log::info("[ACCOUNTING] Póliza creada con éxito para Placement ID: " . $placement->id);
                 return $journal;
             });
-        } catch (Exception $e) {
-            Log::error("Error Placement: " . $e->getMessage());
+
+        } catch (\Exception $e) {
+            Log::error("[ACCOUNTING] ERROR CRÍTICO en Placement ID {$placement->id}: " . $e->getMessage());
             return null;
         }
     }
