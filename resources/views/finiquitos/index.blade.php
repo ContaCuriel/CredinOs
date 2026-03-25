@@ -7,6 +7,26 @@
             margin: 0 auto;   /* Centra el bloque */
         }
 
+        /* Colores sutiles para diferenciar percepciones y deducciones */
+.row-percepcion { background-color: rgba(40, 167, 69, 0.03) !important; }
+.row-deduccion { background-color: rgba(220, 53, 69, 0.03) !important; }
+
+/* Estilo para los inputs con formato de moneda */
+.input-moneda-wrapper { position: relative; }
+.input-moneda-wrapper::before {
+    content: "$";
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6c757d;
+    font-weight: bold;
+}
+.monto-editable { padding-left: 20px !important; }
+
+/* Spinner para los botones */
+.spinner-border-sm { margin-right: 8px; display: none; }
+
         /* Estilo para los inputs editables más elegantes */
         .monto-editable {
             border: 1px solid #dee2e6;
@@ -76,17 +96,18 @@
                             <div class="col-md-12 mb-3">
                                 <label for="id_empleado" class="form-label fw-bold">Empleado <span class="text-danger">*</span></label>
                                 <select class="form-select select2" id="id_empleado" required>
-                                    <option value="">Seleccione un empleado...</option>
-                                    @foreach ($empleados as $empleado)
-                                        <option value="{{ $empleado->id_empleado }}" 
-                                                data-fecha_ingreso="{{ $empleado->fecha_ingreso?->format('Y-m-d') }}" 
-                                                data-fecha_baja="{{ $empleado->fecha_baja?->format('Y-m-d') }}"
-                                                data-finiquito-path="{{ $empleado->finiquito_firmado_path }}"
-                                                data-finiquito-view-url="{{ route('finiquitos.viewSigned', $empleado) }}"
-                                                data-finiquito-upload-url="{{ route('finiquitos.uploadSigned', $empleado) }}">
-                                            {{ $empleado->nombre_completo }} - ({{ $empleado->status }})
-                                        </option>
-                                    @endforeach
+                                <option value="">Seleccione un empleado...</option>
+                                @foreach ($empleados as $empleado)
+                                    @php
+                                        $sueldoMensual = $empleado->puesto->salario_mensual ?? 0;
+                                    @endphp
+                                    <option value="{{ $empleado->id_empleado }}" 
+                                            data-fecha_ingreso="{{ $empleado->fecha_ingreso?->format('Y-m-d') }}" 
+                                            data-fecha_baja="{{ $empleado->fecha_baja?->format('Y-m-d') }}"
+                                            data-salario="{{ $sueldoMensual }}">
+                                        {{ $empleado->nombre_completo }} | ${{ number_format($sueldoMensual, 2) }} | ({{ $empleado->status }})
+                                    </option>
+                                @endforeach
                                 </select>
                             </div>
                         </div>
@@ -253,40 +274,50 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // 2. EJECUCIÓN CÁLCULO
+    // 2. EJECUCIÓN CÁLCULO CON LOADING STATE
     botonesCalculo.forEach(btn => {
         btn.addEventListener('click', function() {
-            const tipoCalculo = this.id.replace('btn_calc_', '');
-            document.getElementById('badge_tipo_calculo').textContent = tipoCalculo.replace('_', ' ').toUpperCase();
+            const btnOriginalHtml = this.innerHTML;
+            const tipo = this.id.replace('btn_calc_', '');
+            
+            // Mostrar Loading State
+            this.disabled = true;
+            this.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display:inline-block"></span> Calculando...`;
+
             fetch("{{ route('finiquitos.calcular') }}", {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                 body: JSON.stringify({
                     id_empleado: empleadoSelect.value,
                     fecha_final: fechaFinalInput.value,
-                    tipo_calculo: tipoCalculo,
+                    tipo_calculo: tipo,
                     dias_vacaciones_manuales: diasManualesInput.value || 0,
                     gratificacion_monto: gratificacionInput.value || 0
                 })
             })
             .then(res => res.json())
             .then(data => {
-                // Capturamos el salario diario exacto del controlador
                 salarioDiarioGlobal = limpiarNumero(data.salario_diario);
+                document.getElementById('badge_tipo_calculo').textContent = tipo.replace('_', ' ').toUpperCase();
                 resultadosContainer.style.display = 'block';
                 construirTablaEditable(data);
+                
+                // Restaurar botón
+                this.disabled = false;
+                this.innerHTML = btnOriginalHtml;
+            })
+            .catch(err => {
+                alert("Error al calcular. Revisa los datos.");
+                this.disabled = false;
+                this.innerHTML = btnOriginalHtml;
             });
         });
     });
 
-    // 3. CONSTRUCCIÓN TABLA EDITABLE
     function construirTablaEditable(data) {
         let p = ''; 
         const conceptos = [
-            {
-                l: `Días Laborados <input type="number" id="input_dias_cantidad" class="form-control d-inline-block text-center" style="width: 70px; height: 28px; font-size: 13px; margin: 0 5px;" value="${data.dias_laborados_dias || 0}"> d`, 
-                i: 'dias_laborados_monto', 
-                v: data.dias_laborados_monto
-            },
+            {l: `Días Laborados <input type="number" id="input_dias_cantidad" class="form-control d-inline-block text-center" style="width:70px; height:28px;" value="${data.dias_laborados_dias || 0}"> d`, i: 'dias_laborados_monto', v: data.dias_laborados_monto},
             {l: 'Aguinaldo Proporcional', i: 'aguinaldo_monto', v: data.aguinaldo_monto},
             {l: 'Vacaciones', i: 'vacaciones_monto', v: data.vacaciones_monto},
             {l: 'Prima Vacacional', i: 'prima_vacacional_monto', v: data.prima_vacacional_monto},
@@ -298,19 +329,19 @@ document.addEventListener('DOMContentLoaded', function () {
         
         conceptos.forEach(c => {
             if(limpiarNumero(c.v) > 0 || c.i === 'dias_laborados_monto' || c.i === 'gratificacion_monto') {
-                p += `<tr><td class="ps-4 align-middle-custom">${c.l}</td><td class="text-end pe-4"><input type="number" step="0.01" id="${c.i}" class="monto-editable text-end monto-p" value="${limpiarNumero(c.v).toFixed(2)}"></td></tr>`;
+                p += `<tr class="row-percepcion"><td class="ps-4 align-middle">${c.l}</td><td class="text-end pe-4"><div class="input-moneda-wrapper"><input type="number" step="0.01" id="${c.i}" class="monto-editable monto-p" value="${limpiarNumero(c.v).toFixed(2)}"></div></td></tr>`;
             }
         });
 
         tablaResultadosDiv.innerHTML = `
             <div id="tabla_resultados_wrapper">
                 <table class="table table-hover border bg-white shadow-sm">
-                    <thead class="table-dark"><tr><th class="ps-4">Concepto</th><th class="text-center">Monto Editable ($)</th></tr></thead>
+                    <thead class="table-dark"><tr><th class="ps-4 py-3">Concepto</th><th class="text-center py-3">Monto Editable</th></tr></thead>
                     <tbody>
-                        <tr class="row-categoria"><td colspan="2" class="py-2 ps-3">Percepciones</td></tr>${p}
-                        <tr class="row-categoria"><td colspan="2" class="py-2 ps-3">Deducciones</td></tr>
-                        <tr><td class="ps-4 align-middle-custom">Deducciones / Préstamos</td><td class="text-end pe-4"><input type="number" step="0.01" id="prestamo_saldo" class="monto-editable text-end monto-d text-danger" value="${limpiarNumero(data.prestamo_saldo).toFixed(2)}"></td></tr>
-                        <tr class="fs-5 fw-bold table-primary"><td class="text-end pe-4">Total Neto:</td><td class="text-end pe-4" id="neto_p">$0.00</td></tr>
+                        <tr class="row-categoria"><td colspan="2" class="py-2 ps-3">Percepciones (+)</td></tr>${p}
+                        <tr class="row-categoria"><td colspan="2" class="py-2 ps-3">Deducciones (-)</td></tr>
+                        <tr class="row-deduccion"><td class="ps-4 align-middle">Deducciones / Préstamos</td><td class="text-end pe-4"><div class="input-moneda-wrapper"><input type="number" step="0.01" id="prestamo_saldo" class="monto-editable monto-d text-danger" value="${limpiarNumero(data.prestamo_saldo).toFixed(2)}"></div></td></tr>
+                        <tr class="fs-5 fw-bold table-primary"><td class="text-end pe-4">Total Neto a Pagar:</td><td class="text-end pe-4" id="neto_p" style="font-size: 1.5rem; color: #0d6efd;">$0.00</td></tr>
                     </tbody>
                 </table>
             </div>`;
