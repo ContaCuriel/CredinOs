@@ -50,29 +50,43 @@
         <p>Se hace constar que no existe adeudo de honorarios a su favor, quedando cubiertos íntegramente los servicios prestados durante la vigencia del contrato. Lo anterior de conformidad con la <span class="fw-bold">CLÁUSULA QUINTA</span> del contrato vigente, donde ambas partes reconocieron la naturaleza civil de esta relación y la ausencia de subordinación laboral.</p>
     </div>
 
-<div class="mt-5" style="width: 100%;">
-    <div style="width: 300px; margin: 0 auto; text-align: center;">
-        <p>ATENTAMENTE,</p>
-        <div class="signature-line"></div>
-        <p class="fw-bold">
-            @if ($patron->tipo_persona == 'moral' && $patron->representante_legal)
-                {{ $patron->representante_legal }}<br>
-                <small>Representante Legal de {{ $patron->razon_social }}</small>
-            @else
-                {{ $patron->razon_social }}
-            @endif
-        </p>
-    </div>
-</div>
+<div style="margin-top: 30px; width: 100%; overflow: hidden;">
+        <div style="float: left; width: 50%; text-align: center;">
+            <p style="margin-bottom: 40px;">ATENTAMENTE,</p>
+            <div style="width: 200px; border-bottom: 1px solid black; margin: 0 auto;"></div>
+            <p class="fw-bold" style="font-size: 11px; margin-top: 5px;">
+                @if ($patron->tipo_persona == 'moral' && $patron->representante_legal)
+                    {{ $patron->representante_legal }}<br>
+                    <small>Representante Legal de {{ $patron->razon_social }}</small>
+                @else
+                    {{ $patron->razon_social }}
+                @endif
+            </p>
+        </div>
 
-    <div class="mt-5 border-top pt-4">
-        <p class="text-center fw-bold">ACUSE DE RECIBO Y CONFORMIDAD</p>
-        <p class="text-justify small">
+        <div style="float: right; width: 50%; text-align: center;">
+            <p style="margin-bottom: 40px;">RECIBÍ ORIGINAL (ACUSE)</p>
+            <div style="width: 200px; border-bottom: 1px solid black; margin: 0 auto;"></div>
+            <p class="fw-bold" style="font-size: 11px; margin-top: 5px;">
+                {{ $empleado->nombre_completo }}
+            </p>
+        </div>
+    </div>
+
+    <div style="margin-top: 20px; border-top: 1px solid #000; pt-2;">
+        <p class="text-center fw-bold" style="font-size: 11px; margin-bottom: 5px;">ACUSE DE RECIBO Y CONFORMIDAD</p>
+        <p class="text-justify small" style="font-size: 10px; line-height: 1.2; margin-bottom: 10px;">
             Recibí el original del presente aviso y manifiesto estar de acuerdo en que la relación jurídica termina por vencimiento de contrato, dándome por pagado de cualquier concepto a mi favor.
         </p>
-        <p class="mt-3">Nombre: <strong>{{ $empleado->nombre_completo }}</strong></p>
-        <p>Fecha: ____/____/_______</p>
-        <p>Firma: ___________________________</p>
+        <table style="width: 100%; font-size: 11px;">
+            <tr>
+                <td style="width: 60%;">Nombre: <strong>{{ $empleado->nombre_completo }}</strong></td>
+                <td>Fecha: ____/____/_______</td>
+            </tr>
+            <tr>
+                <td colspan="2" style="padding-top: 10px;">Firma: ___________________________</td>
+            </tr>
+        </table>
     </div>
 
 </body>
