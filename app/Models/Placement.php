@@ -20,31 +20,18 @@ class Placement extends Model
         'notes',
     ];
 
-    public function journal(): MorphOne
-    {
-        return $this->morphOne(Journal::class, 'sourceable');
-    }
-
-    /**
-     * Una colocación pertenece a una sucursal.
-     */
     public function sucursal(): BelongsTo
     {
         return $this->belongsTo(Sucursal::class, 'sucursal_id', 'id_sucursal');
     }
 
-    /**
-     * Una colocación fue registrada por un usuario.
-     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    /**
-     * Obtiene la póliza contable asociada a esta colocación.
-     */
-    public function journal()
+
+    public function journal(): MorphOne
     {
         return $this->morphOne(Journal::class, 'sourceable');
     }
