@@ -50,25 +50,20 @@
         <p>Se hace constar que no existe adeudo de honorarios a su favor, quedando cubiertos íntegramente los servicios prestados durante la vigencia del contrato. Lo anterior de conformidad con la <span class="fw-bold">CLÁUSULA QUINTA</span> del contrato vigente, donde ambas partes reconocieron la naturaleza civil de esta relación y la ausencia de subordinación laboral.</p>
     </div>
 
-    <div class="mt-5">
-        <div style="float: left; width: 50%; text-align: center;">
-            <p>ATENTAMENTE,</p>
-            <div class="signature-line"></div>
-            <p class="fw-bold">
-                @if ($patron->tipo_persona == 'moral' && $patron->representante_legal)
-                    {{ $patron->representante_legal }}<br>
-                    <small>Representante Legal de {{ $patron->razon_social }}</small>
-                @else
-                    {{ $patron->razon_social }}
-                @endif
-            </p>
-        </div>
-        <div style="float: right; width: 50%; text-align: center;">
-            <p>RECIBÍ ORIGINAL (ACUSE)</p>
-            <div class="signature-line"></div>
-            <p class="fw-bold">{{ $empleado->nombre_completo }}</p>
-        </div>
+<div class="mt-5" style="width: 100%;">
+    <div style="width: 300px; margin: 0 auto; text-align: center;">
+        <p>ATENTAMENTE,</p>
+        <div class="signature-line"></div>
+        <p class="fw-bold">
+            @if ($patron->tipo_persona == 'moral' && $patron->representante_legal)
+                {{ $patron->representante_legal }}<br>
+                <small>Representante Legal de {{ $patron->razon_social }}</small>
+            @else
+                {{ $patron->razon_social }}
+            @endif
+        </p>
     </div>
+</div>
 
     <div class="mt-5 border-top pt-4">
         <p class="text-center fw-bold">ACUSE DE RECIBO Y CONFORMIDAD</p>
