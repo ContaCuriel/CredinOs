@@ -27,20 +27,15 @@ class AccountingService
             Log::warning("[ACCOUNTING_SERVICE] FALLO: La categoría del gasto ID: {$gasto->id} no tiene una cuenta contable asignada.");
             return null;
         }
-        Log::info("[ACCOUNTING_SERVICE] Gasto ID: {$gasto->id} tiene la cuenta contable asignada: " . $gasto->categoria->account_id);
 
         $bancoAccount = Account::where('code', '102.01')->first();
         if (!$bancoAccount) {
             Log::error("[ACCOUNTING_SERVICE] FALLO CRÍTICO: No se encontró la cuenta de Bancos (102.01).");
-            // En un caso real, podrías lanzar una excepción o notificar a un admin.
             return null;
         }
-        Log::info("[ACCOUNTING_SERVICE] Cuenta de Bancos (102.01) encontrada con ID: " . $bancoAccount->id);
 
         try {
             return DB::transaction(function () use ($gasto, $bancoAccount) {
-                Log::info("[ACCOUNTING_SERVICE] Iniciando transacción para gasto ID: {$gasto->id}");
-
                 $proveedorNombre = isset($gasto->proveedor->nombre) ? $gasto->proveedor->nombre : 'N/A';
 
                 $journal = Journal::create([
@@ -48,46 +43,54 @@ class AccountingService
                     'concept' => "Gasto: " . $gasto->categoria->nombre . " | Proveedor: " . $proveedorNombre,
                     'sourceable_id' => $gasto->id,
                     'sourceable_type' => Gasto::class,
+                    'id_sucursal' => $gasto->id_sucursal, // Vinculamos la sucursal del gasto
+                    'user_id' => $gasto->user_id,
                 ]);
-                Log::info("[ACCOUNTING_SERVICE] Póliza (Journal) ID: {$journal->id} creada.");
 
                 $journal->entries()->create([
                     'account_id' => $gasto->categoria->account_id,
                     'debit' => $gasto->monto_total,
                     'credit' => 0,
                 ]);
-                Log::info("[ACCOUNTING_SERVICE] Asiento de CARGO creado para cuenta ID: " . $gasto->categoria->account_id);
 
                 $journal->entries()->create([
                     'account_id' => $bancoAccount->id,
                     'debit' => 0,
                     'credit' => $gasto->monto_total,
                 ]);
-                Log::info("[ACCOUNTING_SERVICE] Asiento de ABONO creado para cuenta ID: " . $bancoAccount->id);
-                
-                Log::info("[ACCOUNTING_SERVICE] ÉXITO: Proceso completado para gasto ID: {$gasto->id}");
+
                 return $journal;
             });
         } catch (Exception $e) {
-            Log::error("[ACCOUNTING_SERVICE] EXCEPCIÓN en la transacción para gasto ID {$gasto->id}: " . $e->getMessage());
+            Log::error("[ACCOUNTING_SERVICE] EXCEPCIÓN en gasto ID {$gasto->id}: " . $e->getMessage());
             return null;
         }
     }
- public function createJournalFromPlacement(Placement $placement): ?Journal
+
+    public function createJournalFromPlacement(Placement $placement): ?Journal
     {
         if ($placement->journal()->exists()) {
             return null;
         }
 
-        $clientesAccount = Account::where('code', '105.01')->firstOrFail();
-        $bancoAccount = Account::where('code', '102.01')->firstOrFail();
+        // Usamos first() y validamos para evitar el bloqueo del sistema si no existe el código
+        $clientesAccount = Account::where('code', '105.01')->first();
+        $bancoAccount = Account::where('code', '102.01')->first();
+
+        if (!$clientesAccount || !$bancoAccount) {
+            Log::error("[ACCOUNTING_SERVICE] No se encontraron cuentas 105.01 o 102.01 para Colocación.");
+            return null;
+        }
 
         return DB::transaction(function () use ($placement, $clientesAccount, $bancoAccount) {
             $journal = Journal::create([
-                'date' => Carbon::create($placement->year, $placement->month)->endOfMonth(),
+                // CORRECCIÓN: Fecha establecida como el último día del mes/año del registro
+                'date' => Carbon::create($placement->year, $placement->month, 1)->endOfMonth()->format('Y-m-d'),
                 'concept' => "Colocación de créditos Suc. {$placement->sucursal->nombre_sucursal} - {$placement->month}/{$placement->year}",
                 'sourceable_id' => $placement->id,
                 'sourceable_type' => Placement::class,
+                'id_sucursal' => $placement->sucursal_id, // Vital para reportes
+                'user_id' => $placement->user_id,
             ]);
 
             $journal->entries()->create([
@@ -112,49 +115,47 @@ class AccountingService
             return null;
         }
 
-        // Obtenemos las cuentas del catálogo del SAT que vamos a necesitar.
-        $bancoAccount = Account::where('code', '102.01')->firstOrFail(); // Bancos
-        $clientesAccount = Account::where('code', '105.01')->firstOrFail(); // Clientes
-        $interesesAccount = Account::where('code', '401.32')->firstOrFail(); // Ingresos por intereses
-        $castigosAccount = Account::where('code', '601.10')->firstOrFail(); // Gastos por castigos (incobrables)
+        $bancoAccount = Account::where('code', '102.01')->first();
+        $clientesAccount = Account::where('code', '105.01')->first();
+        $interesesAccount = Account::where('code', '401.32')->first();
+        $castigosAccount = Account::where('code', '601.10')->first();
+
+        if (!$bancoAccount || !$clientesAccount || !$interesesAccount || !$castigosAccount) {
+            Log::error("[ACCOUNTING_SERVICE] Faltan cuentas del SAT para Recuperación.");
+            return null;
+        }
 
         return DB::transaction(function () use ($recovery, $bancoAccount, $clientesAccount, $interesesAccount, $castigosAccount) {
             $journal = Journal::create([
-                'date' => Carbon::create($recovery->year, $recovery->month)->endOfMonth(),
+                // CORRECCIÓN: Fecha establecida como el último día del mes/año del registro
+                'date' => Carbon::create($recovery->year, $recovery->month, 1)->endOfMonth()->format('Y-m-d'),
                 'concept' => "Recuperación de cartera Suc. {$recovery->sucursal->nombre_sucursal} - {$recovery->month}/{$recovery->year}",
                 'sourceable_id' => $recovery->id,
                 'sourceable_type' => Recovery::class,
+                'id_sucursal' => $recovery->sucursal_id, // Vital para reportes
+                'user_id' => $recovery->user_id,
             ]);
 
             $totalCashIn = $recovery->capital_recovered + $recovery->interest_collected;
 
-            // CARGO a Bancos por el total de dinero que entró.
             if ($totalCashIn > 0) {
                 $journal->entries()->create(['account_id' => $bancoAccount->id, 'debit' => $totalCashIn, 'credit' => 0]);
             }
 
-            // ABONO a Ingresos por los intereses cobrados.
             if ($recovery->interest_collected > 0) {
                 $journal->entries()->create(['account_id' => $interesesAccount->id, 'debit' => 0, 'credit' => $recovery->interest_collected]);
             }
             
-            // ABONO a Clientes por el capital recuperado (disminuye la deuda del cliente).
             if ($recovery->capital_recovered > 0) {
                 $journal->entries()->create(['account_id' => $clientesAccount->id, 'debit' => 0, 'credit' => $recovery->capital_recovered]);
             }
 
-            // Asiento por los préstamos castigados como incobrables.
             if ($recovery->unrecoverable_amount > 0) {
-                // CARGO a Gastos por el monto que se da por perdido.
                 $journal->entries()->create(['account_id' => $castigosAccount->id, 'debit' => $recovery->unrecoverable_amount, 'credit' => 0]);
-                // ABONO a Clientes para cancelar esa deuda del balance.
                 $journal->entries()->create(['account_id' => $clientesAccount->id, 'debit' => 0, 'credit' => $recovery->unrecoverable_amount]);
             }
 
             return $journal;
         });
     }
-
-
-
 }
