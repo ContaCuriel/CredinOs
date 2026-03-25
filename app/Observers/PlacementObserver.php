@@ -26,7 +26,7 @@ class PlacementObserver
                     ->format('Y-m-d');
             }
 
-            // (new AccountingService())->createJournalFromPlacement($placement);
+             (new AccountingService())->createJournalFromPlacement($placement);
 
             Log::info("Póliza procesada para Placement ID: " . $placement->id);
 
