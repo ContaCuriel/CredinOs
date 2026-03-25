@@ -1,69 +1,69 @@
 <x-app-layout>
     {{-- 1. SECCIÓN DE ESTILOS CSS --}}
     <style>
-        /* Contenedor centrado para la tabla de resultados */
-        #tabla_resultados_wrapper {
-            max-width: 750px; /* Ancho ideal para que no se desparrame */
-            margin: 0 auto;   /* Centra el bloque */
-        }
+    /* Contenedor centrado para la tabla de resultados */
+    #tabla_resultados_wrapper {
+        max-width: 750px;
+        margin: 0 auto;
+    }
 
-        /* Colores sutiles para diferenciar percepciones y deducciones */
-.row-percepcion { background-color: rgba(40, 167, 69, 0.03) !important; }
-.row-deduccion { background-color: rgba(220, 53, 69, 0.03) !important; }
+    /* Colores para diferenciar percepciones y deducciones */
+    .row-percepcion { background-color: #f0fff4 !important; } /* Verde suave */
+    .row-deduccion { background-color: #fff5f5 !important; }  /* Rojo suave */
 
-/* Estilo para los inputs con formato de moneda */
-.input-moneda-wrapper { position: relative; }
-.input-moneda-wrapper::before {
-    content: "$";
-    position: absolute;
-    left: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #6c757d;
-    font-weight: bold;
-}
-.monto-editable { padding-left: 20px !important; }
+    /* Estilo para los inputs con formato de moneda */
+    .input-moneda-wrapper { 
+        position: relative; 
+        display: inline-block;
+    }
 
-/* Spinner para los botones */
-.spinner-border-sm { margin-right: 8px; display: none; }
+    .input-moneda-wrapper::before {
+        content: "$";
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #4a5568;
+        font-weight: bold;
+        z-index: 10;
+        pointer-events: none;
+    }
 
-        /* Estilo para los inputs editables más elegantes */
-        .monto-editable {
-            border: 1px solid #dee2e6;
-            border-radius: 5px;
-            padding: 5px 10px;
-            background-color: #fff;
-            transition: all 0.2s;
-            width: 140px; /* Tamaño fijo para alineación perfecta */
-            font-weight: 600;
-            color: #2c3e50;
-        }
+    /* Spinner para los botones */
+    .spinner-border-sm { margin-right: 8px; display: none; }
 
-        .monto-editable:focus {
-            border-color: #0d6efd;
-            outline: none;
-            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
-            background-color: #f8fbff;
-        }
+    /* Estilo para los inputs editables */
+    .monto-editable {
+        border: 1px solid #dee2e6;
+        border-radius: 5px;
+        padding: 5px 10px 5px 25px !important; /* Espacio para el $ */
+        background-color: #fff;
+        transition: all 0.2s;
+        width: 160px;
+        font-weight: 600;
+        color: #2c3e50;
+        text-align: right;
+    }
 
-        /* Filas de encabezado de sección (Percepciones/Deducciones) */
-        .row-categoria {
-            background-color: #f8f9fa !important;
-            font-weight: bold;
-            text-transform: uppercase;
-            font-size: 0.75rem;
-            color: #6c757d;
-            letter-spacing: 1px;
-        }
-        
-        .table-hover tbody tr:hover {
-            background-color: rgba(0,0,0,.02);
-        }
+    .monto-editable:focus {
+        border-color: #0d6efd;
+        outline: none;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+        background-color: #f8fbff;
+    }
 
-        .align-middle-custom {
-            vertical-align: middle !important;
-        }
-    </style>
+    /* Filas de encabezado de sección */
+    .row-categoria {
+        background-color: #f8f9fa !important;
+        font-weight: bold;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        color: #6c757d;
+        letter-spacing: 1px;
+    }
+    
+    .table td { vertical-align: middle !important; }
+</style>
 
     <div class="container-fluid py-4">
         <div class="card shadow-sm">
@@ -220,6 +220,7 @@
     </div>
 
     @push('scripts')
+@push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const empleadoSelect = document.getElementById('id_empleado');
@@ -234,7 +235,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let salarioDiarioGlobal = 0;
 
-    // Limpieza robusta de números (maneja comas y formatos incorrectos)
     const limpiarNumero = (val) => {
         if (!val) return 0;
         const num = parseFloat(String(val).replace(/,/g, ''));
@@ -249,13 +249,12 @@ document.addEventListener('DOMContentLoaded', function () {
     // 1. CARGA DE POPOVER (VACACIONES)
     empleadoSelect.addEventListener('change', function() {
         const selectedOption = this.options[this.selectedIndex];
-        const empId = this.value;
         fechaIngresoInput.value = selectedOption.dataset.fecha_ingreso || '';
         fechaFinalInput.value = selectedOption.dataset.fecha_baja || '';
         toggleButtons();
         
-        if (empId) {
-            fetch(`/vacaciones/historial-json/${empId}`)
+        if (this.value) {
+            fetch(`/vacaciones/historial-json/${this.value}`)
             .then(res => res.json())
             .then(data => {
                 let html = '<div style="font-size: 11px; width: 250px;"><table class="table table-sm mb-0"><thead class="table-dark"><tr><th>Año</th><th>Periodo</th><th>Restantes</th></tr></thead><tbody>';
@@ -273,14 +272,12 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // 2. EJECUCIÓN CÁLCULO
     // 2. EJECUCIÓN CÁLCULO CON LOADING STATE
     botonesCalculo.forEach(btn => {
         btn.addEventListener('click', function() {
             const btnOriginalHtml = this.innerHTML;
             const tipo = this.id.replace('btn_calc_', '');
             
-            // Mostrar Loading State
             this.disabled = true;
             this.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display:inline-block"></span> Calculando...`;
 
@@ -301,23 +298,21 @@ document.addEventListener('DOMContentLoaded', function () {
                 document.getElementById('badge_tipo_calculo').textContent = tipo.replace('_', ' ').toUpperCase();
                 resultadosContainer.style.display = 'block';
                 construirTablaEditable(data);
-                
-                // Restaurar botón
                 this.disabled = false;
                 this.innerHTML = btnOriginalHtml;
             })
             .catch(err => {
-                alert("Error al calcular. Revisa los datos.");
                 this.disabled = false;
                 this.innerHTML = btnOriginalHtml;
             });
         });
     });
 
+    // 3. CONSTRUCCIÓN TABLA EDITABLE CON COLORES
     function construirTablaEditable(data) {
         let p = ''; 
         const conceptos = [
-            {l: `Días Laborados <input type="number" id="input_dias_cantidad" class="form-control d-inline-block text-center" style="width:70px; height:28px;" value="${data.dias_laborados_dias || 0}"> d`, i: 'dias_laborados_monto', v: data.dias_laborados_monto},
+            {l: `Días Laborados <input type="number" id="input_dias_cantidad" class="form-control d-inline-block text-center" style="width: 70px; height: 28px; font-size: 13px; margin: 0 5px;" value="${data.dias_laborados_dias || 0}"> d`, i: 'dias_laborados_monto', v: data.dias_laborados_monto},
             {l: 'Aguinaldo Proporcional', i: 'aguinaldo_monto', v: data.aguinaldo_monto},
             {l: 'Vacaciones', i: 'vacaciones_monto', v: data.vacaciones_monto},
             {l: 'Prima Vacacional', i: 'prima_vacacional_monto', v: data.prima_vacacional_monto},
@@ -329,18 +324,32 @@ document.addEventListener('DOMContentLoaded', function () {
         
         conceptos.forEach(c => {
             if(limpiarNumero(c.v) > 0 || c.i === 'dias_laborados_monto' || c.i === 'gratificacion_monto') {
-                p += `<tr class="row-percepcion"><td class="ps-4 align-middle">${c.l}</td><td class="text-end pe-4"><div class="input-moneda-wrapper"><input type="number" step="0.01" id="${c.i}" class="monto-editable monto-p" value="${limpiarNumero(c.v).toFixed(2)}"></div></td></tr>`;
+                p += `<tr class="row-percepcion">
+                        <td class="ps-4">${c.l}</td>
+                        <td class="text-end pe-4">
+                            <div class="input-moneda-wrapper">
+                                <input type="number" step="0.01" id="${c.i}" class="monto-editable monto-p" value="${limpiarNumero(c.v).toFixed(2)}">
+                            </div>
+                        </td>
+                      </tr>`;
             }
         });
 
         tablaResultadosDiv.innerHTML = `
             <div id="tabla_resultados_wrapper">
                 <table class="table table-hover border bg-white shadow-sm">
-                    <thead class="table-dark"><tr><th class="ps-4 py-3">Concepto</th><th class="text-center py-3">Monto Editable</th></tr></thead>
+                    <thead class="table-dark"><tr><th class="ps-4 py-3">Concepto</th><th class="text-center py-3">Monto Editable ($)</th></tr></thead>
                     <tbody>
                         <tr class="row-categoria"><td colspan="2" class="py-2 ps-3">Percepciones (+)</td></tr>${p}
                         <tr class="row-categoria"><td colspan="2" class="py-2 ps-3">Deducciones (-)</td></tr>
-                        <tr class="row-deduccion"><td class="ps-4 align-middle">Deducciones / Préstamos</td><td class="text-end pe-4"><div class="input-moneda-wrapper"><input type="number" step="0.01" id="prestamo_saldo" class="monto-editable monto-d text-danger" value="${limpiarNumero(data.prestamo_saldo).toFixed(2)}"></div></td></tr>
+                        <tr class="row-deduccion">
+                            <td class="ps-4">Deducciones / Préstamos</td>
+                            <td class="text-end pe-4">
+                                <div class="input-moneda-wrapper">
+                                    <input type="number" step="0.01" id="prestamo_saldo" class="monto-editable monto-d text-danger" value="${limpiarNumero(data.prestamo_saldo).toFixed(2)}">
+                                </div>
+                            </td>
+                        </tr>
                         <tr class="fs-5 fw-bold table-primary"><td class="text-end pe-4">Total Neto a Pagar:</td><td class="text-end pe-4" id="neto_p" style="font-size: 1.5rem; color: #0d6efd;">$0.00</td></tr>
                     </tbody>
                 </table>
@@ -348,79 +357,59 @@ document.addEventListener('DOMContentLoaded', function () {
         recalcularTotales();
     }
 
-    // 4. DELEGACIÓN DE EVENTOS (TU SOLUCIÓN REACTIVA DIRECTA)
     document.addEventListener('input', function (e) {
-        // A. Si cambian los DÍAS
         if (e.target && e.target.id === 'input_dias_cantidad') {
             const montoInput = document.getElementById('dias_laborados_monto');
             if (montoInput && salarioDiarioGlobal > 0) {
                 const dias = limpiarNumero(e.target.value);
                 montoInput.value = (dias * salarioDiarioGlobal).toFixed(2);
             }
-            // 🔥 RECALCULAR DIRECTO
             recalcularTotales();
             return;
         }
-
-        // B. Si cambia cualquier MONTO editable
         if (e.target && e.target.classList.contains('monto-editable')) {
             recalcularTotales();
         }
     });
     
     function recalcularTotales() {
-        let tp = 0; 
-        document.querySelectorAll('.monto-p').forEach(i => tp += limpiarNumero(i.value));
-        let td = 0; 
-        document.querySelectorAll('.monto-d').forEach(i => td += limpiarNumero(i.value));
-        
+        let tp = 0; document.querySelectorAll('.monto-p').forEach(i => tp += limpiarNumero(i.value));
+        let td = 0; document.querySelectorAll('.monto-d').forEach(i => td += limpiarNumero(i.value));
         const netoElement = document.getElementById('neto_p');
         if (netoElement) {
             netoElement.textContent = `$${(tp - td).toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
         }
     }
 
-    // 5. EXPORTACIÓN
     function prepararEnvio(format) {
         const idEmp = empleadoSelect.value;
-        if (!idEmp) {
-            alert('Por favor, selecciona un empleado primero.');
-            return;
-        }
-
-        // --- CORRECCIÓN AVISO (Ruta exacta) ---
+        if (!idEmp) return;
         if (format === 'aviso') {
-            window.open("/finiquitos/aviso-terminacion/" + idEmp, '_blank');
+            window.open(`/finiquitos/aviso-terminacion/${idEmp}`, '_blank');
             return;
         }
-
         const form = document.getElementById('form_export');
         form.method = "POST";
-        
         if (format === 'pdf') form.action = "{{ route('finiquitos.export.pdf') }}";
         else if (format === 'excel') form.action = "{{ route('finiquitos.export.excel') }}";
         else if (format === 'renuncia') form.action = "{{ route('finiquitos.export.renuncia.pdf') }}";
 
-        // Llenado de campos ocultos
         document.getElementById('export_id_empleado').value = idEmp;
         document.getElementById('export_fecha_final').value = fechaFinalInput.value;
         document.getElementById('export_id_patron').value = patronManualSelect.value;
         document.getElementById('export_dias_vacaciones_manuales').value = diasManualesInput.value || 0;
-        
         const btnActive = document.querySelector('button.active');
         document.getElementById('export_tipo_calculo').value = btnActive ? btnActive.id.replace('btn_calc_', '') : 'finiquito';
 
         const campos = ['dias_laborados_monto', 'aguinaldo_monto', 'vacaciones_monto', 'prima_vacacional_monto', 'monto_3_meses', 'monto_prima_antiguedad', 'caja_ahorro_monto', 'prestamo_saldo', 'gratificacion_monto'];
         campos.forEach(id => {
-            const inputTabla = document.getElementById(id);
-            const inputHidden = document.getElementById('export_' + id);
-            if (inputHidden) inputHidden.value = inputTabla ? limpiarNumero(inputTabla.value) : 0;
+            const val = document.getElementById(id);
+            const hidden = document.getElementById('export_' + id);
+            if (hidden) hidden.value = val ? limpiarNumero(val.value) : 0;
         });
-
         form.submit();
     }
 
-    // 🔥 IMPORTANTE: Asegúrate de tener estas líneas al final de tu script:
     document.getElementById('btn_export_pdf').addEventListener('click', () => prepararEnvio('pdf'));
     document.getElementById('btn_export_renuncia').addEventListener('click', () => prepararEnvio('renuncia'));
     document.getElementById('btn_export_excel').addEventListener('click', () => prepararEnvio('excel'));
@@ -429,5 +418,5 @@ document.addEventListener('DOMContentLoaded', function () {
     [fechaFinalInput, patronManualSelect].forEach(i => i.addEventListener('change', toggleButtons));
 });
 </script>
-    @endpush
+@endpush
 </x-app-layout>
