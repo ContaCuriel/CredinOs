@@ -61,7 +61,8 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             ->with(['puesto'])
             ->get();
 
-        // --- INICIO DE LA OPTIMIZACIÓN DE ORDEN ---
+        // --- INICIO DE LA OPTIMIZACIÓN DE ORDEN (JERARQUÍA) ---
+        // Soporta variantes como "Gerente A", "Gerente B", etc.
         $empleados = $empleadosRaw->sortBy(function($empleado) {
             $puesto = strtoupper($empleado->puesto->nombre_puesto ?? '');
             if (str_contains($puesto, 'GERENTE')) return 1;
@@ -158,6 +159,7 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
 
     public function map($filaResultado): array
     {
+        // AJUSTE: El título insertado desplaza las filas 2 posiciones (Título y Cabecera)
         $filaActual = $this->rowNumber + 2;
         $this->rowNumber++;
 
@@ -184,7 +186,7 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             (float) $filaResultado['deduccion_imss'],        // P
             (float) $filaResultado['deduccion_otro'],        // Q
             "=SUM({$rangoDeducciones})",                      // R
-            "=J{$filaActual}-R{$filaActual}", // S
+            "=J{$filaActual}-R{$filaActual}", // S (Neto a Pagar)
         ];
     }
 
@@ -192,8 +194,8 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
     {
         $formatoMonedaConCero = '$ #,##0.00;[Red]-$ #,##0.00;"$ "0.00';
         return [
-            'F:S' => $formatoMonedaConCero, // El rango de formato de moneda es de la F a la S
-            'B' => NumberFormat::FORMAT_DATE_DDMMYYYY // La columna B ahora es la fecha
+            'F:S' => $formatoMonedaConCero, // Rango de formato de moneda
+            'B' => NumberFormat::FORMAT_DATE_DDMMYYYY // Columna de fecha
         ];
     }
 
