@@ -4,7 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use Spatie\Multitenancy\Models\Tenant;
+use App\Models\Tenant; // Aseguramos usar tu modelo Tenant
 
 class AccountSeeder extends Seeder
 {
@@ -13,7 +13,6 @@ class AccountSeeder extends Seeder
      */
     public function run(): void
     {
-        // 1. Obtener el tenant actual al que el comando está apuntando
         $currentTenant = Tenant::current();
 
         if (!$currentTenant) {
@@ -21,15 +20,17 @@ class AccountSeeder extends Seeder
             return;
         }
 
-        // 2. Extraer el nombre de la base de datos / esquema del tenant
-        $schema = $currentTenant->database;
+        // 1. REGLA DE ORO EXACTA DE TU DOCUMENTACIÓN
+        $dbName = $currentTenant->db_database;
+        $schema = str_contains($dbName, 'credintegra') ? 'credintegra_db' : 
+                 (str_contains($dbName, 'crediticia') ? 'facturame_db' : 'public');
 
         if (empty($schema)) {
-            $this->command->error("El Tenant no tiene un esquema definido.");
+            $this->command->error("El esquema evaluado está vacío.");
             return;
         }
 
-        // Limpiamos la tabla apuntando directamente al esquema en Postgres
+        // 2. Limpiamos la tabla apuntando directamente al esquema en Postgres
         DB::statement("TRUNCATE \"$schema\".accounts CASCADE;");
 
         $accounts = [
@@ -78,7 +79,7 @@ class AccountSeeder extends Seeder
         foreach ($accounts as $acc) {
             $parentId = null;
             if ($acc['parent_id'] !== null) {
-                // Buscamos usando el esquema
+                // Buscamos usando el esquema detectado por la regla de oro
                 $parentRow = DB::table("$schema.accounts")->where('code', $acc['parent_id'])->first();
                 $parentId = $parentRow ? $parentRow->id : null;
             }
