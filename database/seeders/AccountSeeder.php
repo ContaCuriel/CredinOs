@@ -4,34 +4,34 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use App\Models\Tenant; // Aseguramos usar tu modelo Tenant
+use Illuminate\Support\Facades\Config;
+use App\Models\Tenant;
 
 class AccountSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        $currentTenant = Tenant::current();
+        $tenant = Tenant::current();
 
-        if (!$currentTenant) {
+        if (!$tenant) {
             $this->command->error("No se pudo detectar el Tenant actual.");
             return;
         }
 
-        // 1. REGLA DE ORO EXACTA DE TU DOCUMENTACIÓN
-        $dbName = $currentTenant->db_database;
-        $schema = str_contains($dbName, 'credintegra') ? 'credintegra_db' : 
-                 (str_contains($dbName, 'crediticia') ? 'facturame_db' : 'public');
+        // 1. REPLICAMOS LA MAGIA DE TU COMANDO 'MigrateAllTenants'
+        Config::set('database.connections.tenant.host', $tenant->db_host);
+        Config::set('database.connections.tenant.database', $tenant->db_database);
+        Config::set('database.connections.tenant.username', $tenant->db_username);
+        Config::set('database.connections.tenant.password', $tenant->db_password);
+        Config::set('database.connections.tenant.port', $tenant->db_port ?? 5432);
 
-        if (empty($schema)) {
-            $this->command->error("El esquema evaluado está vacío.");
-            return;
-        }
+        DB::purge('tenant');
+        DB::reconnect('tenant');
 
-        // 2. Limpiamos la tabla apuntando directamente al esquema en Postgres
-        DB::statement("TRUNCATE \"$schema\".accounts CASCADE;");
+        $db = DB::connection('tenant');
+
+        // 2. Limpiamos la tabla en la base de datos correcta de forma nativa
+        $db->statement('TRUNCATE accounts CASCADE;');
 
         $accounts = [
             // Cuentas de Mayor
@@ -75,16 +75,15 @@ class AccountSeeder extends Seeder
             ['name' => 'Comisiones bancarias', 'code' => '803.01', 'type' => 'gastos', 'parent_id' => '803'],
         ];
 
-        // 3. Insertamos usando la ruta completa "esquema.tabla"
+        // 3. Insertamos usando la conexión del tenant ($db)
         foreach ($accounts as $acc) {
             $parentId = null;
             if ($acc['parent_id'] !== null) {
-                // Buscamos usando el esquema detectado por la regla de oro
-                $parentRow = DB::table("$schema.accounts")->where('code', $acc['parent_id'])->first();
+                $parentRow = $db->table('accounts')->where('code', $acc['parent_id'])->first();
                 $parentId = $parentRow ? $parentRow->id : null;
             }
 
-            DB::table("$schema.accounts")->insert([
+            $db->table('accounts')->insert([
                 'name' => $acc['name'],
                 'code' => $acc['code'],
                 'type' => $acc['type'],
@@ -94,6 +93,6 @@ class AccountSeeder extends Seeder
             ]);
         }
 
-        $this->command->info("El catálogo de cuentas se insertó correctamente en el esquema: $schema");
+        $this->command->info("¡Catálogo de cuentas insertado correctamente en la BD: {$tenant->db_database}!");
     }
 }
