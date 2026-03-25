@@ -15,8 +15,8 @@ class Journal extends Model
     protected $fillable = [
         'date',
         'concept',
-        'id_sucursal',    // <-- AGREGAR ESTO
-        'user_id',        // <-- AGREGAR ESTO
+        'id_sucursal',
+        'user_id',
         'sourceable_id',
         'sourceable_type',
     ];
