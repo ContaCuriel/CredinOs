@@ -16,7 +16,7 @@ class GastoObserver
         // generamos su póliza de inmediato.
         if ($gasto->estado === 'Aprobado') {
             $accountingService = new AccountingService();
-            $accountingService->createJournalFromGasto($gasto);
+            $accountingService->createJournalFromExpense($gasto);
         }
     }
 
@@ -28,7 +28,7 @@ class GastoObserver
         // Verificamos si el estado cambió a "Aprobado".
         if ($gasto->isDirty('estado') && $gasto->estado === 'Aprobado') {
             $accountingService = new AccountingService();
-            $accountingService->createJournalFromGasto($gasto);
+            $accountingService->createJournalFromExpense($gasto);
         }
     }
 }

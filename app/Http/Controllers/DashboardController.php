@@ -161,7 +161,7 @@ class DashboardController extends Controller
 
         // Widget: Gastos Pendientes de Aprobación
         if ($user->can('aprobar-gastos')) {
-            $data['gastosPendientes'] = Gasto::where('estado', 'Pendiente')
+            $data['gastosPendientes'] = Gasto::where('estado', 'En Aprobación')
                 ->with(['sucursal', 'categoria'])
                 ->latest()
                 ->take(5)
