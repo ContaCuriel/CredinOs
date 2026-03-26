@@ -79,19 +79,30 @@ class ReporteController extends Controller
         $startDate = $request->input('start_date', Carbon::now()->startOfMonth()->toDateString());
         $endDate = $request->input('end_date', Carbon::now()->endOfMonth()->toDateString());
 
-        $incomeQuery = Recovery::whereBetween('created_at', [$startDate, $endDate]);
+        // Extraemos mes y año para filtrar la tabla Recovery correctamente
+        $startMonth = Carbon::parse($startDate)->month;
+        $startYear = Carbon::parse($startDate)->year;
+        $endMonth = Carbon::parse($endDate)->month;
+        $endYear = Carbon::parse($endDate)->year;
+
+        // 1. Ingresos (Cambiamos 'created_at' por las fechas reales del negocio: year y month)
+        $incomeQuery = Recovery::whereBetween('year', [$startYear, $endYear])
+                               ->whereBetween('month', [$startMonth, $endMonth]);
         if ($selectedSucursalId) {
             $incomeQuery->where('sucursal_id', $selectedSucursalId);
         }
         $totalInterest = $incomeQuery->sum('interest_collected');
         
-        $opExpensesQuery = Gasto::where('estado', 'Aprobado')->whereBetween('updated_at', [$startDate, $endDate]);
+        // 2. Gastos Operativos (Cambiamos 'updated_at' por 'fecha_gasto')
+        $opExpensesQuery = Gasto::where('estado', 'Aprobado')->whereBetween('fecha_gasto', [$startDate, $endDate]);
         if ($selectedSucursalId) {
             $opExpensesQuery->where('sucursal_id', $selectedSucursalId);
         }
         $totalOperationalExpenses = $opExpensesQuery->sum('monto_total');
 
-        $unrecoverableQuery = Recovery::whereBetween('created_at', [$startDate, $endDate]);
+        // 3. Castigos (Usamos la misma lógica de fechas reales)
+        $unrecoverableQuery = Recovery::whereBetween('year', [$startYear, $endYear])
+                                      ->whereBetween('month', [$startMonth, $endMonth]);
         if ($selectedSucursalId) {
             $unrecoverableQuery->where('sucursal_id', $selectedSucursalId);
         }
@@ -126,15 +137,20 @@ class ReporteController extends Controller
         $startDate = $request->query('start_date', now()->startOfMonth()->toDateString());
         $endDate = $request->query('end_date', now()->endOfMonth()->toDateString());
 
-        $incomeQuery = Recovery::whereBetween('created_at', [$startDate, $endDate]);
+        $startMonth = Carbon::parse($startDate)->month;
+        $startYear = Carbon::parse($startDate)->year;
+        $endMonth = Carbon::parse($endDate)->month;
+        $endYear = Carbon::parse($endDate)->year;
+
+        $incomeQuery = Recovery::whereBetween('year', [$startYear, $endYear])->whereBetween('month', [$startMonth, $endMonth]);
         if ($selectedSucursalId) { $incomeQuery->where('sucursal_id', $selectedSucursalId); }
         $totalInterest = $incomeQuery->sum('interest_collected');
         
-        $opExpensesQuery = Gasto::where('estado', 'Aprobado')->whereBetween('updated_at', [$startDate, $endDate]);
+        $opExpensesQuery = Gasto::where('estado', 'Aprobado')->whereBetween('fecha_gasto', [$startDate, $endDate]);
         if ($selectedSucursalId) { $opExpensesQuery->where('sucursal_id', $selectedSucursalId); }
         $totalOperationalExpenses = $opExpensesQuery->sum('monto_total');
 
-        $unrecoverableQuery = Recovery::whereBetween('created_at', [$startDate, $endDate]);
+        $unrecoverableQuery = Recovery::whereBetween('year', [$startYear, $endYear])->whereBetween('month', [$startMonth, $endMonth]);
         if ($selectedSucursalId) { $unrecoverableQuery->where('sucursal_id', $selectedSucursalId); }
         $totalUnrecoverable = $unrecoverableQuery->sum('unrecoverable_amount');
 
@@ -148,7 +164,6 @@ class ReporteController extends Controller
         $fileName = "Estado_de_Resultados_{$startDate}_a_{$endDate}.xlsx";
         return Excel::download(new IncomeStatementExport($data), $fileName);
     }
-
     /**
      * Exporta el Estado de Resultados a PDF.
      */
@@ -157,15 +172,24 @@ class ReporteController extends Controller
         $selectedSucursalId = $request->query('sucursal_id');
         $startDate = $request->query('start_date', now()->startOfMonth()->toDateString());
         $endDate = $request->query('end_date', now()->endOfMonth()->toDateString());
-        $incomeQuery = Recovery::whereBetween('created_at', [$startDate, $endDate]);
+        
+        $startMonth = Carbon::parse($startDate)->month;
+        $startYear = Carbon::parse($startDate)->year;
+        $endMonth = Carbon::parse($endDate)->month;
+        $endYear = Carbon::parse($endDate)->year;
+
+        $incomeQuery = Recovery::whereBetween('year', [$startYear, $endYear])->whereBetween('month', [$startMonth, $endMonth]);
         if ($selectedSucursalId) { $incomeQuery->where('sucursal_id', $selectedSucursalId); }
         $totalInterest = $incomeQuery->sum('interest_collected');
-        $opExpensesQuery = Gasto::where('estado', 'Aprobado')->whereBetween('updated_at', [$startDate, $endDate]);
+        
+        $opExpensesQuery = Gasto::where('estado', 'Aprobado')->whereBetween('fecha_gasto', [$startDate, $endDate]);
         if ($selectedSucursalId) { $opExpensesQuery->where('sucursal_id', $selectedSucursalId); }
         $totalOperationalExpenses = $opExpensesQuery->sum('monto_total');
-        $unrecoverableQuery = Recovery::whereBetween('created_at', [$startDate, $endDate]);
+        
+        $unrecoverableQuery = Recovery::whereBetween('year', [$startYear, $endYear])->whereBetween('month', [$startMonth, $endMonth]);
         if ($selectedSucursalId) { $unrecoverableQuery->where('sucursal_id', $selectedSucursalId); }
         $totalUnrecoverable = $unrecoverableQuery->sum('unrecoverable_amount');
+        
         $operatingProfit = $totalInterest - $totalOperationalExpenses;
         $netIncome = $operatingProfit - $totalUnrecoverable;
         
