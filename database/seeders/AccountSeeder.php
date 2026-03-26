@@ -58,21 +58,34 @@ class AccountSeeder extends Seeder
             ['name' => 'Ingresos por intereses (actividad propia)', 'code' => '401.32', 'type' => 'ingresos', 'parent_code' => '401'],
             ['name' => 'Recuperación de cartera castigada', 'code' => '401.38', 'type' => 'ingresos', 'parent_code' => '401'],
             
-            // Gastos Generales
+            // --- GASTOS GENERALES (Serie 601) ---
             ['name' => 'Gastos generales', 'code' => '601', 'type' => 'gastos', 'parent_code' => '600'],
+            
+            // Las que ya tenías:
             ['name' => 'Sueldos y salarios', 'code' => '601.01', 'type' => 'gastos', 'parent_code' => '601'],
             ['name' => 'Comisiones a personal', 'code' => '601.03', 'type' => 'gastos', 'parent_code' => '601'],
             ['name' => 'Previsión social', 'code' => '601.09', 'type' => 'gastos', 'parent_code' => '601'],
             ['name' => 'Castigos (gastos no deducibles)', 'code' => '601.10', 'type' => 'gastos', 'parent_code' => '601'],
             ['name' => 'Arrendamiento', 'code' => '601.21', 'type' => 'gastos', 'parent_code' => '601'],
             ['name' => 'Telecomunicaciones', 'code' => '601.25', 'type' => 'gastos', 'parent_code' => '601'],
+
+            // NUEVAS (Basadas en tu imagen):
+            ['name' => 'Gastos legales y honorarios', 'code' => '601.12', 'type' => 'gastos', 'parent_code' => '601'],
+            ['name' => 'Impuestos y derechos', 'code' => '601.15', 'type' => 'gastos', 'parent_code' => '601'],
+            ['name' => 'Papelería y útiles', 'code' => '601.17', 'type' => 'gastos', 'parent_code' => '601'],
+            ['name' => 'Mantenimiento de oficina', 'code' => '601.20', 'type' => 'gastos', 'parent_code' => '601'],
+            ['name' => 'Viáticos y transporte', 'code' => '601.28', 'type' => 'gastos', 'parent_code' => '601'],
+            ['name' => 'Gastos de representación', 'code' => '601.29', 'type' => 'gastos', 'parent_code' => '601'],
+            ['name' => 'Capacitación', 'code' => '601.31', 'type' => 'gastos', 'parent_code' => '601'],
+            ['name' => 'Limpieza y aseo', 'code' => '601.32', 'type' => 'gastos', 'parent_code' => '601'],
+            ['name' => 'Publicidad y mercadotecnia', 'code' => '601.33', 'type' => 'gastos', 'parent_code' => '601'],
+            ['name' => 'Reembolsos a empleados', 'code' => '601.84', 'type' => 'gastos', 'parent_code' => '601'],
             
             // Otros Gastos
             ['name' => 'Gastos de venta', 'code' => '701', 'type' => 'gastos', 'parent_code' => '600'],
             ['name' => 'Gastos financieros', 'code' => '803', 'type' => 'gastos', 'parent_code' => '800'],
             ['name' => 'Comisiones bancarias', 'code' => '803.01', 'type' => 'gastos', 'parent_code' => '803'],
         ];
-
         // 3. ¡SIN TRUNCATE! Insertamos o Actualizamos inteligentemente línea por línea
         foreach ($accounts as $acc) {
             $parentId = null;
