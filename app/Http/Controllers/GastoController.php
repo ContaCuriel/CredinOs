@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+// Importamos tu servicio contable
+use App\Services\AccountingService; 
 
 class GastoController extends Controller
 {
@@ -24,7 +26,6 @@ class GastoController extends Controller
         $sucursales = Sucursal::orderBy('nombre_sucursal')->get();
         $query = Gasto::with(['sucursal', 'categoria', 'proveedor', 'usuario']);
 
-        // ... (toda tu lógica de filtros, que está perfecta, se mantiene igual)
         if ($request->filled('search_term')) {
             $searchTerm = $request->input('search_term');
             $query->where(function($q) use ($searchTerm) {
@@ -72,8 +73,9 @@ class GastoController extends Controller
 
     /**
      * Guarda un nuevo gasto en la base de datos.
+     * Inyectamos AccountingService para generar la póliza si entra directo como Aprobado.
      */
-    public function store(Request $request)
+    public function store(Request $request, AccountingService $accountingService)
     {
         Log::info('GastoController@store: Iniciando registro de gasto.');
         
@@ -89,25 +91,20 @@ class GastoController extends Controller
                 'requiere_aprobacion' => 'nullable|boolean',
                 'comprobante' => 'nullable|file|mimes:jpg,png,pdf,xml|max:2048'
             ]);
-            Log::info('GastoController@store: Validación completada.');
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('GastoController@store: Error de validación.', ['errors' => $e->errors()]);
             throw $e;
         }
 
         DB::beginTransaction();
-        Log::info('GastoController@store: Transacción iniciada.');
-
         try {
             $proveedor = Proveedor::firstOrCreate(['nombre' => $validatedData['proveedor_nombre']]);
-            Log::info('GastoController@store: Proveedor manejado (ID: ' . $proveedor->id . ').');
 
             $nombreArchivo = null;
             if ($request->hasFile('comprobante')) {
                 $archivo = $request->file('comprobante');
                 $nombreArchivo = time() . '_' . $archivo->getClientOriginalName();
                 $archivo->storeAs('public/comprobantes', $nombreArchivo);
-                Log::info('GastoController@store: Archivo subido: ' . $nombreArchivo);
             }
 
             $subtotal = $validatedData['monto_subtotal'];
@@ -116,13 +113,11 @@ class GastoController extends Controller
             $requiereAprobacion = $request->has('requiere_aprobacion');
             $estado = $requiereAprobacion ? 'En Aprobación' : 'Aprobado';
 
-            $dataToCreate = [
+            $gasto = Gasto::create([
                 'fecha_gasto' => $validatedData['fecha_gasto'],
                 'sucursal_id' => $validatedData['sucursal_id'],
                 'proveedor_id' => $proveedor->id,
                 'categoria_id' => $validatedData['categoria_id'],
-                // ===== CORRECCIÓN CLAVE =====
-                // Cambiamos 'user_id' por el nombre correcto de la columna en tu BD.
                 'usuario_registra_id' => Auth::id(),
                 'descripcion' => $validatedData['descripcion'],
                 'monto_subtotal' => $subtotal,
@@ -131,17 +126,25 @@ class GastoController extends Controller
                 'nombre_archivo_comprobante' => $nombreArchivo,
                 'requiere_aprobacion' => $requiereAprobacion,
                 'estado' => $estado,
-            ];
+            ]);
 
-            Log::info('GastoController@store: Datos listos para crear el gasto.', $dataToCreate);
-            
-            Gasto::create($dataToCreate);
-            
-            Log::info('GastoController@store: Gasto creado en la BD.');
+            // ===== LÓGICA CONTABLE (PÓLIZA) =====
+            // Si NO requiere aprobación, creamos la póliza contable de inmediato.
+            if ($estado === 'Aprobado') {
+                try {
+                    $accountingService->createJournalFromExpense($gasto);
+                } catch (\Exception $e) {
+                    // Pantalla negra de seguridad para debugear la póliza
+                    dd([
+                        '¡ALERTA DE ERROR FATAL CONTABLE!' => 'El gasto se guardó, pero falló al crear la Póliza.',
+                        'MENSAJE_EXACTO' => $e->getMessage(),
+                        'ARCHIVO_DONDE_FALLO' => $e->getFile(),
+                        'LINEA' => $e->getLine()
+                    ]);
+                }
+            }
 
             DB::commit();
-            Log::info('GastoController@store: Transacción confirmada (commit).');
-
             return redirect()->route('gastos.index')->with('success', 'Gasto registrado exitosamente.');
 
         } catch (\Exception $e) {
@@ -198,7 +201,6 @@ class GastoController extends Controller
             $iva = isset($validatedData['monto_iva']) ? $validatedData['monto_iva'] : 0;
             
             $requiereAprobacion = $request->has('requiere_aprobacion');
-            // Si se edita, se resetea el estado para posible re-aprobación.
             $estado = $requiereAprobacion ? 'En Aprobación' : 'Aprobado';
 
             $gasto->update([
@@ -233,6 +235,8 @@ class GastoController extends Controller
             if ($gasto->nombre_archivo_comprobante) {
                 Storage::delete('public/comprobantes/' . $gasto->nombre_archivo_comprobante);
             }
+            // Si el gasto ya tenía póliza, el AccountingService (o los observers) deberían 
+            // encargarse de cancelar la póliza o al menos marcarla como revertida (lógica futura).
             $gasto->delete();
             return redirect()->route('gastos.index')->with('success', 'Gasto eliminado exitosamente.');
         } catch (\Exception $e) {
@@ -270,11 +274,30 @@ class GastoController extends Controller
 
     /**
      * Aprueba un gasto.
+     * Inyectamos el AccountingService para generar la póliza al momento de aprobar.
      */
-    public function approve(Gasto $gasto)
+    public function approve(Gasto $gasto, AccountingService $accountingService)
     {
-        $gasto->update(['estado' => 'Aprobado']);
-        return back()->with('success', 'El gasto ha sido aprobado.');
+        DB::beginTransaction();
+        try {
+            $gasto->update(['estado' => 'Aprobado']);
+            
+            // ===== LÓGICA CONTABLE (PÓLIZA) =====
+            // Generamos la póliza contable porque el gerente acaba de autorizar la salida de dinero
+            $accountingService->createJournalFromExpense($gasto);
+
+            DB::commit();
+            return back()->with('success', 'El gasto ha sido aprobado y la póliza generada correctamente.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            // Pantalla negra de seguridad
+            dd([
+                '¡ALERTA DE ERROR FATAL CONTABLE!' => 'El gasto NO pudo ser aprobado porque falló la creación de la póliza.',
+                'MENSAJE_EXACTO' => $e->getMessage(),
+                'ARCHIVO_DONDE_FALLO' => $e->getFile(),
+                'LINEA' => $e->getLine()
+            ]);
+        }
     }
 
     /**
