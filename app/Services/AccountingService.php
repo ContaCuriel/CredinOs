@@ -15,31 +15,45 @@ use Throwable;
 class AccountingService
 {
     // --- PÓLIZA DE GASTO ---
-    public function createJournalFromGasto(Gasto $gasto): ?Journal
+    public function createJournalFromExpense(Gasto $gasto): ?Journal
     {
-        try {
-            if ($gasto->journal()->exists()) return null;
+        if ($gasto->journal()->exists()) return null;
 
-            $bancoAccount = Account::where('code', '102.01')->first();
-            if (!$bancoAccount || !isset($gasto->categoria->account_id)) return null;
-
-            return DB::transaction(function () use ($gasto, $bancoAccount) {
-                return Journal::create([
-                    'date' => $gasto->fecha_gasto,
-                    'concept' => "Gasto: " . ($gasto->categoria->nombre ?? 'S/N'),
-                    'sourceable_id' => $gasto->id,
-                    'sourceable_type' => Gasto::class,
-                    'sucursal_id' => $gasto->id_sucursal,
-                    'user_id' => $gasto->user_id,
-                ])->entries()->createMany([
-                    ['account_id' => $gasto->categoria->account_id, 'debit' => $gasto->monto_total, 'credit' => 0],
-                    ['account_id' => $bancoAccount->id, 'debit' => 0, 'credit' => $gasto->monto_total],
-                ]);
-            });
-        } catch (Throwable $e) {
-            Log::error("Error Gasto: " . $e->getMessage());
-            return null;
+        $bancoAccount = Account::where('code', '102.01')->first();
+        
+        if (!$bancoAccount) {
+            throw new \Exception("ERROR CONTABLE: No se encontró la cuenta de Bancos (102.01).");
         }
+        if (!isset($gasto->categoria->account_id)) {
+            throw new \Exception("ERROR CONTABLE: La categoría de este gasto no tiene una cuenta contable asignada.");
+        }
+
+        return DB::transaction(function () use ($gasto, $bancoAccount) {
+            $journal = Journal::create([
+                'date' => $gasto->fecha_gasto,
+                'concept' => "Gasto: " . ($gasto->categoria->nombre ?? 'S/N') . " - " . ($gasto->proveedor->nombre ?? ''),
+                'sourceable_id' => $gasto->id,
+                'sourceable_type' => Gasto::class,
+                'sucursal_id' => $gasto->sucursal_id, // CORREGIDO
+                'user_id' => $gasto->usuario_registra_id, // CORREGIDO
+            ]);
+
+            // CARGO al gasto (Entra el gasto)
+            $journal->entries()->create([
+                'account_id' => $gasto->categoria->account_id, 
+                'debit' => $gasto->monto_total, 
+                'credit' => 0
+            ]);
+            
+            // ABONO a bancos (Sale el dinero)
+            $journal->entries()->create([
+                'account_id' => $bancoAccount->id, 
+                'debit' => 0, 
+                'credit' => $gasto->monto_total
+            ]);
+
+            return $journal;
+        });
     }
 
     // --- PÓLIZA DE COLOCACIÓN ---
