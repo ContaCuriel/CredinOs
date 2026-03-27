@@ -368,5 +368,74 @@ class ReporteController extends Controller
         }
     }
 
+    public function dashboardGerencial(Request $request)
+    {
+        // Por defecto vemos el mes actual
+        $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
+        $endDate = $request->input('end_date', now()->endOfMonth()->toDateString());
+
+        $startMonth = \Carbon\Carbon::parse($startDate)->month;
+        $startYear = \Carbon\Carbon::parse($startDate)->year;
+        $endMonth = \Carbon\Carbon::parse($endDate)->month;
+        $endYear = \Carbon\Carbon::parse($endDate)->year;
+
+        $sucursales = \App\Models\Sucursal::all();
+        $rentabilidad = [];
+        $totalIngresosEmpresa = 0;
+        $totalGastosEmpresa = 0;
+
+        foreach ($sucursales as $sucursal) {
+            // 1. Ingresos de esta sucursal (Intereses cobrados)
+            $ingresos = \App\Models\Recovery::where('sucursal_id', $sucursal->id_sucursal)
+                ->whereBetween('year', [$startYear, $endYear])
+                ->whereBetween('month', [$startMonth, $endMonth])
+                ->sum('interest_collected');
+
+            // 2. Gastos de esta sucursal
+            $gastos = \App\Models\Gasto::where('sucursal_id', $sucursal->id_sucursal)
+                ->where('estado', 'Aprobado')
+                ->whereBetween('fecha_gasto', [$startDate, $endDate])
+                ->sum('monto_total');
+
+            // 3. Utilidad
+            $utilidad = $ingresos - $gastos;
+            
+            // 4. Margen de Rentabilidad (%)
+            $margen = $ingresos > 0 ? round(($utilidad / $ingresos) * 100, 2) : 0;
+
+            $rentabilidad[] = [
+                'nombre' => $sucursal->nombre_sucursal,
+                'ingresos' => $ingresos,
+                'gastos' => $gastos,
+                'utilidad' => $utilidad,
+                'margen' => $margen,
+                // Etiqueta visual rápida para el reporte
+                'estatus' => $utilidad > 0 ? 'Rentable' : ($ingresos == 0 && $gastos == 0 ? 'Sin Movimientos' : 'Pérdida')
+            ];
+
+            $totalIngresosEmpresa += $ingresos;
+            $totalGastosEmpresa += $gastos;
+        }
+
+        // Ordenamos el arreglo para el Ranking (de la que más gana a la que más pierde)
+        usort($rentabilidad, function($a, $b) {
+            return $b['utilidad'] <=> $a['utilidad'];
+        });
+
+        // Para la gráfica de Gasto Promedio (Pastel) de toda la empresa
+        $gastosPorCategoria = \App\Models\Gasto::with('categoria')
+            ->where('estado', 'Aprobado')
+            ->whereBetween('fecha_gasto', [$startDate, $endDate])
+            ->get()
+            ->groupBy('categoria.nombre')
+            ->map(function ($row) {
+                return $row->sum('monto_total');
+            });
+
+        return view('reportes.dashboard', compact(
+            'rentabilidad', 'totalIngresosEmpresa', 'totalGastosEmpresa', 'gastosPorCategoria', 'startDate', 'endDate'
+        ));
+    }
+
 
 }

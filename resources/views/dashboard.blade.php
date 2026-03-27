@@ -22,6 +22,85 @@
             </div>
             {{-- ================================================= --}}
 
+            {{-- ===== NUEVO: DASHBOARD GERENCIAL FINANCIERO ===== --}}
+            @can('ver-widget-rentabilidad-sucursales')
+                <div class="mb-5 bg-white p-4 rounded shadow-sm border">
+                    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
+                        <h4 class="fw-bold text-primary mb-3 mb-md-0"><i class="bi bi-graph-up-arrow me-2"></i>Visión General Financiera</h4>
+                        
+                        <form method="GET" action="{{ route('dashboard') }}" class="d-flex gap-2 align-items-end">
+                            <div>
+                                <label for="start_date" class="form-label mb-0 text-muted" style="font-size: 0.8rem;">Desde:</label>
+                                <input type="date" name="start_date" id="start_date" class="form-control form-control-sm" value="{{ $startDate ?? now()->startOfMonth()->toDateString() }}">
+                            </div>
+                            <div>
+                                <label for="end_date" class="form-label mb-0 text-muted" style="font-size: 0.8rem;">Hasta:</label>
+                                <input type="date" name="end_date" id="end_date" class="form-control form-control-sm" value="{{ $endDate ?? now()->endOfMonth()->toDateString() }}">
+                            </div>
+                            <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-filter"></i> Filtrar</button>
+                        </form>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-4 mb-3 mb-md-0">
+                            <div class="card bg-success text-white border-0">
+                                <div class="card-body">
+                                    <h6 class="text-uppercase fw-normal mb-1 opacity-75">Ingresos Cobrados</h6>
+                                    <h3 class="fw-bold mb-0">${{ number_format($totalIngresosEmpresa ?? 0, 2) }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3 mb-md-0">
+                            <div class="card bg-danger text-white border-0">
+                                <div class="card-body">
+                                    <h6 class="text-uppercase fw-normal mb-1 opacity-75">Gastos Operativos</h6>
+                                    <h3 class="fw-bold mb-0">${{ number_format($totalGastosEmpresa ?? 0, 2) }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3 mb-md-0">
+                            @php 
+                                $utilidadNeta = ($totalIngresosEmpresa ?? 0) - ($totalGastosEmpresa ?? 0); 
+                                $bgClass = $utilidadNeta >= 0 ? 'bg-primary' : 'bg-secondary';
+                            @endphp
+                            <div class="card {{ $bgClass }} text-white border-0">
+                                <div class="card-body">
+                                    <h6 class="text-uppercase fw-normal mb-1 opacity-75">Utilidad del Periodo</h6>
+                                    <h3 class="fw-bold mb-0">${{ number_format($utilidadNeta, 2) }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-4">
+                        <div class="col-lg-8">
+                            <div class="card border-0 shadow-none h-100 bg-light">
+                                <div class="card-body">
+                                    <h6 class="fw-bold mb-3 text-center">Rentabilidad por Sucursal (Ingresos vs Gastos vs Utilidad)</h6>
+                                    <div style="position: relative; height: 300px; width: 100%;">
+                                        <canvas id="sucursalesChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-4">
+                            <div class="card border-0 shadow-none h-100 bg-light">
+                                <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                                    <h6 class="fw-bold mb-3 text-center">Composición del Gasto General</h6>
+                                    <div style="position: relative; height: 250px; width: 100%; display: flex; justify-content: center;">
+                                        <canvas id="gastosChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endcan
+            {{-- ================================================= --}}
+
+
+            {{-- ===== SECCIÓN ORIGINAL (WIDGETS DE MASONRY) ===== --}}
             <div class="row" data-masonry='{"percentPosition": true }'>
                 
                 @can('ver-widget-contratos-vencer')
@@ -78,7 +157,6 @@
                 </div>
                 @endcan
                 
-                {{-- --- INICIO DE LA CORRECCIÓN DEL WIDGET DE CUMPLEAÑOS --- --}}
                 @can('ver-widget-cumpleanos')
                 <div class="col-md-6 col-lg-4 mb-4">
                     <div class="card">
@@ -110,7 +188,6 @@
                     </div>
                 </div>
                 @endcan
-                {{-- --- FIN DE LA CORRECCIÓN --- --}}
 
                 @can('ver-widget-aniversarios')
                 <div class="col-md-6 col-lg-4 mb-4">
@@ -230,8 +307,8 @@
 
                 @can('ver-widget-nuevos-ingresos')
                 <div class="col-md-6 col-lg-4 mb-4">
-                    <div class="card h-100">
-                        <div class="card-header"><i class="bi bi-person-plus-fill"></i> Nuevos Ingresos ({{ $fortnightTitle ?? 'Quincena Actual' }})</div>
+                    <div class="card h-100 border-success">
+                        <div class="card-header bg-success text-white"><i class="bi bi-person-plus-fill"></i> Nuevos Ingresos ({{ $fortnightTitle ?? 'Quincena' }})</div>
                         <div class="card-body">
                             @if(isset($nuevosIngresos) && $nuevosIngresos->isNotEmpty())
                                 <ul class="list-group list-group-flush">
@@ -247,21 +324,150 @@
                                     @endforeach
                                 </ul>
                             @else
-                                <p class="text-muted mb-0">No hay nuevos ingresos en esta quincena.</p>
+                                <p class="text-muted mb-0">No hay nuevos ingresos activos en esta quincena.</p>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100 border-danger">
+                        <div class="card-header bg-danger text-white"><i class="bi bi-person-dash-fill"></i> Bajas de la Quincena</div>
+                        <div class="card-body">
+                            @if(isset($bajasQuincena) && $bajasQuincena->isNotEmpty())
+                                <ul class="list-group list-group-flush">
+                                    @foreach ($bajasQuincena as $empleado)
+                                        <li class="list-group-item px-0">
+                                            <strong>{{ $empleado->nombre_completo }}</strong><br>
+                                            <small>
+                                                Puesto: {{ $empleado->puesto?->nombre_puesto ?? 'N/A' }} <br>
+                                                Sucursal: {{ $empleado->sucursal?->nombre_sucursal ?? 'N/A' }} <br>
+                                                Baja: <strong class="text-danger">{{ \Carbon\Carbon::parse($empleado->fecha_baja)->format('d/m/Y') }}</strong>
+                                            </small>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @else
+                                <p class="text-muted mb-0">No hay bajas registradas en esta quincena.</p>
                             @endif
                         </div>
                     </div>
                 </div>
                 @endcan
 
-            </div> {{-- Fin del Contenedor .row --}}
+            </div> {{-- Fin del Contenedor .row Masonry --}}
         </div>
     </div>
 
     @push('scripts')
     {{-- Script de la librería Masonry --}}
-    <script src="https://cdn.jsdelivr.net/npm/masonry-layout@4.2.2/dist/masonry.pkgd.min.js" xintegrity="sha384-GNFwBvfVxBkLMJpYMOABq3c+d3KnQxudP/mGPkzpZSTYykLBNsZEnG2D9G/X/+7D" crossorigin="anonymous" async></script>
+    <script src="https://cdn.jsdelivr.net/npm/masonry-layout@4.2.2/dist/masonry.pkgd.min.js" integrity="sha384-GNFwBvfVxBkLMJpYMOABq3c+d3KnQxudP/mGPkzpZSTYykLBNsZEnG2D9G/X/+7D" crossorigin="anonymous" async></script>
+    
+    {{-- LIBRERÍA CHART.JS PARA LAS GRÁFICAS FINANCIERAS --}}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Ejecutar las gráficas solo si existe el bloque de rentabilidad
+        @if(isset($rentabilidad) && count($rentabilidad) > 0)
+            
+            // 1. Datos para la Gráfica de Sucursales
+            const rentabilidadData = @json($rentabilidad);
+            
+            const sucursalesLabels = rentabilidadData.map(s => s.nombre);
+            const utilidades = rentabilidadData.map(s => s.utilidad);
+            const ingresos = rentabilidadData.map(s => s.ingresos);
+            const gastos = rentabilidadData.map(s => s.gastos);
+
+            const ctxSucursales = document.getElementById('sucursalesChart');
+            if(ctxSucursales) {
+                new Chart(ctxSucursales.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: sucursalesLabels,
+                        datasets: [
+                            {
+                                label: 'Ingresos',
+                                backgroundColor: '#198754', // Verde success
+                                data: ingresos,
+                                borderRadius: 4
+                            },
+                            {
+                                label: 'Gastos',
+                                backgroundColor: '#dc3545', // Rojo danger
+                                data: gastos,
+                                borderRadius: 4
+                            },
+                            {
+                                label: 'Utilidad Neta',
+                                type: 'line',
+                                borderColor: '#0d6efd', // Azul primary
+                                backgroundColor: '#0d6efd',
+                                borderWidth: 3,
+                                pointBackgroundColor: '#fff',
+                                pointBorderWidth: 2,
+                                pointRadius: 4,
+                                fill: false,
+                                data: utilidades,
+                                tension: 0.3
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'top' }
+                        },
+                        scales: { 
+                            y: { 
+                                beginAtZero: true,
+                                grid: { color: '#e9ecef' }
+                            },
+                            x: {
+                                grid: { display: false }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // 2. Datos para la Gráfica de Pastel (Gastos)
+            const gastosData = @json($gastosPorCategoria);
+            const categoriasLabels = Object.keys(gastosData);
+            const montosGastos = Object.values(gastosData);
+
+            const ctxGastos = document.getElementById('gastosChart');
+            if(ctxGastos && categoriasLabels.length > 0) {
+                new Chart(ctxGastos.getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: categoriasLabels,
+                        datasets: [{
+                            data: montosGastos,
+                            backgroundColor: [
+                                '#0d6efd', '#6610f2', '#d63384', '#fd7e14', '#ffc107', '#20c997', '#0dcaf0'
+                            ],
+                            borderWidth: 2,
+                            borderColor: '#fff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '65%',
+                        plugins: {
+                            legend: { 
+                                position: 'right',
+                                labels: { padding: 15, usePointStyle: true, boxWidth: 10 }
+                            }
+                        }
+                    }
+                });
+            }
+        @endif
+    });
+    </script>
     @endpush
 
 </x-app-layout>
-

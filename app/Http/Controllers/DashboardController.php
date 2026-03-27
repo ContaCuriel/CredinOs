@@ -12,12 +12,12 @@ use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
-    public function index()
+  public function index(Request $request) // <--- Agregamos Request $request aquí
     {
         $user = Auth::user();
         $data = [];
 
-        // --- LÓGICA PARA EL SALUDO PERSONALIZADO ---
+        // --- LÓGICA PARA EL SALUDO PERSONALIZADO (SIMPLIFICADO) ---
         $horaActual = Carbon::now('America/Mexico_City')->hour;
         if ($horaActual < 12) {
             $data['saludo'] = 'Buenos días';
@@ -27,22 +27,7 @@ class DashboardController extends Controller
             $data['saludo'] = 'Buenas noches';
         }
         
-        $data['nombreUsuario'] = $user->name;
-        $data['mensajeEspecial'] = null;
-
-        $empleadoLogueado = Empleado::where('nombre_completo', $user->name)->first();
-
-        if ($empleadoLogueado) {
-            $hoy = Carbon::today();
-            if ($empleadoLogueado->fecha_nacimiento && Carbon::parse($empleadoLogueado->fecha_nacimiento)->isBirthday($hoy)) {
-                $data['mensajeEspecial'] = '¡Feliz Cumpleaños! Te deseamos un día increíble.';
-            }
-            $fechaIngreso = Carbon::parse($empleadoLogueado->fecha_ingreso);
-            if ($fechaIngreso->month == $hoy->month && $fechaIngreso->day == $hoy->day && !$fechaIngreso->isToday()) {
-                $anos = $fechaIngreso->diffInYears($hoy);
-                $data['mensajeEspecial'] = "¡Feliz Aniversario! Hoy cumples {$anos} " . ($anos == 1 ? 'año' : 'años') . " con nosotros.";
-            }
-        }
+        $data['nombreUsuario'] = explode(' ', trim($user->name))[0]; // Solo el primer nombre para que sea más amigable
         // --- FIN DE LA LÓGICA DEL SALUDO ---
 
         // Widget: Contratos por Vencer
@@ -57,30 +42,23 @@ class DashboardController extends Controller
                 ->get();
         }
 
-        // --- INICIO DE LA CORRECCIÓN DEL WIDGET DE CONTRATOS VENCIDOS ---
         // Widget: Contratos Vencidos No Renovados (Últimos 7 días)
         if ($user->can('ver-widget-contratos-vencer')) {
             $haceSieteDias = Carbon::today()->subDays(7)->startOfDay();
-            $hoy = Carbon::today()->endOfDay();
+            $ayer = Carbon::yesterday()->endOfDay(); // <-- CORRECCIÓN: Corta en ayer para no duplicar
 
-            // 1. Obtenemos todos los empleados activos con su último contrato registrado.
             $empleadosActivos = Empleado::where('status', 'Alta')
                 ->with(['puesto', 'sucursal', 'ultimoContrato'])
                 ->get();
 
-            // 2. Filtramos la colección en PHP para asegurar la lógica correcta.
-            $data['contratosVencidosRecientemente'] = $empleadosActivos->filter(function ($empleado) use ($haceSieteDias, $hoy) {
-                // Si el empleado no tiene un último contrato, lo ignoramos.
+            $data['contratosVencidosRecientemente'] = $empleadosActivos->filter(function ($empleado) use ($haceSieteDias, $ayer) {
                 if (!$empleado->ultimoContrato || !$empleado->ultimoContrato->fecha_fin) {
                     return false;
                 }
-                
-                // Verificamos si la fecha de fin del último contrato está en el rango de los últimos 7 días.
                 $fechaFin = Carbon::parse($empleado->ultimoContrato->fecha_fin);
-                return $fechaFin->isBetween($haceSieteDias, $hoy);
+                return $fechaFin->isBetween($haceSieteDias, $ayer);
             });
         }
-        // --- FIN DE LA CORRECCIÓN ---
 
         // Widget: Cumpleaños del Mes
         if ($user->can('ver-widget-cumpleanos')) {
@@ -137,9 +115,19 @@ class DashboardController extends Controller
                 $endDate = $now->copy()->endOfMonth()->endOfDay();
                 $data['fortnightTitle'] = "2da Quincena";
             }
-            $data['nuevosIngresos'] = Empleado::whereBetween('fecha_ingreso', [$startDate, $endDate])
+            
+            // 1. Nuevos Ingresos (Solo los que SIGUEN de Alta)
+            $data['nuevosIngresos'] = Empleado::where('status', 'Alta') // <-- CORRECCIÓN: Solo Altas
+                ->whereBetween('fecha_ingreso', [$startDate, $endDate])
                 ->with(['puesto', 'sucursal'])
                 ->orderBy('fecha_ingreso', 'desc')
+                ->get();
+
+            // 2. Bajas de la Quincena (Los que se fueron en este mismo periodo)
+            $data['bajasQuincena'] = Empleado::where('status', 'Baja')
+                ->whereBetween('fecha_baja', [$startDate, $endDate])
+                ->with(['puesto', 'sucursal'])
+                ->orderBy('fecha_baja', 'desc')
                 ->get();
         }
 
@@ -168,7 +156,66 @@ class DashboardController extends Controller
                 ->get();
         }
 
+        // --- NUEVO: DASHBOARD GERENCIAL FINANCIERO ---
+        if ($user->can('ver-widget-rentabilidad-sucursales')) {
+            
+            $dashStartDate = $request->input('start_date', now()->startOfMonth()->toDateString());
+            $dashEndDate = $request->input('end_date', now()->endOfMonth()->toDateString());
+
+            $startMonth = Carbon::parse($dashStartDate)->month;
+            $startYear = Carbon::parse($dashStartDate)->year;
+            $endMonth = Carbon::parse($dashEndDate)->month;
+            $endYear = Carbon::parse($dashEndDate)->year;
+
+            $sucursales = Sucursal::all();
+            $rentabilidad = [];
+            $totalIngresosEmpresa = 0;
+            $totalGastosEmpresa = 0;
+
+            foreach ($sucursales as $sucursal) {
+                $ingresos = Recovery::where('sucursal_id', $sucursal->id_sucursal)
+                    ->whereBetween('year', [$startYear, $endYear])
+                    ->whereBetween('month', [$startMonth, $endMonth])
+                    ->sum('interest_collected');
+
+                $gastos = Gasto::where('sucursal_id', $sucursal->id_sucursal)
+                    ->where('estado', 'Aprobado')
+                    ->whereBetween('fecha_gasto', [$dashStartDate, $dashEndDate])
+                    ->sum('monto_total');
+
+                $utilidad = $ingresos - $gastos;
+
+                $rentabilidad[] = [
+                    'nombre' => $sucursal->nombre_sucursal,
+                    'ingresos' => $ingresos,
+                    'gastos' => $gastos,
+                    'utilidad' => $utilidad,
+                ];
+
+                $totalIngresosEmpresa += $ingresos;
+                $totalGastosEmpresa += $gastos;
+            }
+
+            usort($rentabilidad, function($a, $b) {
+                return $b['utilidad'] <=> $a['utilidad'];
+            });
+
+            $gastosPorCategoria = Gasto::with('categoria')
+                ->where('estado', 'Aprobado')
+                ->whereBetween('fecha_gasto', [$dashStartDate, $dashEndDate])
+                ->get()
+                ->groupBy('categoria.nombre')
+                ->map(function ($row) {
+                    return $row->sum('monto_total');
+                });
+
+            $data['rentabilidad'] = $rentabilidad;
+            $data['totalIngresosEmpresa'] = $totalIngresosEmpresa;
+            $data['totalGastosEmpresa'] = $totalGastosEmpresa;
+            $data['gastosPorCategoria'] = $gastosPorCategoria;
+            $data['startDate'] = $dashStartDate;
+            $data['endDate'] = $dashEndDate;
+        }
+
         return view('dashboard', $data);
     }
-}
-

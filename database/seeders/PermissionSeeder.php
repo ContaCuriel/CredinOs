@@ -25,6 +25,7 @@ class PermissionSeeder extends Seeder
                 'ver-widget-nuevos-ingresos',
                 'ver-widget-imss',
                 'ver-widget-accesos-rapidos',
+                'ver-widget-rentabilidad-sucursales',
             ],
             'Menús Principales' => [
                 'ver-menu-creditos',
