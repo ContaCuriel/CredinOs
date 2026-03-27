@@ -275,7 +275,7 @@ class ReporteController extends Controller
     private function getBalanceSheetData(Request $request)
     {
         $endDate = $request->input('end_date', $request->query('end_date', now()->toDateString()));
-        $sucursalId = $request->input('sucursal_id', $request->query('sucursal_id')); // <--- NUEVO: Captura sucursal
+        $sucursalId = $request->input('sucursal_id', $request->query('sucursal_id'));
 
         $assetAccount = Account::where('code', '100')->first();
         $liabilityAccount = Account::where('code', '200')->first();
@@ -283,20 +283,23 @@ class ReporteController extends Controller
         $incomeAccount = Account::where('code', '400')->first();
         $expenseAccounts = Account::whereIn('code', ['600', '800'])->get();
 
-        // IMPORTANTE: Debes asegurarte que el método getInitialBalance en el modelo Account 
-        // acepte un segundo parámetro para la sucursal: ->getInitialBalance($date, $sucursalId)
         $totalAssets = $assetAccount ? $assetAccount->getInitialBalance($endDate, $sucursalId) : 0;
         $totalLiabilities = $liabilityAccount ? $liabilityAccount->getInitialBalance($endDate, $sucursalId) : 0;
         
-        // Cálculo de Utilidad Neta del Periodo filtrada por sucursal
-        $incomeMovements = $incomeAccount ? $incomeAccount->getMovements('2000-01-01', $endDate, $sucursalId) : ['debits' => 0, 'credits' => 0];
+        // --- INICIO DE LA CORRECCIÓN ---
+        // Obtenemos el 1 de enero del año de la fecha final seleccionada
+        $startOfYear = Carbon::parse($endDate)->startOfYear()->toDateString();
+
+        // Cálculo de Utilidad Neta del Ejercicio (SOLO suma lo del año en curso)
+        $incomeMovements = $incomeAccount ? $incomeAccount->getMovements($startOfYear, $endDate, $sucursalId) : ['debits' => 0, 'credits' => 0];
         $totalIncome = $incomeMovements['credits'] - $incomeMovements['debits'];
         
         $totalExpenses = 0;
         foreach($expenseAccounts as $expenseAccount) {
-            $expenseMovements = $expenseAccount->getMovements('2000-01-01', $endDate, $sucursalId);
+            $expenseMovements = $expenseAccount->getMovements($startOfYear, $endDate, $sucursalId);
             $totalExpenses += $expenseMovements['debits'] - $expenseMovements['credits'];
         }
+        // --- FIN DE LA CORRECCIÓN ---
 
         $netIncomeForPeriod = $totalIncome - $totalExpenses;
         $equityBalance = $equityAccount ? $equityAccount->getInitialBalance($endDate, $sucursalId) : 0;
