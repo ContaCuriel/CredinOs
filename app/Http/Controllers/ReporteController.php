@@ -532,37 +532,28 @@ class ReporteController extends Controller
         $jsonIA = json_encode($statsGlobales);
         $esMultimes = count($periodoMeses) > 1;
 
-        // Instrucción de Identidad y Estilo
-        $instruccionEstilo = "Eres Carlos Curiel de Facturame.org. Tu misión es dar un informe ejecutivo. 
-                              REGLAS CRÍTICAS:
-                              - NUNCA respondas con 'Claro que sí', 'Aquí está el informe' o saludos introductorios.
-                              - COMIENZA DIRECTAMENTE con el contenido.
-                              - NO uses el formato 'De:' o 'Para:'. Solo firma al final como Carlos Curiel.
-                              - Usa un lenguaje ciudadano: 'Ganancia' en lugar de 'Utilidad Neta', 'Eficiencia' en lugar de 'Márgenes Operativos'.
-                              - Evita tecnicismos en inglés.";
+        // El "Cerebro" de Carlos Curiel
+        $instruccionEstilo = "Eres Carlos Curiel, Director Estratégico de Facturame.org. Estás entregando un dictamen financiero de alto nivel al dueño de la empresa.
+                              REGLAS ESTRICTAS DE FORMATO Y TONO:
+                              1. NO uses asteriscos (**) para negritas, NO uses tablas, NO uses frases de saludo. Comienza a escribir el análisis directamente.
+                              2. Utiliza guiones (-) para las listas.
+                              3. Escribe párrafos cortos. El tono debe ser de autoridad financiera, analítico y enfocado en la rentabilidad.
+                              4. La sucursal 'EJECUTIVA' es el corporativo. Analiza su gasto como un costo de operación central, no como una sucursal que deba vender.";
 
         if ($esMultimes) {
-            $prompt = "$instruccionEstilo Analiza estos datos de " . count($periodoMeses) . " meses: $jsonIA.
-                       ESTRUCTURA DEL CONTENIDO:
-                       ### Resumen de Resultados
-                       (Análisis de la ganancia total del periodo en 2 líneas).
-                       ### Sucursales con Mejor Desempeño
-                       (Menciona las 3 que más ganancia real aportaron).
-                       ### Áreas de Oportunidad
-                       (Identifica donde hay gastos altos o falta de préstamos).
-                       ### Próximos Pasos Recomendados
-                       (3 acciones concretas).";
+            $prompt = "$instruccionEstilo Analiza la evolución y tendencias de " . count($periodoMeses) . " meses con estos datos: $jsonIA.
+                       ESTRUCTURA EXACTA A SEGUIR:
+                       RESUMEN EJECUTIVO: (2 líneas de diagnóstico sobre la salud financiera del periodo).
+                       MOTORES DE RENTABILIDAD: (Analiza qué sucursales sostienen el margen de ganancia y por qué su modelo está funcionando).
+                       FUGAS DE CAPITAL: (Identifica ineficiencias operativas, sucursales estancadas o gastos que merman el retorno de inversión).
+                       PLAN DE ACCIÓN: (3 directivas estratégicas precisas para la dirección).";
         } else {
-            $prompt = "$instruccionEstilo Analiza el mes actual: $jsonIA.
-                       ESTRUCTURA DEL CONTENIDO:
-                       ### Diagnóstico del Mes
-                       (Frase directa sobre si el mes fue exitoso y por qué).
-                       ### Sucursales Líderes
-                       (Ranking rápido de las que mejor trabajaron).
-                       ### Puntos de Atención
-                       (Sucursales inactivas o con gastos elevados).
-                       ### Plan de Acción Semanal
-                       (3 pasos prácticos para el dueño).";
+            $prompt = "$instruccionEstilo Analiza el cierre de este mes: $jsonIA.
+                       ESTRUCTURA EXACTA A SEGUIR:
+                       DIAGNÓSTICO DEL MES: (Evaluación contundente del desempeño mensual y la ganancia neta).
+                       LÍDERES DE RENDIMIENTO: (Analiza las sucursales con mejor conversión de préstamos a ganancias).
+                       PUNTOS CRÍTICOS: (Alertas sobre sucursales con inactividad total o gastos desproporcionados).
+                       ACCIÓN INMEDIATA: (3 pasos operativos a ejecutar la próxima semana para proteger el flujo de efectivo).";
         }
 
         $analysis = $this->llamarGemini($prompt, 'gemini-2.5-pro');
