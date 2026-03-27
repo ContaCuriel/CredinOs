@@ -556,7 +556,7 @@ class ReporteController extends Controller
         }
 
         // ¡AQUÍ ESTÁ LA MAGIA! Le pedimos explícitamente el modelo PRO
-        $analysis = $this->llamarGemini($prompt, 'gemini-1.5-pro');
+        $analysis = $this->llamarGemini($prompt, 'gemini-2.5-pro');
 
         $data = [
             'stats' => $statsGlobales,
