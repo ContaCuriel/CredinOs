@@ -596,13 +596,21 @@ class ReporteController extends Controller
 
 // Helper privado para no repetir código de API
 private function llamarGemini($prompt) {
-    try {
-        $response = Http::timeout(60)->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" . env('GEMINI_API_KEY'), [
-            'contents' => [['role' => 'user', 'parts' => [['text' => $prompt]]]]
-        ]);
-        return $response->successful() ? $response->json('candidates.0.content.parts.0.text') : "Error en análisis.";
-    } catch (\Exception $e) { return "Error de conexión."; }
-}
+        try {
+            // Usamos la misma URL exacta que en generateAnalysis y generateBalanceSheetAnalysis
+            $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" . env('GEMINI_API_KEY');
+            
+            $response = Http::timeout(60)
+                ->withHeaders(['Content-Type' => 'application/json'])
+                ->post($url, [
+                    'contents' => [['role' => 'user', 'parts' => [['text' => $prompt]]]]
+                ]);
+                
+            return $response->successful() ? $response->json('candidates.0.content.parts.0.text') : "Error en análisis: " . $response->status();
+        } catch (\Exception $e) { 
+            return "Error de conexión con IA."; 
+        }
+    }
 
 
 }
