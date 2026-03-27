@@ -73,7 +73,7 @@ class RoleController extends Controller
         // Necesitamos acceder a la propiedad, pero como no es pública, la replicamos aquí.
         // O podrías hacerla pública/estática en el Seeder. Por ahora, esto es más simple.
         $permissionsStructure = [
-            'Dashboard' => ['ver-widget-contratos-vencer', 'ver-widget-cumpleanos', 'ver-widget-aniversarios', 'ver-widget-nuevos-ingresos', 'ver-widget-imss', 'ver-widget-accesos-rapidos'],
+            'Dashboard' => ['ver-widget-contratos-vencer', 'ver-widget-cumpleanos', 'ver-widget-aniversarios', 'ver-widget-nuevos-ingresos', 'ver-widget-imss','ver-widget-rentabilidad-sucursales', 'ver-widget-accesos-rapidos'],
             'Menús Principales' => ['ver-menu-creditos', 'ver-menu-rh', 'ver-menu-contabilidad', 'ver-menu-administracion', 'ver-menu-configuracion'],
             'Créditos y Cobranza' => ['ver-clientes', 'crear-clientes', 'editar-clientes', 'eliminar-clientes', 'ver-grupos', 'crear-grupos', 'editar-grupos', 'eliminar-grupos', 'ver-creditos', 'registrar-credito', 'editar-credito', 'eliminar-credito', 'aprobar-credito', 'desembolsar-credito'],
             'Recursos Humanos' => ['ver-empleados', 'crear-empleados', 'editar-empleados', 'eliminar-empleados', 'ver-contratos', 'crear-contratos', 'imprimir-contratos', 'exportar-contratos', 'ver-asistencias', 'registrar-asistencias', 'editar-asistencias', 'ver-vacaciones', 'registrar-vacaciones', 'ver-deducciones', 'crear-deducciones', 'editar-deducciones', 'eliminar-deducciones', 'ver-lista-raya', 'exportar-lista-raya', 'ver-finiquitos', 'calcular-finiquitos', 'exportar-finiquitos', 'ver-gestion-imss', 'tramitar-imss', 'ver-aguinaldo', 'calcular-aguinaldo', 'exportar-aguinaldo', 'ver-renuncias', 'generar-renuncias'],
