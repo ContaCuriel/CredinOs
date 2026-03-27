@@ -532,32 +532,34 @@ class ReporteController extends Controller
         $jsonIA = json_encode($statsGlobales);
         $esMultimes = count($periodoMeses) > 1;
 
+        // Base de la personalidad: Carlos Curiel & Facturame.org
+        $contextoPersonal = "Te llamas Carlos Curiel y representas a Facturame.org. Estás entregando un informe de resultados al dueño de la financiera.";
+
         if ($esMultimes) {
-            $prompt = "Actúa como un Socio Director de McKinsey & Company analizando el desempeño trimestral/semestral de una financiera. Datos: $jsonIA. 
-                       REGLAS INQUEBRANTABLES:
-                       1. La sucursal 'EJECUTIVA' es el Corporativo (Centro de Costos). Jamás la critiques por no tener colocación ni intereses. Analiza únicamente si su gasto (burn rate) es saludable frente a la utilidad del resto.
-                       2. Tu tono debe ser implacable, profesional y altamente estratégico.
-                       ESTRUCTURA TU REPORTE ASÍ:
-                       * **Resumen Ejecutivo:** 2 líneas sobre la evolución de la rentabilidad.
-                       * **Motores de Crecimiento:** Qué sucursales lideran la expansión (colocación) y cuáles lideran la rentabilidad (intereses).
-                       * **Riesgos de Ineficiencia:** Sucursales operativas con márgenes bajos o estancamiento.
-                       * **Plan de Acción:** 3 directivas estratégicas precisas.";
+            $prompt = "$contextoPersonal Analiza estos datos de " . count($periodoMeses) . " meses: $jsonIA. 
+                       REGLAS:
+                       1. Habla de forma clara, profesional pero sencilla. Evita palabras en inglés como 'deep dive' o 'burn rate'.
+                       2. La sucursal 'EJECUTIVA' es el gasto de oficina central; no la critiques por no vender, solo di si el gasto es razonable.
+                       ESTRUCTURA:
+                       * **Resumen de la Operación:** ¿Cómo va el negocio en general? (Máximo 3 líneas).
+                       * **Sucursales que más aportan:** Cuáles son las que están dando más dinero real.
+                       * **Puntos a revisar:** Donde hay gastos altos o poca actividad.
+                       * **Qué hacer ahora:** 3 consejos prácticos y sencillos para el dueño.";
         } else {
-            $prompt = "Actúa como un Socio Director de McKinsey & Company dando un dictamen mensual financiero. Datos de este único mes: $jsonIA.
-                       REGLAS INQUEBRANTABLES:
-                       1. NUNCA menciones la falta de datos históricos ni digas que no puedes ver tendencias. Trabaja exclusivamente con los márgenes y volúmenes de este mes.
-                       2. La sucursal 'EJECUTIVA' es Corporativo. Jamás la menciones como 'foco rojo' por no tener ventas. Solo evalúa la carga financiera que representa.
-                       3. Usa lenguaje avanzado (ej. ROI, Burn Rate, Margen Operativo).
-                       ESTRUCTURA TU REPORTE ASÍ:
-                       * **Diagnóstico del Mes:** 2 líneas contundentes sobre el estado de resultados actual.
-                       * **Líderes de Rentabilidad:** Analiza quién convirtió mejor la colocación en utilidad neta.
-                       * **Fugas de Capital:** Identifica sucursales operativas inactivas o con gastos que 'comen' su utilidad.
-                       * **Directivas Inmediatas:** 3 acciones para el dueño a ejecutar la próxima semana.";
+            $prompt = "$contextoPersonal Analiza el rendimiento de este mes: $jsonIA.
+                       REGLAS:
+                       1. Prohibido decir que faltan datos históricos. Analiza lo que hay.
+                       2. Usa un lenguaje que un dueño de negocio entienda a la primera (Ingresos, Gastos, Ganancia).
+                       3. La sucursal 'EJECUTIVA' es tu oficina central. Solo menciona si su costo se puede cubrir bien con las otras sucursales.
+                       ESTRUCTURA:
+                       * **Resultado del Mes:** Una frase poderosa sobre la utilidad total.
+                       * **Mejores Sucursales:** Quiénes hicieron mejor el trabajo este mes.
+                       * **Atención Urgente:** Qué sucursales están inactivas o gastando de más.
+                       * **Plan de Acción:** 3 pasos claros para mejorar la próxima semana.";
         }
 
-        // ¡AQUÍ ESTÁ LA MAGIA! Le pedimos explícitamente el modelo PRO
         $analysis = $this->llamarGemini($prompt, 'gemini-2.5-pro');
-
+        
         $data = [
             'stats' => $statsGlobales,
             'periodoMeses' => $periodoMeses,
