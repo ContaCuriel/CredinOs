@@ -351,7 +351,7 @@ class ReporteController extends Controller
             $apiKey = env('GEMINI_API_KEY', '');
             if (empty($apiKey)) return response()->json(['error' => 'La clave de API no está configurada.'], 500);
             
-            $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={$apiKey}";
+            $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={$apiKey}";
             $response = Http::timeout(30)->post($apiUrl, ['contents' => [['role' => 'user', 'parts' => [['text' => $prompt]]]]]);
 
             if ($response->successful()) {

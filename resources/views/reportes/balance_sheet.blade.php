@@ -10,19 +10,21 @@
         </div>
         <div class="card-body">
             {{-- Formulario --}}
-            <form method="GET" action="{{ route('reportes.balance_sheet') }}" id="report-form" class="mb-4 p-3 border rounded bg-light">
-                 <div class="row g-3 align-items-end">
-                    <div class="col-md-5">
-                        <label for="company_name_input" class="form-label">Nombre de Empresa para PDF</label>
-                        <input type="text" class="form-control" id="company_name_input" name="company_name" value="{{ request('company_name', 'Credintegra SA de CV') }}">
-                    </div>
-                    <div class="col-md-5">
-                        <label for="end_date" class="form-label">Balance al día:</label>
-                        <input type="date" class="form-control" id="end_date" name="end_date" value="{{ $endDate }}">
-                    </div>
-                    <div class="col-md-2"><button type="submit" class="btn btn-primary w-100">Generar</button></div>
-                </div>
-            </form>
+            <form method="GET" action="{{ route('reportes.balance_sheet') }}" id="report-form" class="mb-4 p-3 border rounded bg-light" onsubmit="let btn = document.getElementById('btn-generar'); btn.disabled = true; btn.innerHTML = '<span class=\'spinner-border spinner-border-sm\' role=\'status\' aria-hidden=\'true\'></span> Cargando...';">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-5">
+            <label for="company_name_input" class="form-label">Nombre de Empresa para PDF</label>
+            <input type="text" class="form-control" id="company_name_input" name="company_name" value="{{ request('company_name', 'Credintegra SA de CV') }}">
+        </div>
+        <div class="col-md-5">
+            <label for="end_date" class="form-label">Balance al día:</label>
+            <input type="date" class="form-control" id="end_date" name="end_date" value="{{ $endDate }}">
+        </div>
+        <div class="col-md-2">
+            <button type="submit" id="btn-generar" class="btn btn-primary w-100">Generar</button>
+        </div>
+    </div>
+</form>
 
             {{-- Cuerpo del Reporte --}}
             @php

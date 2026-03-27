@@ -12,32 +12,40 @@
         </div>
         <div class="card-body">
             {{-- Formulario de Filtros con todos los campos --}}
-            <form method="GET" action="{{ route('reportes.income_statement') }}" id="report-form" class="mb-4 p-3 border rounded bg-light">
-                <div class="row g-3 align-items-end">
-                    <div class="col-md-6">
-                        <label for="company_name_input" class="form-label">Nombre de la Empresa para Reporte</label>
-                        <input type="text" class="form-control" id="company_name_input" name="company_name" value="{{ request('company_name', 'Credintegra SA de CV') }}">
-                    </div>
-                    <div class="col-md-6">
-                        <label for="legal_rep_input" class="form-label">Nombre del Representante Legal</label>
-                        <input type="text" class="form-control" id="legal_rep_input" name="legal_representative" value="{{ request('legal_representative', 'Socio Accionista') }}">
-                    </div>
-                    <div class="col-md-4">
-                        <label for="sucursal_id" class="form-label">Sucursal</label>
-                        <select class="form-select" id="sucursal_id" name="sucursal_id">
-                            <option value="">Todas las Sucursales</option>
-                            @foreach ($sucursales as $sucursal)
-                                <option value="{{ $sucursal->id_sucursal }}" {{ $selectedSucursalId == $sucursal->id_sucursal ? 'selected' : '' }}>
-                                    {{ $sucursal->nombre_sucursal }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-3"><label for="start_date" class="form-label">Fecha de Inicio</label><input type="date" class="form-control" id="start_date" name="start_date" value="{{ $startDate }}"></div>
-                    <div class="col-md-3"><label for="end_date" class="form-label">Fecha de Fin</label><input type="date" class="form-control" id="end_date" name="end_date" value="{{ $endDate }}"></div>
-                    <div class="col-md-2"><button type="submit" class="btn btn-primary w-100">Generar</button></div>
-                </div>
-            </form>
+           <form method="GET" action="{{ route('reportes.income_statement') }}" id="report-form" class="mb-4 p-3 border rounded bg-light" onsubmit="let btn = document.getElementById('btn-generar'); btn.disabled = true; btn.innerHTML = '<span class=\'spinner-border spinner-border-sm\' role=\'status\' aria-hidden=\'true\'></span> Cargando...';">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-6">
+            <label for="company_name_input" class="form-label">Nombre de la Empresa para Reporte</label>
+            <input type="text" class="form-control" id="company_name_input" name="company_name" value="{{ request('company_name', 'Credintegra SA de CV') }}">
+        </div>
+        <div class="col-md-6">
+            <label for="legal_rep_input" class="form-label">Nombre del Representante Legal</label>
+            <input type="text" class="form-control" id="legal_rep_input" name="legal_representative" value="{{ request('legal_representative', 'Socio Accionista') }}">
+        </div>
+        <div class="col-md-4">
+            <label for="sucursal_id" class="form-label">Sucursal</label>
+            <select class="form-select" id="sucursal_id" name="sucursal_id">
+                <option value="">Todas las Sucursales</option>
+                @foreach ($sucursales as $sucursal)
+                    <option value="{{ $sucursal->id_sucursal }}" {{ $selectedSucursalId == $sucursal->id_sucursal ? 'selected' : '' }}>
+                        {{ $sucursal->nombre_sucursal }}
+                    </option>
+                @endforeach
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label for="start_date" class="form-label">Fecha de Inicio</label>
+            <input type="date" class="form-control" id="start_date" name="start_date" value="{{ $startDate }}">
+        </div>
+        <div class="col-md-3">
+            <label for="end_date" class="form-label">Fecha de Fin</label>
+            <input type="date" class="form-control" id="end_date" name="end_date" value="{{ $endDate }}">
+        </div>
+        <div class="col-md-2">
+            <button type="submit" id="btn-generar" class="btn btn-primary w-100">Generar</button>
+        </div>
+    </div>
+</form>
 
             {{-- Cuerpo del reporte --}}
             <div class="mt-4" id="report-data" data-ingresos="{{ $totalInterest }}" data-gastos="{{ $totalOperationalExpenses }}" data-castigos="{{ $totalUnrecoverable }}" data-utilidad="{{ $netIncome }}" data-inicio="{{ $startDate }}" data-fin="{{ $endDate }}">

@@ -11,21 +11,21 @@
         <div class="card-body">
             {{-- Formulario de Filtro por Fechas --}}
             {{-- CAMBIO CLAVE: Apuntamos al nuevo nombre de la ruta --}}
-            <form method="GET" action="{{ route('reportes.balanza_comprobacion') }}" class="mb-4 p-3 border rounded bg-light">
-                <div class="row g-3 align-items-end">
-                    <div class="col-md-4">
-                        <label for="start_date" class="form-label">Fecha de Inicio</label>
-                        <input type="date" class="form-control" id="start_date" name="start_date" value="{{ $startDate }}">
-                    </div>
-                    <div class="col-md-4">
-                        <label for="end_date" class="form-label">Fecha de Fin</label>
-                        <input type="date" class="form-control" id="end_date" name="end_date" value="{{ $endDate }}">
-                    </div>
-                    <div class="col-md-4">
-                        <button type="submit" class="btn btn-primary w-100">Generar Reporte</button>
-                    </div>
-                </div>
-            </form>
+            <form method="GET" action="{{ route('reportes.balanza_comprobacion') }}" id="report-form" class="mb-4 p-3 border rounded bg-light" onsubmit="let btn = document.getElementById('btn-generar'); btn.disabled = true; btn.innerHTML = '<span class=\'spinner-border spinner-border-sm\' role=\'status\' aria-hidden=\'true\'></span> Cargando...';">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label for="start_date" class="form-label">Fecha de Inicio</label>
+            <input type="date" class="form-control" id="start_date" name="start_date" value="{{ $startDate }}">
+        </div>
+        <div class="col-md-4">
+            <label for="end_date" class="form-label">Fecha de Fin</label>
+            <input type="date" class="form-control" id="end_date" name="end_date" value="{{ $endDate }}">
+        </div>
+        <div class="col-md-4">
+            <button type="submit" id="btn-generar" class="btn btn-primary w-100">Generar Reporte</button>
+        </div>
+    </div>
+</form>
 
             {{-- Tabla de Resultados --}}
             <div class="table-responsive">
