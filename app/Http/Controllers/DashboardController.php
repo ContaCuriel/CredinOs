@@ -179,7 +179,8 @@ class DashboardController extends Controller
                     ->whereBetween('year', [$startYear, $endYear])
                     ->whereBetween('month', [$startMonth, $endMonth])
                     ->select(
-                        DB::raw('SUM(capital_collected) as total_capital'),
+                        // AQUÍ ESTÁ EL CAMBIO: 'capital_recovered' en lugar de 'capital_collected'
+                        DB::raw('SUM(capital_recovered) as total_capital'),
                         DB::raw('SUM(interest_collected) as total_interest')
                     )->first();
 
