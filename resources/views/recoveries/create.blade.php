@@ -38,27 +38,38 @@
                         <input type="number" class="form-control" id="year" name="year" value="{{ old('year', date('Y')) }}" required>
                     </div>
                     
-                    <div class="col-md-4">
-                        <label for="capital_recovered" class="form-label">Total de Capital Recuperado</label>
+                    <hr class="mt-4 mb-2">
+                    <h6 class="text-primary mb-3">Datos de Cobranza</h6>
+                    
+                    <div class="col-md-3">
+                        <label for="cobro_proyectado" class="form-label">Cobro Proyectado (Esperado)</label>
+                        <div class="input-group"><span class="input-group-text">$</span><input type="number" step="0.01" class="form-control" id="cobro_proyectado" name="cobro_proyectado" value="{{ old('cobro_proyectado', 0) }}" required></div>
+                        <small class="text-muted" style="font-size: 0.75rem;">Total que debía cobrar la sucursal.</small>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label for="capital_recovered" class="form-label">Capital Recuperado</label>
                         <div class="input-group"><span class="input-group-text">$</span><input type="number" step="0.01" class="form-control" id="capital_recovered" name="capital_recovered" value="{{ old('capital_recovered', 0) }}" required></div>
                     </div>
-                    <div class="col-md-4">
-                        <label for="interest_collected" class="form-label">Total de Intereses Cobrados</label>
+                    
+                    <div class="col-md-3">
+                        <label for="interest_collected" class="form-label">Intereses Cobrados</label>
                         <div class="input-group"><span class="input-group-text">$</span><input type="number" step="0.01" class="form-control" id="interest_collected" name="interest_collected" value="{{ old('interest_collected', 0) }}" required></div>
                     </div>
-                    <div class="col-md-4">
-                        <label for="unrecoverable_amount" class="form-label">Total de Préstamos Castigados</label>
+                    
+                    <div class="col-md-3">
+                        <label for="unrecoverable_amount" class="form-label">Préstamos Castigados</label>
                         <div class="input-group"><span class="input-group-text">$</span><input type="number" step="0.01" class="form-control" id="unrecoverable_amount" name="unrecoverable_amount" value="{{ old('unrecoverable_amount', 0) }}" required></div>
                     </div>
 
-                     <div class="col-12">
+                     <div class="col-12 mt-3">
                         <label for="notes" class="form-label">Notas (Opcional)</label>
-                        <textarea class="form-control" id="notes" name="notes" rows="3">{{ old('notes') }}</textarea>
+                        <textarea class="form-control" id="notes" name="notes" rows="2">{{ old('notes') }}</textarea>
                     </div>
                 </div>
                 <div class="d-flex justify-content-end mt-4">
                     <a href="{{ route('recoveries.index') }}" class="btn btn-secondary me-2">Cancelar</a>
-                    <button type="submit" class="btn btn-success">Guardar Registro de Recuperación</button>
+                    <button type="submit" class="btn btn-success">Guardar Registro y Calcular Mora</button>
                 </div>
             </form>
         </div>

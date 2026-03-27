@@ -1,7 +1,7 @@
 <x-app-layout>
     <div class="card shadow-sm">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Historial de Recuperación Mensual</h5>
+            <h5 class="mb-0">Historial de Recuperación y Mora Mensual</h5>
             <a href="{{ route('recoveries.create') }}" class="btn btn-success">
                 <i class="bi bi-plus-lg"></i> Nuevo Registro
             </a>
@@ -16,9 +16,10 @@
                         <tr>
                             <th>Periodo</th>
                             <th>Sucursal</th>
-                            <th class="text-end">Capital Recuperado</th>
-                            <th class="text-end">Interés Cobrado</th>
-                            <th class="text-end">Monto Castigado</th>
+                            <th class="text-end">Cobro Proyectado</th>
+                            <th class="text-end">Cap. Recuperado</th>
+                            <th class="text-end">Int. Cobrado</th>
+                            <th class="text-end text-danger">Mora Generada</th>
                             <th class="text-center">Póliza</th>
                         </tr>
                     </thead>
@@ -27,9 +28,10 @@
                             <tr>
                                 <td><strong>{{ \Carbon\Carbon::create($recovery->year, $recovery->month)->translatedFormat('F Y') }}</strong></td>
                                 <td>{{ $recovery->sucursal->nombre_sucursal }}</td>
+                                <td class="text-end text-primary fw-bold">${{ number_format($recovery->cobro_proyectado, 2) }}</td>
                                 <td class="text-end">${{ number_format($recovery->capital_recovered, 2) }}</td>
                                 <td class="text-end text-success fw-bold">${{ number_format($recovery->interest_collected, 2) }}</td>
-                                <td class="text-end text-danger">(${{ number_format($recovery->unrecoverable_amount, 2) }})</td>
+                                <td class="text-end text-danger fw-bold">${{ number_format($recovery->mora_periodo, 2) }}</td>
                                 <td class="text-center">
                                     @if ($recovery->journal)
                                         <a href="{{ route('journals.show', $recovery->journal) }}" class="btn btn-sm btn-outline-primary">
@@ -40,7 +42,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="text-center text-muted py-4">No hay registros de recuperación todavía.</td>
+                                <td colspan="7" class="text-center text-muted py-4">No hay registros de recuperación todavía.</td>
                             </tr>
                         @endforelse
                     </tbody>

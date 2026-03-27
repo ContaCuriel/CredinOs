@@ -11,9 +11,6 @@ use Carbon\Carbon;
 
 class RecoveryController extends Controller
 {
-    /**
-     * Muestra una lista de los registros de recuperación.
-     */
     public function index()
     {
         $recoveries = Recovery::with(['sucursal', 'user', 'journal'])
@@ -23,18 +20,12 @@ class RecoveryController extends Controller
         return view('recoveries.index', compact('recoveries'));
     }
 
-    /**
-     * Muestra el formulario para crear un nuevo registro de recuperación.
-     */
     public function create()
     {
         $sucursales = Sucursal::orderBy('nombre_sucursal')->get();
         return view('recoveries.create', compact('sucursales'));
     }
 
-    /**
-     * Guarda un nuevo registro de recuperación en la base de datos.
-     */
     public function store(Request $request)
     {
         $currentYear = Carbon::now()->year;
@@ -49,6 +40,7 @@ class RecoveryController extends Controller
                                  ->where('year', $request->year);
                 }),
             ],
+            'cobro_proyectado' => 'required|numeric|min:0', // <-- Nuevo campo
             'capital_recovered' => 'required|numeric|min:0',
             'interest_collected' => 'required|numeric|min:0',
             'unrecoverable_amount' => 'required|numeric|min:0',
@@ -57,17 +49,31 @@ class RecoveryController extends Controller
             'month.unique' => 'Ya existe un registro de recuperación para esta sucursal en el mes y año seleccionados.',
         ]);
 
+        // --- MATEMÁTICAS MÁGICAS PARA LA MORA ---
+        $proyectado = $validatedData['cobro_proyectado'];
+        $capital = $validatedData['capital_recovered'];
+        $interes = $validatedData['interest_collected'];
+        
+        $total_recuperado = $capital + $interes;
+        $mora_calculada = $proyectado - $total_recuperado;
+        
+        // Si por alguna razón cobraron de más (pagos adelantados), la mora es 0, no negativa
+        $mora_final = $mora_calculada > 0 ? $mora_calculada : 0;
+        // ----------------------------------------
+
         Recovery::create([
             'sucursal_id' => $validatedData['sucursal_id'],
             'year' => $validatedData['year'],
             'month' => $validatedData['month'],
-            'capital_recovered' => $validatedData['capital_recovered'],
-            'interest_collected' => $validatedData['interest_collected'],
+            'cobro_proyectado' => $proyectado,
+            'capital_recovered' => $capital,
+            'interest_collected' => $interes,
+            'mora_periodo' => $mora_final, // <-- Se guarda solito
             'unrecoverable_amount' => $validatedData['unrecoverable_amount'],
             'user_id' => Auth::id(),
             'notes' => $validatedData['notes'],
         ]);
 
-        return redirect()->route('recoveries.index')->with('success', 'Registro de recuperación guardado exitosamente. La póliza contable ha sido generada.');
+        return redirect()->route('recoveries.index')->with('success', 'Registro de recuperación guardado exitosamente. La mora se calculó de forma automática y la póliza ha sido generada.');
     }
 }
