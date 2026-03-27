@@ -534,6 +534,7 @@ class ReporteController extends Controller
     }
 
     // --- PROMPT EVOLUTIVO PARA GEMINI ---
+    // --- PROMPT EVOLUTIVO PARA GEMINI ---
     $jsonIA = json_encode($statsGlobales);
     $prompt = "Actúa como un Consultor de Estrategia Financiera Senior. Analiza la EVOLUCIÓN de estos datos: $jsonIA. 
                El periodo total abarca " . count($periodoMeses) . " meses.
@@ -543,6 +544,37 @@ class ReporteController extends Controller
                3. EFICIENCIA: ¿La utilidad operativa crece más rápido que el gasto administrativo de la sucursal EJECUTIVA?
                4. ESTRATEGIA: Da 3 conclusiones de salud de cartera y 3 recomendaciones de ajuste.
                Usa títulos en negritas y lenguaje profesional ejecutivo.";
+
+    // ==========================================
+    // INICIO DEL TEST SEGURO (SOLO PARA ESTE PDF)
+    // ==========================================
+    $apiKeyTest = env('GEMINI_API_KEY');
+    
+    if (empty($apiKeyTest)) {
+        dd("ERROR CRÍTICO: Laravel no lee la API_KEY en este reporte. Es problema de caché de Render.");
+    }
+
+    $responseTest = \Illuminate\Support\Facades\Http::timeout(60)
+        ->withHeaders(['Content-Type' => 'application/json'])
+        ->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" . $apiKeyTest, [
+            'contents' => [['role' => 'user', 'parts' => [['text' => $prompt]]]]
+        ]);
+
+    if (!$responseTest->successful()) {
+        dd([
+            'Status HTTP' => $responseTest->status(),
+            'Respuesta de Google' => $responseTest->json() ?? $responseTest->body(),
+            'Falla al enviar este Prompt' => $prompt
+        ]);
+    } else {
+        dd([
+            '¡ÉXITO!' => 'Gemini sí respondió. El problema era otro.',
+            'Texto generado' => $responseTest->json('candidates.0.content.parts.0.text')
+        ]);
+    }
+    // ==========================================
+    // FIN DEL TEST SEGURO
+    // ==========================================
 
     // Llamada a Gemini usando el helper existente en el controlador
     $analysis = $this->llamarGemini($prompt);
