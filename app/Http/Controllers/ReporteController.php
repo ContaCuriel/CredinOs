@@ -530,17 +530,35 @@ class ReporteController extends Controller
         }
 
         $jsonIA = json_encode($statsGlobales);
-        $prompt = "Actúa como un Consultor de Estrategia Financiera Senior. Analiza la EVOLUCIÓN de estos datos: $jsonIA. 
-                   El periodo total abarca " . count($periodoMeses) . " meses.
-                   TAREAS ESPECÍFICAS:
-                   1. TENDENCIAS: ¿Quién crece en colocación y quién se estanca?
-                   2. ANOMALÍAS: Detecta meses con gastos atípicos o caídas en intereses.
-                   3. EFICIENCIA: ¿La utilidad operativa crece más rápido que el gasto administrativo de la sucursal EJECUTIVA?
-                   4. ESTRATEGIA: Da 3 conclusiones de salud de cartera y 3 recomendaciones de ajuste.
-                   Usa títulos en negritas y lenguaje profesional ejecutivo.";
+        $esMultimes = count($periodoMeses) > 1;
 
-        // --- ELIMINAMOS EL BLOQUE DE PRUEBA QUE BLOQUEABA EL CÓDIGO ---
-        // Llamada a Gemini usando el helper limpio
+        if ($esMultimes) {
+            // PROMPT PARA VARIOS MESES (EVOLUTIVO)
+            $prompt = "Actúa como un Director Financiero. Analiza la EVOLUCIÓN de estos datos financieros: $jsonIA. 
+                       El periodo abarca " . count($periodoMeses) . " meses.
+                       REGLAS ESTRICTAS QUE DEBES OBEDECER:
+                       1. NUNCA critiques ni menciones a la sucursal 'EJECUTIVA' por falta de colocación o ingresos, ya que es un centro de costos administrativo. Solo evalúa si sus gastos son razonables frente a la utilidad general.
+                       2. Ve directo al grano, sin frases introductorias ni de relleno.
+                       TAREAS:
+                       - TENDENCIAS: ¿Qué sucursal crece de forma sólida y cuál se está estancando en este periodo?
+                       - RIESGOS: Identifica caídas abruptas o gastos atípicos.
+                       - ESTRATEGIA: Da 3 recomendaciones directas de expansión o ajuste.
+                       FORMATO: Párrafos muy breves, usa viñetas (bullet points), no uses cursivas ni formatos extraños.";
+        } else {
+            // PROMPT PARA UN SOLO MES (FOTO ACTUAL)
+            $prompt = "Actúa como un Director Financiero. Analiza el rendimiento de ESTE ÚNICO MES: $jsonIA. 
+                       REGLAS ESTRICTAS QUE DEBES OBEDECER:
+                       1. NUNCA menciones que te faltan datos históricos, ni digas 'dado que es un solo mes no puedo ver tendencias'. Analiza EXCLUSIVAMENTE lo que tienes enfrente.
+                       2. NUNCA critiques ni menciones a la sucursal 'EJECUTIVA' por falta de colocación o ingresos, ya que es un centro de costos. Solo evalúa si sus gastos merman mucho la utilidad general.
+                       3. Ve directo al grano, sin frases introductorias ni saludos.
+                       TAREAS:
+                       - RANKING: Menciona la sucursal 'Estrella' del mes (mejor relación utilidad/colocación) y el mayor 'Foco Rojo' (altos gastos/baja utilidad).
+                       - EFICIENCIA: Evalúa de forma general los Márgenes sobre Intereses.
+                       - ESTRATEGIA: Da 3 acciones operativas a implementar mañana mismo.
+                       FORMATO: Párrafos muy breves, usa viñetas (bullet points), no uses formatos extraños.";
+        }
+
+        // Llamada a Gemini
         $analysis = $this->llamarGemini($prompt);
 
         $data = [

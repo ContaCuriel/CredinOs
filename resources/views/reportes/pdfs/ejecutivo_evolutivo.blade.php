@@ -9,15 +9,19 @@
         .header { text-align: center; border-bottom: 3px solid #0d6efd; padding-bottom: 10px; margin-bottom: 20px; }
         .header h1 { margin: 0; color: #0d6efd; text-transform: uppercase; }
         
-        .kpi-container { width: 100%; margin-bottom: 20px; }
+        .kpi-container { width: 100%; text-align: center; margin-bottom: 20px; font-size: 0; } /* font-size 0 quita espacios invisibles */
         .kpi-box { 
-            width: 23%; 
+            width: 22%; /* Reducido al 22% para que quepan los 4 */
             display: inline-block; 
             background: #f1f4f9; 
-            padding: 15px 10px; 
+            padding: 15px 5px; /* Menos padding lateral */
             text-align: center; 
             border-radius: 8px; 
             border: 1px solid #d1d9e6;
+            margin: 0 1%; /* Margen equilibrado */
+            box-sizing: border-box;
+            vertical-align: top;
+            font-size: 12px; /* Restauramos tamaño de fuente */
         }
         
         .table { width: 100%; border-collapse: collapse; margin-top: 10px; background: #fff; }
@@ -26,11 +30,14 @@
         .table td:first-child { text-align: left; font-weight: bold; background: #f8f9fa; }
         
         .analysis-section { 
-            margin-top: 30px; 
+            margin-top: 20px; 
             padding: 20px; 
             background: #f8f9fa; 
             border-left: 5px solid #0d6efd;
             page-break-inside: avoid;
+            font-size: 11px; /* Letra un poco más compacta para la IA */
+            line-height: 1.5;
+            text-align: justify;
         }
         .analysis-section h3 { margin-top: 0; color: #0d6efd; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
         
