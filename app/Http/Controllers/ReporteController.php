@@ -532,30 +532,37 @@ class ReporteController extends Controller
         $jsonIA = json_encode($statsGlobales);
         $esMultimes = count($periodoMeses) > 1;
 
-        // Base de la personalidad: Carlos Curiel & Facturame.org
-        $contextoPersonal = "Te llamas Carlos Curiel y representas a Facturame.org. Estás entregando un informe de resultados al dueño de la financiera.";
+        // Instrucción de Identidad y Estilo
+        $instruccionEstilo = "Eres Carlos Curiel de Facturame.org. Tu misión es dar un informe ejecutivo. 
+                              REGLAS CRÍTICAS:
+                              - NUNCA respondas con 'Claro que sí', 'Aquí está el informe' o saludos introductorios.
+                              - COMIENZA DIRECTAMENTE con el contenido.
+                              - NO uses el formato 'De:' o 'Para:'. Solo firma al final como Carlos Curiel.
+                              - Usa un lenguaje ciudadano: 'Ganancia' en lugar de 'Utilidad Neta', 'Eficiencia' en lugar de 'Márgenes Operativos'.
+                              - Evita tecnicismos en inglés.";
 
         if ($esMultimes) {
-            $prompt = "$contextoPersonal Analiza estos datos de " . count($periodoMeses) . " meses: $jsonIA. 
-                       REGLAS:
-                       1. Habla de forma clara, profesional pero sencilla. Evita palabras en inglés como 'deep dive' o 'burn rate'.
-                       2. La sucursal 'EJECUTIVA' es el gasto de oficina central; no la critiques por no vender, solo di si el gasto es razonable.
-                       ESTRUCTURA:
-                       * **Resumen de la Operación:** ¿Cómo va el negocio en general? (Máximo 3 líneas).
-                       * **Sucursales que más aportan:** Cuáles son las que están dando más dinero real.
-                       * **Puntos a revisar:** Donde hay gastos altos o poca actividad.
-                       * **Qué hacer ahora:** 3 consejos prácticos y sencillos para el dueño.";
+            $prompt = "$instruccionEstilo Analiza estos datos de " . count($periodoMeses) . " meses: $jsonIA.
+                       ESTRUCTURA DEL CONTENIDO:
+                       ### Resumen de Resultados
+                       (Análisis de la ganancia total del periodo en 2 líneas).
+                       ### Sucursales con Mejor Desempeño
+                       (Menciona las 3 que más ganancia real aportaron).
+                       ### Áreas de Oportunidad
+                       (Identifica donde hay gastos altos o falta de préstamos).
+                       ### Próximos Pasos Recomendados
+                       (3 acciones concretas).";
         } else {
-            $prompt = "$contextoPersonal Analiza el rendimiento de este mes: $jsonIA.
-                       REGLAS:
-                       1. Prohibido decir que faltan datos históricos. Analiza lo que hay.
-                       2. Usa un lenguaje que un dueño de negocio entienda a la primera (Ingresos, Gastos, Ganancia).
-                       3. La sucursal 'EJECUTIVA' es tu oficina central. Solo menciona si su costo se puede cubrir bien con las otras sucursales.
-                       ESTRUCTURA:
-                       * **Resultado del Mes:** Una frase poderosa sobre la utilidad total.
-                       * **Mejores Sucursales:** Quiénes hicieron mejor el trabajo este mes.
-                       * **Atención Urgente:** Qué sucursales están inactivas o gastando de más.
-                       * **Plan de Acción:** 3 pasos claros para mejorar la próxima semana.";
+            $prompt = "$instruccionEstilo Analiza el mes actual: $jsonIA.
+                       ESTRUCTURA DEL CONTENIDO:
+                       ### Diagnóstico del Mes
+                       (Frase directa sobre si el mes fue exitoso y por qué).
+                       ### Sucursales Líderes
+                       (Ranking rápido de las que mejor trabajaron).
+                       ### Puntos de Atención
+                       (Sucursales inactivas o con gastos elevados).
+                       ### Plan de Acción Semanal
+                       (3 pasos prácticos para el dueño).";
         }
 
         $analysis = $this->llamarGemini($prompt, 'gemini-2.5-pro');
