@@ -41,32 +41,40 @@
                         </form>
                     </div>
 
-                    <div class="row mb-4">
-                        <div class="col-md-4 mb-3 mb-md-0">
-                            <div class="card bg-success text-white border-0">
+                    <div class="row mb-4 text-center">
+                        <div class="col-md-3 mb-3 mb-md-0">
+                            <div class="card bg-secondary text-white border-0 shadow-sm">
                                 <div class="card-body">
-                                    <h6 class="text-uppercase fw-normal mb-1 opacity-75">Ingresos Cobrados</h6>
-                                    <h3 class="fw-bold mb-0">${{ number_format($totalIngresosEmpresa ?? 0, 2) }}</h3>
+                                    <h6 class="text-uppercase fw-normal mb-1 opacity-75" title="Dinero de capital recuperado (no es utilidad)">Capital Recuperado</h6>
+                                    <h3 class="fw-bold mb-0">${{ number_format($totalCapitalEmpresa ?? 0, 2) }}</h3>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-4 mb-3 mb-md-0">
-                            <div class="card bg-danger text-white border-0">
+                        <div class="col-md-3 mb-3 mb-md-0">
+                            <div class="card bg-success text-white border-0 shadow-sm">
+                                <div class="card-body">
+                                    <h6 class="text-uppercase fw-normal mb-1 opacity-75" title="Ganancia bruta real por intereses">Intereses Cobrados</h6>
+                                    <h3 class="fw-bold mb-0">${{ number_format($totalInteresesEmpresa ?? 0, 2) }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3 mb-md-0">
+                            <div class="card bg-danger text-white border-0 shadow-sm">
                                 <div class="card-body">
                                     <h6 class="text-uppercase fw-normal mb-1 opacity-75">Gastos Operativos</h6>
                                     <h3 class="fw-bold mb-0">${{ number_format($totalGastosEmpresa ?? 0, 2) }}</h3>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-4 mb-3 mb-md-0">
+                        <div class="col-md-3 mb-3 mb-md-0">
                             @php 
-                                $utilidadNeta = ($totalIngresosEmpresa ?? 0) - ($totalGastosEmpresa ?? 0); 
-                                $bgClass = $utilidadNeta >= 0 ? 'bg-primary' : 'bg-secondary';
+                                $utilidadVerdadera = ($totalInteresesEmpresa ?? 0) - ($totalGastosEmpresa ?? 0); 
+                                $bgClassUtilidad = $utilidadVerdadera >= 0 ? 'bg-primary' : 'bg-dark';
                             @endphp
-                            <div class="card {{ $bgClass }} text-white border-0">
+                            <div class="card {{ $bgClassUtilidad }} text-white border-0 shadow-sm">
                                 <div class="card-body">
-                                    <h6 class="text-uppercase fw-normal mb-1 opacity-75">Utilidad del Periodo</h6>
-                                    <h3 class="fw-bold mb-0">${{ number_format($utilidadNeta, 2) }}</h3>
+                                    <h6 class="text-uppercase fw-normal mb-1 opacity-75" title="Verdadera ganancia neta (Intereses - Gastos)">Utilidad Neta (Real)</h6>
+                                    <h3 class="fw-bold mb-0">${{ number_format($utilidadVerdadera, 2) }}</h3>
                                 </div>
                             </div>
                         </div>
@@ -375,9 +383,10 @@
             const rentabilidadData = @json($rentabilidad);
             
             const sucursalesLabels = rentabilidadData.map(s => s.nombre);
-            const utilidades = rentabilidadData.map(s => s.utilidad);
-            const ingresos = rentabilidadData.map(s => s.ingresos);
+            const capital = rentabilidadData.map(s => s.capital);
+            const intereses = rentabilidadData.map(s => s.ingresos);
             const gastos = rentabilidadData.map(s => s.gastos);
+            const utilidades = rentabilidadData.map(s => s.utilidad);
 
             const ctxSucursales = document.getElementById('sucursalesChart');
             if(ctxSucursales) {
@@ -387,9 +396,15 @@
                         labels: sucursalesLabels,
                         datasets: [
                             {
-                                label: 'Ingresos',
+                                label: 'Capital Recuperado',
+                                backgroundColor: '#adb5bd', // Gris
+                                data: capital,
+                                borderRadius: 4
+                            },
+                            {
+                                label: 'Intereses (Ingreso Real)',
                                 backgroundColor: '#198754', // Verde success
-                                data: ingresos,
+                                data: intereses,
                                 borderRadius: 4
                             },
                             {
@@ -399,7 +414,7 @@
                                 borderRadius: 4
                             },
                             {
-                                label: 'Utilidad Neta',
+                                label: 'Utilidad Neta (Real)',
                                 type: 'line',
                                 borderColor: '#0d6efd', // Azul primary
                                 backgroundColor: '#0d6efd',

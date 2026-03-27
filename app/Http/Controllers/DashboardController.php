@@ -171,37 +171,52 @@ class DashboardController extends Controller
 
             $sucursales = Sucursal::all();
             $rentabilidad = [];
-            $totalIngresosEmpresa = 0;
+            $totalInteresesEmpresa = 0; // <--- NUEVA MÉTRICA: Solo Interés
+            $totalCapitalEmpresa = 0;   // <--- NUEVA MÉTRICA: Solo Capital
             $totalGastosEmpresa = 0;
 
             foreach ($sucursales as $sucursal) {
-                $ingresos = Recovery::where('sucursal_id', $sucursal->id_sucursal)
+                // Obtenemos los datos de la tabla Recovery
+                $recoveryData = Recovery::where('sucursal_id', $sucursal->id_sucursal)
                     ->whereBetween('year', [$startYear, $endYear])
                     ->whereBetween('month', [$startMonth, $endMonth])
-                    ->sum('interest_collected');
+                    ->first([
+                        DB::raw('SUM(capital_collected) as total_capital'),
+                        DB::raw('SUM(interest_collected) as total_interest')
+                    ]);
 
+                // Separamos capital e interés
+                $capitalRecuperado = $recoveryData->total_capital ?? 0;
+                $interesesCobrados = $recoveryData->total_interest ?? 0;
+
+                // Gastos
                 $gastos = Gasto::where('sucursal_id', $sucursal->id_sucursal)
                     ->where('estado', 'Aprobado')
                     ->whereBetween('fecha_gasto', [$dashStartDate, $dashEndDate])
                     ->sum('monto_total');
 
-                $utilidad = $ingresos - $gastos;
+                // UTILIDAD REAL: Interés - Gastos (El capital no cuenta como utilidad)
+                $utilidadNeta = $interesesCobrados - $gastos;
 
                 $rentabilidad[] = [
                     'nombre' => $sucursal->nombre_sucursal,
-                    'ingresos' => $ingresos,
+                    'capital' => $capitalRecuperado,   // <--- Dato informativo para la gráfica
+                    'ingresos' => $interesesCobrados, // <--- Este es el ingreso real (ganancia)
                     'gastos' => $gastos,
-                    'utilidad' => $utilidad,
+                    'utilidad' => $utilidadNeta,      // <--- Esta es la verdadera utilidad neta
                 ];
 
-                $totalIngresosEmpresa += $ingresos;
+                $totalInteresesEmpresa += $interesesCobrados;
+                $totalCapitalEmpresa += $capitalRecuperado;
                 $totalGastosEmpresa += $gastos;
             }
 
+            // Ordenamos para el Ranking (Mayor UTILIDAD NETA primero)
             usort($rentabilidad, function($a, $b) {
                 return $b['utilidad'] <=> $a['utilidad'];
             });
 
+            // Gastos por Categoría (Pastel) - Mantenemos esto igual
             $gastosPorCategoria = Gasto::with('categoria')
                 ->where('estado', 'Aprobado')
                 ->whereBetween('fecha_gasto', [$dashStartDate, $dashEndDate])
@@ -211,14 +226,13 @@ class DashboardController extends Controller
                     return $row->sum('monto_total');
                 });
 
+            // Pasamos las variables a la vista
             $data['rentabilidad'] = $rentabilidad;
-            $data['totalIngresosEmpresa'] = $totalIngresosEmpresa;
+            $data['totalInteresesEmpresa'] = $totalInteresesEmpresa;
+            $data['totalCapitalEmpresa'] = $totalCapitalEmpresa; // <--- Pasamos el capital para la vista
             $data['totalGastosEmpresa'] = $totalGastosEmpresa;
             $data['gastosPorCategoria'] = $gastosPorCategoria;
             $data['startDate'] = $dashStartDate;
             $data['endDate'] = $dashEndDate;
         }
-
-        return view('dashboard', $data);
-    }
 }
