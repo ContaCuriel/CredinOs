@@ -39,39 +39,88 @@
                     </div>
                     
                     <hr class="mt-4 mb-2">
-                    <h6 class="text-primary mb-3">Datos de Cobranza</h6>
+                    <h6 class="text-primary mb-3">Datos de Cobranza (Calculadora Automática)</h6>
                     
                     <div class="col-md-3">
-                        <label for="cobro_proyectado" class="form-label">Cobro Proyectado (Esperado)</label>
-                        <div class="input-group"><span class="input-group-text">$</span><input type="number" step="0.01" class="form-control" id="cobro_proyectado" name="cobro_proyectado" value="{{ old('cobro_proyectado', 0) }}" required></div>
-                        <small class="text-muted" style="font-size: 0.75rem;">Total que debía cobrar la sucursal.</small>
+                        <label for="cobro_proyectado" class="form-label">1. Cobro Proyectado</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" step="0.01" class="form-control calc-input" id="cobro_proyectado" name="cobro_proyectado" value="{{ old('cobro_proyectado', 0) }}" required>
+                        </div>
                     </div>
 
                     <div class="col-md-3">
-                        <label for="capital_recovered" class="form-label">Capital Recuperado</label>
-                        <div class="input-group"><span class="input-group-text">$</span><input type="number" step="0.01" class="form-control" id="capital_recovered" name="capital_recovered" value="{{ old('capital_recovered', 0) }}" required></div>
+                        <label for="capital_recovered" class="form-label">2. Capital Recuperado</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" step="0.01" class="form-control calc-input" id="capital_recovered" name="capital_recovered" value="{{ old('capital_recovered', 0) }}" required>
+                        </div>
                     </div>
                     
                     <div class="col-md-3">
-                        <label for="interest_collected" class="form-label">Intereses Cobrados</label>
-                        <div class="input-group"><span class="input-group-text">$</span><input type="number" step="0.01" class="form-control" id="interest_collected" name="interest_collected" value="{{ old('interest_collected', 0) }}" required></div>
+                        <label for="interest_collected" class="form-label">3. Intereses Cobrados</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" step="0.01" class="form-control calc-input" id="interest_collected" name="interest_collected" value="{{ old('interest_collected', 0) }}" required>
+                        </div>
                     </div>
                     
                     <div class="col-md-3">
-                        <label for="unrecoverable_amount" class="form-label">Préstamos Castigados</label>
-                        <div class="input-group"><span class="input-group-text">$</span><input type="number" step="0.01" class="form-control" id="unrecoverable_amount" name="unrecoverable_amount" value="{{ old('unrecoverable_amount', 0) }}" required></div>
+                        <label class="form-label text-danger fw-bold">Mora Generada (Auto)</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light text-danger border-danger">$</span>
+                            <input type="text" class="form-control bg-light text-danger fw-bold border-danger" id="mora_visual" value="0.00" readonly tabindex="-1">
+                        </div>
                     </div>
 
-                     <div class="col-12 mt-3">
-                        <label for="notes" class="form-label">Notas (Opcional)</label>
-                        <textarea class="form-control" id="notes" name="notes" rows="2">{{ old('notes') }}</textarea>
+                    <div class="col-md-4 mt-4">
+                        <label for="unrecoverable_amount" class="form-label text-muted">Préstamos Castigados (Pérdida)</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light">$</span>
+                            <input type="number" step="0.01" class="form-control" id="unrecoverable_amount" name="unrecoverable_amount" value="{{ old('unrecoverable_amount', 0) }}" required>
+                        </div>
+                    </div>
+
+                     <div class="col-md-8 mt-4">
+                        <label for="notes" class="form-label text-muted">Notas / Observaciones de la Sucursal</label>
+                        <input type="text" class="form-control" id="notes" name="notes" value="{{ old('notes') }}">
                     </div>
                 </div>
+
                 <div class="d-flex justify-content-end mt-4">
                     <a href="{{ route('recoveries.index') }}" class="btn btn-secondary me-2">Cancelar</a>
-                    <button type="submit" class="btn btn-success">Guardar Registro y Calcular Mora</button>
+                    <button type="submit" class="btn btn-success">Guardar Registro Definitivo</button>
                 </div>
             </form>
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Agarramos los 3 inputs donde la cajera escribe
+            const inputs = document.querySelectorAll('.calc-input');
+            const visualMora = document.getElementById('mora_visual');
+
+            function calcularMoraEnVivo() {
+                // Obtenemos los valores, si están vacíos los tratamos como 0
+                let proyectado = parseFloat(document.getElementById('cobro_proyectado').value) || 0;
+                let capital = parseFloat(document.getElementById('capital_recovered').value) || 0;
+                let interes = parseFloat(document.getElementById('interest_collected').value) || 0;
+
+                // Matemáticas: Lo que esperaba - Lo que me dieron
+                let mora = proyectado - (capital + interes);
+                
+                // Si la mora es negativa (cobraron de más), la mostramos en 0
+                if (mora < 0) mora = 0;
+
+                // Ponemos el resultado en la cajita roja con formato de comas y decimales
+                visualMora.value = mora.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+
+            // Cada que la cajera presione una tecla en esas 3 cajas, recalculamos
+            inputs.forEach(input => {
+                input.addEventListener('input', calcularMoraEnVivo);
+            });
+        });
+    </script>
 </x-app-layout>
