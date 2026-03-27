@@ -533,33 +533,30 @@ class ReporteController extends Controller
         $esMultimes = count($periodoMeses) > 1;
 
         if ($esMultimes) {
-            // PROMPT PARA VARIOS MESES (EVOLUTIVO)
-            $prompt = "Actúa como un Director Financiero. Analiza la EVOLUCIÓN de estos datos financieros: $jsonIA. 
-                       El periodo abarca " . count($periodoMeses) . " meses.
-                       REGLAS ESTRICTAS QUE DEBES OBEDECER:
-                       1. NUNCA critiques ni menciones a la sucursal 'EJECUTIVA' por falta de colocación o ingresos, ya que es un centro de costos administrativo. Solo evalúa si sus gastos son razonables frente a la utilidad general.
-                       2. Ve directo al grano, sin frases introductorias ni de relleno.
-                       TAREAS:
-                       - TENDENCIAS: ¿Qué sucursal crece de forma sólida y cuál se está estancando en este periodo?
-                       - RIESGOS: Identifica caídas abruptas o gastos atípicos.
-                       - ESTRATEGIA: Da 3 recomendaciones directas de expansión o ajuste.
-                       FORMATO: Párrafos muy breves, usa viñetas (bullet points), no uses cursivas ni formatos extraños.";
+            $prompt = "Actúa como un Socio Director de McKinsey & Company analizando el desempeño trimestral/semestral de una financiera. Datos: $jsonIA. 
+                       REGLAS INQUEBRANTABLES:
+                       1. La sucursal 'EJECUTIVA' es el Corporativo (Centro de Costos). Jamás la critiques por no tener colocación ni intereses. Analiza únicamente si su gasto (burn rate) es saludable frente a la utilidad del resto.
+                       2. Tu tono debe ser implacable, profesional y altamente estratégico.
+                       ESTRUCTURA TU REPORTE ASÍ:
+                       * **Resumen Ejecutivo:** 2 líneas sobre la evolución de la rentabilidad.
+                       * **Motores de Crecimiento:** Qué sucursales lideran la expansión (colocación) y cuáles lideran la rentabilidad (intereses).
+                       * **Riesgos de Ineficiencia:** Sucursales operativas con márgenes bajos o estancamiento.
+                       * **Plan de Acción:** 3 directivas estratégicas precisas.";
         } else {
-            // PROMPT PARA UN SOLO MES (FOTO ACTUAL)
-            $prompt = "Actúa como un Director Financiero. Analiza el rendimiento de ESTE ÚNICO MES: $jsonIA. 
-                       REGLAS ESTRICTAS QUE DEBES OBEDECER:
-                       1. NUNCA menciones que te faltan datos históricos, ni digas 'dado que es un solo mes no puedo ver tendencias'. Analiza EXCLUSIVAMENTE lo que tienes enfrente.
-                       2. NUNCA critiques ni menciones a la sucursal 'EJECUTIVA' por falta de colocación o ingresos, ya que es un centro de costos. Solo evalúa si sus gastos merman mucho la utilidad general.
-                       3. Ve directo al grano, sin frases introductorias ni saludos.
-                       TAREAS:
-                       - RANKING: Menciona la sucursal 'Estrella' del mes (mejor relación utilidad/colocación) y el mayor 'Foco Rojo' (altos gastos/baja utilidad).
-                       - EFICIENCIA: Evalúa de forma general los Márgenes sobre Intereses.
-                       - ESTRATEGIA: Da 3 acciones operativas a implementar mañana mismo.
-                       FORMATO: Párrafos muy breves, usa viñetas (bullet points), no uses formatos extraños.";
+            $prompt = "Actúa como un Socio Director de McKinsey & Company dando un dictamen mensual financiero. Datos de este único mes: $jsonIA.
+                       REGLAS INQUEBRANTABLES:
+                       1. NUNCA menciones la falta de datos históricos ni digas que no puedes ver tendencias. Trabaja exclusivamente con los márgenes y volúmenes de este mes.
+                       2. La sucursal 'EJECUTIVA' es Corporativo. Jamás la menciones como 'foco rojo' por no tener ventas. Solo evalúa la carga financiera que representa.
+                       3. Usa lenguaje avanzado (ej. ROI, Burn Rate, Margen Operativo).
+                       ESTRUCTURA TU REPORTE ASÍ:
+                       * **Diagnóstico del Mes:** 2 líneas contundentes sobre el estado de resultados actual.
+                       * **Líderes de Rentabilidad:** Analiza quién convirtió mejor la colocación en utilidad neta.
+                       * **Fugas de Capital:** Identifica sucursales operativas inactivas o con gastos que "comen" su utilidad.
+                       * **Directivas Inmediatas:** 3 acciones para el dueño a ejecutar la próxima semana.";
         }
 
-        // Llamada a Gemini
-        $analysis = $this->llamarGemini($prompt);
+        // ¡AQUÍ ESTÁ LA MAGIA! Le pedimos explícitamente el modelo PRO
+        $analysis = $this->llamarGemini($prompt, 'gemini-1.5-pro');
 
         $data = [
             'stats' => $statsGlobales,
@@ -576,11 +573,13 @@ class ReporteController extends Controller
     }
 
     // Helper privado usando EXACTAMENTE la versión que a ti te funciona
-    private function llamarGemini($prompt) {
+    // Añadimos el parámetro $modelo, por defecto usamos flash para que no rompa lo demás
+    private function llamarGemini($prompt, $modelo = 'gemini-1.5-flash') {
         try {
-            $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" . env('GEMINI_API_KEY');
+            // Inyectamos la variable $modelo en la URL
+            $url = "https://generativelanguage.googleapis.com/v1beta/models/{$modelo}:generateContent?key=" . env('GEMINI_API_KEY');
             
-            $response = Http::timeout(60)
+            $response = Http::timeout(90) // Subimos a 90s porque el Pro piensa más profundo
                 ->withHeaders(['Content-Type' => 'application/json'])
                 ->post($url, [
                     'contents' => [['role' => 'user', 'parts' => [['text' => $prompt]]]]
@@ -589,11 +588,10 @@ class ReporteController extends Controller
             if ($response->successful()) {
                 return $response->json('candidates.0.content.parts.0.text');
             } else {
-                // Si la IA falla, imprimimos el error de Google directo en el PDF en vez de colgar la app
-                return "Aviso: No se pudo generar el análisis. Error de Google: " . $response->status() . " - " . $response->body();
+                return "Aviso: No se pudo generar el análisis. Error: " . $response->status();
             }
         } catch (\Exception $e) { 
-            return "Aviso: Error de conexión con el servidor de Inteligencia Artificial."; 
+            return "Aviso: Error de conexión con el servidor de IA."; 
         }
     }
 }

@@ -9,21 +9,6 @@
         .header { text-align: center; border-bottom: 3px solid #0d6efd; padding-bottom: 10px; margin-bottom: 20px; }
         .header h1 { margin: 0; color: #0d6efd; text-transform: uppercase; }
         
-        .kpi-container { width: 100%; text-align: center; margin-bottom: 20px; font-size: 0; } /* font-size 0 quita espacios invisibles */
-        .kpi-box { 
-            width: 22%; /* Reducido al 22% para que quepan los 4 */
-            display: inline-block; 
-            background: #f1f4f9; 
-            padding: 15px 5px; /* Menos padding lateral */
-            text-align: center; 
-            border-radius: 8px; 
-            border: 1px solid #d1d9e6;
-            margin: 0 1%; /* Margen equilibrado */
-            box-sizing: border-box;
-            vertical-align: top;
-            font-size: 12px; /* Restauramos tamaño de fuente */
-        }
-        
         .table { width: 100%; border-collapse: collapse; margin-top: 10px; background: #fff; }
         .table th { background-color: #0d6efd; color: white; padding: 10px; font-size: 11px; text-transform: uppercase; }
         .table td { border: 1px solid #dee2e6; padding: 8px; text-align: right; }
@@ -35,11 +20,11 @@
             background: #f8f9fa; 
             border-left: 5px solid #0d6efd;
             page-break-inside: avoid;
-            font-size: 11px; /* Letra un poco más compacta para la IA */
-            line-height: 1.5;
+            font-size: 11.5px; /* Letra perfecta para lectura de dictámenes largos */
+            line-height: 1.6;
             text-align: justify;
         }
-        .analysis-section h3 { margin-top: 0; color: #0d6efd; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+        .analysis-section h3 { margin-top: 0; color: #0d6efd; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 15px;}
         
         .badge-admin { font-size: 9px; color: #666; display: block; font-weight: normal; }
         .text-success { color: #198754; font-weight: bold; }
@@ -51,30 +36,32 @@
 <body>
     <div class="header">
         <h1>Informe de Inteligencia Financiera</h1>
-        <p>Análisis Evolutivo: <strong>{{ $rangoFechas }}</strong></p>
+        <p>Análisis Estratégico: <strong>{{ $rangoFechas }}</strong></p>
     </div>
 
-    <div class="kpi-container">
-        <div class="kpi-box">
-            <small>Total Colocación</small><br>
-            <strong style="font-size: 16px;">${{ number_format(array_sum(array_column($stats, 'colocacion')), 2) }}</strong>
-        </div>
-        <div class="kpi-box">
-            <small>Intereses (Cosecha)</small><br>
-            <strong class="text-success" style="font-size: 16px;">${{ number_format(array_sum(array_column($stats, 'intereses')), 2) }}</strong>
-        </div>
-        <div class="kpi-box">
-            <small>Gastos Operativos</small><br>
-            <strong class="text-danger" style="font-size: 16px;">${{ number_format(array_sum(array_column($stats, 'gastos')), 2) }}</strong>
-        </div>
-        <div class="kpi-box">
-            <small>Utilidad Neta Real</small><br>
+    <table width="100%" cellspacing="10" cellpadding="0" style="margin-bottom: 20px; border-collapse: separate;">
+        <tr>
+            <td style="background: #f8f9fa; padding: 15px 5px; text-align: center; border-radius: 8px; border: 1px solid #d1d9e6; width: 25%;">
+                <span style="font-size: 10px; color: #6c757d; text-transform: uppercase;">Total Colocación</span><br>
+                <strong style="font-size: 16px; color: #333;">${{ number_format(array_sum(array_column($stats, 'colocacion')), 2) }}</strong>
+            </td>
+            <td style="background: #f8f9fa; padding: 15px 5px; text-align: center; border-radius: 8px; border: 1px solid #d1d9e6; width: 25%;">
+                <span style="font-size: 10px; color: #6c757d; text-transform: uppercase;">Intereses (Cosecha)</span><br>
+                <strong style="font-size: 16px; color: #198754;">${{ number_format(array_sum(array_column($stats, 'intereses')), 2) }}</strong>
+            </td>
+            <td style="background: #f8f9fa; padding: 15px 5px; text-align: center; border-radius: 8px; border: 1px solid #d1d9e6; width: 25%;">
+                <span style="font-size: 10px; color: #6c757d; text-transform: uppercase;">Gastos Operativos</span><br>
+                <strong style="font-size: 16px; color: #dc3545;">${{ number_format(array_sum(array_column($stats, 'gastos')), 2) }}</strong>
+            </td>
             @php $uTotal = array_sum(array_column($stats, 'utilidad')); @endphp
-            <strong style="font-size: 16px; color: {{ $uTotal >= 0 ? '#0d6efd' : '#000' }};">
-                ${{ number_format($uTotal, 2) }}
-            </strong>
-        </div>
-    </div>
+            <td style="background: #e9f2ff; padding: 15px 5px; text-align: center; border-radius: 8px; border: 1px solid #0d6efd; width: 25%;">
+                <span style="font-size: 10px; color: #0d6efd; text-transform: uppercase; font-weight: bold;">Utilidad Neta Real</span><br>
+                <strong style="font-size: 16px; color: {{ $uTotal >= 0 ? '#0d6efd' : '#dc3545' }};">
+                    ${{ number_format($uTotal, 2) }}
+                </strong>
+            </td>
+        </tr>
+    </table>
 
     <table class="table">
         <thead>
@@ -111,14 +98,14 @@
     </table>
 
     <div class="analysis-section">
-        <h3>Análisis Estratégico de Tendencias</h3>
+        <h3>Dictamen Estratégico (IA Pro)</h3>
         <div style="white-space: pre-line; text-align: justify;">
             {{ $analysis }}
         </div>
     </div>
 
     <div class="footer">
-        Este documento contiene información sensible procesada con IA. Generado por CredinOs SaaS el {{ $fecha ?? date('d/m/Y') }}.
+        Este documento contiene información sensible procesada con Inteligencia Artificial Avanzada. Generado por CredinOs SaaS el {{ $fecha ?? date('d/m/Y') }}.
     </div>
 </body>
 </html>
