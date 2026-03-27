@@ -358,7 +358,10 @@ class ReporteController extends Controller
                 $analysisText = $response->json('candidates.0.content.parts.0.text', 'No se pudo generar el texto del análisis.');
                 return response()->json(['analysis' => $analysisText]);
             } else {
-                return response()->json(['error' => 'La API de IA no pudo procesar la solicitud.'], 500);
+                // AQUÍ ESTÁ LA MAGIA: Le decimos que nos devuelva el error real de Google
+                return response()->json([
+                    'error' => 'Google dice: ' . $response->body()
+                ], 500);
             }
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
