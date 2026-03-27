@@ -551,7 +551,7 @@ class ReporteController extends Controller
                        ESTRUCTURA TU REPORTE ASÍ:
                        * **Diagnóstico del Mes:** 2 líneas contundentes sobre el estado de resultados actual.
                        * **Líderes de Rentabilidad:** Analiza quién convirtió mejor la colocación en utilidad neta.
-                       * **Fugas de Capital:** Identifica sucursales operativas inactivas o con gastos que "comen" su utilidad.
+                       * **Fugas de Capital:** Identifica sucursales operativas inactivas o con gastos que 'comen' su utilidad.
                        * **Directivas Inmediatas:** 3 acciones para el dueño a ejecutar la próxima semana.";
         }
 
