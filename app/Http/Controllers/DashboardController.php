@@ -7,14 +7,15 @@ use Carbon\Carbon;
 use App\Models\Sucursal;
 use App\Models\Recovery;
 use App\Models\Gasto;
-use App\Models\Contrato; // Asegúrate de tener estas importaciones
+use App\Models\Contrato;
 use App\Models\Empleado;
 use App\Models\Patron;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
-  public function index(Request $request) // <--- Agregamos Request $request aquí
+    public function index(Request $request)
     {
         $user = Auth::user();
         $data = [];
@@ -29,10 +30,11 @@ class DashboardController extends Controller
             $data['saludo'] = 'Buenas noches';
         }
         
-        $data['nombreUsuario'] = explode(' ', trim($user->name))[0]; // Solo el primer nombre para que sea más amigable
+        $data['nombreUsuario'] = explode(' ', trim($user->name))[0];
+        $data['mensajeEspecial'] = null; 
         // --- FIN DE LA LÓGICA DEL SALUDO ---
 
-        // Widget: Contratos por Vencer
+        // Widget: Contratos por Vencer (Hoy a +15 días)
         if ($user->can('ver-widget-contratos-vencer')) {
             $data['contratosPorVencer'] = Contrato::whereNotNull('fecha_fin')
                 ->whereBetween('fecha_fin', [Carbon::today(), Carbon::today()->addDays(15)])
@@ -44,10 +46,10 @@ class DashboardController extends Controller
                 ->get();
         }
 
-        // Widget: Contratos Vencidos No Renovados (Últimos 7 días)
+        // Widget: Contratos Vencidos (Hace 7 días hasta AYER)
         if ($user->can('ver-widget-contratos-vencer')) {
             $haceSieteDias = Carbon::today()->subDays(7)->startOfDay();
-            $ayer = Carbon::yesterday()->endOfDay(); // <-- CORRECCIÓN: Corta en ayer para no duplicar
+            $ayer = Carbon::yesterday()->endOfDay();
 
             $empleadosActivos = Empleado::where('status', 'Alta')
                 ->with(['puesto', 'sucursal', 'ultimoContrato'])
@@ -87,7 +89,6 @@ class DashboardController extends Controller
         // Widget: Aniversarios Laborales del Mes
         if ($user->can('ver-widget-aniversarios')) {
             $hoy = Carbon::today();
-            
             $aniversarios = Empleado::where('status', 'Alta')
                 ->whereMonth('fecha_ingreso', $hoy->month)
                 ->orderByRaw('EXTRACT(DAY FROM fecha_ingreso) ASC')
@@ -105,7 +106,7 @@ class DashboardController extends Controller
             $data['aniversariosDelMes'] = $aniversarios;
         }
 
-        // Widget: Nuevos Ingresos de la Quincena
+        // Widget: Ingresos y Bajas de la Quincena
         if ($user->can('ver-widget-nuevos-ingresos')) {
             $now = Carbon::now();
             if ($now->day <= 15) {
@@ -118,14 +119,12 @@ class DashboardController extends Controller
                 $data['fortnightTitle'] = "2da Quincena";
             }
             
-            // 1. Nuevos Ingresos (Solo los que SIGUEN de Alta)
-            $data['nuevosIngresos'] = Empleado::where('status', 'Alta') // <-- CORRECCIÓN: Solo Altas
+            $data['nuevosIngresos'] = Empleado::where('status', 'Alta')
                 ->whereBetween('fecha_ingreso', [$startDate, $endDate])
                 ->with(['puesto', 'sucursal'])
                 ->orderBy('fecha_ingreso', 'desc')
                 ->get();
 
-            // 2. Bajas de la Quincena (Los que se fueron en este mismo periodo)
             $data['bajasQuincena'] = Empleado::where('status', 'Baja')
                 ->whereBetween('fecha_baja', [$startDate, $endDate])
                 ->with(['puesto', 'sucursal'])
@@ -158,7 +157,7 @@ class DashboardController extends Controller
                 ->get();
         }
 
-        // --- NUEVO: DASHBOARD GERENCIAL FINANCIERO ---
+        // --- DASHBOARD GERENCIAL FINANCIERO (Capital vs Interés) ---
         if ($user->can('ver-widget-rentabilidad-sucursales')) {
             
             $dashStartDate = $request->input('start_date', now()->startOfMonth()->toDateString());
@@ -171,68 +170,61 @@ class DashboardController extends Controller
 
             $sucursales = Sucursal::all();
             $rentabilidad = [];
-            $totalInteresesEmpresa = 0; // <--- NUEVA MÉTRICA: Solo Interés
-            $totalCapitalEmpresa = 0;   // <--- NUEVA MÉTRICA: Solo Capital
+            $totalInteresesEmpresa = 0;
+            $totalCapitalEmpresa = 0;
             $totalGastosEmpresa = 0;
 
             foreach ($sucursales as $sucursal) {
-                // Obtenemos los datos de la tabla Recovery
                 $recoveryData = Recovery::where('sucursal_id', $sucursal->id_sucursal)
                     ->whereBetween('year', [$startYear, $endYear])
                     ->whereBetween('month', [$startMonth, $endMonth])
-                    ->first([
+                    ->select(
                         DB::raw('SUM(capital_collected) as total_capital'),
                         DB::raw('SUM(interest_collected) as total_interest')
-                    ]);
+                    )->first();
 
-                // Separamos capital e interés
-                $capitalRecuperado = $recoveryData->total_capital ?? 0;
-                $interesesCobrados = $recoveryData->total_interest ?? 0;
+                $capRecup = $recoveryData->total_capital ?? 0;
+                $intCobrado = $recoveryData->total_interest ?? 0;
 
-                // Gastos
                 $gastos = Gasto::where('sucursal_id', $sucursal->id_sucursal)
                     ->where('estado', 'Aprobado')
                     ->whereBetween('fecha_gasto', [$dashStartDate, $dashEndDate])
                     ->sum('monto_total');
 
-                // UTILIDAD REAL: Interés - Gastos (El capital no cuenta como utilidad)
-                $utilidadNeta = $interesesCobrados - $gastos;
+                $utilidadNeta = $intCobrado - $gastos;
 
                 $rentabilidad[] = [
                     'nombre' => $sucursal->nombre_sucursal,
-                    'capital' => $capitalRecuperado,   // <--- Dato informativo para la gráfica
-                    'ingresos' => $interesesCobrados, // <--- Este es el ingreso real (ganancia)
-                    'gastos' => $gastos,
-                    'utilidad' => $utilidadNeta,      // <--- Esta es la verdadera utilidad neta
+                    'capital' => (float)$capRecup,
+                    'ingresos' => (float)$intCobrado,
+                    'gastos' => (float)$gastos,
+                    'utilidad' => (float)$utilidadNeta,
                 ];
 
-                $totalInteresesEmpresa += $interesesCobrados;
-                $totalCapitalEmpresa += $capitalRecuperado;
+                $totalInteresesEmpresa += $intCobrado;
+                $totalCapitalEmpresa += $capRecup;
                 $totalGastosEmpresa += $gastos;
             }
 
-            // Ordenamos para el Ranking (Mayor UTILIDAD NETA primero)
             usort($rentabilidad, function($a, $b) {
                 return $b['utilidad'] <=> $a['utilidad'];
             });
 
-            // Gastos por Categoría (Pastel) - Mantenemos esto igual
-            $gastosPorCategoria = Gasto::with('categoria')
+            $data['gastosPorCategoria'] = Gasto::with('categoria')
                 ->where('estado', 'Aprobado')
                 ->whereBetween('fecha_gasto', [$dashStartDate, $dashEndDate])
                 ->get()
                 ->groupBy('categoria.nombre')
-                ->map(function ($row) {
-                    return $row->sum('monto_total');
-                });
+                ->map(fn($row) => $row->sum('monto_total'));
 
-            // Pasamos las variables a la vista
             $data['rentabilidad'] = $rentabilidad;
             $data['totalInteresesEmpresa'] = $totalInteresesEmpresa;
-            $data['totalCapitalEmpresa'] = $totalCapitalEmpresa; // <--- Pasamos el capital para la vista
+            $data['totalCapitalEmpresa'] = $totalCapitalEmpresa;
             $data['totalGastosEmpresa'] = $totalGastosEmpresa;
-            $data['gastosPorCategoria'] = $gastosPorCategoria;
             $data['startDate'] = $dashStartDate;
             $data['endDate'] = $dashEndDate;
         }
+
+        return view('dashboard', $data);
+    }
 }
