@@ -229,7 +229,7 @@ class ReporteController extends Controller
             }
             
             // Usamos la versión estable y ultrarrápida 1.5-flash
-            $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={$apiKey}";
+            $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={$apiKey}";
             
             $response = Http::timeout(30)->post($apiUrl, [
                 'contents' => [['role' => 'user', 'parts' => [['text' => $prompt]]]]
