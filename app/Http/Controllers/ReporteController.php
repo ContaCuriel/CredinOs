@@ -451,153 +451,115 @@ class ReporteController extends Controller
     }
 
     public function reporteEjecutivoPDF(Request $request)
-{
-    // 1. Verificación de seguridad: Solo tú puedes disparar este análisis
-    if (!auth()->user()->can('descargar-reporte-ejecutivo-ia')) {
-        abort(403, 'No tienes permiso para generar este análisis estratégico.');
-    }
-
-    set_time_limit(90); // Más tiempo para que Gemini procese la comparativa
-
-    $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
-    $endDate = $request->input('end_date', now()->endOfMonth()->toDateString());
-
-    $startCarbon = Carbon::parse($startDate);
-    $endCarbon = Carbon::parse($endDate);
-    
-    // Generamos la lista de meses en el rango para la comparativa histórica
-    $periodoMeses = [];
-    $tempDate = $startCarbon->copy()->startOfMonth();
-    while ($tempDate <= $endCarbon) {
-        $periodoMeses[] = [
-            'month' => $tempDate->month,
-            'year' => $tempDate->year,
-            'label' => $tempDate->translatedFormat('F Y')
-        ];
-        $tempDate->addMonth();
-    }
-
-    $sucursales = \App\Models\Sucursal::all();
-    $statsGlobales = [];
-
-    foreach ($sucursales as $s) {
-        $historialMeses = [];
-        $totalSucurInt = 0;
-        $totalSucurCap = 0;
-        $totalSucurCol = 0;
-        $totalSucurGas = 0;
-
-        foreach ($periodoMeses as $mes) {
-            // 1. Recuperación del mes
-            $rec = \App\Models\Recovery::where('sucursal_id', $s->id_sucursal)
-                ->where('year', $mes['year'])
-                ->where('month', $mes['month'])
-                ->selectRaw('SUM(capital_recovered) as cap, SUM(interest_collected) as int')->first();
-
-            // 2. Colocación del mes
-            $col = \App\Models\Placement::where('sucursal_id', $s->id_sucursal)
-                ->where('year', $mes['year'])
-                ->where('month', $mes['month'])
-                ->sum('amount');
-
-            // 3. Gastos del mes
-            $gas = \App\Models\Gasto::where('sucursal_id', $s->id_sucursal)
-                ->where('estado', 'Aprobado')
-                ->whereYear('fecha_gasto', $mes['year'])
-                ->whereMonth('fecha_gasto', $mes['month'])
-                ->sum('monto_total');
-
-            $historialMeses[$mes['label']] = [
-                'colocacion' => (float)$col,
-                'intereses' => (float)($rec->int ?? 0),
-                'gastos' => (float)$gas,
-                'utilidad' => (float)(($rec->int ?? 0) - $gas)
-            ];
-
-            $totalSucurInt += ($rec->int ?? 0);
-            $totalSucurCap += ($rec->cap ?? 0);
-            $totalSucurCol += $col;
-            $totalSucurGas += $gas;
+    {
+        // 1. Verificación de seguridad
+        if (!auth()->user()->can('descargar-reporte-ejecutivo-ia')) {
+            abort(403, 'No tienes permiso para generar este análisis estratégico.');
         }
 
-        $esAdministrativa = str_contains(strtolower($s->nombre_sucursal), 'ejecutiva');
+        set_time_limit(90);
 
-        $statsGlobales[] = [
-            'sucursal' => $s->nombre_sucursal,
-            'colocacion' => $totalSucurCol,
-            'intereses' => $totalSucurInt,
-            'gastos' => $totalSucurGas,
-            'utilidad' => $totalSucurInt - $totalSucurGas,
-            'tipo' => $esAdministrativa ? 'Administrativa' : 'Operativa',
-            'evolucion' => $historialMeses 
+        $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
+        $endDate = $request->input('end_date', now()->endOfMonth()->toDateString());
+
+        $startCarbon = Carbon::parse($startDate);
+        $endCarbon = Carbon::parse($endDate);
+        
+        $periodoMeses = [];
+        $tempDate = $startCarbon->copy()->startOfMonth();
+        while ($tempDate <= $endCarbon) {
+            $periodoMeses[] = [
+                'month' => $tempDate->month,
+                'year' => $tempDate->year,
+                'label' => $tempDate->translatedFormat('F Y')
+            ];
+            $tempDate->addMonth();
+        }
+
+        $sucursales = \App\Models\Sucursal::all();
+        $statsGlobales = [];
+
+        foreach ($sucursales as $s) {
+            $historialMeses = [];
+            $totalSucurInt = 0;
+            $totalSucurCap = 0;
+            $totalSucurCol = 0;
+            $totalSucurGas = 0;
+
+            foreach ($periodoMeses as $mes) {
+                $rec = \App\Models\Recovery::where('sucursal_id', $s->id_sucursal)
+                    ->where('year', $mes['year'])
+                    ->where('month', $mes['month'])
+                    ->selectRaw('SUM(capital_recovered) as cap, SUM(interest_collected) as int')->first();
+
+                $col = \App\Models\Placement::where('sucursal_id', $s->id_sucursal)
+                    ->where('year', $mes['year'])
+                    ->where('month', $mes['month'])
+                    ->sum('amount');
+
+                $gas = \App\Models\Gasto::where('sucursal_id', $s->id_sucursal)
+                    ->where('estado', 'Aprobado')
+                    ->whereYear('fecha_gasto', $mes['year'])
+                    ->whereMonth('fecha_gasto', $mes['month'])
+                    ->sum('monto_total');
+
+                $historialMeses[$mes['label']] = [
+                    'colocacion' => (float)$col,
+                    'intereses' => (float)($rec->int ?? 0),
+                    'gastos' => (float)$gas,
+                    'utilidad' => (float)(($rec->int ?? 0) - $gas)
+                ];
+
+                $totalSucurInt += ($rec->int ?? 0);
+                $totalSucurCap += ($rec->cap ?? 0);
+                $totalSucurCol += $col;
+                $totalSucurGas += $gas;
+            }
+
+            $esAdministrativa = str_contains(strtolower($s->nombre_sucursal), 'ejecutiva');
+
+            $statsGlobales[] = [
+                'sucursal' => $s->nombre_sucursal,
+                'colocacion' => $totalSucurCol,
+                'intereses' => $totalSucurInt,
+                'gastos' => $totalSucurGas,
+                'utilidad' => $totalSucurInt - $totalSucurGas,
+                'tipo' => $esAdministrativa ? 'Administrativa' : 'Operativa',
+                'evolucion' => $historialMeses 
+            ];
+        }
+
+        $jsonIA = json_encode($statsGlobales);
+        $prompt = "Actúa como un Consultor de Estrategia Financiera Senior. Analiza la EVOLUCIÓN de estos datos: $jsonIA. 
+                   El periodo total abarca " . count($periodoMeses) . " meses.
+                   TAREAS ESPECÍFICAS:
+                   1. TENDENCIAS: ¿Quién crece en colocación y quién se estanca?
+                   2. ANOMALÍAS: Detecta meses con gastos atípicos o caídas en intereses.
+                   3. EFICIENCIA: ¿La utilidad operativa crece más rápido que el gasto administrativo de la sucursal EJECUTIVA?
+                   4. ESTRATEGIA: Da 3 conclusiones de salud de cartera y 3 recomendaciones de ajuste.
+                   Usa títulos en negritas y lenguaje profesional ejecutivo.";
+
+        // --- ELIMINAMOS EL BLOQUE DE PRUEBA QUE BLOQUEABA EL CÓDIGO ---
+        // Llamada a Gemini usando el helper limpio
+        $analysis = $this->llamarGemini($prompt);
+
+        $data = [
+            'stats' => $statsGlobales,
+            'periodoMeses' => $periodoMeses,
+            'analysis' => $analysis,
+            'rangoFechas' => "del $startDate al $endDate",
+            'esMultimes' => count($periodoMeses) > 1,
+            'fecha' => now()->format('d/m/Y')
         ];
+
+        return Pdf::loadView('reportes.pdfs.ejecutivo_evolutivo', $data)
+                  ->setPaper('a4', 'landscape')
+                  ->stream("Reporte_BI_Evolutivo.pdf");
     }
 
-    // --- PROMPT EVOLUTIVO PARA GEMINI ---
-    // --- PROMPT EVOLUTIVO PARA GEMINI ---
-    $jsonIA = json_encode($statsGlobales);
-    $prompt = "Actúa como un Consultor de Estrategia Financiera Senior. Analiza la EVOLUCIÓN de estos datos: $jsonIA. 
-               El periodo total abarca " . count($periodoMeses) . " meses.
-               TAREAS ESPECÍFICAS:
-               1. TENDENCIAS: ¿Quién crece en colocación y quién se estanca?
-               2. ANOMALÍAS: Detecta meses con gastos atípicos o caídas en intereses.
-               3. EFICIENCIA: ¿La utilidad operativa crece más rápido que el gasto administrativo de la sucursal EJECUTIVA?
-               4. ESTRATEGIA: Da 3 conclusiones de salud de cartera y 3 recomendaciones de ajuste.
-               Usa títulos en negritas y lenguaje profesional ejecutivo.";
-
-    // ==========================================
-    // INICIO DEL TEST SEGURO (SOLO PARA ESTE PDF)
-    // ==========================================
-    $apiKeyTest = env('GEMINI_API_KEY');
-    
-    if (empty($apiKeyTest)) {
-        dd("ERROR CRÍTICO: Laravel no lee la API_KEY en este reporte. Es problema de caché de Render.");
-    }
-
-    $responseTest = \Illuminate\Support\Facades\Http::timeout(60)
-        ->withHeaders(['Content-Type' => 'application/json'])
-        ->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" . $apiKeyTest, [
-            'contents' => [['role' => 'user', 'parts' => [['text' => $prompt]]]]
-        ]);
-
-    if (!$responseTest->successful()) {
-        dd([
-            'Status HTTP' => $responseTest->status(),
-            'Respuesta de Google' => $responseTest->json() ?? $responseTest->body(),
-            'Falla al enviar este Prompt' => $prompt
-        ]);
-    } else {
-        dd([
-            '¡ÉXITO!' => 'Gemini sí respondió. El problema era otro.',
-            'Texto generado' => $responseTest->json('candidates.0.content.parts.0.text')
-        ]);
-    }
-    // ==========================================
-    // FIN DEL TEST SEGURO
-    // ==========================================
-
-    // Llamada a Gemini usando el helper existente en el controlador
-    $analysis = $this->llamarGemini($prompt);
-
-    $data = [
-        'stats' => $statsGlobales,
-        'periodoMeses' => $periodoMeses,
-        'analysis' => $analysis,
-        'rangoFechas' => "del $startDate al $endDate",
-        'esMultimes' => count($periodoMeses) > 1,
-        'fecha' => now()->format('d/m/Y')
-    ];
-
-    // Carga de la vista horizontal (landscape)
-    return Pdf::loadView('reportes.pdfs.ejecutivo_evolutivo', $data)
-              ->setPaper('a4', 'landscape')
-              ->stream("Reporte_BI_Evolutivo.pdf");
-}
-
-// Helper privado para no repetir código de API
-private function llamarGemini($prompt) {
+    // Helper privado usando EXACTAMENTE la versión que a ti te funciona
+    private function llamarGemini($prompt) {
         try {
-            // Usamos la misma URL exacta que en generateAnalysis y generateBalanceSheetAnalysis
             $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" . env('GEMINI_API_KEY');
             
             $response = Http::timeout(60)
@@ -606,11 +568,14 @@ private function llamarGemini($prompt) {
                     'contents' => [['role' => 'user', 'parts' => [['text' => $prompt]]]]
                 ]);
                 
-            return $response->successful() ? $response->json('candidates.0.content.parts.0.text') : "Error en análisis: " . $response->status();
+            if ($response->successful()) {
+                return $response->json('candidates.0.content.parts.0.text');
+            } else {
+                // Si la IA falla, imprimimos el error de Google directo en el PDF en vez de colgar la app
+                return "Aviso: No se pudo generar el análisis. Error de Google: " . $response->status() . " - " . $response->body();
+            }
         } catch (\Exception $e) { 
-            return "Error de conexión con IA."; 
+            return "Aviso: Error de conexión con el servidor de Inteligencia Artificial."; 
         }
     }
-
-
 }
