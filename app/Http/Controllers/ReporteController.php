@@ -214,18 +214,22 @@ class ReporteController extends Controller
     public function generateAnalysis(Request $request)
     {
         try {
+            // 1. Cambiamos 'numeric' por 'string' para que acepte comas y signos de pesos
             $data = $request->validate([
-                'ingresos' => 'required|numeric', 'gastos' => 'required|numeric',
-                'castigos' => 'required|numeric', 'utilidad' => 'required|numeric',
+                'ingresos' => 'required|string', 'gastos' => 'required|string',
+                'castigos' => 'required|string', 'utilidad' => 'required|string',
                 'inicio' => 'required|date', 'fin' => 'required|date',
             ]);
 
-            $prompt = "Actúa como un asesor financiero profesional para una pequeña financiera en México. Analiza el siguiente resumen de un Estado de Resultados para el periodo del {$data['inicio']} al {$data['fin']}. Los datos son: Ingresos Totales por Intereses: \${$data['ingresos']} MXN, Gastos Operativos Totales: \${$data['gastos']} MXN, Gastos por Cuentas Incobrables (Castigos): \${$data['castigos']} MXN, y una Utilidad Neta de: \${$data['utilidad']} MXN. Proporciona un análisis breve y claro en 2 o 3 párrafos. Explica qué significan estos números, destaca un punto positivo, un punto a vigilar, y ofrece una recomendación general. Utiliza un lenguaje fácil de entender para alguien que no es contador. Estructura la respuesta con los siguientes títulos en negritas: **Análisis General**, **Punto Clave Positivo**, **Foco de Atención**, y **Recomendación**.";
+            $prompt = "Actúa como un asesor financiero profesional para una pequeña financiera en México. Analiza el siguiente resumen de un Estado de Resultados para el periodo del {$data['inicio']} al {$data['fin']}. Los datos son: Ingresos Totales por Intereses: {$data['ingresos']}, Gastos Operativos Totales: {$data['gastos']}, Gastos por Cuentas Incobrables (Castigos): {$data['castigos']}, y una Utilidad Neta de: {$data['utilidad']}. Proporciona un análisis breve y claro en 2 o 3 párrafos. Explica qué significan estos números, destaca un punto positivo, un punto a vigilar, y ofrece una recomendación general. Utiliza un lenguaje fácil de entender para alguien que no es contador. Estructura la respuesta con los siguientes títulos en negritas: **Análisis General**, **Punto Clave Positivo**, **Foco de Atención**, y **Recomendación**.";
 
-            // CORRECCIÓN DE SINTAXIS
             $apiKey = env('GEMINI_API_KEY', '');
+            if (empty($apiKey)) {
+                return response()->json(['error' => 'API Key no configurada en el servidor.'], 500);
+            }
             
-            $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={$apiKey}";
+            // Usamos la versión estable y ultrarrápida 1.5-flash
+            $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={$apiKey}";
             
             $response = Http::timeout(30)->post($apiUrl, [
                 'contents' => [['role' => 'user', 'parts' => [['text' => $prompt]]]]
@@ -236,11 +240,11 @@ class ReporteController extends Controller
                 return response()->json(['analysis' => $analysisText]);
             } else {
                 Log::error('Error en API de IA:', ['status' => $response->status(), 'body' => $response->body()]);
-                return response()->json(['error' => 'La API de IA no pudo procesar la solicitud. Revisa los logs del servidor para más detalles.'], 500);
+                return response()->json(['error' => 'La API de IA rechazó la solicitud. Detalles en logs.'], 500);
             }
         } catch (\Exception $e) {
-            Log::error('Excepción en generateAnalysis:', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
-            return response()->json(['error' => 'Error interno del servidor al generar el análisis. Contacta al administrador.'], 500);
+            Log::error('Excepción en generateAnalysis:', ['message' => $e->getMessage()]);
+            return response()->json(['error' => $e->getMessage()], 500);
         }
     }
 
@@ -334,19 +338,20 @@ class ReporteController extends Controller
     
     public function generateBalanceSheetAnalysis(Request $request)
     {
-        $data = $request->validate([
-            'activos' => 'required|numeric',
-            'pasivos' => 'required|numeric',
-            'capital' => 'required|numeric',
-        ]);
-        
-        $prompt = "Actúa como un asesor financiero para una pyme en México. Analiza este Balance General resumido: Total de Activos: \${$data['activos']} MXN, Total de Pasivos: \${$data['pasivos']} MXN, Total de Capital Contable: \${$data['capital']} MXN. Explica en 2 o 3 párrafos qué significa esta 'fotografía' financiera. Menciona la solvencia de la empresa (si los activos cubren las deudas) y su estructura de capital (qué tanto se financia con deuda vs. recursos propios). Ofrece una recomendación general. Usa un lenguaje claro y fácil de entender.";
-        
         try {
-            $apiKey = env('GEMINI_API_KEY', '');
-            if (!$apiKey) return response()->json(['error' => 'La clave de API no está configurada.'], 500);
+            // Cambiamos 'numeric' por 'string'
+            $data = $request->validate([
+                'activos' => 'required|string',
+                'pasivos' => 'required|string',
+                'capital' => 'required|string',
+            ]);
             
-            $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={$apiKey}";
+            $prompt = "Actúa como un asesor financiero para una pyme en México. Analiza este Balance General resumido: Total de Activos: {$data['activos']}, Total de Pasivos: {$data['pasivos']}, Total de Capital Contable: {$data['capital']}. Explica en 2 o 3 párrafos qué significa esta 'fotografía' financiera. Menciona la solvencia de la empresa (si los activos cubren las deudas) y su estructura de capital (qué tanto se financia con deuda vs. recursos propios). Ofrece una recomendación general. Usa un lenguaje claro y fácil de entender.";
+            
+            $apiKey = env('GEMINI_API_KEY', '');
+            if (empty($apiKey)) return response()->json(['error' => 'La clave de API no está configurada.'], 500);
+            
+            $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={$apiKey}";
             $response = Http::timeout(30)->post($apiUrl, ['contents' => [['role' => 'user', 'parts' => [['text' => $prompt]]]]]);
 
             if ($response->successful()) {
@@ -356,7 +361,7 @@ class ReporteController extends Controller
                 return response()->json(['error' => 'La API de IA no pudo procesar la solicitud.'], 500);
             }
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Error interno al generar el análisis.'], 500);
+            return response()->json(['error' => $e->getMessage()], 500);
         }
     }
 
