@@ -27,14 +27,16 @@
                 <div class="mb-5 bg-white p-4 rounded shadow-sm border">
                     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
     <div class="d-flex align-items-center gap-3">
-        <h4 class="fw-bold text-primary mb-0"><i class="bi bi-graph-up-arrow me-2"></i>Visión General Financiera</h4>
-        
+    <h4 class="fw-bold text-primary mb-0"><i class="bi bi-graph-up-arrow me-2"></i>Visión General Financiera</h4>
+    
+    @can('descargar-reporte-ejecutivo-ia')
         <a href="{{ route('reportes.ejecutivo.pdf', ['start_date' => $startDate, 'end_date' => $endDate]) }}" 
-           class="btn btn-sm btn-danger shadow-sm animate__animated animate__fadeIn" 
+           class="btn btn-sm btn-danger shadow-sm" 
            target="_blank">
             <i class="bi bi-file-earmark-pdf-fill me-1"></i> Descargar Reporte Ejecutivo (IA)
         </a>
-    </div>
+    @endcan
+</div>
     
     <form method="GET" action="{{ route('dashboard') }}" class="d-flex gap-2 align-items-end mt-3 mt-md-0">
         <div>
@@ -50,43 +52,50 @@
 </div>
 
                     <div class="row mb-4 text-center">
-                        <div class="col-md-3 mb-3 mb-md-0">
-                            <div class="card bg-secondary text-white border-0 shadow-sm">
-                                <div class="card-body">
-                                    <h6 class="text-uppercase fw-normal mb-1 opacity-75" title="Dinero de capital recuperado (no es utilidad)">Capital Recuperado</h6>
-                                    <h3 class="fw-bold mb-0">${{ number_format($totalCapitalEmpresa ?? 0, 2) }}</h3>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3 mb-3 mb-md-0">
-                            <div class="card bg-success text-white border-0 shadow-sm">
-                                <div class="card-body">
-                                    <h6 class="text-uppercase fw-normal mb-1 opacity-75" title="Ganancia bruta real por intereses">Intereses Cobrados</h6>
-                                    <h3 class="fw-bold mb-0">${{ number_format($totalInteresesEmpresa ?? 0, 2) }}</h3>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3 mb-3 mb-md-0">
-                            <div class="card bg-danger text-white border-0 shadow-sm">
-                                <div class="card-body">
-                                    <h6 class="text-uppercase fw-normal mb-1 opacity-75">Gastos Operativos</h6>
-                                    <h3 class="fw-bold mb-0">${{ number_format($totalGastosEmpresa ?? 0, 2) }}</h3>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3 mb-3 mb-md-0">
-                            @php 
-                                $utilidadVerdadera = ($totalInteresesEmpresa ?? 0) - ($totalGastosEmpresa ?? 0); 
-                                $bgClassUtilidad = $utilidadVerdadera >= 0 ? 'bg-primary' : 'bg-dark';
-                            @endphp
-                            <div class="card {{ $bgClassUtilidad }} text-white border-0 shadow-sm">
-                                <div class="card-body">
-                                    <h6 class="text-uppercase fw-normal mb-1 opacity-75" title="Verdadera ganancia neta (Intereses - Gastos)">Utilidad Neta (Real)</h6>
-                                    <h3 class="fw-bold mb-0">${{ number_format($utilidadVerdadera, 2) }}</h3>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+        <div class="col mb-3">
+            <div class="card bg-info text-white border-0 shadow-sm">
+                <div class="card-body py-3">
+                    <h6 class="text-uppercase fw-normal mb-1 opacity-75" style="font-size: 0.7rem;">Colocación</h6>
+                    <h4 class="fw-bold mb-0">${{ number_format($totalColocacionEmpresa ?? 0, 2) }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col mb-3">
+            <div class="card bg-secondary text-white border-0 shadow-sm">
+                <div class="card-body py-3">
+                    <h6 class="text-uppercase fw-normal mb-1 opacity-75" style="font-size: 0.7rem;">Cap. Recuperado</h6>
+                    <h4 class="fw-bold mb-0">${{ number_format($totalCapitalEmpresa ?? 0, 2) }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col mb-3">
+            <div class="card bg-success text-white border-0 shadow-sm">
+                <div class="card-body py-3">
+                    <h6 class="text-uppercase fw-normal mb-1 opacity-75" style="font-size: 0.7rem;">Int. Cobrados</h6>
+                    <h4 class="fw-bold mb-0">${{ number_format($totalInteresesEmpresa ?? 0, 2) }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col mb-3">
+            <div class="card bg-danger text-white border-0 shadow-sm">
+                <div class="card-body py-3">
+                    <h6 class="text-uppercase fw-normal mb-1 opacity-75" style="font-size: 0.7rem;">Gastos Oper.</h6>
+                    <h4 class="fw-bold mb-0">${{ number_format($totalGastosEmpresa ?? 0, 2) }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col mb-3">
+            @php 
+                $utilidadNetaGlobal = ($totalInteresesEmpresa ?? 0) - ($totalGastosEmpresa ?? 0);
+            @endphp
+            <div class="card {{ $utilidadNetaGlobal >= 0 ? 'bg-primary' : 'bg-dark' }} text-white border-0 shadow-sm">
+                <div class="card-body py-3">
+                    <h6 class="text-uppercase fw-normal mb-1 opacity-75" style="font-size: 0.7rem;">Utilidad Real</h6>
+                    <h4 class="fw-bold mb-0">${{ number_format($utilidadNetaGlobal, 2) }}</h4>
+                </div>
+            </div>
+        </div>
+    </div>
 
                     <div class="row g-4">
                         <div class="col-lg-8">
@@ -403,18 +412,27 @@
                     data: {
                         labels: sucursalesLabels,
                         datasets: [
-                            {
-                                label: 'Capital Recuperado',
-                                backgroundColor: '#adb5bd', // Gris
-                                data: capital,
-                                borderRadius: 4
-                            },
-                            {
-                                label: 'Intereses (Ingreso Real)',
-                                backgroundColor: '#198754', // Verde success
-                                data: intereses,
-                                borderRadius: 4
-                            },
+        {
+            label: 'Colocación',
+            backgroundColor: '#0dcaf0', // Cian
+            data: rentabilidadData.map(s => s.colocacion),
+            borderRadius: 4,
+            barPercentage: 0.5
+        },
+        {
+            label: 'Cap. Recup.',
+            backgroundColor: '#adb5bd', // Gris
+            data: rentabilidadData.map(s => s.capital),
+            borderRadius: 4,
+            barPercentage: 0.5
+        },
+        {
+            label: 'Intereses',
+            backgroundColor: '#198754', // Verde
+            data: rentabilidadData.map(s => s.ingresos),
+            borderRadius: 4,
+            barPercentage: 0.5
+        },
                             {
                                 label: 'Gastos',
                                 backgroundColor: '#dc3545', // Rojo danger

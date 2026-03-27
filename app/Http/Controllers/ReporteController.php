@@ -452,66 +452,124 @@ class ReporteController extends Controller
     
     public function reporteEjecutivoPDF(Request $request)
 {
+    // 1. Verificación de seguridad: Solo tú puedes disparar este análisis
+    if (!auth()->user()->can('descargar-reporte-ejecutivo-ia')) {
+        abort(403, 'No tienes permiso para generar este análisis estratégico.');
+    }
+
+    set_time_limit(90); // Más tiempo para que Gemini procese la comparativa
+
     $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
     $endDate = $request->input('end_date', now()->endOfMonth()->toDateString());
 
-    // 1. Recopilar datos (reutilizamos la lógica que ya tenemos)
+    $startCarbon = Carbon::parse($startDate);
+    $endCarbon = Carbon::parse($endDate);
+    
+    // Generamos la lista de meses en el rango para la comparativa histórica
+    $periodoMeses = [];
+    $tempDate = $startCarbon->copy()->startOfMonth();
+    while ($tempDate <= $endCarbon) {
+        $periodoMeses[] = [
+            'month' => $tempDate->month,
+            'year' => $tempDate->year,
+            'label' => $tempDate->translatedFormat('F Y')
+        ];
+        $tempDate->addMonth();
+    }
+
     $sucursales = \App\Models\Sucursal::all();
-    $stats = [];
-foreach ($sucursales as $s) {
-    // Detectamos si es la sucursal administrativa (ajusta el nombre según tu DB)
-    $esAdministrativa = (str_contains(strtolower($s->nombre_sucursal), 'ejecutiva') || 
-                         str_contains(strtolower($s->nombre_sucursal), 'corporativo'));
+    $statsGlobales = [];
 
-    $recovery = \App\Models\Recovery::where('sucursal_id', $s->id_sucursal)
-        ->whereBetween('year', [Carbon::parse($startDate)->year, Carbon::parse($endDate)->year])
-        ->whereBetween('month', [Carbon::parse($startDate)->month, Carbon::parse($endDate)->month])
-        ->selectRaw('SUM(capital_recovered) as cap, SUM(interest_collected) as int')->first();
+    foreach ($sucursales as $s) {
+        $historialMeses = [];
+        $totalSucurInt = 0;
+        $totalSucurCap = 0;
+        $totalSucurCol = 0;
+        $totalSucurGas = 0;
 
-    $gastos = \App\Models\Gasto::where('sucursal_id', $s->id_sucursal)
-        ->where('estado', 'Aprobado')->whereBetween('fecha_gasto', [$startDate, $endDate])->sum('monto_total');
+        foreach ($periodoMeses as $mes) {
+            // 1. Recuperación del mes
+            $rec = \App\Models\Recovery::where('sucursal_id', $s->id_sucursal)
+                ->where('year', $mes['year'])
+                ->where('month', $mes['month'])
+                ->selectRaw('SUM(capital_recovered) as cap, SUM(interest_collected) as int')->first();
 
-    $stats[] = [
-        'sucursal' => $s->nombre_sucursal,
-        'intereses' => $recovery->int ?? 0,
-        'gastos' => $gastos,
-        'utilidad' => ($recovery->int ?? 0) - $gastos,
-        'tipo' => $esAdministrativa ? 'Administrativa' : 'Operativa' // <--- Marcamos el tipo
+            // 2. Colocación del mes
+            $col = \App\Models\Placement::where('sucursal_id', $s->id_sucursal)
+                ->where('year', $mes['year'])
+                ->where('month', $mes['month'])
+                ->sum('amount');
+
+            // 3. Gastos del mes
+            $gas = \App\Models\Gasto::where('sucursal_id', $s->id_sucursal)
+                ->where('estado', 'Aprobado')
+                ->whereYear('fecha_gasto', $mes['year'])
+                ->whereMonth('fecha_gasto', $mes['month'])
+                ->sum('monto_total');
+
+            $historialMeses[$mes['label']] = [
+                'colocacion' => (float)$col,
+                'intereses' => (float)($rec->int ?? 0),
+                'gastos' => (float)$gas,
+                'utilidad' => (float)(($rec->int ?? 0) - $gas)
+            ];
+
+            $totalSucurInt += ($rec->int ?? 0);
+            $totalSucurCap += ($rec->cap ?? 0);
+            $totalSucurCol += $col;
+            $totalSucurGas += $gas;
+        }
+
+        $esAdministrativa = str_contains(strtolower($s->nombre_sucursal), 'ejecutiva');
+
+        $statsGlobales[] = [
+            'sucursal' => $s->nombre_sucursal,
+            'colocacion' => $totalSucurCol,
+            'intereses' => $totalSucurInt,
+            'gastos' => $totalSucurGas,
+            'utilidad' => $totalSucurInt - $totalSucurGas,
+            'tipo' => $esAdministrativa ? 'Administrativa' : 'Operativa',
+            'evolucion' => $historialMeses 
+        ];
+    }
+
+    // --- PROMPT EVOLUTIVO PARA GEMINI ---
+    $jsonIA = json_encode($statsGlobales);
+    $prompt = "Actúa como un Consultor de Estrategia Financiera Senior. Analiza la EVOLUCIÓN de estos datos: $jsonIA. 
+               El periodo total abarca " . count($periodoMeses) . " meses.
+               TAREAS ESPECÍFICAS:
+               1. TENDENCIAS: ¿Quién crece en colocación y quién se estanca?
+               2. ANOMALÍAS: Detecta meses con gastos atípicos o caídas en intereses.
+               3. EFICIENCIA: ¿La utilidad operativa crece más rápido que el gasto administrativo de la sucursal EJECUTIVA?
+               4. ESTRATEGIA: Da 3 conclusiones de salud de cartera y 3 recomendaciones de ajuste.
+               Usa títulos en negritas y lenguaje profesional ejecutivo.";
+
+    // Llamada a Gemini usando el helper existente en el controlador
+    $analysis = $this->llamarGemini($prompt);
+
+    $data = [
+        'stats' => $statsGlobales,
+        'periodoMeses' => $periodoMeses,
+        'analysis' => $analysis,
+        'rangoFechas' => "del $startDate al $endDate",
+        'esMultimes' => count($periodoMeses) > 1,
+        'fecha' => now()->format('d/m/Y')
     ];
+
+    // Carga de la vista horizontal (landscape)
+    return Pdf::loadView('reportes.pdfs.ejecutivo_evolutivo', $data)
+              ->setPaper('a4', 'landscape')
+              ->stream("Reporte_BI_Evolutivo.pdf");
 }
 
-// 2. Nuevo Prompt para Gemini (Contextualizado)
-$resumenJson = json_encode($stats);
-$prompt = "Eres un consultor financiero senior. Analiza estos resultados de una financiera: $resumenJson. 
-           NOTA IMPORTANTE: La sucursal 'Ejecutiva' es el centro administrativo (contadores, abogados, gerentes); 
-           es NORMAL que no tenga ingresos y solo gastos, NO recomiendes cerrarla ni la evalúes como pérdida operativa. 
-           Evalúa la rentabilidad de las sucursales OPERATIVAS y analiza si los ingresos totales cubren bien los gastos administrativos de la Ejecutiva. 
-           Da 3 consejos estratégicos para el dueño.";
-
-    $analysis = "No se pudo generar el análisis en este momento.";
+// Helper privado para no repetir código de API
+private function llamarGemini($prompt) {
     try {
-        $apiKey = env('GEMINI_API_KEY');
-        $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={$apiKey}";
-        $response = Http::timeout(10)->post($apiUrl, [
+        $response = Http::timeout(60)->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" . env('GEMINI_API_KEY'), [
             'contents' => [['role' => 'user', 'parts' => [['text' => $prompt]]]]
         ]);
-        if ($response->successful()) {
-            $analysis = $response->json('candidates.0.content.parts.0.text');
-        }
-    } catch (\Exception $e) { \Log::error($e->getMessage()); }
-
-    // 3. Generar el PDF
-    $data = [
-        'stats' => $stats,
-        'analysis' => $analysis,
-        'fecha' => now()->format('d/m/Y'),
-        'periodo' => "del $startDate al $endDate",
-        'totalInteres' => array_sum(array_column($stats, 'intereses')),
-        'totalGastos' => array_sum(array_column($stats, 'gastos')),
-    ];
-
-    $pdf = Pdf::loadView('reportes.pdfs.ejecutivo', $data);
-    return $pdf->stream("Reporte_Ejecutivo_Credintegra.pdf");
+        return $response->successful() ? $response->json('candidates.0.content.parts.0.text') : "Error en análisis.";
+    } catch (\Exception $e) { return "Error de conexión."; }
 }
 
 

@@ -35,30 +35,30 @@
 
     <table class="table">
         <thead>
-            <tr>
-                <th>Sucursal</th>
-                <th>Intereses</th>
-                <th>Gastos</th>
-                <th>Utilidad Neta</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach($stats as $s)
-<tr>
-    <td>
-        {{ $s['sucursal'] }} 
-        @if($s['tipo'] == 'Administrativa') 
-            <small style="color: #6c757d;">(Soporte Admivo.)</small> 
-        @endif
-    </td>
-    <td>${{ number_format($s['intereses'], 2) }}</td>
-    <td>${{ number_format($s['gastos'], 2) }}</td>
-    <td style="font-weight: bold; color: {{ $s['tipo'] == 'Administrativa' ? '#333' : ($s['utilidad'] >= 0 ? '#198754' : '#dc3545') }}">
-        ${{ number_format($s['utilidad'], 2) }}
-    </td>
-</tr>
-@endforeach
-        </tbody>
+    <tr>
+        <th>Sucursal</th>
+        <th>Colocación (Siembra)</th>
+        <th>Intereses (Cosecha)</th>
+        <th>Gastos</th>
+        <th>Utilidad Neta</th>
+    </tr>
+</thead>
+<tbody>
+    @foreach($stats as $s)
+    <tr>
+        <td>
+            {{ $s['sucursal'] }}
+            @if($s['tipo'] == 'Administrativa') <br><small style="color: #777;">(Soporte Admivo.)</small> @endif
+        </td>
+        <td style="text-align: right;">${{ number_format($s['colocacion'], 2) }}</td>
+        <td style="text-align: right;">${{ number_format($s['intereses'], 2) }}</td>
+        <td style="text-align: right;">${{ number_format($s['gastos'], 2) }}</td>
+        <td style="text-align: right; font-weight: bold; color: {{ $s['tipo'] == 'Administrativa' ? '#333' : ($s['utilidad'] >= 0 ? '#198754' : '#dc3545') }}">
+            ${{ number_format($s['utilidad'], 2) }}
+        </td>
+    </tr>
+    @endforeach
+</tbody>
     </table>
 
     <div class="analysis-section">

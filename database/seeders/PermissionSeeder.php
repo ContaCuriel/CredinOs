@@ -59,6 +59,7 @@ class PermissionSeeder extends Seeder
                 'ver-polizas', 'ver-detalle-polizas',
                 'ver-colocaciones',
                 'ver-recuperaciones',
+                'descargar-reporte-ejecutivo-ia',
             ],
             'Administración' => [
                 'ver-usuarios', 'crear-usuarios', 'editar-usuarios', 'eliminar-usuarios',

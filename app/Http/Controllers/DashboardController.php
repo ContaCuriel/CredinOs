@@ -172,21 +172,29 @@ class DashboardController extends Controller
             $rentabilidad = [];
             $totalInteresesEmpresa = 0;
             $totalCapitalEmpresa = 0;
+            $totalColocacionEmpresa = 0;
             $totalGastosEmpresa = 0;
 
             foreach ($sucursales as $sucursal) {
+                // 1. RECUPERACIÓN (Tabla recoveries: capital_recovered e interest_collected)
                 $recoveryData = Recovery::where('sucursal_id', $sucursal->id_sucursal)
                     ->whereBetween('year', [$startYear, $endYear])
                     ->whereBetween('month', [$startMonth, $endMonth])
                     ->select(
-                        // AQUÍ ESTÁ EL CAMBIO: 'capital_recovered' en lugar de 'capital_collected'
                         DB::raw('SUM(capital_recovered) as total_capital'),
                         DB::raw('SUM(interest_collected) as total_interest')
                     )->first();
 
+                // 2. COLOCACIÓN (Tabla placements: amount)
+                $colocacionMonto = \App\Models\Placement::where('sucursal_id', $sucursal->id_sucursal)
+                    ->whereBetween('year', [$startYear, $endYear])
+                    ->whereBetween('month', [$startMonth, $endMonth])
+                    ->sum('amount');
+
                 $capRecup = $recoveryData->total_capital ?? 0;
                 $intCobrado = $recoveryData->total_interest ?? 0;
 
+                // 3. GASTOS
                 $gastos = Gasto::where('sucursal_id', $sucursal->id_sucursal)
                     ->where('estado', 'Aprobado')
                     ->whereBetween('fecha_gasto', [$dashStartDate, $dashEndDate])
@@ -196,6 +204,7 @@ class DashboardController extends Controller
 
                 $rentabilidad[] = [
                     'nombre' => $sucursal->nombre_sucursal,
+                    'colocacion' => (float)$colocacionMonto,
                     'capital' => (float)$capRecup,
                     'ingresos' => (float)$intCobrado,
                     'gastos' => (float)$gastos,
@@ -204,12 +213,12 @@ class DashboardController extends Controller
 
                 $totalInteresesEmpresa += $intCobrado;
                 $totalCapitalEmpresa += $capRecup;
+                $totalColocacionEmpresa += $colocacionMonto;
                 $totalGastosEmpresa += $gastos;
             }
 
-            usort($rentabilidad, function($a, $b) {
-                return $b['utilidad'] <=> $a['utilidad'];
-            });
+            // Ordenamos por Utilidad
+            usort($rentabilidad, fn($a, $b) => $b['utilidad'] <=> $a['utilidad']);
 
             $data['gastosPorCategoria'] = Gasto::with('categoria')
                 ->where('estado', 'Aprobado')
@@ -221,6 +230,7 @@ class DashboardController extends Controller
             $data['rentabilidad'] = $rentabilidad;
             $data['totalInteresesEmpresa'] = $totalInteresesEmpresa;
             $data['totalCapitalEmpresa'] = $totalCapitalEmpresa;
+            $data['totalColocacionEmpresa'] = $totalColocacionEmpresa;
             $data['totalGastosEmpresa'] = $totalGastosEmpresa;
             $data['startDate'] = $dashStartDate;
             $data['endDate'] = $dashEndDate;
