@@ -182,6 +182,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/reportes/gastos-por-sucursal', [ReporteController::class, 'gastosPorSucursal'])->name('reportes.gastos.sucursal')->middleware('can:ver-reportes');
 
         Route::get('/reportes/gastos-por-sucursal/exportar', [ReporteController::class, 'exportarGastosPorSucursal'])->name('reportes.gastos.sucursal.exportar')->middleware('can:ver-reportes');
+        Route::get('/reportes/ejecutivo-pdf', [ReporteController::class, 'reporteEjecutivoPDF'])->name('reportes.ejecutivo.pdf');
 
         // Añade esta ruta junto a tus otras rutas de reportes
         Route::get('/reportes/export/trial-balance', [ReporteController::class, 'exportTrialBalance'])

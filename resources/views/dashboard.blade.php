@@ -26,20 +26,28 @@
             @can('ver-widget-rentabilidad-sucursales')
                 <div class="mb-5 bg-white p-4 rounded shadow-sm border">
                     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
-                        <h4 class="fw-bold text-primary mb-3 mb-md-0"><i class="bi bi-graph-up-arrow me-2"></i>Visión General Financiera</h4>
-                        
-                        <form method="GET" action="{{ route('dashboard') }}" class="d-flex gap-2 align-items-end">
-                            <div>
-                                <label for="start_date" class="form-label mb-0 text-muted" style="font-size: 0.8rem;">Desde:</label>
-                                <input type="date" name="start_date" id="start_date" class="form-control form-control-sm" value="{{ $startDate ?? now()->startOfMonth()->toDateString() }}">
-                            </div>
-                            <div>
-                                <label for="end_date" class="form-label mb-0 text-muted" style="font-size: 0.8rem;">Hasta:</label>
-                                <input type="date" name="end_date" id="end_date" class="form-control form-control-sm" value="{{ $endDate ?? now()->endOfMonth()->toDateString() }}">
-                            </div>
-                            <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-filter"></i> Filtrar</button>
-                        </form>
-                    </div>
+    <div class="d-flex align-items-center gap-3">
+        <h4 class="fw-bold text-primary mb-0"><i class="bi bi-graph-up-arrow me-2"></i>Visión General Financiera</h4>
+        
+        <a href="{{ route('reportes.ejecutivo.pdf', ['start_date' => $startDate, 'end_date' => $endDate]) }}" 
+           class="btn btn-sm btn-danger shadow-sm animate__animated animate__fadeIn" 
+           target="_blank">
+            <i class="bi bi-file-earmark-pdf-fill me-1"></i> Descargar Reporte Ejecutivo (IA)
+        </a>
+    </div>
+    
+    <form method="GET" action="{{ route('dashboard') }}" class="d-flex gap-2 align-items-end mt-3 mt-md-0">
+        <div>
+            <label for="start_date" class="form-label mb-0 text-muted" style="font-size: 0.8rem;">Desde:</label>
+            <input type="date" name="start_date" id="start_date" class="form-control form-control-sm" value="{{ $startDate ?? now()->startOfMonth()->toDateString() }}">
+        </div>
+        <div>
+            <label for="end_date" class="form-label mb-0 text-muted" style="font-size: 0.8rem;">Hasta:</label>
+            <input type="date" name="end_date" id="end_date" class="form-control form-control-sm" value="{{ $endDate ?? now()->endOfMonth()->toDateString() }}">
+        </div>
+        <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-filter"></i> Filtrar</button>
+    </form>
+</div>
 
                     <div class="row mb-4 text-center">
                         <div class="col-md-3 mb-3 mb-md-0">

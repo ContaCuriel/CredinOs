@@ -449,6 +449,70 @@ class ReporteController extends Controller
             'endDate'
         ));
     }
+    
+    public function reporteEjecutivoPDF(Request $request)
+{
+    $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
+    $endDate = $request->input('end_date', now()->endOfMonth()->toDateString());
+
+    // 1. Recopilar datos (reutilizamos la lógica que ya tenemos)
+    $sucursales = \App\Models\Sucursal::all();
+    $stats = [];
+foreach ($sucursales as $s) {
+    // Detectamos si es la sucursal administrativa (ajusta el nombre según tu DB)
+    $esAdministrativa = (str_contains(strtolower($s->nombre_sucursal), 'ejecutiva') || 
+                         str_contains(strtolower($s->nombre_sucursal), 'corporativo'));
+
+    $recovery = \App\Models\Recovery::where('sucursal_id', $s->id_sucursal)
+        ->whereBetween('year', [Carbon::parse($startDate)->year, Carbon::parse($endDate)->year])
+        ->whereBetween('month', [Carbon::parse($startDate)->month, Carbon::parse($endDate)->month])
+        ->selectRaw('SUM(capital_recovered) as cap, SUM(interest_collected) as int')->first();
+
+    $gastos = \App\Models\Gasto::where('sucursal_id', $s->id_sucursal)
+        ->where('estado', 'Aprobado')->whereBetween('fecha_gasto', [$startDate, $endDate])->sum('monto_total');
+
+    $stats[] = [
+        'sucursal' => $s->nombre_sucursal,
+        'intereses' => $recovery->int ?? 0,
+        'gastos' => $gastos,
+        'utilidad' => ($recovery->int ?? 0) - $gastos,
+        'tipo' => $esAdministrativa ? 'Administrativa' : 'Operativa' // <--- Marcamos el tipo
+    ];
+}
+
+// 2. Nuevo Prompt para Gemini (Contextualizado)
+$resumenJson = json_encode($stats);
+$prompt = "Eres un consultor financiero senior. Analiza estos resultados de una financiera: $resumenJson. 
+           NOTA IMPORTANTE: La sucursal 'Ejecutiva' es el centro administrativo (contadores, abogados, gerentes); 
+           es NORMAL que no tenga ingresos y solo gastos, NO recomiendes cerrarla ni la evalúes como pérdida operativa. 
+           Evalúa la rentabilidad de las sucursales OPERATIVAS y analiza si los ingresos totales cubren bien los gastos administrativos de la Ejecutiva. 
+           Da 3 consejos estratégicos para el dueño.";
+
+    $analysis = "No se pudo generar el análisis en este momento.";
+    try {
+        $apiKey = env('GEMINI_API_KEY');
+        $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={$apiKey}";
+        $response = Http::timeout(10)->post($apiUrl, [
+            'contents' => [['role' => 'user', 'parts' => [['text' => $prompt]]]]
+        ]);
+        if ($response->successful()) {
+            $analysis = $response->json('candidates.0.content.parts.0.text');
+        }
+    } catch (\Exception $e) { \Log::error($e->getMessage()); }
+
+    // 3. Generar el PDF
+    $data = [
+        'stats' => $stats,
+        'analysis' => $analysis,
+        'fecha' => now()->format('d/m/Y'),
+        'periodo' => "del $startDate al $endDate",
+        'totalInteres' => array_sum(array_column($stats, 'intereses')),
+        'totalGastos' => array_sum(array_column($stats, 'gastos')),
+    ];
+
+    $pdf = Pdf::loadView('reportes.pdfs.ejecutivo', $data);
+    return $pdf->stream("Reporte_Ejecutivo_Credintegra.pdf");
+}
 
 
 }
