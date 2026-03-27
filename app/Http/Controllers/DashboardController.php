@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use App\Models\Contrato;
+use Carbon\Carbon;
+use App\Models\Sucursal;
+use App\Models\Recovery;
+use App\Models\Gasto;
+use App\Models\Contrato; // Asegúrate de tener estas importaciones
 use App\Models\Empleado;
 use App\Models\Patron;
-use App\Models\Gasto;
-use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
@@ -219,3 +221,4 @@ class DashboardController extends Controller
 
         return view('dashboard', $data);
     }
+}
