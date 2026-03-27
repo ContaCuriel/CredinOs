@@ -381,15 +381,21 @@ class ReporteController extends Controller
 
         $sucursales = \App\Models\Sucursal::all();
         $rentabilidad = [];
-        $totalIngresosEmpresa = 0;
+        $totalIngresosEmpresa = 0; // Se refiere a intereses
+        $totalCapitalEmpresa = 0;   // Nueva variable para capital
         $totalGastosEmpresa = 0;
 
         foreach ($sucursales as $sucursal) {
-            // 1. Ingresos de esta sucursal (Intereses cobrados)
-            $ingresos = \App\Models\Recovery::where('sucursal_id', $sucursal->id_sucursal)
+            // 1. Obtener Capital e Interés de la tabla Recovery
+            // Usamos selectRaw para traer ambos montos en una sola consulta por sucursal
+            $datosRecovery = \App\Models\Recovery::where('sucursal_id', $sucursal->id_sucursal)
                 ->whereBetween('year', [$startYear, $endYear])
                 ->whereBetween('month', [$startMonth, $endMonth])
-                ->sum('interest_collected');
+                ->selectRaw('SUM(capital_recovered) as cap, SUM(interest_collected) as int')
+                ->first();
+
+            $capitalRecuperado = $datosRecovery->cap ?? 0;
+            $ingresosInteres = $datosRecovery->int ?? 0;
 
             // 2. Gastos de esta sucursal
             $gastos = \App\Models\Gasto::where('sucursal_id', $sucursal->id_sucursal)
@@ -397,23 +403,24 @@ class ReporteController extends Controller
                 ->whereBetween('fecha_gasto', [$startDate, $endDate])
                 ->sum('monto_total');
 
-            // 3. Utilidad
-            $utilidad = $ingresos - $gastos;
+            // 3. Utilidad Real (Interés - Gastos)
+            $utilidad = $ingresosInteres - $gastos;
             
             // 4. Margen de Rentabilidad (%)
-            $margen = $ingresos > 0 ? round(($utilidad / $ingresos) * 100, 2) : 0;
+            $margen = $ingresosInteres > 0 ? round(($utilidad / $ingresosInteres) * 100, 2) : 0;
 
             $rentabilidad[] = [
                 'nombre' => $sucursal->nombre_sucursal,
-                'ingresos' => $ingresos,
-                'gastos' => $gastos,
-                'utilidad' => $utilidad,
+                'capital' => (float)$capitalRecuperado,
+                'ingresos' => (float)$ingresosInteres,
+                'gastos' => (float)$gastos,
+                'utilidad' => (float)$utilidad,
                 'margen' => $margen,
-                // Etiqueta visual rápida para el reporte
-                'estatus' => $utilidad > 0 ? 'Rentable' : ($ingresos == 0 && $gastos == 0 ? 'Sin Movimientos' : 'Pérdida')
+                'estatus' => $utilidad > 0 ? 'Rentable' : ($ingresosInteres == 0 && $gastos == 0 ? 'Sin Movimientos' : 'Pérdida')
             ];
 
-            $totalIngresosEmpresa += $ingresos;
+            $totalIngresosEmpresa += $ingresosInteres;
+            $totalCapitalEmpresa += $capitalRecuperado;
             $totalGastosEmpresa += $gastos;
         }
 
@@ -433,7 +440,13 @@ class ReporteController extends Controller
             });
 
         return view('reportes.dashboard', compact(
-            'rentabilidad', 'totalIngresosEmpresa', 'totalGastosEmpresa', 'gastosPorCategoria', 'startDate', 'endDate'
+            'rentabilidad', 
+            'totalIngresosEmpresa', 
+            'totalCapitalEmpresa', 
+            'totalGastosEmpresa', 
+            'gastosPorCategoria', 
+            'startDate', 
+            'endDate'
         ));
     }
 
