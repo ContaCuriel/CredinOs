@@ -14,6 +14,8 @@ class Recovery extends Model
         'sucursal_id',
         'year',
         'month',
+        'cobro_proyectado', 
+        'mora_periodo',
         'capital_recovered',
         'interest_collected',
         'unrecoverable_amount',
