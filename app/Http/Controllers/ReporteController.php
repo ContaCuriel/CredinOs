@@ -449,7 +449,7 @@ class ReporteController extends Controller
             'endDate'
         ));
     }
-    
+
     public function reporteEjecutivoPDF(Request $request)
 {
     // 1. Verificación de seguridad: Solo tú puedes disparar este análisis
@@ -556,7 +556,7 @@ class ReporteController extends Controller
 
     $responseTest = \Illuminate\Support\Facades\Http::timeout(60)
         ->withHeaders(['Content-Type' => 'application/json'])
-        ->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" . $apiKeyTest, [
+        ->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" . $apiKeyTest, [
             'contents' => [['role' => 'user', 'parts' => [['text' => $prompt]]]]
         ]);
 
