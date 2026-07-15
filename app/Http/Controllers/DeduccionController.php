@@ -11,6 +11,19 @@ use App\Exports\DeduccionesExport;
 
 class DeduccionController extends Controller
 {
+    // Catálogo maestro centralizado para usar en Create y Edit
+    private $catalogo_tipos = [
+        'Préstamo' => 'Préstamo (con plazo)',
+        'Previsión' => 'Previsión Social (con plazo)',
+        'Retardo/Falta Manual' => 'Retardo / Falta Manual (Monto Único)',
+        'Fijo Sin Plazo' => 'Deducción Fija (Sin plazo)',
+        'Caja de Ahorro' => 'Caja de Ahorro',
+        'Infonavit' => 'Infonavit',
+        'ISR' => 'ISR (Manual)',
+        'IMSS' => 'IMSS (Manual)',
+        'Otro' => 'Otro Descuento Fijo',
+    ];
+
     public function index(Request $request)
     {
         // 1. Obtener los valores de los filtros del request (INCLUYENDO STATUS)
@@ -51,7 +64,8 @@ class DeduccionController extends Controller
 
         // 5. Obtener datos para los menús desplegables de los filtros
         $sucursales = Sucursal::orderBy('nombre_sucursal')->get();
-        $tipos_deduccion = ['Préstamo', 'Caja de Ahorro', 'Infonavit', 'ISR', 'IMSS', 'Otro'];
+        // Usamos las llaves del catálogo para los filtros
+        $tipos_deduccion = array_keys($this->catalogo_tipos);
 
         // 6. Pasar todos los datos a la vista (agregando status_filter)
         return view('deducciones.index', compact(
@@ -68,15 +82,7 @@ class DeduccionController extends Controller
     public function create()
     {
         $empleados = Empleado::where('status', 'Alta')->orderBy('nombre_completo')->get();
-
-        $tipos_deduccion = [
-            'Préstamo' => 'Préstamo (con plazo)',
-            'Caja de Ahorro' => 'Caja de Ahorro',
-            'Infonavit' => 'Infonavit',
-            'ISR' => 'ISR (Manual)',
-            'IMSS' => 'IMSS (Manual)',
-            'Otro' => 'Otro Descuento Fijo',
-        ];
+        $tipos_deduccion = $this->catalogo_tipos;
 
         return view('deducciones.create', compact('empleados', 'tipos_deduccion'));
     }
@@ -85,13 +91,14 @@ class DeduccionController extends Controller
     {
         $validatedData = $request->validate([
             'id_empleado' => 'required|exists:empleados,id_empleado',
-            'tipo_deduccion' => 'required|string|in:Préstamo,Caja de Ahorro,Infonavit,ISR,IMSS,Otro',
+            'tipo_deduccion' => 'required|string|in:Préstamo,Previsión,Retardo/Falta Manual,Fijo Sin Plazo,Caja de Ahorro,Infonavit,ISR,IMSS,Otro',
             'fecha_solicitud' => 'required|date', 
             'monto_quincenal' => 'required|numeric|min:0.01',
-            'plazo_quincenas' => 'required_if:tipo_deduccion,Préstamo|nullable|integer|min:1',
+            'plazo_quincenas' => 'required_if:tipo_deduccion,Préstamo,Previsión|nullable|integer|min:1',
             'descripcion' => 'nullable|string|max:1000',
         ],[
             'fecha_solicitud.required' => 'La fecha de inicio de la deducción es obligatoria.',
+            'plazo_quincenas.required_if' => 'El plazo en quincenas es obligatorio para Préstamos y Previsiones.',
         ]);
 
         $datosParaGuardar = [
@@ -103,7 +110,7 @@ class DeduccionController extends Controller
             'status' => 'Activo',
         ];
 
-        if ($validatedData['tipo_deduccion'] === 'Préstamo') {
+        if (in_array($validatedData['tipo_deduccion'], ['Préstamo', 'Previsión'])) {
             $montoTotal = $validatedData['monto_quincenal'] * $validatedData['plazo_quincenas'];
             $datosParaGuardar['plazo_quincenas'] = $validatedData['plazo_quincenas'];
             $datosParaGuardar['monto_total_prestamo'] = $montoTotal;
@@ -127,14 +134,7 @@ class DeduccionController extends Controller
                              ->with('error', 'No se puede editar la deducción. El empleado asociado ya no existe.');
         }
 
-        $tipos_deduccion = [
-            'Préstamo' => 'Préstamo (con plazo)',
-            'Caja de Ahorro' => 'Caja de Ahorro',
-            'Infonavit' => 'Infonavit',
-            'ISR' => 'ISR (Manual)',
-            'IMSS' => 'IMSS (Manual)',
-            'Otro' => 'Otro Descuento Fijo',
-        ];
+        $tipos_deduccion = $this->catalogo_tipos;
 
         return view('deducciones.edit', compact('deduccion', 'tipos_deduccion'));
     }
@@ -144,10 +144,10 @@ class DeduccionController extends Controller
         $deduccion = $deduccione;
 
         $validatedData = $request->validate([
-            'tipo_deduccion' => 'required|string|in:Préstamo,Caja de Ahorro,Infonavit,ISR,IMSS,Otro',
+            'tipo_deduccion' => 'required|string|in:Préstamo,Previsión,Retardo/Falta Manual,Fijo Sin Plazo,Caja de Ahorro,Infonavit,ISR,IMSS,Otro',
             'fecha_solicitud' => 'required|date',
             'monto_quincenal' => 'required|numeric|min:0.01',
-            'plazo_quincenas' => 'required_if:tipo_deduccion,Préstamo|nullable|integer|min:1',
+            'plazo_quincenas' => 'required_if:tipo_deduccion,Préstamo,Previsión|nullable|integer|min:1',
             'status' => 'required|string|in:Activo,Pagado,Finalizado,Cancelado',
             'descripcion' => 'nullable|string|max:1000',
         ]);
@@ -160,7 +160,7 @@ class DeduccionController extends Controller
             'descripcion' => $validatedData['descripcion'],
         ];
 
-        if ($validatedData['tipo_deduccion'] === 'Préstamo') {
+        if (in_array($validatedData['tipo_deduccion'], ['Préstamo', 'Previsión'])) {
             $montoTotalActualizado = $validatedData['monto_quincenal'] * $validatedData['plazo_quincenas'];
             $saldoPendienteActualizado = $montoTotalActualizado - ($deduccion->quincenas_pagadas * $validatedData['monto_quincenal']);
 
@@ -187,9 +187,9 @@ class DeduccionController extends Controller
         try {
             $deduccion = $deduccione;
             
-            // Lógica: Si es un préstamo y el saldo es 0, lo marcamos como 'Pagado', 
+            // Lógica: Si es un préstamo o previsión y el saldo es 0, lo marcamos como 'Pagado', 
             // de lo contrario simplemente 'Finalizado'.
-            $nuevoStatus = ($deduccion->tipo_deduccion == 'Préstamo' && $deduccion->saldo_pendiente <= 0) 
+            $nuevoStatus = (in_array($deduccion->tipo_deduccion, ['Préstamo', 'Previsión']) && $deduccion->saldo_pendiente <= 0) 
                            ? 'Pagado' 
                            : 'Finalizado';
 
