@@ -147,7 +147,17 @@
                         <h5 class="mb-0 fw-bold text-success"><i class="bi bi-list-check"></i> Resultados del Cálculo (Editable)</h5>
                         <span class="badge bg-dark px-3 py-2" id="badge_tipo_calculo"></span>
                     </div>
+                    
+                    {{-- TABLA RESULTADOS --}}
                     <div id="tabla_resultados"></div>
+                    
+                    {{-- BOTÓN PARA AGREGAR CONCEPTOS EXTRA --}}
+                    <div class="mt-2 text-center" style="max-width: 750px; margin: 0 auto;">
+                        <button type="button" class="btn btn-sm btn-outline-success fw-bold shadow-sm" onclick="window.agregarConceptoExtra()">
+                            <i class="bi bi-plus-lg"></i> Agregar Concepto Extra
+                        </button>
+                    </div>
+
                     <div class="text-end mt-4 d-flex justify-content-end gap-2 flex-wrap">
                         <form id="form_export" method="POST" target="_blank">
                             @csrf
@@ -165,6 +175,9 @@
                             <input type="hidden" name="caja_ahorro_monto" id="export_caja_ahorro_monto">
                             <input type="hidden" name="prestamo_saldo" id="export_prestamo_saldo">
                             <input type="hidden" name="gratificacion_monto" id="export_gratificacion_monto">
+                            
+                            {{-- NUEVO CAMPO OCULTO PARA LOS CONCEPTOS EXTRAS --}}
+                            <input type="hidden" name="conceptos_extras_json" id="export_conceptos_extras">
                             
                             <button type="button" id="btn_export_aviso_terminacion" class="btn btn-dark fw-bold">Aviso de Terminación</button>
                             <button type="button" id="btn_export_pdf" class="btn btn-danger fw-bold">Finiquito PDF</button>
@@ -192,7 +205,8 @@
 
             let salarioDiarioGlobal = 0;
 
-            const limpiarNumero = (val) => {
+            // Variables puestas en window para que el HTML inyectado las pueda usar
+            window.limpiarNumero = (val) => {
                 if (!val) return 0;
                 const num = parseFloat(String(val).replace(/,/g, ''));
                 return isNaN(num) ? 0 : num;
@@ -217,7 +231,7 @@
                         data.forEach(row => {
                             html += `<tr><td>${row.ano_servicio}</td><td>${row.periodo}</td><td class="text-end">${row.dias_restantes}</td></tr>`;
                         });
-                        const total = data.reduce((acc, curr) => acc + limpiarNumero(curr.dias_restantes), 0).toFixed(2);
+                        const total = data.reduce((acc, curr) => acc + window.limpiarNumero(curr.dias_restantes), 0).toFixed(2);
                         html += `</tbody><tfoot class="table-light fw-bold"><tr><td colspan="2">TOTAL:</td><td class="text-end text-danger">${total}</td></tr></tfoot></table></div>`;
                         const el = document.getElementById('info_vacaciones');
                         const existingPopover = bootstrap.Popover.getInstance(el);
@@ -247,7 +261,7 @@
                     })
                     .then(res => res.json())
                     .then(data => {
-                        salarioDiarioGlobal = limpiarNumero(data.salario_diario);
+                        salarioDiarioGlobal = window.limpiarNumero(data.salario_diario);
                         document.getElementById('badge_tipo_calculo').textContent = tipo.replace('_', ' ').toUpperCase();
                         resultadosContainer.style.display = 'block';
                         construirTablaEditable(data);
@@ -272,12 +286,12 @@
                 ];
                 
                 conceptos.forEach(c => {
-                    if(limpiarNumero(c.v) > 0 || c.i === 'dias_laborados_monto') {
+                    if(window.limpiarNumero(c.v) > 0 || c.i === 'dias_laborados_monto') {
                         p += `<tr class="row-percepcion">
                                 <td class="ps-4">${c.l}</td>
                                 <td class="text-end pe-4">
                                     <div class="input-moneda-wrapper">
-                                        <input type="number" step="0.01" id="${c.i}" class="monto-editable monto-p" value="${limpiarNumero(c.v).toFixed(2)}">
+                                        <input type="number" step="0.01" id="${c.i}" class="monto-editable monto-p" value="${window.limpiarNumero(c.v).toFixed(2)}">
                                     </div>
                                 </td>
                               </tr>`;
@@ -286,7 +300,7 @@
 
                 tablaResultadosDiv.innerHTML = `
                     <div id="tabla_resultados_wrapper">
-                        <table class="table table-hover border bg-white shadow-sm">
+                        <table class="table table-hover border bg-white shadow-sm" id="tabla_calculos_cuerpo">
                             <thead class="table-dark"><tr><th class="ps-4 py-3">Concepto</th><th class="text-center py-3">Monto Editable ($)</th></tr></thead>
                             <tbody>
                                 <tr class="row-categoria"><td colspan="2" class="py-2 ps-3">Percepciones (+)</td></tr>${p}
@@ -295,7 +309,7 @@
                                     <td class="ps-4">Deducciones / Préstamos</td>
                                     <td class="text-end pe-4">
                                         <div class="input-moneda-wrapper">
-                                            <input type="number" step="0.01" id="prestamo_saldo" class="monto-editable monto-d text-danger" value="${limpiarNumero(data.prestamo_saldo).toFixed(2)}">
+                                            <input type="number" step="0.01" id="prestamo_saldo" class="monto-editable monto-d text-danger" value="${window.limpiarNumero(data.prestamo_saldo).toFixed(2)}">
                                         </div>
                                     </td>
                                 </tr>
@@ -303,33 +317,75 @@
                             </tbody>
                         </table>
                     </div>`;
-                recalcularTotales();
+                window.recalcularTotales();
             }
+
+            // FUNCIÓN MÁGICA: Agregar Fila Extra
+            window.agregarConceptoExtra = function() {
+                const tbody = document.querySelector('#tabla_calculos_cuerpo tbody');
+                if(!tbody) return;
+
+                const tr = document.createElement('tr');
+                tr.className = 'concepto-extra-row bg-white border-bottom';
+                tr.innerHTML = `
+                    <td class="ps-4">
+                        <input type="text" class="form-control form-control-sm desc-extra shadow-sm mb-1 border-success" placeholder="Escribe el concepto (Ej. Bono especial)">
+                    </td>
+                    <td class="text-end pe-4 align-middle">
+                        <div class="d-flex justify-content-end align-items-center gap-2">
+                            <select class="form-select form-select-sm tipo-extra shadow-sm text-center" style="width: 110px;" onchange="window.recalcularTotales()">
+                                <option value="percepcion">Suma (+)</option>
+                                <option value="deduccion">Resta (-)</option>
+                            </select>
+                            <div class="input-moneda-wrapper">
+                                <input type="number" step="0.01" class="monto-editable monto-extra shadow-sm" value="0.00" oninput="window.recalcularTotales()">
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-danger shadow-sm" onclick="this.closest('tr').remove(); window.recalcularTotales();"><i class="bi bi-trash"></i></button>
+                        </div>
+                    </td>
+                `;
+                
+                // Lo insertamos justo arriba de la fila "Total Neto a Pagar"
+                const totalRow = document.getElementById('neto_p').closest('tr');
+                tbody.insertBefore(tr, totalRow);
+            };
+
+            // Recálculo Inteligente
+            window.recalcularTotales = function() {
+                let tp = 0; document.querySelectorAll('.monto-p').forEach(i => tp += window.limpiarNumero(i.value));
+                let td = 0; document.querySelectorAll('.monto-d').forEach(i => td += window.limpiarNumero(i.value));
+                
+                // Sumar o restar los conceptos dinámicos extra
+                document.querySelectorAll('.concepto-extra-row').forEach(row => {
+                    let monto = window.limpiarNumero(row.querySelector('.monto-extra').value);
+                    let tipo = row.querySelector('.tipo-extra').value;
+                    if (tipo === 'percepcion') {
+                        tp += monto;
+                    } else {
+                        td += monto;
+                    }
+                });
+
+                const neto = document.getElementById('neto_p');
+                if (neto) neto.textContent = `$${(tp - td).toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+            };
 
             document.addEventListener('input', function (e) {
                 if (e.target.id === 'input_dias_cantidad') {
                     const montoInput = document.getElementById('dias_laborados_monto');
                     if (montoInput && salarioDiarioGlobal > 0) {
-                        montoInput.value = (limpiarNumero(e.target.value) * salarioDiarioGlobal).toFixed(2);
+                        montoInput.value = (window.limpiarNumero(e.target.value) * salarioDiarioGlobal).toFixed(2);
                     }
-                    recalcularTotales();
+                    window.recalcularTotales();
                 } else if (e.target.classList.contains('monto-editable')) {
-                    recalcularTotales();
+                    window.recalcularTotales();
                 }
             });
-            
-            function recalcularTotales() {
-                let tp = 0; document.querySelectorAll('.monto-p').forEach(i => tp += limpiarNumero(i.value));
-                let td = 0; document.querySelectorAll('.monto-d').forEach(i => td += limpiarNumero(i.value));
-                const neto = document.getElementById('neto_p');
-                if (neto) neto.textContent = `$${(tp - td).toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
-            }
 
             function prepararEnvio(format) {
                 const idEmp = empleadoSelect.value;
                 if (!idEmp) return;
                 
-                // --- CORRECCIÓN AVISO (Usando URL absoluta) ---
                 if (format === 'aviso') { 
                     window.open("{{ url('finiquitos/aviso-terminacion') }}/" + idEmp, '_blank'); 
                     return; 
@@ -350,8 +406,21 @@
                 campos.forEach(id => {
                     const val = document.getElementById(id);
                     const hidden = document.getElementById('export_' + id);
-                    if (hidden) hidden.value = val ? limpiarNumero(val.value) : 0;
+                    if (hidden) hidden.value = val ? window.limpiarNumero(val.value) : 0;
                 });
+
+                // EMPAQUETAMOS LOS CONCEPTOS EXTRAS EN FORMATO JSON
+                const extras = [];
+                document.querySelectorAll('.concepto-extra-row').forEach(row => {
+                    const desc = row.querySelector('.desc-extra').value;
+                    const tipo = row.querySelector('.tipo-extra').value;
+                    const monto = window.limpiarNumero(row.querySelector('.monto-extra').value);
+                    if(desc.trim() !== '' && monto > 0) {
+                        extras.push({ concepto: desc, tipo: tipo, monto: monto });
+                    }
+                });
+                document.getElementById('export_conceptos_extras').value = JSON.stringify(extras);
+
                 form.submit();
             }
 

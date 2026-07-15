@@ -9,7 +9,7 @@ use App\Models\DeduccionEmpleado;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
 use Throwable;
-use PDF;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\File;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\FiniquitoExport;
@@ -25,9 +25,6 @@ class FiniquitoController extends Controller
         return view('finiquitos.index', compact('empleados', 'patrones'));
     }
 
-    /**
-     * Realiza el cálculo inicial y lo devuelve para la tabla editable.
-     */
     public function calcular(Request $request)
     {
         try {
@@ -38,15 +35,12 @@ class FiniquitoController extends Controller
         }
     }
 
-    /**
-     * Prepara los datos (editados) y genera el PDF.
-     */
     public function exportarPDF(Request $request)
     {
         try {
             $data = $this->prepararDatosParaExportacion($request);
             
-            $pdf = PDF::loadView('finiquitos.pdf', $data);
+            $pdf = Pdf::loadView('finiquitos.pdf', $data);
             $nombreArchivo = str_replace(' ', '_', $data['titulo_documento']) . '_' . str_replace(' ', '_', $data['empleado']->nombre_completo) . '.pdf';
             return $pdf->stream($nombreArchivo);
 
@@ -55,9 +49,6 @@ class FiniquitoController extends Controller
         }
     }
     
-    /**
-     * Prepara los datos (editados) y genera el Excel.
-     */
     public function exportarExcel(Request $request)
     {
         try {
@@ -71,80 +62,90 @@ class FiniquitoController extends Controller
         }
     }
 
-    /**
-     * Método que toma los datos editados y los prepara para la exportación.
-     */
     private function prepararDatosParaExportacion(Request $request): array
-{
-    $data = $request->all();
-    $empleado = Empleado::with(['puesto', 'ultimoContrato'])->find($data['id_empleado']);
-    $patron = Patron::find($data['id_patron'] ?? null);
+    {
+        $data = $request->all();
+        $empleado = Empleado::with(['puesto', 'ultimoContrato'])->find($data['id_empleado']);
+        $patron = Patron::find($data['id_patron'] ?? null);
 
-    // Obtenemos el salario diario real
-    $salarioMensual = $empleado->puesto ? $empleado->puesto->salario_mensual : 0;
-    $salarioDiario = $salarioMensual > 0 ? ($salarioMensual / 30) : 0;
+        $salarioMensual = $empleado->puesto ? $empleado->puesto->salario_mensual : 0;
+        $salarioDiario = $salarioMensual > 0 ? ($salarioMensual / 30) : 0;
 
-    // --- AQUÍ ESTÁ LA MAGIA PARA EL TEXTO DEL PDF ---
-    // Tomamos el monto de dinero que tú editaste en la tabla
-    $montoLaboradosEditado = (float)($data['dias_laborados_monto'] ?? 0);
-    
-    // Si hay dinero y hay salario, calculamos cuántos días son
-    if ($salarioDiario > 0 && $montoLaboradosEditado > 0) {
-        // Redondeamos para que no salgan muchos decimales en el texto del PDF
-        $diasEditados = round($montoLaboradosEditado / $salarioDiario, 1);
-    } else {
-        $diasEditados = 0;
-    }
-
-    $totalPercepciones = 0;
-    $percepcionesKeys = ['dias_laborados_monto', 'aguinaldo_monto', 'vacaciones_monto', 'prima_vacacional_monto', 'monto_3_meses', 'monto_prima_antiguedad', 'caja_ahorro_monto', 'gratificacion_monto'];
-    
-    foreach($percepcionesKeys as $key){
-        $totalPercepciones += (float)($data[$key] ?? 0);
-    }
-    
-    $totalDeducciones = (float)($data['prestamo_saldo'] ?? 0);
-    $netoAPagar = $totalPercepciones - $totalDeducciones;
-
-    $exportData = $data;
-    $exportData['empleado'] = $empleado;
-    $exportData['patron'] = $patron;
-    $exportData['salarioDiario'] = $salarioDiario;
-    $exportData['total_percepciones'] = $totalPercepciones;
-    $exportData['total_deducciones'] = $totalDeducciones;
-    $exportData['neto_a_pagar'] = $netoAPagar;
-    $exportData['fecha_final_formateada'] = Carbon::parse($data['fecha_final'])->format('d/m/Y');
-    
-    // 🔥 CAMBIO CLAVE: Usamos los días calculados desde el monto editado
-    $exportData['dias_laborados_dias'] = $diasEditados; 
-    $exportData['vacaciones_dias_restantes'] = $data['dias_vacaciones_manuales'];
-
-    // Aseguramos que los montos en el PDF sean los que editaste
-    foreach($percepcionesKeys as $key) {
-        $exportData[$key] = (float)($data[$key] ?? 0);
-    }
-    $exportData['prestamo_saldo'] = $totalDeducciones;
-
-    $titulos = ['dias_laborados' => 'PAGO DE DÍAS LABORADOS', 'finiquito' => 'RECIBO DE FINIQUITO', 'liquidacion' => 'RECIBO DE LIQUIDACIÓN'];
-    $exportData['titulo_documento'] = $titulos[$data['tipo_calculo']] ?? 'RECIBO DE PAGO';
-
-    $exportData['esContratoDeHonorarios'] = ($empleado->ultimoContrato && Str::contains(strtolower($empleado->ultimoContrato->tipo_contrato), 'honorarios'));
-
-    $exportData['logo_base64'] = null;
-    if ($patron && $patron->logo_path) {
-        $logoPath = storage_path('app/public/' . $patron->logo_path); 
-        if (File::exists($logoPath)) {
-            $exportData['logo_base64'] = 'data:' . File::mimeType($logoPath) . ';base64,' . base64_encode(File::get($logoPath));
+        $montoLaboradosEditado = (float)($data['dias_laborados_monto'] ?? 0);
+        
+        if ($salarioDiario > 0 && $montoLaboradosEditado > 0) {
+            $diasEditados = round($montoLaboradosEditado / $salarioDiario, 1);
+        } else {
+            $diasEditados = 0;
         }
+
+        $totalPercepciones = 0;
+        $percepcionesKeys = ['dias_laborados_monto', 'aguinaldo_monto', 'vacaciones_monto', 'prima_vacacional_monto', 'monto_3_meses', 'monto_prima_antiguedad', 'caja_ahorro_monto', 'gratificacion_monto'];
+        
+        foreach($percepcionesKeys as $key){
+            $totalPercepciones += (float)($data[$key] ?? 0);
+        }
+        
+        $totalDeducciones = (float)($data['prestamo_saldo'] ?? 0);
+
+        // =========================================================================
+        // 🔥 LÓGICA DE CONCEPTOS EXTRAS (Agregados manualmente desde la tabla) 🔥
+        // =========================================================================
+        $conceptosExtras = json_decode($data['conceptos_extras_json'] ?? '[]', true);
+        if (!is_array($conceptosExtras)) {
+            $conceptosExtras = [];
+        }
+
+        foreach ($conceptosExtras as $extra) {
+            $montoExtra = (float)($extra['monto'] ?? 0);
+            if (isset($extra['tipo']) && $extra['tipo'] === 'percepcion') {
+                $totalPercepciones += $montoExtra;
+            } elseif (isset($extra['tipo']) && $extra['tipo'] === 'deduccion') {
+                $totalDeducciones += $montoExtra;
+            }
+        }
+        // =========================================================================
+
+        $netoAPagar = $totalPercepciones - $totalDeducciones;
+
+        $exportData = $data;
+        $exportData['empleado'] = $empleado;
+        $exportData['patron'] = $patron;
+        $exportData['salarioDiario'] = $salarioDiario;
+        $exportData['total_percepciones'] = $totalPercepciones;
+        $exportData['total_deducciones'] = $totalDeducciones;
+        $exportData['neto_a_pagar'] = $netoAPagar;
+        $exportData['fecha_final_formateada'] = Carbon::parse($data['fecha_final'])->format('d/m/Y');
+        
+        $exportData['dias_laborados_dias'] = $diasEditados; 
+        $exportData['vacaciones_dias_restantes'] = $data['dias_vacaciones_manuales'];
+
+        foreach($percepcionesKeys as $key) {
+            $exportData[$key] = (float)($data[$key] ?? 0);
+        }
+        $exportData['prestamo_saldo'] = (float)($data['prestamo_saldo'] ?? 0);
+
+        // Pasamos el arreglo de los conceptos extra a las Vistas de PDF y Excel
+        $exportData['conceptos_extras'] = $conceptosExtras;
+
+        $titulos = ['dias_laborados' => 'PAGO DE DÍAS LABORADOS', 'finiquito' => 'RECIBO DE FINIQUITO', 'liquidacion' => 'RECIBO DE LIQUIDACIÓN'];
+        $exportData['titulo_documento'] = $titulos[$data['tipo_calculo']] ?? 'RECIBO DE PAGO';
+
+        $exportData['esContratoDeHonorarios'] = ($empleado->ultimoContrato && Str::contains(strtolower($empleado->ultimoContrato->tipo_contrato), 'honorarios'));
+
+        $exportData['logo_base64'] = null;
+        if ($patron && $patron->logo_path) {
+            $logoPath = storage_path('app/public/' . $patron->logo_path); 
+            if (File::exists($logoPath)) {
+                $exportData['logo_base64'] = 'data:' . File::mimeType($logoPath) . ';base64,' . base64_encode(File::get($logoPath));
+            }
+        }
+        
+        return $exportData;
     }
-    
-    return $exportData;
-}
-    /**
-     * Realiza el cálculo inicial desde cero, incluyendo la gratificación.
-     */
-   private function obtenerCalculoInicial(Request $request): array
-   {
+
+    private function obtenerCalculoInicial(Request $request): array
+    {
         $validator = Validator::make($request->all(), [
             'id_empleado' => 'required|exists:empleados,id_empleado',
             'fecha_final' => 'required|date',
@@ -178,23 +179,16 @@ class FiniquitoController extends Controller
 
         $resultados['gratificacion_monto'] = (float) $request->input('gratificacion_monto', 0);
 
-        // ================== LÓGICA DE CÁLCULO DE DÍAS LABORADOS CORREGIDA ==================
-        // 1. Determinar el inicio teórico de la quincena actual basado en la fecha de baja.
         $inicioQuincenaTeorico = null;
         if ($fechaBaja->day <= 15) {
-            // Si la baja es en la primera quincena, el periodo empieza el día 1 del mes.
             $inicioQuincenaTeorico = $fechaBaja->copy()->startOfMonth();
         } else {
-            // Si es en la segunda, el periodo empieza el día 16.
             $inicioQuincenaTeorico = $fechaBaja->copy()->day(16);
         }
 
-        // 2. La fecha real para iniciar el cálculo es la más tardía entre el ingreso y el inicio de la quincena.
         $fechaInicioCalculo = $fechaIngreso->greaterThan($inicioQuincenaTeorico) ? $fechaIngreso : $inicioQuincenaTeorico;
 
-        // 3. Calcular la diferencia de días. Se suma 1 para que el cálculo sea inclusivo.
         $diasLaboradosPeriodo = $fechaInicioCalculo->diffInDays($fechaBaja) + 1;
-        // =================================================================================
 
         $resultados['dias_laborados_monto'] = $diasLaboradosPeriodo * $salarioDiario;
         $resultados['dias_laborados_dias'] = $diasLaboradosPeriodo;
@@ -227,44 +221,35 @@ class FiniquitoController extends Controller
 
     public function exportarRenunciaPdf(Request $request)
     {
-        // 1. Validar los datos necesarios
         $validatedData = $request->validate([
             'id_empleado' => 'required|exists:empleados,id_empleado',
             'id_patron' => 'required|exists:patrones,id_patron',
             'fecha_final' => 'required|date',
         ]);
 
-        // 2. Obtener los modelos con sus relaciones
         $empleado = Empleado::with(['puesto', 'ultimoContrato'])->findOrFail($validatedData['id_empleado']);
         $patron = Patron::findOrFail($validatedData['id_patron']);
         $fechaIngreso = Carbon::parse($empleado->fecha_ingreso);
         $fechaFin = Carbon::parse($validatedData['fecha_final']);
 
-        // 3. ======== LÓGICA DE VERIFICACIÓN CENTRALIZADA ========
         $esContratoDeHonorarios = false;
-        // Verificamos que exista un último contrato y que el tipo no esté vacío
         if ($empleado->ultimoContrato && !empty($empleado->ultimoContrato->tipo_contrato)) {
-            // Comprobamos si la palabra 'honorarios' existe en el tipo de contrato
             if (Str::contains(strtolower($empleado->ultimoContrato->tipo_contrato), 'honorarios')) {
                 $esContratoDeHonorarios = true;
             }
         }
-        // ==========================================================
 
-        // 4. Formatear fechas a texto largo en español
         $fecha_ingreso_letra = $fechaIngreso->translatedFormat('l, d \de F \de Y');
         $fecha_fin_letra = $fechaFin->translatedFormat('l, d \de F \de Y');
 
-        // 5. Preparar los datos para la vista, incluyendo nuestra nueva bandera
         $data = [
             'empleado' => $empleado,
             'patron' => $patron,
             'fecha_ingreso_letra' => $fecha_ingreso_letra,
             'fecha_fin_letra' => $fecha_fin_letra,
-            'esContratoDeHonorarios' => $esContratoDeHonorarios, // <-- Se pasa la bandera a la vista
+            'esContratoDeHonorarios' => $esContratoDeHonorarios, 
         ];
 
-        // 6. Generar el PDF
         $nombreArchivo = 'carta_renuncia_' . Str::slug($empleado->nombre_completo) . '.pdf';
         $pdf = Pdf::loadView('finiquitos.pdf_renuncia', $data);
 
@@ -274,64 +259,51 @@ class FiniquitoController extends Controller
     public function uploadSigned(Request $request, Empleado $empleado)
     {
         $request->validate([
-            'documento_firmado' => 'required|file|mimes:pdf|max:2048', // Acepta solo PDF de hasta 2MB
+            'documento_firmado' => 'required|file|mimes:pdf|max:2048', 
         ], [
             'documento_firmado.required' => 'Debes seleccionar un archivo.',
             'documento_firmado.mimes' => 'El archivo debe ser un PDF.',
             'documento_firmado.max' => 'El archivo no debe pesar más de 2MB.',
         ]);
 
-        // Elimina el archivo anterior si existe para evitar basura en el disco
         if ($empleado->finiquito_firmado_path && Storage::disk('public')->exists($empleado->finiquito_firmado_path)) {
             Storage::disk('public')->delete($empleado->finiquito_firmado_path);
         }
 
-        // Guarda el nuevo archivo en 'storage/app/public/finiquitos_firmados'
         $path = $request->file('documento_firmado')->store('finiquitos_firmados', 'public');
-
-        // Actualiza la ruta en la base de datos
         $empleado->update(['finiquito_firmado_path' => $path]);
 
-        // Redirige de vuelta con un mensaje de éxito
         return back()->with('success', '¡Documento firmado subido exitosamente!');
     }
 
-    /**
-     * Muestra el documento firmado que está guardado.
-     */
     public function viewSigned(Empleado $empleado)
     {
-        // Verifica que el empleado tenga un archivo y que este exista en el disco
         if (!$empleado->finiquito_firmado_path || !Storage::disk('public')->exists($empleado->finiquito_firmado_path)) {
             abort(404, 'Documento no encontrado.');
         }
-
-        // Devuelve el archivo para ser mostrado en el navegador
         return Storage::disk('public')->response($empleado->finiquito_firmado_path);
     }
 
     public function generarAvisoTerminacion($id_empleado)
-{
-    // Eliminamos el filtro de 'status' para evitar el error de columna inexistente
-    $empleado = \App\Models\Empleado::with(['sucursal', 'puesto', 'contratos' => function($query) {
-        $query->latest('fecha_inicio'); // Solo ordenamos por el más reciente
-    }, 'contratos.patron'])->findOrFail($id_empleado);
+    {
+        $empleado = \App\Models\Empleado::with(['sucursal', 'puesto', 'contratos' => function($query) {
+            $query->latest('fecha_inicio'); 
+        }, 'contratos.patron'])->findOrFail($id_empleado);
 
-    $contrato = $empleado->contratos->first();
+        $contrato = $empleado->contratos->first();
 
-    if (!$contrato) {
-        return back()->with('error', 'El empleado no tiene contratos registrados en el sistema.');
+        if (!$contrato) {
+            return back()->with('error', 'El empleado no tiene contratos registrados en el sistema.');
+        }
+
+        $patron = $contrato->patron;
+
+        if (!$patron) {
+            return back()->with('error', 'El contrato del empleado no tiene un patrón (empresa) asignado.');
+        }
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('documentos.generales.aviso_terminacion', compact('empleado', 'contrato', 'patron'));
+        
+        return $pdf->stream("Aviso_Terminacion_" . \Illuminate\Support\Str::slug($empleado->nombre_completo) . ".pdf");
     }
-
-    $patron = $contrato->patron;
-
-    // Si por alguna razón el contrato no tiene patrón asignado, intentamos buscar uno por defecto o de la sucursal
-    if (!$patron) {
-        return back()->with('error', 'El contrato del empleado no tiene un patrón (empresa) asignado.');
-    }
-
-    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('documentos.generales.aviso_terminacion', compact('empleado', 'contrato', 'patron'));
-    
-    return $pdf->stream("Aviso_Terminacion_" . \Illuminate\Support\Str::slug($empleado->nombre_completo) . ".pdf");
-}
 }

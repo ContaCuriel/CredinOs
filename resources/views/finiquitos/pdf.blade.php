@@ -66,15 +66,16 @@
                 </tr>
             </thead>
             <tbody>
+                {{-- CONCEPTOS FIJOS (PERCEPCIONES) --}}
                 @if(($dias_laborados_monto ?? 0) > 0)
-<tr>
-    <td>
-        {{ $esContratoDeHonorarios ? 'Honorarios Devengados' : 'Días Laborados' }} 
-        ({{ $dias_laborados_dias ?? 0 }} días)
-    </td>
-    <td class="text-right">${{ number_format($dias_laborados_monto, 2) }}</td>
-</tr>
-@endif
+                <tr>
+                    <td>
+                        {{ $esContratoDeHonorarios ? 'Honorarios Devengados' : 'Días Laborados' }} 
+                        ({{ $dias_laborados_dias ?? 0 }} días)
+                    </td>
+                    <td class="text-right">${{ number_format($dias_laborados_monto, 2) }}</td>
+                </tr>
+                @endif
                 
                 @if(($aguinaldo_monto ?? 0) > 0)
                 <tr>
@@ -126,6 +127,19 @@
                 </tr>
                 @endif
 
+                {{-- CONCEPTOS DINÁMICOS (PERCEPCIONES EXTRA) --}}
+                @if(isset($conceptos_extras) && is_array($conceptos_extras))
+                    @foreach($conceptos_extras as $extra)
+                        @if(isset($extra['tipo']) && $extra['tipo'] === 'percepcion')
+                        <tr>
+                            <td>{{ mb_strtoupper($extra['concepto'], 'UTF-8') }}</td>
+                            <td class="text-right">${{ number_format($extra['monto'], 2) }}</td>
+                        </tr>
+                        @endif
+                    @endforeach
+                @endif
+
+                {{-- DEDUCCIONES --}}
                 @if(($prestamo_saldo ?? 0) > 0)
                 <tr>
                     <td>Descuento por préstamo / Adeudos</td>
@@ -133,6 +147,19 @@
                 </tr>
                 @endif
 
+                {{-- CONCEPTOS DINÁMICOS (DEDUCCIONES EXTRA) --}}
+                @if(isset($conceptos_extras) && is_array($conceptos_extras))
+                    @foreach($conceptos_extras as $extra)
+                        @if(isset($extra['tipo']) && $extra['tipo'] === 'deduccion')
+                        <tr>
+                            <td>{{ mb_strtoupper($extra['concepto'], 'UTF-8') }}</td>
+                            <td class="text-right">-${{ number_format($extra['monto'], 2) }}</td>
+                        </tr>
+                        @endif
+                    @endforeach
+                @endif
+
+                {{-- TOTAL NETO --}}
                 <tr class="total-row">
                     <td>{{ $esContratoDeHonorarios ? 'TOTAL A PAGAR POR HONORARIOS DEVENGADOS' : 'TOTAL A PAGAR AL TRABAJADOR' }}</td>
                     <td class="text-right">${{ number_format($neto_a_pagar ?? 0, 2) }}</td>
