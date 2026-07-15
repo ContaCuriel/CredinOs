@@ -30,8 +30,6 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
     protected string $sucursal_nombre;
     protected Collection $resultados;
     protected string $periodoTexto;
-    // CORRECCIÓN: El contador de filas debe empezar en 1.
-    // El mapeo de datos ocurre ANTES de que se inserte la fila del título en el evento AfterSheet.
     protected int $rowNumber = 1;
 
     public function __construct(string $periodo, int $sucursal_id)
@@ -104,16 +102,26 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             }
             $totalPercepciones = $sueldoQuincenalBruto + $bonoPermanencia + $bonoCumpleanos + $primaVacacional;
 
-            $diasFalta = Asistencia::where('id_empleado', $empleado->id_empleado)->where('status_asistencia', 'Falta')->whereBetween('fecha', [$fechaInicioPeriodo, $fechaFinPeriodo])->count();
-            $deduccionFaltas = $diasFalta * $salarioDiario;
+            // --- LÓGICA DE DEDUCCIONES ACTUALIZADA ---
             $deduccionesActivas = DeduccionEmpleado::where('id_empleado', $empleado->id_empleado)->where('status', 'Activo')->get();
+            
+            // 1. Faltas (Asistencia normal + Falta/Retardo manual)
+            $diasFalta = Asistencia::where('id_empleado', $empleado->id_empleado)->where('status_asistencia', 'Falta')->whereBetween('fecha', [$fechaInicioPeriodo, $fechaFinPeriodo])->count();
+            $deduccionFaltasManuales = $deduccionesActivas->where('tipo_deduccion', 'Retardo/Falta Manual')->sum('monto_quincenal');
+            $deduccionFaltas = ($diasFalta * $salarioDiario) + $deduccionFaltasManuales;
+            
+            // 2. Otras Deducciones Separadas
             $deduccionPrestamo = $deduccionesActivas->where('tipo_deduccion', 'Préstamo')->sum('monto_quincenal');
+            $deduccionPrevision = $deduccionesActivas->where('tipo_deduccion', 'Previsión')->sum('monto_quincenal'); // NUEVA COLUMNA
             $deduccionCajaAhorro = $deduccionesActivas->where('tipo_deduccion', 'Caja de Ahorro')->sum('monto_quincenal');
             $deduccionInfonavit = $deduccionesActivas->where('tipo_deduccion', 'Infonavit')->sum('monto_quincenal');
             $deduccionISR = $deduccionesActivas->where('tipo_deduccion', 'ISR')->sum('monto_quincenal');
             $deduccionIMSS = $deduccionesActivas->where('tipo_deduccion', 'IMSS')->sum('monto_quincenal');
-            $deduccionOtro = $deduccionesActivas->where('tipo_deduccion', 'Otro')->sum('monto_quincenal');
-            $totalDeducciones = $deduccionFaltas + $deduccionPrestamo + $deduccionCajaAhorro + $deduccionInfonavit + $deduccionISR + $deduccionIMSS + $deduccionOtro;
+            
+            // 3. Otros (Agrupa 'Otro' y 'Fijo Sin Plazo')
+            $deduccionOtro = $deduccionesActivas->whereIn('tipo_deduccion', ['Otro', 'Fijo Sin Plazo'])->sum('monto_quincenal');
+            
+            $totalDeducciones = $deduccionFaltas + $deduccionPrestamo + $deduccionPrevision + $deduccionCajaAhorro + $deduccionInfonavit + $deduccionISR + $deduccionIMSS + $deduccionOtro;
 
             $netoAPagar = $totalPercepciones - $totalDeducciones;
 
@@ -122,8 +130,12 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                 'fecha_ingreso' => $empleado->fecha_ingreso,
                 'puesto' => $empleado->puesto ? $empleado->puesto->nombre_puesto : 'N/A',
                 'sueldo_quincenal' => $sueldoQuincenalBruto, 'bono_permanencia' => $bonoPermanencia, 'bono_cumpleanos' => $bonoCumpleanos,
-                'prima_vacacional' => $primaVacacional, 'total_percepciones' => $totalPercepciones, 'deduccion_faltas' => $deduccionFaltas,
-                'deduccion_prestamo' => $deduccionPrestamo, 'deduccion_caja_ahorro' => $deduccionCajaAhorro, 'deduccion_infonavit' => $deduccionInfonavit,
+                'prima_vacacional' => $primaVacacional, 'total_percepciones' => $totalPercepciones, 
+                'deduccion_faltas' => $deduccionFaltas,
+                'deduccion_prestamo' => $deduccionPrestamo, 
+                'deduccion_prevision' => $deduccionPrevision, // NUEVO
+                'deduccion_caja_ahorro' => $deduccionCajaAhorro, 
+                'deduccion_infonavit' => $deduccionInfonavit,
                 'deduccion_isr' => $deduccionISR, 'deduccion_imss' => $deduccionIMSS, 'deduccion_otro' => $deduccionOtro,
                 'total_deducciones' => $totalDeducciones, 'neto_a_pagar' => $netoAPagar,
             ]);
@@ -140,7 +152,7 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             'Empleado', 'Fecha Ingreso', 'Puesto',
             'R', 'F',
             'Sueldo Quincenal', 'Bono Permanencia', 'Bono Cumpleaños', 'Prima Vacacional',
-            'Total Percepciones', 'Ded. Faltas', 'Ded. Préstamo', 'Ded. Caja Ahorro', 'Ded. Infonavit', 'Ded. ISR', 'Ded. IMSS', 'Ded. Otros',
+            'Total Percepciones', 'Ded. Faltas', 'Ded. Préstamo', 'Ded. Previsión', 'Ded. Caja Ahorro', 'Ded. Infonavit', 'Ded. ISR', 'Ded. IMSS', 'Ded. Otros',
             'Total Deducciones', 'Neto a Pagar',
         ];
     }
@@ -152,8 +164,9 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
 
         $rangoPercepciones    = "F{$filaActual}:I{$filaActual}";
         $colTotalPercepciones   = "J{$filaActual}";
-        $rangoDeducciones       = "K{$filaActual}:Q{$filaActual}";
-        $colTotalDeducciones    = "R{$filaActual}";
+        $rangoDeducciones       = "K{$filaActual}:R{$filaActual}"; // Ahora llega hasta la R
+        $colTotalDeducciones    = "S{$filaActual}";
+        $colNeto                = "T{$filaActual}";
 
         return [
             $filaResultado['empleado_nombre'],
@@ -164,16 +177,17 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             (float) $filaResultado['bono_permanencia'],      // G
             (float) $filaResultado['bono_cumpleanos'],       // H
             (float) $filaResultado['prima_vacacional'],      // I
-            "=SUM({$rangoPercepciones})",                     // J
+            "=SUM({$rangoPercepciones})",                      // J
             (float) $filaResultado['deduccion_faltas'],      // K
             (float) $filaResultado['deduccion_prestamo'],    // L
-            (float) $filaResultado['deduccion_caja_ahorro'],// M
-            (float) $filaResultado['deduccion_infonavit'],   // N
-            (float) $filaResultado['deduccion_isr'],         // O
-            (float) $filaResultado['deduccion_imss'],        // P
-            (float) $filaResultado['deduccion_otro'],        // Q
-            "=SUM({$rangoDeducciones})",                      // R
-            "={$colTotalPercepciones}-{$colTotalDeducciones}", // S
+            (float) $filaResultado['deduccion_prevision'],   // M (NUEVO)
+            (float) $filaResultado['deduccion_caja_ahorro'], // N
+            (float) $filaResultado['deduccion_infonavit'],   // O
+            (float) $filaResultado['deduccion_isr'],         // P
+            (float) $filaResultado['deduccion_imss'],        // Q
+            (float) $filaResultado['deduccion_otro'],        // R
+            "=SUM({$rangoDeducciones})",                      // S
+            "={$colTotalPercepciones}-{$colTotalDeducciones}", // T
         ];
     }
 
@@ -181,8 +195,8 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
     {
         $formatoMonedaConCero = '$ #,##0.00;[Red]-$ #,##0.00;"$ "0.00';
         return [
-            'F:S' => $formatoMonedaConCero, // El rango de formato de moneda es de la F a la S
-            'B' => NumberFormat::FORMAT_DATE_DDMMYYYY // La columna B ahora es la fecha
+            'F:T' => $formatoMonedaConCero, // Actualizado hasta la columna T
+            'B' => NumberFormat::FORMAT_DATE_DDMMYYYY 
         ];
     }
 
@@ -196,7 +210,7 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                 $tituloCompleto = 'NÓMINA ' . $this->periodoTexto;
                 $sheet->setCellValue('A1', $tituloCompleto);
                 
-                $lastColumn = 'S';
+                $lastColumn = 'T'; // Actualizado hasta la T
                 $sheet->mergeCells('A1:'.$lastColumn.'1');
                 $sheet->getStyle('A1')->applyFromArray([
                     'font' => ['bold' => true, 'size' => 14],
@@ -208,7 +222,7 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF4F81BD']]
                 ]);
                 
-                $sheet->getStyle('K2:R2')->applyFromArray([
+                $sheet->getStyle('K2:S2')->applyFromArray([ // Fondo rojo para deducciones
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFD9534F']]
                 ]);
 
@@ -221,7 +235,7 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                     $totalsRow = $lastDataRow + 2;
                     $sheet->setCellValue("A{$totalsRow}", 'TOTALES:');
 
-                    $columnsToSum = ['F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S'];
+                    $columnsToSum = ['F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T'];
                     foreach ($columnsToSum as $column) {
                         $sheet->setCellValue("{$column}{$totalsRow}", "=SUM({$column}3:{$column}{$lastDataRow})");
                     }
@@ -235,8 +249,8 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                     
                     $columnsToCheck = [
                         'G' => 'Bono Permanencia', 'H' => 'Bono Cumpleaños', 'I' => 'Prima Vacacional',
-                        'K' => 'Ded. Faltas', 'L' => 'Ded. Préstamo', 'M' => 'Ded. Caja Ahorro',
-                        'N' => 'Ded. Infonavit', 'O' => 'Ded. ISR', 'P' => 'Ded. IMSS', 'Q' => 'Ded. Otros'
+                        'K' => 'Ded. Faltas', 'L' => 'Ded. Préstamo', 'M' => 'Ded. Previsión', 'N' => 'Ded. Caja Ahorro',
+                        'O' => 'Ded. Infonavit', 'P' => 'Ded. ISR', 'Q' => 'Ded. IMSS', 'R' => 'Ded. Otros'
                     ];
 
                     foreach ($columnsToCheck as $columnLetter => $columnName) {
@@ -256,3 +270,63 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
     }
 }
 
+// =========================================================================
+
+namespace App\Exports;
+
+use App\Models\Sucursal;
+use Maatwebsite\Excel\Concerns\Exportable;
+use Maatwebsite\Excel\Concerns\WithMultipleSheets;
+use Illuminate\Support\Collection;
+
+class ListaDeRayaMultiSucursalExport implements WithMultipleSheets
+{
+    use Exportable;
+
+    protected string $periodo;
+
+    public function __construct(string $periodo)
+    {
+        $this->periodo = $periodo;
+    }
+
+    /**
+     * @return array
+     */
+    public function sheets(): array
+    {
+        $sheets = [];
+        $resumenData = collect();
+        $sucursales = Sucursal::where('status', 'Activa')->orderBy('nombre_sucursal')->get();
+
+        foreach ($sucursales as $sucursal) {
+            $sheetExport = new ListaDeRayaSheetExport($this->periodo, $sucursal->id_sucursal);
+            $sheets[] = $sheetExport;
+
+            // Obtenemos los datos necesarios para construir la fórmula
+            $sheetName = $sheetExport->title();
+            $rowCount = $sheetExport->collection()->count();
+            
+            // Si hay datos, calculamos la fila del total. Si no, el total es 0.
+            if ($rowCount > 0) {
+                // Fila del título (1) + Fila de cabeceras (1) + Filas de datos + 2 filas de espacio = Fila de totales
+                $totalRow = 1 + 1 + $rowCount + 2;
+                // --- CORRECCIÓN AQUÍ: Cambiamos la S por la T, porque ahora el Total Neto está en la columna T ---
+                $netoTotalFormula = "='" . $sheetName . "'!T" . $totalRow; 
+            } else {
+                // Si no hay empleados en esa sucursal, el total es 0.
+                $netoTotalFormula = 0;
+            }
+
+            $resumenData->push([
+                'sucursal' => $sucursal->nombre_sucursal,
+                'neto_formula' => $netoTotalFormula, // Pasamos la fórmula en lugar del valor
+            ]);
+        }
+
+        $resumenSheet = new ResumenNetosExport($resumenData);
+        array_unshift($sheets, $resumenSheet);
+
+        return $sheets;
+    }
+}
