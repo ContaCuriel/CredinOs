@@ -12,12 +12,12 @@ class SucursalController extends Controller
      */
    public function index(Request $request)
     {
-        // Por defecto, solo mostramos las sucursales activas
-        $query = Sucursal::query()->where('status', 'Activa');
+        // Añadimos withoutGlobalScope para que el administrador ignore el bloqueo global
+        $query = Sucursal::withoutGlobalScope('activa')->where('status', 'Activa');
 
         // (Opcional) Puedes añadir un filtro en el futuro para ver las inactivas
         // if ($request->input('status_filter') === 'inactivas') {
-        //     $query->where('status', 'Inactiva');
+        //      $query = Sucursal::withoutGlobalScope('activa')->where('status', 'Inactiva');
         // }
 
         $sucursales = $query->orderBy('nombre_sucursal', 'asc')->paginate(10);
@@ -28,10 +28,10 @@ class SucursalController extends Controller
      * Show the form for creating a new resource.
      */
     public function create()
-{
-    // Simplemente retornamos la vista del formulario de creación
-    return view('sucursales.create');
-}
+    {
+        // Simplemente retornamos la vista del formulario de creación
+        return view('sucursales.create');
+    }
 
     /**
      * Store a newly created resource in storage.
@@ -89,9 +89,6 @@ class SucursalController extends Controller
     }
 
     /**
-     * Remove the specified resource from storage.
-     */
-/**
      * Remove the specified resource from storage.
      */
     public function destroy(Sucursal $sucursale)

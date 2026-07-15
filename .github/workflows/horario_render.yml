@@ -1,0 +1,44 @@
+name: Horario de Operacion Sistema Render
+
+on:
+  schedule:
+    # ENCENDER: Lunes a Sábado a las 8:00 AM (Hora CDMX). 
+    # En tiempo universal (UTC) las 8:00 AM de México son las 14:00 horas.
+    - cron: '0 14 * * 1-6'
+    
+    # APAGAR: Lunes a Sábado a las 6:00 PM (Hora CDMX).
+    # Las 6 PM de México son las 00:00 horas UTC del DÍA SIGUIENTE.
+    # Por lo tanto, se ejecuta de Martes(2) a Domingo(0).
+    - cron: '0 0 * * 0,2-6'
+    
+  # Esto nos permite probar el botón manualmente desde la web de GitHub
+  workflow_dispatch:
+    inputs:
+      accion:
+        description: 'Accion manual a realizar'
+        required: true
+        default: 'resume'
+        type: choice
+        options:
+          - resume
+          - suspend
+
+jobs:
+  gestionar_servidor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ejecutar Acción en la API de Render
+        run: |
+          # Por defecto asumimos que vamos a encender (resume)
+          ACCION="resume"
+          
+          # Si el reloj detecta que son las 00:00 UTC (6 PM México) o seleccionaste suspender manual:
+          if [ "${{ github.event.schedule }}" == "0 0 * * 0,2-6" ] || [ "${{ github.event.inputs.accion }}" == "suspend" ]; then
+            ACCION="suspend"
+          fi
+          
+          echo "Ejecutando orden de: $ACCION para el servidor..."
+          
+          curl -X POST "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/$ACCION" \
+          -H "Accept: application/json" \
+          -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}"
