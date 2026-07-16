@@ -57,7 +57,6 @@ class AsistenciaController extends Controller
             if ($id_sucursal_seleccionada === 'todas') {
                 $sucursalSeleccionadaNombre = 'TODAS LAS SUCURSALES';
                 
-                // 🔥 CORRECCIÓN: Ordenamos primero por Sucursal y luego por Nombre
                 $empleadosDeSucursal = Empleado::with('sucursal')
                     ->select('empleados.*')
                     ->join('sucursales', 'empleados.id_sucursal', '=', 'sucursales.id_sucursal')
@@ -97,7 +96,7 @@ class AsistenciaController extends Controller
             'id_empleado' => 'required|exists:empleados,id_empleado',
             'id_sucursal_seleccionada' => 'required', 
             'hora_llegada_manual' => 'nullable|date_format:H:i', 
-            'fecha_registro' => 'nullable|date' // Añadido por si registran retardo de un día anterior en la tabla
+            'fecha_registro' => 'nullable|date' 
         ]);
 
         $empleado = Empleado::with('horario')->find($validatedData['id_empleado']);
@@ -128,22 +127,29 @@ class AsistenciaController extends Controller
         $nombreDia = $mapaDias[$fechaObjetivo->dayOfWeekIso];
 
         $horaLlegadaString = $horaManual ?? Carbon::now()->format('H:i:s');
-        $horaLlegada = Carbon::createFromTimeString($horaLlegadaString);
 
         $esLaborable = $empleado->horario->{$nombreDia};
         $horaEntradaOficialString = $empleado->horario->{$nombreDia.'_entrada'};
 
+        // Si es su día de descanso y viene a trabajar (o lo registran), es Presente sin retardo.
         if (!$esLaborable || !$horaEntradaOficialString) {
             return ['hora_llegada' => $horaLlegadaString, 'status_asistencia' => 'Presente', 'notas_incidencia' => 'Día de descanso (Registro manual)'];
         }
 
         $horario = $empleado->horario;
-        $horaEntradaOficial = Carbon::createFromTimeString($horaEntradaOficialString);
-        $minutosTarde = $horaLlegada->diffInMinutes($horaEntradaOficial, false);
+        
+        // 🔥 CORRECCIÓN DEL CÁLCULO DE MINUTOS 🔥
+        // Unimos la fecha y la hora para hacer una comparación de tiempo absoluta y exacta.
+        $horaLlegada = Carbon::parse($fechaObjetivo->format('Y-m-d') . ' ' . $horaLlegadaString);
+        $horaEntradaOficial = Carbon::parse($fechaObjetivo->format('Y-m-d') . ' ' . $horaEntradaOficialString);
+
+        // Invertimos la resta: (Llegada - Oficial). Si llega tarde, sale positivo. Si llega temprano, sale negativo.
+        $minutosTarde = $horaEntradaOficial->diffInMinutes($horaLlegada, false);
 
         // Validar tolerancia simple
         $tolerancia = $horario->aplicar_reglas_avanzadas ? ($horario->tolerancia_minutos ?? 0) : 0;
 
+        // Si los minutos de retraso son menores o iguales a la tolerancia (o llegó temprano = negativo)
         if ($minutosTarde <= $tolerancia) {
             return ['hora_llegada' => $horaLlegadaString, 'status_asistencia' => 'Presente', 'notas_incidencia' => null];
         }
