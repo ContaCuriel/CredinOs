@@ -74,12 +74,19 @@
 
                     @if(isset($empleadosDeSucursal) && $empleadosDeSucursal->isNotEmpty() && isset($fechasDelPeriodo) && $fechasDelPeriodo->isNotEmpty())
                         
-                        {{-- 💡 AJUSTE DE ESPACIO Y SCROLL: Se quitó el max-height para evitar el doble scroll --}}
                         <div class="table-responsive shadow-sm mx-auto" style="border-radius: 8px; max-width: {{ $tipoPeriodo == 'dia' ? '750px' : '100%' }};">
                             <table class="table table-bordered table-sm text-center align-middle mb-0 bg-white">
                                 <thead class="table-dark" style="position: sticky; top: 0; z-index: 3;">
                                     <tr>
-                                        <th style="min-width: 200px; text-align: left; position: sticky; left: 0; z-index: 4; background-color: #343a40;">Empleado</th>
+                                        <th style="min-width: 200px; text-align: left; position: sticky; left: 0; z-index: 4; background-color: #343a40;">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span>Empleado</span>
+                                                {{-- 💡 Botón para restaurar los empleados ocultos (se muestra por JS si hay ocultos) --}}
+                                                <button id="btn-mostrar-ocultos" class="btn btn-outline-info btn-sm py-0 d-none" onclick="mostrarOcultos()" title="Restaurar empleados ocultos" style="font-size: 0.7rem;">
+                                                    <i class="bi bi-eye"></i> Mostrar ocultos
+                                                </button>
+                                            </div>
+                                        </th>
                                         @foreach ($fechasDelPeriodo as $fecha)
                                             <th class="{{ $fecha->isToday() ? 'bg-primary' : '' }}" style="min-width: 120px;">
                                                 {{ $fecha->translatedFormat('D d') }}
@@ -89,10 +96,12 @@
                                 </thead>
                                 <tbody>
                                     @foreach ($empleadosDeSucursal as $empleado)
-                                        <tr>
+                                        <tr id="row_emp_{{ $empleado->id_empleado }}" class="empleado-row" data-id="{{ $empleado->id_empleado }}">
                                             <td class="align-middle" style="text-align: left; position: sticky; left: 0; background-color: #f8f9fa; z-index: 1; border-right: 2px solid #dee2e6;">
-                                                {{-- 💡 Sucursal ahora a la derecha del nombre --}}
                                                 <div class="d-flex align-items-center">
+                                                    {{-- 💡 Botón de ocultar (Ojito tachado) --}}
+                                                    <i class="bi bi-eye-slash text-muted me-2" style="cursor: pointer; font-size: 0.9rem;" onclick="ocultarEmpleado({{ $empleado->id_empleado }})" title="Ocultar de esta lista"></i>
+                                                    
                                                     <span class="fw-bold text-dark me-2">{{ $empleado->nombre_completo }}</span>
                                                     @if($id_sucursal_seleccionada === 'todas')
                                                         <span class="badge bg-secondary" style="font-size: 0.65em; white-space: nowrap;">
@@ -145,7 +154,7 @@
 
                                                     {{-- MODO EDICIÓN DIRECTO EN CELDA --}}
                                                     <div class="edit-mode d-none">
-                                                        <form method="POST" action="{{ route('asistencia.registrarEntrada') }}" class="d-flex flex-column">
+                                                        <form method="POST" action="{{ route('asistencia.registrarEntrada') }}" class="d-flex flex-column" onsubmit="prepararHoraAntesDeEnviar(this)">
                                                             @csrf
                                                             <input type="hidden" name="id_empleado" value="{{ $empleado->id_empleado }}">
                                                             <input type="hidden" name="fecha_registro" value="{{ $fechaString }}">
@@ -158,7 +167,8 @@
                                                                 <option value="Incidencia" {{ $estadoActualForm == 'Incidencia' ? 'selected' : '' }}>Incidencia</option>
                                                             </select>
 
-                                                            <input type="time" name="hora_llegada_manual" class="form-control form-control-sm mb-1 text-center input-hora" style="font-size: 0.8rem; padding: 0px;" value="{{ $asistenciaDia && $asistenciaDia->hora_llegada ? \Carbon\Carbon::parse($asistenciaDia->hora_llegada)->format('H:i') : '' }}">
+                                                            {{-- 💡 MAGIA: Cambiamos "time" por "text" con formateador automático --}}
+                                                            <input type="text" name="hora_llegada_manual" class="form-control form-control-sm mb-1 text-center input-hora" style="font-size: 0.8rem; padding: 0px;" placeholder="HH:MM" maxlength="5" oninput="formatearHoraAuto(this)" value="{{ $asistenciaDia && $asistenciaDia->hora_llegada ? \Carbon\Carbon::parse($asistenciaDia->hora_llegada)->format('H:i') : '' }}">
 
                                                             <input type="text" name="notas_incidencia" class="form-control form-control-sm mb-1 input-notas text-center" style="font-size: 0.75rem; padding: 1px;" placeholder="¿Qué pasó? (Ej. Accidente)" value="{{ $asistenciaDia && $asistenciaDia->status_asistencia == 'Incidencia' ? $asistenciaDia->notas_incidencia : '' }}">
 
@@ -188,6 +198,7 @@
 
     @push('scripts')
         <script>
+        // === LÓGICA DE EDICIÓN EN CELDA ===
         function activarEdicion(divVista) {
             document.querySelectorAll('.edit-mode').forEach(el => el.classList.add('d-none'));
             document.querySelectorAll('.display-mode').forEach(el => el.classList.remove('d-none'));
@@ -199,6 +210,9 @@
             
             let select = editMode.querySelector('select');
             manejarCambioEstado(select);
+            
+            // Foco automático en el campo de hora
+            setTimeout(() => editMode.querySelector('.input-hora').focus(), 50);
         }
 
         function cancelarEdicion(btnCancelar) {
@@ -227,6 +241,83 @@
                 inputHora.required = false;
                 inputNotas.style.setProperty('display', 'none', 'important');
                 inputNotas.required = false;
+            }
+        }
+
+        // === MAGIA DEL TEXTO DE HORA (Evita el AM/PM del Navegador) ===
+        function formatearHoraAuto(input) {
+            // Eliminar todo lo que no sea número
+            let valor = input.value.replace(/\D/g, '');
+            
+            // Si tiene más de 2 números, le ponemos los ":" en medio
+            if (valor.length > 2) {
+                valor = valor.substring(0, 2) + ':' + valor.substring(2, 4);
+            }
+            input.value = valor;
+        }
+
+        function prepararHoraAntesDeEnviar(form) {
+            let inputHora = form.querySelector('.input-hora');
+            // Si el usuario capturó hora, asegurarnos de que tenga formato HH:mm
+            if (inputHora.value && inputHora.value.length === 5) {
+                // El backend de Laravel lo recibirá perfecto
+            } else if(inputHora.required && inputHora.value.length < 5) {
+                alert("Por favor captura la hora en formato 24 horas (ej. 08:30)");
+                event.preventDefault();
+            }
+        }
+
+        // === LÓGICA DE OCULTAR / MOSTRAR EMPLEADOS (Persistente con LocalStorage) ===
+        const storageKey = 'empleados_ocultos_asistencia';
+
+        document.addEventListener('DOMContentLoaded', function () {
+            // Cargar estado inicial de empleados ocultos
+            initOcultos();
+        });
+
+        function initOcultos() {
+            let ocultos = JSON.parse(localStorage.getItem(storageKey)) || [];
+            let count = 0;
+            document.querySelectorAll('.empleado-row').forEach(row => {
+                let id = parseInt(row.getAttribute('data-id'));
+                if (ocultos.includes(id)) {
+                    row.classList.add('d-none');
+                    count++;
+                }
+            });
+            actualizarBotonOcultos(count);
+        }
+
+        function ocultarEmpleado(id) {
+            let ocultos = JSON.parse(localStorage.getItem(storageKey)) || [];
+            if (!ocultos.includes(id)) {
+                ocultos.push(id);
+                localStorage.setItem(storageKey, JSON.stringify(ocultos));
+            }
+            let row = document.getElementById('row_emp_' + id);
+            if (row) {
+                row.classList.add('d-none');
+            }
+            
+            let count = document.querySelectorAll('.empleado-row.d-none').length;
+            actualizarBotonOcultos(count);
+        }
+
+        function mostrarOcultos() {
+            localStorage.removeItem(storageKey);
+            document.querySelectorAll('.empleado-row').forEach(row => {
+                row.classList.remove('d-none');
+            });
+            actualizarBotonOcultos(0);
+        }
+
+        function actualizarBotonOcultos(count) {
+            let btn = document.getElementById('btn-mostrar-ocultos');
+            if (count > 0) {
+                btn.classList.remove('d-none');
+                btn.innerHTML = `<i class="bi bi-eye"></i> Mostrar ${count} ocultos`;
+            } else {
+                btn.classList.add('d-none');
             }
         }
         </script>
