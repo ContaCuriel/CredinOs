@@ -2,16 +2,16 @@ name: Horario de Operacion Sistema Render
 
 on:
   schedule:
-    # ENCENDER: Lunes a Sábado a las 8:00 AM (Hora CDMX). 
-    # En tiempo universal (UTC) las 8:00 AM de México son las 14:00 horas.
-    - cron: '0 14 * * 1-6'
+    # ENCENDER: Lunes a Sábado a las 8:15 AM (Hora CDMX). 
+    # En UTC son las 14:15 horas.
+    - cron: '15 14 * * 1-6'
     
-    # APAGAR: Lunes a Sábado a las 6:00 PM (Hora CDMX).
-    # Las 6 PM de México son las 00:00 horas UTC del DÍA SIGUIENTE.
-    # Por lo tanto, se ejecuta de Martes(2) a Domingo(0).
-    - cron: '0 0 * * 0,2-6'
+    # APAGAR: Lunes a Sábado a las 6:15 PM (Hora CDMX).
+    # En UTC son las 00:15 horas del DÍA SIGUIENTE.
+    # Se ejecuta de Martes(2) a Domingo(0).
+    - cron: '15 0 * * 0,2-6'
     
-  # Esto nos permite probar el botón manualmente desde la web de GitHub
+  # Botón manual de emergencia
   workflow_dispatch:
     inputs:
       accion:
@@ -29,11 +29,11 @@ jobs:
     steps:
       - name: Ejecutar Acción en la API de Render
         run: |
-          # Por defecto asumimos que vamos a encender (resume)
+          # Por defecto es encender
           ACCION="resume"
           
-          # Si el reloj detecta que son las 00:00 UTC (6 PM México) o seleccionaste suspender manual:
-          if [ "${{ github.event.schedule }}" == "0 0 * * 0,2-6" ] || [ "${{ github.event.inputs.accion }}" == "suspend" ]; then
+          # Si el reloj detecta que son las 00:15 UTC (6:15 PM México) o si seleccionaste suspender manual:
+          if [ "${{ github.event.schedule }}" == "15 0 * * 0,2-6" ] || [ "${{ github.event.inputs.accion }}" == "suspend" ]; then
             ACCION="suspend"
           fi
           
