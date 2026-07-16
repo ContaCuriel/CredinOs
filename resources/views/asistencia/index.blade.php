@@ -74,8 +74,8 @@
 
                     @if(isset($empleadosDeSucursal) && $empleadosDeSucursal->isNotEmpty() && isset($fechasDelPeriodo) && $fechasDelPeriodo->isNotEmpty())
                         
-                        {{-- 💡 AJUSTE DE ESPACIO: Si es vista diaria, comprimimos la tabla al centro para acercar los nombres --}}
-                        <div class="table-responsive shadow-sm mx-auto" style="border-radius: 8px; max-height: 70vh; max-width: {{ $tipoPeriodo == 'dia' ? '750px' : '100%' }};">
+                        {{-- 💡 AJUSTE DE ESPACIO Y SCROLL: Se quitó el max-height para evitar el doble scroll --}}
+                        <div class="table-responsive shadow-sm mx-auto" style="border-radius: 8px; max-width: {{ $tipoPeriodo == 'dia' ? '750px' : '100%' }};">
                             <table class="table table-bordered table-sm text-center align-middle mb-0 bg-white">
                                 <thead class="table-dark" style="position: sticky; top: 0; z-index: 3;">
                                     <tr>
@@ -90,13 +90,16 @@
                                 <tbody>
                                     @foreach ($empleadosDeSucursal as $empleado)
                                         <tr>
-                                            <td style="text-align: left; position: sticky; left: 0; background-color: #f8f9fa; z-index: 1; border-right: 2px solid #dee2e6;">
-                                                <div class="fw-bold text-dark" style="font-size: 0.9rem;">{{ $empleado->nombre_completo }}</div>
-                                                @if($id_sucursal_seleccionada === 'todas')
-                                                    <span class="badge bg-secondary" style="font-size: 0.65em;">
-                                                        <i class="bi bi-shop"></i> {{ $empleado->sucursal->nombre_sucursal ?? 'Sin Sucursal' }}
-                                                    </span>
-                                                @endif
+                                            <td class="align-middle" style="text-align: left; position: sticky; left: 0; background-color: #f8f9fa; z-index: 1; border-right: 2px solid #dee2e6;">
+                                                {{-- 💡 Sucursal ahora a la derecha del nombre --}}
+                                                <div class="d-flex align-items-center">
+                                                    <span class="fw-bold text-dark me-2">{{ $empleado->nombre_completo }}</span>
+                                                    @if($id_sucursal_seleccionada === 'todas')
+                                                        <span class="badge bg-secondary" style="font-size: 0.65em; white-space: nowrap;">
+                                                            <i class="bi bi-shop"></i> {{ $empleado->sucursal->nombre_sucursal ?? 'Sin Sucursal' }}
+                                                        </span>
+                                                    @endif
+                                                </div>
                                             </td>
                                             @foreach ($fechasDelPeriodo as $fecha)
                                                 @php
@@ -114,24 +117,22 @@
                                                     }
                                                     $estadoActualForm = $asistenciaDia ? ($asistenciaDia->status_asistencia == 'Retardo' ? 'Presente' : $asistenciaDia->status_asistencia) : 'Presente';
                                                 @endphp
-                                                <td class="p-1 {{ $claseFondo }}" style="height: 65px;">
+                                                <td class="p-2 {{ $claseFondo }}">
                                                     
-                                                    {{-- MODO VISTA (Click para abrir controles rápidos) --}}
-                                                    <div class="display-mode w-100 h-100 d-flex align-items-center justify-content-center px-1" style="cursor: pointer;" onclick="activarEdicion(this)">
+                                                    {{-- MODO VISTA --}}
+                                                    <div class="display-mode w-100 h-100 d-flex align-items-center justify-content-center" style="cursor: pointer;" onclick="activarEdicion(this)">
                                                         @if ($asistenciaDia)
-                                                            <div class="w-100 font-monospace fw-bold" style="font-size: 0.85rem;">
+                                                            <div class="w-100 fw-bold" style="font-size: 0.9rem;">
                                                                 @if (in_array($asistenciaDia->status_asistencia, ['Presente', 'Retardo']))
-                                                                    {{-- Muestra la hora limpia en formato 24h sin AM/PM --}}
                                                                     <span class="text-{{ $asistenciaDia->status_asistencia == 'Retardo' ? 'warning-emphasis' : 'success' }}">
                                                                         {{ \Carbon\Carbon::parse($asistenciaDia->hora_llegada)->format('H:i') }}
                                                                     </span>
-                                                                    @if($asistenciaDia->status_asistencia == 'Retardo') / Retardo @endif
+                                                                    @if($asistenciaDia->status_asistencia == 'Retardo') <span class="text-warning-emphasis">/ Retardo</span> @endif
                                                                 @elseif ($asistenciaDia->status_asistencia == 'Falta')
                                                                     <span class="text-danger">FALTA</span>
                                                                 @elseif ($asistenciaDia->status_asistencia == 'Baja_Dia')
-                                                                    <span class="text-muted">BAJA</span>
+                                                                    <span class="text-muted">BAJA DÍA</span>
                                                                 @elseif ($asistenciaDia->status_asistencia == 'Incidencia')
-                                                                    {{-- Muestra Hora + Incidencia simultáneamente si ambas existen --}}
                                                                     <span class="text-info-emphasis">
                                                                         @if($asistenciaDia->hora_llegada) {{ \Carbon\Carbon::parse($asistenciaDia->hora_llegada)->format('H:i') }} / @endif {{ $asistenciaDia->notas_incidencia ?: 'INCIDENCIA' }}
                                                                     </span>
@@ -142,7 +143,7 @@
                                                         @endif
                                                     </div>
 
-                                                    {{-- MODO EDICIÓN DIRECTO EN CELDA (Sin ventanas emergentes) --}}
+                                                    {{-- MODO EDICIÓN DIRECTO EN CELDA --}}
                                                     <div class="edit-mode d-none">
                                                         <form method="POST" action="{{ route('asistencia.registrarEntrada') }}" class="d-flex flex-column">
                                                             @csrf
@@ -150,22 +151,20 @@
                                                             <input type="hidden" name="fecha_registro" value="{{ $fechaString }}">
                                                             <input type="hidden" name="id_sucursal_seleccionada" value="{{ $id_sucursal_seleccionada }}">
 
-                                                            <select name="status_asistencia" class="form-select form-select-sm mb-1 text-center fw-bold bg-white" style="font-size: 0.7rem; padding: 0px 2px;" onchange="manejarCambioEstado(this)">
+                                                            <select name="status_asistencia" class="form-select form-select-sm mb-1 text-center fw-bold bg-white" style="font-size: 0.75rem; padding: 0px 2px;" onchange="manejarCambioEstado(this)">
                                                                 <option value="Presente" {{ $estadoActualForm == 'Presente' ? 'selected' : '' }}>Asistencia</option>
                                                                 <option value="Falta" {{ $estadoActualForm == 'Falta' ? 'selected' : '' }}>Falta</option>
                                                                 <option value="Baja_Dia" {{ $estadoActualForm == 'Baja_Dia' ? 'selected' : '' }}>Baja Día</option>
                                                                 <option value="Incidencia" {{ $estadoActualForm == 'Incidencia' ? 'selected' : '' }}>Incidencia</option>
                                                             </select>
 
-                                                            {{-- Campo hora: Visible en Asistencia e Incidencias --}}
-                                                            <input type="time" name="hora_llegada_manual" class="form-control form-control-sm mb-1 text-center input-hora" style="font-size: 0.75rem; padding: 0px;" value="{{ $asistenciaDia && $asistenciaDia->hora_llegada ? \Carbon\Carbon::parse($asistenciaDia->hora_llegada)->format('H:i') : '' }}">
+                                                            <input type="time" name="hora_llegada_manual" class="form-control form-control-sm mb-1 text-center input-hora" style="font-size: 0.8rem; padding: 0px;" value="{{ $asistenciaDia && $asistenciaDia->hora_llegada ? \Carbon\Carbon::parse($asistenciaDia->hora_llegada)->format('H:i') : '' }}">
 
-                                                            {{-- Campo Nota Incidencia --}}
-                                                            <input type="text" name="notas_incidencia" class="form-control form-control-sm mb-1 input-notas text-center" style="font-size: 0.7rem; padding: 1px;" placeholder="¿Qué pasó? (Ej. Accidente)" value="{{ $asistenciaDia && $asistenciaDia->status_asistencia == 'Incidencia' ? $asistenciaDia->notas_incidencia : '' }}">
+                                                            <input type="text" name="notas_incidencia" class="form-control form-control-sm mb-1 input-notas text-center" style="font-size: 0.75rem; padding: 1px;" placeholder="¿Qué pasó? (Ej. Accidente)" value="{{ $asistenciaDia && $asistenciaDia->status_asistencia == 'Incidencia' ? $asistenciaDia->notas_incidencia : '' }}">
 
                                                             <div class="d-flex gap-1 justify-content-center">
-                                                                <button type="submit" class="btn btn-success btn-sm py-0 px-2" title="Guardar"><i class="bi bi-check-lg" style="font-size: 0.7rem;"></i></button>
-                                                                <button type="button" class="btn btn-secondary btn-sm py-0 px-2" title="Cancelar" onclick="cancelarEdicion(this)"><i class="bi bi-x-lg" style="font-size: 0.7rem;"></i></button>
+                                                                <button type="submit" class="btn btn-success btn-sm py-0 px-2" title="Guardar"><i class="bi bi-check-lg" style="font-size: 0.8rem;"></i></button>
+                                                                <button type="button" class="btn btn-secondary btn-sm py-0 px-2" title="Cancelar" onclick="cancelarEdicion(this)"><i class="bi bi-x-lg" style="font-size: 0.8rem;"></i></button>
                                                             </div>
                                                         </form>
                                                     </div>
@@ -189,7 +188,6 @@
 
     @push('scripts')
         <script>
-        // Lógica de activación dinámica en celda
         function activarEdicion(divVista) {
             document.querySelectorAll('.edit-mode').forEach(el => el.classList.add('d-none'));
             document.querySelectorAll('.display-mode').forEach(el => el.classList.remove('d-none'));
@@ -220,13 +218,11 @@
                 inputNotas.style.setProperty('display', 'none', 'important');
                 inputNotas.required = false;
             } else if (selectElement.value === 'Incidencia') {
-                // 🔥 EN MODO INCIDENCIA SE QUEDAN VISIBLES AMBOS INPUTS (HORA + NOTA)
                 inputHora.style.setProperty('display', 'block', 'important');
-                inputHora.required = false; // Opcional por si no hay hora exacta
+                inputHora.required = false; 
                 inputNotas.style.setProperty('display', 'block', 'important');
                 inputNotas.required = true;
             } else {
-                // Falta o Baja del Día ocultan todo
                 inputHora.style.setProperty('display', 'none', 'important');
                 inputHora.required = false;
                 inputNotas.style.setProperty('display', 'none', 'important');
