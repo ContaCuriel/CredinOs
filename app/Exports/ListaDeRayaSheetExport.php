@@ -14,6 +14,8 @@ use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+// 🔥 LA LLAVE MAESTRA QUE OBLIGA A LARAVEL A RESPETAR LOS CEROS 🔥
+use Maatwebsite\Excel\Concerns\WithStrictNullComparison; 
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
@@ -23,7 +25,8 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 
-class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMapping, ShouldAutoSize, WithTitle, WithEvents, WithColumnFormatting
+// Agregamos WithStrictNullComparison a la lista de implementaciones
+class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMapping, ShouldAutoSize, WithTitle, WithEvents, WithColumnFormatting, WithStrictNullComparison
 {
     protected string $periodo;
     protected int $sucursal_id;
@@ -125,21 +128,21 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                 'empleado_nombre' => strtoupper($empleado->nombre_completo),
                 'fecha_ingreso' => $empleado->fecha_ingreso,
                 'puesto' => $empleado->puesto ? $empleado->puesto->nombre_puesto : 'N/A',
-                'sueldo_quincenal' => (float)$sueldoQuincenalBruto, 
-                'bono_permanencia' => (float)$bonoPermanencia, 
-                'bono_cumpleanos' => (float)$bonoCumpleanos,
-                'prima_vacacional' => (float)$primaVacacional, 
-                'total_percepciones' => (float)$totalPercepciones, 
-                'deduccion_faltas' => (float)$deduccionFaltas,
-                'deduccion_prestamo' => (float)$deduccionPrestamo, 
-                'deduccion_prevision' => (float)$deduccionPrevision,
-                'deduccion_caja_ahorro' => (float)$deduccionCajaAhorro, 
-                'deduccion_infonavit' => (float)$deduccionInfonavit,
-                'deduccion_isr' => (float)$deduccionISR, 
-                'deduccion_imss' => (float)$deduccionIMSS, 
-                'deduccion_otro' => (float)$deduccionOtro,
-                'total_deducciones' => (float)$totalDeducciones, 
-                'neto_a_pagar' => (float)$netoAPagar,
+                'sueldo_quincenal' => $sueldoQuincenalBruto, 
+                'bono_permanencia' => $bonoPermanencia, 
+                'bono_cumpleanos' => $bonoCumpleanos,
+                'prima_vacacional' => $primaVacacional, 
+                'total_percepciones' => $totalPercepciones, 
+                'deduccion_faltas' => $deduccionFaltas,
+                'deduccion_prestamo' => $deduccionPrestamo, 
+                'deduccion_prevision' => $deduccionPrevision, 
+                'deduccion_caja_ahorro' => $deduccionCajaAhorro, 
+                'deduccion_infonavit' => $deduccionInfonavit,
+                'deduccion_isr' => $deduccionISR, 
+                'deduccion_imss' => $deduccionIMSS, 
+                'deduccion_otro' => $deduccionOtro,
+                'total_deducciones' => $totalDeducciones, 
+                'neto_a_pagar' => $netoAPagar,
             ]);
         }
     }
@@ -170,24 +173,25 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
         $colTotalDeducciones    = "S{$filaActual}";
         $colNeto                = "T{$filaActual}";
 
+        // Aseguramos que se castean a float explícitamente para que Laravel no pierda el número
         return [
             $filaResultado['empleado_nombre'],
             $filaResultado['fecha_ingreso'] ? Carbon::parse($filaResultado['fecha_ingreso'])->format('d/m/Y') : 'N/A',
             $filaResultado['puesto'],
             '', '', // Columnas D y E
-            $filaResultado['sueldo_quincenal'],      // F
-            $filaResultado['bono_permanencia'],      // G
-            $filaResultado['bono_cumpleanos'],       // H
-            $filaResultado['prima_vacacional'],      // I
+            (float) $filaResultado['sueldo_quincenal'],      // F
+            (float) $filaResultado['bono_permanencia'],      // G
+            (float) $filaResultado['bono_cumpleanos'],       // H
+            (float) $filaResultado['prima_vacacional'],      // I
             "=SUM({$rangoPercepciones})",                      // J
-            $filaResultado['deduccion_faltas'],      // K
-            $filaResultado['deduccion_prestamo'],    // L
-            $filaResultado['deduccion_prevision'],   // M 
-            $filaResultado['deduccion_caja_ahorro'], // N
-            $filaResultado['deduccion_infonavit'],   // O
-            $filaResultado['deduccion_isr'],         // P
-            $filaResultado['deduccion_imss'],        // Q
-            $filaResultado['deduccion_otro'],        // R
+            (float) $filaResultado['deduccion_faltas'],      // K
+            (float) $filaResultado['deduccion_prestamo'],    // L
+            (float) $filaResultado['deduccion_prevision'],   // M 
+            (float) $filaResultado['deduccion_caja_ahorro'], // N
+            (float) $filaResultado['deduccion_infonavit'],   // O
+            (float) $filaResultado['deduccion_isr'],         // P
+            (float) $filaResultado['deduccion_imss'],        // Q
+            (float) $filaResultado['deduccion_otro'],        // R
             "=SUM({$rangoDeducciones})",                      // S
             "={$colTotalPercepciones}-{$colTotalDeducciones}", // T
         ];
@@ -195,10 +199,10 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
 
     public function columnFormats(): array
     {
-        // FORMATO SIMPLE: Al no tener reglas para negativos/ceros, 
-        // Excel se ve obligado a imprimir el 0 como $ 0.00
+        // Un formato blindado de 3 partes que exige imprimir los ceros
+        $formatoEstrictoCeros = '"$" #,##0.00;[Red]-"$" #,##0.00;"$" 0.00';
         return [
-            'F:T' => '$ #,##0.00',
+            'F:T' => $formatoEstrictoCeros,
             'B' => NumberFormat::FORMAT_DATE_DDMMYYYY 
         ];
     }
@@ -208,6 +212,9 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
         return [
             AfterSheet::class => function(AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
+                
+                // Forzamos a nivel hoja que se muestren los ceros
+                $sheet->getSheetView()->setShowZeros(true);
                 
                 $sheet->insertNewRowBefore(1, 1);
                 $tituloCompleto = 'NÓMINA ' . $this->periodoTexto;
@@ -231,6 +238,7 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
 
                 if ($this->resultados->count() > 0) {
                     $lastDataRow = $this->resultados->count() + 2;
+                    
                     $sheet->getStyle('A2:'.$lastColumn . $lastDataRow)->applyFromArray([
                         'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
                     ]);
@@ -248,11 +256,10 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                         'borders' => ['top' => ['borderStyle' => Border::BORDER_THICK]]
                     ]);
                     
-                    // Aplicamos el formato simple también a los totales
                     $sheet->getStyle("F{$totalsRow}:{$lastColumn}{$totalsRow}")->getNumberFormat()
-                          ->setFormatCode('$ #,##0.00');
+                          ->setFormatCode('"$" #,##0.00;[Red]-"$" #,##0.00;"$" 0.00');
                     
-                    // RESTAURAMOS TU FUNCIÓN PARA OCULTAR COLUMNAS EN CERO
+                    // TU CÓDIGO ORIGINAL INTACTO PARA OCULTAR COLUMNAS
                     $columnsToCheck = [
                         'G' => 'Bono Permanencia', 'H' => 'Bono Cumpleaños', 'I' => 'Prima Vacacional',
                         'K' => 'Ded. Faltas', 'L' => 'Ded. Préstamo', 'M' => 'Ded. Previsión', 'N' => 'Ded. Caja Ahorro',
@@ -265,7 +272,6 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                             $event->sheet->getColumnDimension($columnLetter)->setVisible(false);
                         }
                     }
-                    
                 }
             },
         ];
