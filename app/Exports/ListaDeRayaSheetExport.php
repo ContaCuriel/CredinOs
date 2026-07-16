@@ -233,6 +233,13 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                         'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
                     ]);
 
+                    // =========================================================
+                    // 🔥 REGLA MÁGICA 4: FORZAR CEROS EN EL CUERPO DE LA TABLA 🔥
+                    // =========================================================
+                    $sheet->getStyle("F3:{$lastColumn}{$lastDataRow}")->getNumberFormat()
+                          ->setFormatCode('"$" #,##0.00;[Red]-"$" #,##0.00;"$" 0.00');
+                    // =========================================================
+
                     $totalsRow = $lastDataRow + 2;
                     $sheet->setCellValue("A{$totalsRow}", 'TOTALES:');
 
