@@ -12,6 +12,9 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class AsistenciaController extends Controller
 {
+    /**
+     * Muestra la página principal de registro de asistencia (POR PERIODO / DÍA).
+     */
     public function index(Request $request)
     {
         $sucursales = Sucursal::where('status', 'Activa')->orderBy('nombre_sucursal')->get();
@@ -81,7 +84,7 @@ class AsistenciaController extends Controller
     }
 
     /**
-     * Guardador Universal (Registro Directo en Celda)
+     * Guardador Universal Inteligente (Celda Directa)
      */
     public function registrarEntrada(Request $request)
     {
@@ -105,7 +108,6 @@ class AsistenciaController extends Controller
         $hora = null;
         $notas = $validatedData['notas_incidencia'] ?? null;
 
-        // Si se eligió capturar hora, evaluamos si es Presente o Retardo
         if ($status === 'Presente') {
             if (empty($validatedData['hora_llegada_manual'])) {
                 return back()->with('error', 'Debe ingresar la hora de llegada.');
@@ -113,10 +115,12 @@ class AsistenciaController extends Controller
             $calculo = $this->determinarEstatusAsistencia($empleado, $validatedData['hora_llegada_manual'], $fechaRegistro);
             $status = $calculo['status_asistencia'];
             $hora = $calculo['hora_llegada'];
-            // Si no escribieron nota manual, ponemos la generada por el sistema (ej. Retardo de 15 min)
             if (empty($notas)) {
                 $notas = $calculo['notas_incidencia'];
             }
+        } elseif ($status === 'Incidencia') {
+            // 🔥 PERMITE HORA + INCIDENCIA AL MISMO TIEMPO
+            $hora = $validatedData['hora_llegada_manual'] ?? null;
         }
 
         Asistencia::updateOrCreate(
@@ -128,7 +132,7 @@ class AsistenciaController extends Controller
             ]
         );
 
-        return back()->with('success', 'Registro guardado exitosamente: ' . $status);
+        return back()->with('success', 'Registro actualizado correctamente.');
     }
 
     private function determinarEstatusAsistencia(Empleado $empleado, string $horaManual, string $fecha): array
@@ -147,23 +151,19 @@ class AsistenciaController extends Controller
         $horaLlegada = Carbon::parse($fechaObjetivo->format('Y-m-d') . ' ' . $horaManual);
         $horaEntradaOficial = Carbon::parse($fechaObjetivo->format('Y-m-d') . ' ' . $horaEntradaOficialString);
 
-        // CÁLCULO INFALIBLE: 
-        // Si llegó antes o a la hora en punto, los minutos tarde son 0.
         if ($horaLlegada->lessThanOrEqualTo($horaEntradaOficial)) {
             $minutosTarde = 0;
         } else {
-            // Si llegó después, calculamos la diferencia absoluta (positiva) en minutos.
             $minutosTarde = $horaEntradaOficial->diffInMinutes($horaLlegada);
         }
 
-        // Leemos directamente los minutos de tolerancia de la base de datos forzándolo a Entero
         $tolerancia = (int) ($empleado->horario->tolerancia_minutos ?? 0);
 
         if ($minutosTarde <= $tolerancia) {
             return ['hora_llegada' => $horaManual, 'status_asistencia' => 'Presente', 'notas_incidencia' => null];
         }
 
-        return ['hora_llegada' => $horaManual, 'status_asistencia' => 'Retardo', 'notas_incidencia' => "Retardo de {$minutosTarde} minutos."];
+        return ['hora_llegada' => $horaManual, 'status_asistencia' => 'Retardo', 'notas_incidencia' => "Retardo de {$minutosTarde} min."];
     }
 
     public function resumenIncidencias(Request $request)
