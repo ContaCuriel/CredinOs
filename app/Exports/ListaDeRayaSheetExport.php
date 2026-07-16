@@ -189,7 +189,7 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
 
     public function columnFormats(): array
     {
-        // Aplicamos el formato estricto a las columnas, por si Excel lo respeta de entrada.
+        // Aplicamos el formato estricto a las columnas
         $formatoEstrictoCeros = '"$" #,##0.00;[Red]-"$" #,##0.00;"$" 0.00';
         return [
             'F:T' => $formatoEstrictoCeros,
@@ -203,8 +203,8 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             AfterSheet::class => function(AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
                 
-                // 🔥 SOLUCIÓN PRO: Obligamos a Excel a NO ocultar los ceros a nivel sistema
-                $sheet->setShowZeros(true);
+                // 🔥 SOLUCIÓN PRO (CORREGIDA): Obligamos a Excel a NO ocultar los ceros (A través del SheetView)
+                $sheet->getSheetView()->setShowZeros(true);
 
                 $sheet->insertNewRowBefore(1, 1);
                 $tituloCompleto = 'NÓMINA ' . $this->periodoTexto;
@@ -252,20 +252,6 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                         'borders' => ['top' => ['borderStyle' => Border::BORDER_THICK]]
                     ]);
                     
-                    // El código para ocultar columnas está intencionalmente comentado para que veas los ceros.
-                    /* $columnsToCheck = [
-                        'G' => 'Bono Permanencia', 'H' => 'Bono Cumpleaños', 'I' => 'Prima Vacacional',
-                        'K' => 'Ded. Faltas', 'L' => 'Ded. Préstamo', 'M' => 'Ded. Previsión', 'N' => 'Ded. Caja Ahorro',
-                        'O' => 'Ded. Infonavit', 'P' => 'Ded. ISR', 'Q' => 'Ded. IMSS', 'R' => 'Ded. Otros'
-                    ];
-
-                    foreach ($columnsToCheck as $columnLetter => $columnName) {
-                        $totalValue = $sheet->getCell("{$columnLetter}{$totalsRow}")->getCalculatedValue();
-                        if (is_numeric($totalValue) && abs($totalValue) < 0.01) {
-                            $event->sheet->getColumnDimension($columnLetter)->setVisible(false);
-                        }
-                    }
-                    */
                 }
             },
         ];
