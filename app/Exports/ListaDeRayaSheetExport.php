@@ -14,7 +14,6 @@ use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithColumnFormatting;
-// 🔥 LA LLAVE MAESTRA QUE OBLIGA A LARAVEL A RESPETAR LOS CEROS 🔥
 use Maatwebsite\Excel\Concerns\WithStrictNullComparison; 
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
@@ -25,7 +24,6 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 
-// Agregamos WithStrictNullComparison a la lista de implementaciones
 class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMapping, ShouldAutoSize, WithTitle, WithEvents, WithColumnFormatting, WithStrictNullComparison
 {
     protected string $periodo;
@@ -128,21 +126,21 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                 'empleado_nombre' => strtoupper($empleado->nombre_completo),
                 'fecha_ingreso' => $empleado->fecha_ingreso,
                 'puesto' => $empleado->puesto ? $empleado->puesto->nombre_puesto : 'N/A',
-                'sueldo_quincenal' => $sueldoQuincenalBruto, 
-                'bono_permanencia' => $bonoPermanencia, 
-                'bono_cumpleanos' => $bonoCumpleanos,
-                'prima_vacacional' => $primaVacacional, 
-                'total_percepciones' => $totalPercepciones, 
-                'deduccion_faltas' => $deduccionFaltas,
-                'deduccion_prestamo' => $deduccionPrestamo, 
-                'deduccion_prevision' => $deduccionPrevision, 
-                'deduccion_caja_ahorro' => $deduccionCajaAhorro, 
-                'deduccion_infonavit' => $deduccionInfonavit,
-                'deduccion_isr' => $deduccionISR, 
-                'deduccion_imss' => $deduccionIMSS, 
-                'deduccion_otro' => $deduccionOtro,
-                'total_deducciones' => $totalDeducciones, 
-                'neto_a_pagar' => $netoAPagar,
+                'sueldo_quincenal' => (float)$sueldoQuincenalBruto, 
+                'bono_permanencia' => (float)$bonoPermanencia, 
+                'bono_cumpleanos' => (float)$bonoCumpleanos,
+                'prima_vacacional' => (float)$primaVacacional, 
+                'total_percepciones' => (float)$totalPercepciones, 
+                'deduccion_faltas' => (float)$deduccionFaltas,
+                'deduccion_prestamo' => (float)$deduccionPrestamo, 
+                'deduccion_prevision' => (float)$deduccionPrevision, 
+                'deduccion_caja_ahorro' => (float)$deduccionCajaAhorro, 
+                'deduccion_infonavit' => (float)$deduccionInfonavit,
+                'deduccion_isr' => (float)$deduccionISR, 
+                'deduccion_imss' => (float)$deduccionIMSS, 
+                'deduccion_otro' => (float)$deduccionOtro,
+                'total_deducciones' => (float)$totalDeducciones, 
+                'neto_a_pagar' => (float)$netoAPagar,
             ]);
         }
     }
@@ -173,12 +171,11 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
         $colTotalDeducciones    = "S{$filaActual}";
         $colNeto                = "T{$filaActual}";
 
-        // Aseguramos que se castean a float explícitamente para que Laravel no pierda el número
         return [
             $filaResultado['empleado_nombre'],
             $filaResultado['fecha_ingreso'] ? Carbon::parse($filaResultado['fecha_ingreso'])->format('d/m/Y') : 'N/A',
             $filaResultado['puesto'],
-            '', '', // Columnas D y E
+            0, 0, // 🔥 AQUI ESTÁ EL CAMBIO: Columnas D y E fijas en cero
             (float) $filaResultado['sueldo_quincenal'],      // F
             (float) $filaResultado['bono_permanencia'],      // G
             (float) $filaResultado['bono_cumpleanos'],       // H
@@ -199,10 +196,8 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
 
     public function columnFormats(): array
     {
-        // Un formato blindado de 3 partes que exige imprimir los ceros
-        $formatoEstrictoCeros = '"$" #,##0.00;[Red]-"$" #,##0.00;"$" 0.00';
         return [
-            'F:T' => $formatoEstrictoCeros,
+            'F:T' => '"$" #,##0.00;[Red]-"$" #,##0.00;"$" 0.00',
             'B' => NumberFormat::FORMAT_DATE_DDMMYYYY 
         ];
     }
@@ -213,7 +208,6 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             AfterSheet::class => function(AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
                 
-                // Forzamos a nivel hoja que se muestren los ceros
                 $sheet->getSheetView()->setShowZeros(true);
                 
                 $sheet->insertNewRowBefore(1, 1);
@@ -243,6 +237,11 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                         'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
                     ]);
 
+                    // 🔥 Centramos los ceros de Retardos(D) y Faltas(E)
+                    $sheet->getStyle("D3:E{$lastDataRow}")->applyFromArray([
+                        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER]
+                    ]);
+
                     $totalsRow = $lastDataRow + 2;
                     $sheet->setCellValue("A{$totalsRow}", 'TOTALES:');
 
@@ -259,7 +258,7 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                     $sheet->getStyle("F{$totalsRow}:{$lastColumn}{$totalsRow}")->getNumberFormat()
                           ->setFormatCode('"$" #,##0.00;[Red]-"$" #,##0.00;"$" 0.00');
                     
-                    // TU CÓDIGO ORIGINAL INTACTO PARA OCULTAR COLUMNAS
+                    // Ocultar columnas sin datos
                     $columnsToCheck = [
                         'G' => 'Bono Permanencia', 'H' => 'Bono Cumpleaños', 'I' => 'Prima Vacacional',
                         'K' => 'Ded. Faltas', 'L' => 'Ded. Préstamo', 'M' => 'Ded. Previsión', 'N' => 'Ded. Caja Ahorro',
