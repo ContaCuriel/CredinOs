@@ -12,10 +12,6 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class AsistenciaController extends Controller
 {
-    /**
-     * Muestra la página principal de registro de asistencia (POR PERIODO).
-     * Reemplaza a la antigua vista diaria.
-     */
     public function index(Request $request)
     {
         $sucursales = Sucursal::where('status', 'Activa')->orderBy('nombre_sucursal')->get();
@@ -24,7 +20,6 @@ class AsistenciaController extends Controller
         $tipoPeriodo = $request->input('tipo_periodo', 'semana');
         $fechaReferencia = Carbon::parse($fechaReferenciaNavegacion);
 
-        // Lógica de cálculo de periodos (Ya incluye la opción 'dia')
         if ($tipoPeriodo == 'semana') {
             $inicioPeriodo = $fechaReferencia->copy()->startOfWeek(Carbon::MONDAY);
             $finPeriodo = $fechaReferencia->copy()->endOfWeek(Carbon::SUNDAY);
@@ -56,7 +51,6 @@ class AsistenciaController extends Controller
         if ($id_sucursal_seleccionada) {
             if ($id_sucursal_seleccionada === 'todas') {
                 $sucursalSeleccionadaNombre = 'TODAS LAS SUCURSALES';
-                
                 $empleadosDeSucursal = Empleado::with('sucursal')
                     ->select('empleados.*')
                     ->join('sucursales', 'empleados.id_sucursal', '=', 'sucursales.id_sucursal')
@@ -64,7 +58,6 @@ class AsistenciaController extends Controller
                     ->orderBy('sucursales.nombre_sucursal', 'asc')
                     ->orderBy('empleados.nombre_completo', 'asc')
                     ->get();
-                    
             } else {
                 $sucursalActual = Sucursal::find($id_sucursal_seleccionada);
                 if ($sucursalActual) $sucursalSeleccionadaNombre = $sucursalActual->nombre_sucursal;
@@ -88,74 +81,89 @@ class AsistenciaController extends Controller
     }
 
     /**
-     * Registra la entrada de un empleado aplicando la regla simple de tolerancia.
+     * Guardador Universal (Registro Directo en Celda)
      */
     public function registrarEntrada(Request $request)
     {
         $validatedData = $request->validate([
             'id_empleado' => 'required|exists:empleados,id_empleado',
             'id_sucursal_seleccionada' => 'required', 
+            'fecha_registro' => 'required|date',
+            'status_asistencia' => 'required|string',
             'hora_llegada_manual' => 'nullable|date_format:H:i', 
-            'fecha_registro' => 'nullable|date' 
+            'notas_incidencia' => 'nullable|string'
         ]);
 
         $empleado = Empleado::with('horario')->find($validatedData['id_empleado']);
-        $fechaRegistro = $validatedData['fecha_registro'] ?? Carbon::today()->toDateString();
+        $fechaRegistro = $validatedData['fecha_registro'];
 
         if (!$empleado || !$empleado->horario) {
             return back()->with('error', 'Error: El empleado no tiene un horario asignado.');
         }
 
-        $datosAsistencia = $this->determinarEstatusAsistencia($empleado, $validatedData['hora_llegada_manual'], $fechaRegistro);
+        $status = $validatedData['status_asistencia'];
+        $hora = null;
+        $notas = $validatedData['notas_incidencia'] ?? null;
+
+        // Si se eligió capturar hora, evaluamos si es Presente o Retardo
+        if ($status === 'Presente') {
+            if (empty($validatedData['hora_llegada_manual'])) {
+                return back()->with('error', 'Debe ingresar la hora de llegada.');
+            }
+            $calculo = $this->determinarEstatusAsistencia($empleado, $validatedData['hora_llegada_manual'], $fechaRegistro);
+            $status = $calculo['status_asistencia'];
+            $hora = $calculo['hora_llegada'];
+            // Si no escribieron nota manual, ponemos la generada por el sistema (ej. Retardo de 15 min)
+            if (empty($notas)) {
+                $notas = $calculo['notas_incidencia'];
+            }
+        }
 
         Asistencia::updateOrCreate(
             ['id_empleado' => $validatedData['id_empleado'], 'fecha' => $fechaRegistro],
-            $datosAsistencia
+            [
+                'status_asistencia' => $status,
+                'hora_llegada' => $hora,
+                'notas_incidencia' => $notas
+            ]
         );
 
-        $mensajeExito = '¡Registro guardado exitosamente! Estatus: ' . $datosAsistencia['status_asistencia'];
-        return back()->with('success', $mensajeExito);
+        return back()->with('success', 'Registro guardado exitosamente: ' . $status);
     }
 
-    /**
-     * Determina el estatus de manera simplificada: Presente o Retardo/Falta.
-     */
-    private function determinarEstatusAsistencia(Empleado $empleado, ?string $horaManual, ?string $fecha = null): array
+    private function determinarEstatusAsistencia(Empleado $empleado, string $horaManual, string $fecha): array
     {
-        $fechaObjetivo = $fecha ? Carbon::parse($fecha) : Carbon::today();
+        $fechaObjetivo = Carbon::parse($fecha);
         $mapaDias = [1 => 'lunes', 2 => 'martes', 3 => 'miercoles', 4 => 'jueves', 5 => 'viernes', 6 => 'sabado', 7 => 'domingo'];
         $nombreDia = $mapaDias[$fechaObjetivo->dayOfWeekIso];
-
-        $horaLlegadaString = $horaManual ?? Carbon::now()->format('H:i:s');
 
         $esLaborable = $empleado->horario->{$nombreDia};
         $horaEntradaOficialString = $empleado->horario->{$nombreDia.'_entrada'};
 
-        // Si es su día de descanso y viene a trabajar (o lo registran), es Presente sin retardo.
         if (!$esLaborable || !$horaEntradaOficialString) {
-            return ['hora_llegada' => $horaLlegadaString, 'status_asistencia' => 'Presente', 'notas_incidencia' => 'Día de descanso (Registro manual)'];
+            return ['hora_llegada' => $horaManual, 'status_asistencia' => 'Presente', 'notas_incidencia' => 'Día de descanso'];
         }
 
-        $horario = $empleado->horario;
-        
-        // 🔥 CORRECCIÓN DEL CÁLCULO DE MINUTOS 🔥
-        // Unimos la fecha y la hora para hacer una comparación de tiempo absoluta y exacta.
-        $horaLlegada = Carbon::parse($fechaObjetivo->format('Y-m-d') . ' ' . $horaLlegadaString);
+        $horaLlegada = Carbon::parse($fechaObjetivo->format('Y-m-d') . ' ' . $horaManual);
         $horaEntradaOficial = Carbon::parse($fechaObjetivo->format('Y-m-d') . ' ' . $horaEntradaOficialString);
 
-        // Invertimos la resta: (Llegada - Oficial). Si llega tarde, sale positivo. Si llega temprano, sale negativo.
-        $minutosTarde = $horaEntradaOficial->diffInMinutes($horaLlegada, false);
-
-        // Validar tolerancia simple
-        $tolerancia = $horario->aplicar_reglas_avanzadas ? ($horario->tolerancia_minutos ?? 0) : 0;
-
-        // Si los minutos de retraso son menores o iguales a la tolerancia (o llegó temprano = negativo)
-        if ($minutosTarde <= $tolerancia) {
-            return ['hora_llegada' => $horaLlegadaString, 'status_asistencia' => 'Presente', 'notas_incidencia' => null];
+        // CÁLCULO INFALIBLE: 
+        // Si llegó antes o a la hora en punto, los minutos tarde son 0.
+        if ($horaLlegada->lessThanOrEqualTo($horaEntradaOficial)) {
+            $minutosTarde = 0;
+        } else {
+            // Si llegó después, calculamos la diferencia absoluta (positiva) en minutos.
+            $minutosTarde = $horaEntradaOficial->diffInMinutes($horaLlegada);
         }
 
-        // Si pasó la tolerancia, es un retardo
-        return ['hora_llegada' => $horaLlegadaString, 'status_asistencia' => 'Retardo', 'notas_incidencia' => "Retardo de {$minutosTarde} minutos."];
+        // Leemos directamente los minutos de tolerancia de la base de datos forzándolo a Entero
+        $tolerancia = (int) ($empleado->horario->tolerancia_minutos ?? 0);
+
+        if ($minutosTarde <= $tolerancia) {
+            return ['hora_llegada' => $horaManual, 'status_asistencia' => 'Presente', 'notas_incidencia' => null];
+        }
+
+        return ['hora_llegada' => $horaManual, 'status_asistencia' => 'Retardo', 'notas_incidencia' => "Retardo de {$minutosTarde} minutos."];
     }
 
     public function resumenIncidencias(Request $request)
@@ -176,9 +184,6 @@ class AsistenciaController extends Controller
         return $pdf->download("Resumen_Incidencias_{$fechaInicio}_al_{$fechaFin}.pdf");
     }
 
-    /**
-     * Resumen simplificado: Solo cuenta Faltas y Retardos directos.
-     */
     private function obtenerDatosResumen($fechaInicio, $fechaFin)
     {
         $empleados = Empleado::with(['sucursal', 'asistencias' => function($query) use ($fechaInicio, $fechaFin) {
@@ -187,17 +192,11 @@ class AsistenciaController extends Controller
 
         $resumen = [];
         foreach ($empleados as $empleado) {
-            $faltas = 0;
-            $retardos = 0;
-
+            $faltas = 0; $retardos = 0;
             foreach ($empleado->asistencias as $asistencia) {
-                if ($asistencia->status_asistencia == 'Falta') { 
-                    $faltas++; 
-                } elseif ($asistencia->status_asistencia == 'Retardo') { 
-                    $retardos++; 
-                }
+                if ($asistencia->status_asistencia == 'Falta') { $faltas++; } 
+                elseif ($asistencia->status_asistencia == 'Retardo') { $retardos++; }
             }
-
             $resumen[] = [
                 'empleado' => $empleado->nombre_completo,
                 'sucursal' => $empleado->sucursal->nombre_sucursal ?? 'N/A',
