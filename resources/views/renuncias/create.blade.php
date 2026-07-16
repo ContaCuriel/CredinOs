@@ -50,7 +50,8 @@
                             <select class="form-select" id="id_patron" name="id_patron" required>
                                 <option value="">Seleccione un patrón...</option>
                                 @foreach($patrones as $patron)
-                                    <option value="{{ $patron->id_patron }}">{{ $patron->nombre_comercial }}</option>
+                                    {{-- AQUÍ ESTÁ EL CAMBIO DE RAZÓN SOCIAL --}}
+                                    <option value="{{ $patron->id_patron }}">{{ $patron->nombre_comercial }} - {{ $patron->razon_social }}</option>
                                 @endforeach
                             </select>
                         </div>

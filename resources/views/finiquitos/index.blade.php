@@ -115,7 +115,8 @@
                                 <select class="form-select form-select-sm" id="id_patron_manual" required>
                                     <option value="">Seleccione un patrón...</option>
                                     @foreach($patrones as $patron)
-                                        <option value="{{ $patron->id_patron }}">{{ $patron->nombre_comercial }}</option>
+                                        {{-- AJUSTE APLICADO: Mostrar Nombre Comercial y Razón Social --}}
+                                        <option value="{{ $patron->id_patron }}">{{ $patron->nombre_comercial }} - {{ $patron->razon_social }}</option>
                                     @endforeach
                                 </select>
                             </div>

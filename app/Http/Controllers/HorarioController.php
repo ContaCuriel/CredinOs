@@ -7,26 +7,17 @@ use Illuminate\Http\Request;
 
 class HorarioController extends Controller
 {
-    /**
-     * Muestra la lista de horarios.
-     */
     public function index()
     {
         $horarios = Horario::paginate(15);
         return view('horarios.index', compact('horarios'));
     }
 
-    /**
-     * Muestra el formulario para crear un nuevo horario.
-     */
     public function create()
     {
         return view('horarios.create');
     }
 
-    /**
-     * Guarda un nuevo horario con sus reglas de asistencia.
-     */
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -39,17 +30,10 @@ class HorarioController extends Controller
             'viernes_entrada' => 'nullable', 'viernes_salida' => 'nullable',
             'sabado_entrada' => 'nullable', 'sabado_salida' => 'nullable',
             'domingo_entrada' => 'nullable', 'domingo_salida' => 'nullable',
-            // Reglas avanzadas
-            'aplicar_reglas_avanzadas' => 'nullable',
-            'tolerancia_minutos' => 'nullable|numeric',
-            'retardo_menor_minutos_inicio' => 'nullable|numeric',
-            'retardo_menor_minutos_fin' => 'nullable|numeric',
-            'retardos_para_falta' => 'nullable|numeric',
-            'medio_dia_minutos_inicio' => 'nullable|numeric',
-            'medio_dia_minutos_fin' => 'nullable|numeric',
-            'falta_minutos_inicio' => 'nullable|numeric',
-            'castigo_falta_lun_vie' => 'nullable|numeric',
-            'castigo_falta_mar_jue_sab' => 'nullable|numeric',
+            
+            // Regla simplificada de tolerancia
+            'tiene_tolerancia' => 'nullable',
+            'tolerancia_minutos' => 'nullable|numeric|min:0',
         ]);
 
         $dias = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
@@ -61,24 +45,20 @@ class HorarioController extends Controller
             }
         }
 
-        $data['aplicar_reglas_avanzadas'] = $request->has('aplicar_reglas_avanzadas');
+        // Reutilizamos tu campo anterior en la base de datos para no tener que hacer migraciones nuevas
+        $data['aplicar_reglas_avanzadas'] = $request->has('tiene_tolerancia');
+        $data['tolerancia_minutos'] = $data['aplicar_reglas_avanzadas'] ? ($request->tolerancia_minutos ?? 0) : 0;
 
         Horario::create($data);
 
         return redirect()->route('horarios.index')->with('success', 'Horario creado exitosamente.');
     }
 
-    /**
-     * Muestra el formulario para editar un horario existente.
-     */
     public function edit(Horario $horario)
     {
         return view('horarios.edit', compact('horario'));
     }
 
-    /**
-     * Actualiza el horario y sus reglas.
-     */
     public function update(Request $request, Horario $horario)
     {
         $data = $request->validate([
@@ -91,17 +71,10 @@ class HorarioController extends Controller
             'viernes_entrada' => 'nullable', 'viernes_salida' => 'nullable',
             'sabado_entrada' => 'nullable', 'sabado_salida' => 'nullable',
             'domingo_entrada' => 'nullable', 'domingo_salida' => 'nullable',
-            // Reglas avanzadas
-            'aplicar_reglas_avanzadas' => 'nullable',
-            'tolerancia_minutos' => 'nullable|numeric',
-            'retardo_menor_minutos_inicio' => 'nullable|numeric',
-            'retardo_menor_minutos_fin' => 'nullable|numeric',
-            'retardos_para_falta' => 'nullable|numeric',
-            'medio_dia_minutos_inicio' => 'nullable|numeric',
-            'medio_dia_minutos_fin' => 'nullable|numeric',
-            'falta_minutos_inicio' => 'nullable|numeric',
-            'castigo_falta_lun_vie' => 'nullable|numeric',
-            'castigo_falta_mar_jue_sab' => 'nullable|numeric',
+            
+            // Regla simplificada de tolerancia
+            'tiene_tolerancia' => 'nullable',
+            'tolerancia_minutos' => 'nullable|numeric|min:0',
         ]);
 
         $dias = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
@@ -113,16 +86,14 @@ class HorarioController extends Controller
             }
         }
 
-        $data['aplicar_reglas_avanzadas'] = $request->has('aplicar_reglas_avanzadas');
+        $data['aplicar_reglas_avanzadas'] = $request->has('tiene_tolerancia');
+        $data['tolerancia_minutos'] = $data['aplicar_reglas_avanzadas'] ? ($request->tolerancia_minutos ?? 0) : 0;
 
         $horario->update($data);
 
         return redirect()->route('horarios.index')->with('success', 'Horario actualizado exitosamente.');
     }
 
-    /**
-     * Elimina un horario.
-     */
     public function destroy(Horario $horario)
     {
         if ($horario->empleados()->count() > 0) {
