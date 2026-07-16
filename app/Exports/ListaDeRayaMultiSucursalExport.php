@@ -31,26 +31,23 @@ class ListaDeRayaMultiSucursalExport implements WithMultipleSheets
             $sheetExport = new ListaDeRayaSheetExport($this->periodo, $sucursal->id_sucursal);
             $sheets[] = $sheetExport;
 
-            // --- INICIO DE LA MODIFICACIÓN ---
             // Obtenemos los datos necesarios para construir la fórmula
             $sheetName = $sheetExport->title();
             $rowCount = $sheetExport->collection()->count();
             
             // Si hay datos, calculamos la fila del total. Si no, el total es 0.
             if ($rowCount > 0) {
-                // Fila del título (1) + Fila de cabeceras (1) + Filas de datos + 2 filas de espacio = Fila de totales
                 $totalRow = 1 + 1 + $rowCount + 2;
-                $netoTotalFormula = "='" . $sheetName . "'!S" . $totalRow;
+                // --- CORRECCIÓN AQUÍ: Cambiamos la S por la T ---
+                $netoTotalFormula = "='" . $sheetName . "'!T" . $totalRow; 
             } else {
-                // Si no hay empleados en esa sucursal, el total es 0.
                 $netoTotalFormula = 0;
             }
 
             $resumenData->push([
                 'sucursal' => $sucursal->nombre_sucursal,
-                'neto_formula' => $netoTotalFormula, // Pasamos la fórmula en lugar del valor
+                'neto_formula' => $netoTotalFormula, 
             ]);
-            // --- FIN DE LA MODIFICACIÓN ---
         }
 
         $resumenSheet = new ResumenNetosExport($resumenData);

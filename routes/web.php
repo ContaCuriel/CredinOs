@@ -68,12 +68,9 @@ Route::get('/', function () {
     return view('auth.login');
 });
 
-// Rutas de Asistencia (parte pública)
+// Rutas de Asistencia (parte pública - SIMPLIFICADA)
 Route::get('/asistencia', [AsistenciaController::class, 'index'])->name('asistencia.index');
 Route::post('/asistencia/registrar-entrada', [AsistenciaController::class, 'registrarEntrada'])->name('asistencia.registrarEntrada');
-Route::post('/asistencia/registrar-falta', [AsistenciaController::class, 'registrarFalta'])->name('asistencia.registrarFalta');
-Route::post('/asistencia/registrar-baja-dia', [AsistenciaController::class, 'registrarBajaDia'])->name('asistencia.registrarBajaDia');
-Route::post('/asistencia/registrar-incidencia', [AsistenciaController::class, 'registrarIncidencia'])->name('asistencia.registrarIncidencia');
 
 // --- RUTAS QUE REQUIEREN AUTENTICACIÓN ---
 Route::middleware('auth')->group(function () {
@@ -110,9 +107,10 @@ Route::middleware('auth')->group(function () {
         Route::get('contratos/{id}/ver-firmado', [ContratoController::class, 'verContratoFirmado'])->name('contratos.verFirmado')->middleware('can:ver-contratos');
         Route::get('/contratos/exportar/excel', [ContratoController::class, 'exportarExcel'])->name('contratos.exportarExcel')->middleware('can:exportar-contratos');
 
-        // Asistencias (vistas de admin)
-        Route::get('/asistencia/vista-periodo', [AsistenciaController::class, 'vistaPeriodo'])->name('asistencia.vistaPeriodo')->middleware('can:ver-asistencias');
-        Route::post('/asistencia/guardar-dia', [AsistenciaController::class, 'guardarAsistenciaDia'])->name('asistencia.guardarDia')->middleware('can:editar-asistencias');
+        // Asistencias (vistas de admin - CORREGIDAS)
+        Route::get('/asistencia/vista-periodo', [AsistenciaController::class, 'index'])->name('asistencia.vistaPeriodo')->middleware('can:ver-asistencias');
+        Route::get('/asistencia/resumen-incidencias', [AsistenciaController::class, 'resumenIncidencias'])->name('asistencia.resumenIncidencias')->middleware('can:ver-asistencias');
+        Route::get('/asistencia/exportar-pdf', [AsistenciaController::class, 'exportarResumenPDF'])->name('asistencia.exportarPDF')->middleware('can:ver-asistencias');
 
         // Vacaciones
         Route::resource('vacaciones', VacacionController::class)->only(['index', 'create', 'store'])->middleware('can:ver-vacaciones');
@@ -120,10 +118,9 @@ Route::middleware('auth')->group(function () {
 
         // Deducciones
         Route::resource('deducciones', DeduccionController::class)
-    ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
-    ->middleware('can:ver-deducciones');
+            ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
+            ->middleware('can:ver-deducciones');
         Route::get('/deducciones/exportar', [DeduccionController::class, 'exportarExcel'])->name('deducciones.exportar');
-
 
         // Lista de Raya
         Route::get('/lista-de-raya', [ListaDeRayaController::class, 'index'])->name('lista_de_raya.index')->middleware('can:ver-lista-raya');
@@ -148,7 +145,6 @@ Route::middleware('auth')->group(function () {
         Route::post('/renuncias/exportar-pdf', [App\Http\Controllers\RenunciaController::class, 'exportarPdf'])
              ->name('renuncias.exportar.pdf')
              ->middleware('can:generar-renuncias'); // Solo quien pueda 'generar-renuncias' envía el form
-
 
         // Gestión IMSS
         Route::get('/imss', [ImssController::class, 'index'])->name('imss.index')->middleware('can:ver-gestion-imss');
@@ -213,11 +209,9 @@ Route::middleware('auth')->group(function () {
                ->middleware(['auth']);
 
         // Ruta para el buscador de clientes con AJAX
-        // Correcto, con diagonal invertida
         Route::get('/api/clientes/search', [App\Http\Controllers\ClienteController::class, 'search'])
                ->name('clientes.search')
                ->middleware(['auth']);
-
 
          // Ruta para el endpoint de análisis con IA
         Route::post('/reportes/generate-analysis', [ReporteController::class, 'generateAnalysis'])
@@ -280,24 +274,14 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/api/cp/{cp}', [CodigoPostalController::class, 'getInfo'])->name('api.cp.info');
 
-
-        // --- INICIO DE LÍNEAS NUEVAS ---
         // Estas dos rutas son solo para manejar la subida del logo de forma independiente.
         Route::get('/patrones/{patron}/logo', [PatronController::class, 'editLogo'])->name('patrones.logo.edit');
         Route::post('/patrones/{patron}/logo', [PatronController::class, 'updateLogo'])->name('patrones.logo.update');
-        // --- FIN DE LÍNEAS NUEVAS ---
 
-        // --- CORRECCIÓN PARA PATRONES ---
-        // Eliminamos .only() para generar todas las rutas del CRUD
         Route::resource('patrones', PatronController::class)->middleware([
             'can:ver-patrones',
-            // Puedes añadir permisos más específicos si los tienes
-            // 'can:crear-patrones',
-            // 'can:editar-patrones',
-            // 'can:eliminar-patrones',
         ]);
-Route::get('/asistencia/resumen-incidencias', [AsistenciaController::class, 'resumenIncidencias'])->name('asistencia.resumenIncidencias');
-Route::get('/asistencia/exportar-pdf', [AsistenciaController::class, 'exportarResumenPDF'])->name('asistencia.exportarPDF');
+        
         Route::resource('horarios', HorarioController::class)->middleware('can:ver-horarios');
         Route::resource('categorias', CategoriaController::class)->except(['show']);
     });
