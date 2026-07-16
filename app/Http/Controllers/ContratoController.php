@@ -102,6 +102,14 @@ class ContratoController extends Controller
             'fecha_fin' => 'required|date|after_or_equal:fecha_inicio',
         ]);
 
+        // 💡 CONTROL PREVENTIVO: Comprobamos si el empleado tiene estado 'Alta' en IMSS
+        $empleado = Empleado::find($validatedData['id_empleado']);
+        if ($validatedData['tipo_contrato'] === 'Honorarios' && $empleado && $empleado->estado_imss === 'Alta') {
+            return back()
+                ->withInput()
+                ->with('error', 'Error administrativo: No se puede registrar un contrato de Honorarios para el empleado ' . $empleado->nombre_completo . ' porque se encuentra con estado de ALTA activa en el IMSS.');
+        }
+
         $patronSeleccionado = Patron::find($validatedData['id_patron']);
         
         $datosContrato = $validatedData;
@@ -159,20 +167,25 @@ class ContratoController extends Controller
             'contrato_firmado_file' => 'nullable|file|mimes:pdf|max:10240',
         ]);
 
+        // 💡 CONTROL PREVENTIVO: Comprobamos en la edición también
+        $empleado = Empleado::find($validatedData['id_empleado']);
+        if ($validatedData['tipo_contrato'] === 'Honorarios' && $empleado && $empleado->estado_imss === 'Alta') {
+            return back()
+                ->withInput()
+                ->with('error', 'Error administrativo: No es posible cambiar el contrato a Honorarios para ' . $empleado->nombre_completo . ' porque se encuentra con estado de ALTA activa en el IMSS.');
+        }
+
         $dataToUpdate = $request->except(['_token', '_method', 'contrato_firmado_file']);
 
         // 2. Obtener el ID del Tenant actual para la carpeta
-        // Usamos el helper de Spatie para identificar al inquilino actual
         $tenantId = app(\Spatie\Multitenancy\Models\Tenant::class)->current()->id;
 
         // 3. Lógica para manejar la subida del archivo por Tenant
         if ($request->hasFile('contrato_firmado_file')) {
-            // Borrar el archivo viejo si existe para ahorrar espacio en el disco de 1GB
             if ($contrato->ruta_contrato_firmado) {
                 Storage::disk('public')->delete($contrato->ruta_contrato_firmado);
             }
 
-            // GUARDADO ORGANIZADO: storage/app/public/tenant_{id}/contratos_firmados/archivo.pdf
             $folder = "tenant_{$tenantId}/contratos_firmados";
             $path = $request->file('contrato_firmado_file')->store($folder, 'public');
             
