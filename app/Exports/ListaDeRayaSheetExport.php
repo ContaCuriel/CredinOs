@@ -102,15 +102,12 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             }
             $totalPercepciones = $sueldoQuincenalBruto + $bonoPermanencia + $bonoCumpleanos + $primaVacacional;
 
-            // --- LÓGICA DE DEDUCCIONES ACTUALIZADA ---
             $deduccionesActivas = DeduccionEmpleado::where('id_empleado', $empleado->id_empleado)->where('status', 'Activo')->get();
             
-            // 1. Faltas (Asistencia normal + Falta/Retardo manual)
             $diasFalta = Asistencia::where('id_empleado', $empleado->id_empleado)->where('status_asistencia', 'Falta')->whereBetween('fecha', [$fechaInicioPeriodo, $fechaFinPeriodo])->count();
             $deduccionFaltasManuales = $deduccionesActivas->where('tipo_deduccion', 'Retardo/Falta Manual')->sum('monto_quincenal');
             $deduccionFaltas = ($diasFalta * $salarioDiario) + $deduccionFaltasManuales;
             
-            // 2. Otras Deducciones Separadas
             $deduccionPrestamo = $deduccionesActivas->where('tipo_deduccion', 'Préstamo')->sum('monto_quincenal');
             $deduccionPrevision = $deduccionesActivas->where('tipo_deduccion', 'Previsión')->sum('monto_quincenal'); 
             $deduccionCajaAhorro = $deduccionesActivas->where('tipo_deduccion', 'Caja de Ahorro')->sum('monto_quincenal');
@@ -118,7 +115,6 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             $deduccionISR = $deduccionesActivas->where('tipo_deduccion', 'ISR')->sum('monto_quincenal');
             $deduccionIMSS = $deduccionesActivas->where('tipo_deduccion', 'IMSS')->sum('monto_quincenal');
             
-            // 3. Otros (Agrupa 'Otro' y 'Fijo Sin Plazo')
             $deduccionOtro = $deduccionesActivas->whereIn('tipo_deduccion', ['Otro', 'Fijo Sin Plazo'])->sum('monto_quincenal');
             
             $totalDeducciones = $deduccionFaltas + $deduccionPrestamo + $deduccionPrevision + $deduccionCajaAhorro + $deduccionInfonavit + $deduccionISR + $deduccionIMSS + $deduccionOtro;
@@ -193,7 +189,7 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
 
     public function columnFormats(): array
     {
-        // ESTA ES LA REGLA MÁGICA 1: Positivos ; Negativos ; Ceros Obligatorios
+        // Aplicamos el formato estricto a las columnas, por si Excel lo respeta de entrada.
         $formatoEstrictoCeros = '"$" #,##0.00;[Red]-"$" #,##0.00;"$" 0.00';
         return [
             'F:T' => $formatoEstrictoCeros,
@@ -207,6 +203,9 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             AfterSheet::class => function(AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
                 
+                // 🔥 SOLUCIÓN PRO: Obligamos a Excel a NO ocultar los ceros a nivel sistema
+                $sheet->setShowZeros(true);
+
                 $sheet->insertNewRowBefore(1, 1);
                 $tituloCompleto = 'NÓMINA ' . $this->periodoTexto;
                 $sheet->setCellValue('A1', $tituloCompleto);
@@ -229,18 +228,18 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
 
                 if ($this->resultados->count() > 0) {
                     $lastDataRow = $this->resultados->count() + 2;
+                    
                     $sheet->getStyle('A2:'.$lastColumn . $lastDataRow)->applyFromArray([
                         'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
                     ]);
 
-                    // =========================================================
-                    // 🔥 REGLA MÁGICA 4: FORZAR CEROS EN EL CUERPO DE LA TABLA 🔥
-                    // =========================================================
-                    $sheet->getStyle("F3:{$lastColumn}{$lastDataRow}")->getNumberFormat()
-                          ->setFormatCode('"$" #,##0.00;[Red]-"$" #,##0.00;"$" 0.00');
-                    // =========================================================
-
                     $totalsRow = $lastDataRow + 2;
+                    
+                    // 🔥 SOLUCIÓN PRO: Aplicamos el formato blindado a TODO el cuerpo y a los Totales de un solo golpe
+                    $rangoCompleto = "F3:{$lastColumn}{$totalsRow}";
+                    $formatoBlindado = '"$" #,##0.00;[Red]-"$" #,##0.00;"$" 0.00';
+                    $sheet->getStyle($rangoCompleto)->getNumberFormat()->setFormatCode($formatoBlindado);
+
                     $sheet->setCellValue("A{$totalsRow}", 'TOTALES:');
 
                     $columnsToSum = ['F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T'];
@@ -253,11 +252,7 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                         'borders' => ['top' => ['borderStyle' => Border::BORDER_THICK]]
                     ]);
                     
-                    // REGLA MÁGICA 2: Formato estricto para los totales
-                    $sheet->getStyle("F{$totalsRow}:{$lastColumn}{$totalsRow}")->getNumberFormat()
-                          ->setFormatCode('"$" #,##0.00;[Red]-"$" #,##0.00;"$" 0.00');
-                    
-                    // REGLA MÁGICA 3: Comentamos esto para que las columnas en 0 ya NO se oculten.
+                    // El código para ocultar columnas está intencionalmente comentado para que veas los ceros.
                     /* $columnsToCheck = [
                         'G' => 'Bono Permanencia', 'H' => 'Bono Cumpleaños', 'I' => 'Prima Vacacional',
                         'K' => 'Ded. Faltas', 'L' => 'Ded. Préstamo', 'M' => 'Ded. Previsión', 'N' => 'Ded. Caja Ahorro',

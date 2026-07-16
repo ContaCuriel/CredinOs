@@ -31,14 +31,11 @@ class ListaDeRayaMultiSucursalExport implements WithMultipleSheets
             $sheetExport = new ListaDeRayaSheetExport($this->periodo, $sucursal->id_sucursal);
             $sheets[] = $sheetExport;
 
-            // Obtenemos los datos necesarios para construir la fórmula
             $sheetName = $sheetExport->title();
             $rowCount = $sheetExport->collection()->count();
             
-            // Si hay datos, calculamos la fila del total. Si no, el total es 0.
             if ($rowCount > 0) {
                 $totalRow = 1 + 1 + $rowCount + 2;
-                // --- CORRECCIÓN AQUÍ: Cambiamos la S por la T ---
                 $netoTotalFormula = "='" . $sheetName . "'!T" . $totalRow; 
             } else {
                 $netoTotalFormula = 0;
