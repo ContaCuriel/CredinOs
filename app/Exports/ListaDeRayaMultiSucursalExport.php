@@ -18,9 +18,6 @@ class ListaDeRayaMultiSucursalExport implements WithMultipleSheets
         $this->periodo = $periodo;
     }
 
-    /**
-     * @return array
-     */
     public function sheets(): array
     {
         $sheets = [];
