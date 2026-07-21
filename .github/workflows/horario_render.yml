@@ -2,9 +2,9 @@ name: Horario de Operacion Sistema Render
 
 on:
   schedule:
-    # ENCENDER: Lunes a Sábado a las 8:15 AM (Hora CDMX). 
-    # En UTC son las 14:15 horas.
-    - cron: '15 14 * * 1-6'
+    # ENCENDER: Lunes a Sábado a las 7:30 AM (Hora CDMX). 
+    # En UTC son las 13:30 horas. (Adelantado para ganarle a la fila de GitHub)
+    - cron: '30 13 * * 1-6'
     
     # APAGAR: Lunes a Sábado a las 6:15 PM (Hora CDMX).
     # En UTC son las 00:15 horas del DÍA SIGUIENTE.
@@ -32,13 +32,19 @@ jobs:
           # Por defecto es encender
           ACCION="resume"
           
-          # Si el reloj detecta que son las 00:15 UTC (6:15 PM México) o si seleccionaste suspender manual:
-          if [ "${{ github.event.schedule }}" == "15 0 * * 0,2-6" ] || [ "${{ github.event.inputs.accion }}" == "suspend" ]; then
+          # Guardamos las variables de GitHub de forma segura
+          CRON_ACTUAL="${{ github.event.schedule }}"
+          ACCION_MANUAL="${{ github.event.inputs.accion }}"
+          
+          # Comprobación flexible: Si el cron contiene "15 0" (la hora de apagar) o si elegiste suspender
+          if [[ "$CRON_ACTUAL" == *"15 0"* ]] || [[ "$ACCION_MANUAL" == "suspend" ]]; then
             ACCION="suspend"
           fi
           
-          echo "Ejecutando orden de: $ACCION para el servidor..."
+          echo "Hora Cron detectada por GitHub: '$CRON_ACTUAL'"
+          echo "Acción seleccionada: ENVIANDO ORDEN DE $ACCION"
           
-          curl -X POST "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/$ACCION" \
+          # Añadimos parámetros para ver la respuesta exacta de Render y detectar errores
+          curl -s -w "\n[Codigo HTTP de Render: %{http_code}]\n" -X POST "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/$ACCION" \
           -H "Accept: application/json" \
           -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}"
