@@ -18,8 +18,15 @@ class Tenant extends BaseTenant
         'db_port',
         'db_username',
         'db_password',
+        'configuracion_nomina',
     ];
 
+/**
+     * 👈 2. Esto convierte automáticamente el JSON de PostgreSQL en un Array de PHP y viceversa
+     */
+    protected $casts = [
+        'configuracion_nomina' => 'array',
+    ];
     /**
      * Sobrescribimos este método para que el paquete Spatie sepa que tu columna
      * para el nombre de la base de datos se llama 'db_database'.

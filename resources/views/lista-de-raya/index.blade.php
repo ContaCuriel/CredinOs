@@ -3,8 +3,20 @@
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Generar Lista de Raya (Pre-Nómina)</h5>
+                
+                {{-- BOTÓN DE CONFIGURACIÓN (ENGRANE) --}}
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#configuracionNominaModal">
+                    <i class="bi bi-gear-fill"></i> Configuración de Nómina
+                </button>
             </div>
             <div class="card-body">
+                @if (session('success'))
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        {{ session('success') }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                @endif
+                
                 @if (session('error'))
                     <div class="alert alert-danger alert-dismissible fade show" role="alert">
                         {{ session('error') }}
@@ -52,7 +64,6 @@
                     <hr>
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h6 class="mb-0">Resultados para: <span class="text-primary">{{ $sucursalSeleccionada->nombre_sucursal ?? 'Ninguna sucursal seleccionada' }}</span></h6>
-                        {{-- El botón de exportar ahora es un formulario para pasar los mismos filtros --}}
                         <form method="GET" action="{{ route('lista_de_raya.exportar') }}">
                             <input type="hidden" name="periodo" value="{{ request('periodo') }}">
                             <input type="hidden" name="id_sucursal" value="{{ request('id_sucursal') }}">
@@ -65,7 +76,7 @@
                     @if (request('id_sucursal') == 'todas')
                         <div class="alert alert-info text-center">
                             Ha seleccionado "Todas las Sucursales". La vista previa no se muestra para esta opción. <br>
-                            Haga clic en **"Exportar a Excel"** para descargar el reporte completo con una pestaña por sucursal.
+                            Haga clic en <strong>"Exportar a Excel"</strong> para descargar el reporte completo con una pestaña por sucursal.
                         </div>
                     @else
                          <div class="table-responsive">
@@ -97,13 +108,11 @@
                                     @if($resultados->isNotEmpty())
                                         @foreach($resultados as $resultado)
                                             <tr>
-                                                {{-- CAMBIO: Nombre en mayúsculas y se añade fecha de ingreso --}}
                                                 <td>
                                                     {{ strtoupper($resultado['empleado_nombre']) }}
                                                     <br>
                                                     <small class="text-muted">
                                                         {{ $resultado['puesto'] }}
-                                                        {{-- Se asume que 'fecha_ingreso' está disponible en $resultado --}}
                                                         @if(isset($resultado['fecha_ingreso']))
                                                             | Ingreso: {{ \Carbon\Carbon::parse($resultado['fecha_ingreso'])->format('d/m/Y') }}
                                                         @endif
@@ -136,5 +145,66 @@
             </div>
         </div>
     </div>
-</x-app-layout>
 
+    {{-- MODAL DE CONFIGURACIÓN BOOTSTRAP --}}
+    <div class="modal fade" id="configuracionNominaModal" tabindex="-1" aria-labelledby="configuracionNominaModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="configuracionNominaModalLabel">Configuración del Motor de Nómina</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form action="{{ route('lista_raya.configuracion') }}" method="POST">
+                    @csrf
+                    <div class="modal-body">
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Retardos para aplicar 1 Falta (0 = No penalizar)</label>
+                            <input type="number" name="retardos_para_falta" value="3" min="0" class="form-control" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Cálculo de Días de Periodo</label>
+                            <select name="metodo_calculo_dias" class="form-select" required>
+                                <option value="fijos_15">Fijos 15 Días (Sin importar mes de 28/31)</option>
+                                <option value="exactos">Días Exactos del Calendario</option>
+                                <option value="factor">Por Factor (Ej. 15.20)</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Regla: Pago del Día 31</label>
+                            <select name="pagar_dia_31" class="form-select" required>
+                                <option value="nadie">A Nadie (Se absorbe en los 15 días)</option>
+                                <option value="todos">A Todos (Se paga el día extra)</option>
+                                <option value="nuevos">Solo a Ingresos Nuevos de la Quincena</option>
+                            </select>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-6">
+                                <label class="form-label">Descontar 7mo Día</label>
+                                <select name="descontar_septimo_dia" class="form-select" required>
+                                    <option value="1">Sí, proporcional</option>
+                                    <option value="0">No</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">Redondear Neto</label>
+                                <select name="redondear_neto" class="form-select" required>
+                                    <option value="1">Sí (Cerrar)</option>
+                                    <option value="0">No (Centavos)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar Configuración</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</x-app-layout>
