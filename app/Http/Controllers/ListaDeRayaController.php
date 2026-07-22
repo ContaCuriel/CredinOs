@@ -84,39 +84,6 @@ class ListaDeRayaController extends Controller
     }
 
 
-/**
-     * Guarda la configuración del motor de nómina desde el engrane.
-     */
-    public function guardarConfiguracion(Request $request)
-    {
-        $request->validate([
-            'retardos_para_falta' => 'required|integer|min:0',
-            'descontar_septimo_dia' => 'required|boolean',
-            'metodo_calculo_dias' => 'required|in:exactos,factor,fijos_15',
-            'pagar_dia_31' => 'required|in:todos,nuevos,nadie',
-            'redondear_neto' => 'required|boolean',
-        ]);
-
-        // Obtenemos el Tenant actual registrado por Spatie Multitenancy
-        $tenant = Tenant::current();
-
-        if (!$tenant) {
-            return back()->with('error', 'No se detectó un Tenant (empresa) activo.');
-        }
-
-        $tenant->configuracion_nomina = [
-            'retardos_para_falta' => (int) $request->retardos_para_falta,
-            'descontar_septimo_dia' => (bool) $request->descontar_septimo_dia,
-            'metodo_calculo_dias' => $request->metodo_calculo_dias,
-            'pagar_dia_31' => $request->pagar_dia_31,
-            'redondear_neto' => (bool) $request->redondear_neto,
-        ];
-
-        $tenant->save();
-
-        return back()->with('success', 'Configuración de nómina actualizada correctamente.');
-    }
-
     /**
      * Guarda la configuración del motor de nómina en la BD del Tenant activo.
      */
