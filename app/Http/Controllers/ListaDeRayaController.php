@@ -13,6 +13,7 @@ use App\Exports\ListaDeRayaMultiSucursalExport;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Str;
 use App\Models\Tenant;
+use App\Models\ConfiguracionNomina;
 
 class ListaDeRayaController extends Controller
 {
@@ -114,6 +115,33 @@ class ListaDeRayaController extends Controller
         $tenant->save();
 
         return back()->with('success', 'Configuración de nómina actualizada correctamente.');
+    }
+
+    /**
+     * Guarda la configuración del motor de nómina en la BD del Tenant activo.
+     */
+    public function guardarConfiguracion(Request $request)
+    {
+        $request->validate([
+            'retardos_para_falta' => 'required|integer|min:0',
+            'descontar_septimo_dia' => 'required|boolean',
+            'metodo_calculo_dias' => 'required|in:exactos,factor,fijos_15',
+            'pagar_dia_31' => 'required|in:todos,nuevos,nadie',
+            'redondear_neto' => 'required|boolean',
+        ]);
+
+        // Buscamos la configuración o creamos una nueva si es la primera vez
+        $configuracion = ConfiguracionNomina::first() ?? new ConfiguracionNomina();
+        
+        $configuracion->retardos_para_falta = $request->retardos_para_falta;
+        $configuracion->descontar_septimo_dia = $request->descontar_septimo_dia;
+        $configuracion->metodo_calculo_dias = $request->metodo_calculo_dias;
+        $configuracion->pagar_dia_31 = $request->pagar_dia_31;
+        $configuracion->redondear_neto = $request->redondear_neto;
+        
+        $configuracion->save();
+
+        return back()->with('success', 'Configuración de nómina guardada correctamente.');
     }
     /**
      * Helper para generar las opciones de periodo.
