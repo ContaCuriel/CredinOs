@@ -12,6 +12,7 @@ use App\Exports\ListaDeRayaSheetExport;
 use App\Exports\ListaDeRayaMultiSucursalExport;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Str;
+use App\Models\Tenant;
 
 class ListaDeRayaController extends Controller
 {
@@ -95,11 +96,14 @@ class ListaDeRayaController extends Controller
             'redondear_neto' => 'required|boolean',
         ]);
 
-        // Suponiendo que obtienes la empresa activa a través de un middleware, tenant o el usuario autenticado.
-        // Ajusta esta línea según cómo identificas la empresa actual en tu sistema SaaS.
-        $company = auth()->user()->companies()->first(); 
+        // Obtenemos el Tenant actual registrado por Spatie Multitenancy
+        $tenant = Tenant::current();
 
-        $company->configuracion_nomina = [
+        if (!$tenant) {
+            return back()->with('error', 'No se detectó un Tenant (empresa) activo.');
+        }
+
+        $tenant->configuracion_nomina = [
             'retardos_para_falta' => (int) $request->retardos_para_falta,
             'descontar_septimo_dia' => (bool) $request->descontar_septimo_dia,
             'metodo_calculo_dias' => $request->metodo_calculo_dias,
@@ -107,7 +111,7 @@ class ListaDeRayaController extends Controller
             'redondear_neto' => (bool) $request->redondear_neto,
         ];
 
-        $company->save();
+        $tenant->save();
 
         return back()->with('success', 'Configuración de nómina actualizada correctamente.');
     }

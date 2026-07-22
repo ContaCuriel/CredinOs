@@ -8,15 +8,14 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('companies', function (Blueprint $table) {
-            // Usamos json (o jsonb en PostgreSQL) para guardar todas las reglas sin crear decenas de columnas
+        Schema::table('tenants', function (Blueprint $table) {
             $table->json('configuracion_nomina')->nullable();
         });
     }
 
     public function down(): void
     {
-        Schema::table('companies', function (Blueprint $table) {
+        Schema::table('tenants', function (Blueprint $table) {
             $table->dropColumn('configuracion_nomina');
         });
     }
