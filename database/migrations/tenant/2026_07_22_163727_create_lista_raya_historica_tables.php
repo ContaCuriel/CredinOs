@@ -1,52 +1,55 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
     public function up(): void
     {
-        // Tabla del Encabezado (El periodo guardado)
-        Schema::create('lista_raya_periodos', function (Blueprint $table) {
-            $table->id('id_periodo_lista');
-            $table->string('periodo_rango'); // Ej: '2023-10-01_2023-10-15'
-            $table->unsignedBigInteger('id_sucursal')->nullable(); // null si son todas
-            $table->string('status_periodo')->default('Borrador'); // 'Borrador' o 'Cerrado'
-            $table->timestamps();
-        });
+        $dbName = DB::connection('tenant')->getDatabaseName();
+        $schema = str_contains($dbName, 'credintegra') ? 'credintegra_db' : 
+                 (str_contains($dbName, 'crediticia') ? 'facturame_db' : 'public');
 
-        // Tabla de los Detalles (La Fotografía inmutable de los empleados)
-        Schema::create('lista_raya_detalles', function (Blueprint $table) {
-            $table->id('id_detalle_lista');
-            $table->foreignId('id_periodo_lista')->constrained('lista_raya_periodos', 'id_periodo_lista')->onDelete('cascade');
-            $table->unsignedBigInteger('id_empleado');
-            
-            // 📸 LA FOTOGRAFÍA (Datos Históricos Congelados)
-            $table->decimal('sueldo_mensual_historico', 10, 2)->default(0);
-            $table->decimal('sueldo_diario_historico', 10, 2)->default(0);
-            $table->string('puesto_historico')->nullable();
-            
-            // 🕒 ASISTENCIA PROCESADA
-            $table->integer('dias_periodo')->default(15);
-            $table->integer('faltas_directas')->default(0);
-            $table->integer('retardos_acumulados')->default(0);
-            $table->integer('faltas_por_retardos')->default(0); // La regla de "3 retardos = 1 falta"
-            
-            // 💰 DINERO
-            $table->decimal('descuento_por_faltas', 10, 2)->default(0);
-            $table->decimal('otras_deducciones', 10, 2)->default(0);
-            $table->decimal('percepciones_extra', 10, 2)->default(0);
-            $table->decimal('total_neto', 10, 2)->default(0);
-            
-            $table->timestamps();
-        });
+        $sqlPeriodos = "CREATE TABLE IF NOT EXISTS \"$schema\".lista_raya_periodos (
+            id_periodo_lista bigserial PRIMARY KEY,
+            periodo_rango varchar(255) NOT NULL,
+            id_sucursal bigint NULL,
+            status_periodo varchar(255) NOT NULL DEFAULT 'Borrador',
+            created_at timestamp(0) NULL,
+            updated_at timestamp(0) NULL
+        )";
+        DB::connection('tenant')->statement($sqlPeriodos);
+
+        $sqlDetalles = "CREATE TABLE IF NOT EXISTS \"$schema\".lista_raya_detalles (
+            id_detalle_lista bigserial PRIMARY KEY,
+            id_periodo_lista bigint NOT NULL,
+            id_empleado bigint NOT NULL,
+            sueldo_mensual_historico numeric(10, 2) NOT NULL DEFAULT 0.00,
+            sueldo_diario_historico numeric(10, 2) NOT NULL DEFAULT 0.00,
+            puesto_historico varchar(255) NULL,
+            dias_periodo integer NOT NULL DEFAULT 15,
+            faltas_directas integer NOT NULL DEFAULT 0,
+            retardos_acumulados integer NOT NULL DEFAULT 0,
+            faltas_por_retardos integer NOT NULL DEFAULT 0,
+            descuento_por_faltas numeric(10, 2) NOT NULL DEFAULT 0.00,
+            otras_deducciones numeric(10, 2) NOT NULL DEFAULT 0.00,
+            percepciones_extra numeric(10, 2) NOT NULL DEFAULT 0.00,
+            total_neto numeric(10, 2) NOT NULL DEFAULT 0.00,
+            created_at timestamp(0) NULL,
+            updated_at timestamp(0) NULL,
+            CONSTRAINT fk_periodo_lista FOREIGN KEY (id_periodo_lista) REFERENCES \"$schema\".lista_raya_periodos (id_periodo_lista) ON DELETE CASCADE
+        )";
+        DB::connection('tenant')->statement($sqlDetalles);
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('lista_raya_detalles');
-        Schema::dropIfExists('lista_raya_periodos');
+        $dbName = DB::connection('tenant')->getDatabaseName();
+        $schema = str_contains($dbName, 'credintegra') ? 'credintegra_db' : 
+                 (str_contains($dbName, 'crediticia') ? 'facturame_db' : 'public');
+
+        DB::connection('tenant')->statement("DROP TABLE IF EXISTS \"$schema\".lista_raya_detalles CASCADE");
+        DB::connection('tenant')->statement("DROP TABLE IF EXISTS \"$schema\".lista_raya_periodos CASCADE");
     }
 };
