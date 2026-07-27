@@ -8,6 +8,7 @@ use App\Models\PeriodoVacacional;
 use App\Models\DeduccionEmpleado; // <-- LÍNEA AÑADIDA
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use App\Models\Asistencia;
 
 class Empleado extends Model
 {
@@ -97,7 +98,13 @@ class Empleado extends Model
                     ->where('status', 'Activo');
     }
     // ▲▲▲ FIN DE LA FUNCIÓN AÑADIDA ▲▲▲
-
+    /**
+     * Relación con las asistencias del empleado
+     */
+    public function asistencias()
+    {
+        return $this->hasMany(Asistencia::class, 'id_empleado', 'id_empleado');
+    }
 
     public function getVacacionesDetallado(Carbon $fechaCorte): array
 {
