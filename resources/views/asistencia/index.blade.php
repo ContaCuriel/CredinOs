@@ -98,6 +98,7 @@
                                         <tr id="row_emp_{{ $empleado->id_empleado }}" class="empleado-row" data-id="{{ $empleado->id_empleado }}">
                                             <td class="align-middle" style="text-align: left; position: sticky; left: 0; background-color: #f8f9fa; z-index: 1; border-right: 2px solid #dee2e6;">
                                                 <div class="d-flex align-items-center">
+                                                    {{-- EL OJITO HA VUELTO --}}
                                                     <i class="bi bi-eye-slash text-muted me-2" style="cursor: pointer; font-size: 0.9rem;" onclick="ocultarEmpleado({{ $empleado->id_empleado }})" title="Ocultar de esta lista"></i>
                                                     
                                                     <span class="fw-bold text-dark me-2">{{ $empleado->nombre_completo }}</span>
@@ -154,12 +155,12 @@
                                                                 @elseif ($asistenciaDia->status_asistencia == 'Baja_Dia')
                                                                     <span class="text-muted">BAJA</span>
                                                                 @elseif ($asistenciaDia->status_asistencia == 'Incidencia')
-                                                                    <span class="text-info-emphasis">
-                                                                        @if($tipoPeriodo == 'dia')
-                                                                            @if($asistenciaDia->hora_llegada) {{ \Carbon\Carbon::parse($asistenciaDia->hora_llegada)->format('H:i') }} / @endif {{ $asistenciaDia->notas_incidencia ?: 'INCIDENCIA' }}
-                                                                        @else
-                                                                            INCIDENCIA
-                                                                        @endif
+                                                                    {{-- 🔥 INCIDENCIA CLARA Y HORA --}}
+                                                                    <span class="text-info-emphasis d-block" style="font-size: 0.75rem; line-height: 1.2;">
+                                                                        @if($asistenciaDia->hora_llegada) 
+                                                                            <strong>{{ \Carbon\Carbon::parse($asistenciaDia->hora_llegada)->format('H:i') }}</strong> <br>
+                                                                        @endif 
+                                                                        {{ strtoupper($asistenciaDia->notas_incidencia ?: 'INCIDENCIA') }}
                                                                     </span>
                                                                 @endif
                                                             </div>
@@ -246,13 +247,9 @@
                 inputNotas.style.setProperty('display', 'none', 'important');
                 inputNotas.required = false;
             } else if (selectElement.value === 'Incidencia') {
-                if(periodo === 'dia') {
-                    inputHora.style.setProperty('display', 'block', 'important');
-                    inputHora.required = false; 
-                } else {
-                    inputHora.style.setProperty('display', 'none', 'important');
-                    inputHora.required = false;
-                }
+                // 🔥 AHORA SIEMPRE SE MUESTRAN AMBOS PARA INCIDENCIA
+                inputHora.style.setProperty('display', 'block', 'important');
+                inputHora.required = false; 
                 inputNotas.style.setProperty('display', 'block', 'important');
                 inputNotas.required = true;
             } else {

@@ -1,4 +1,4 @@
-<?php
+¿<?php
 
 namespace App\Http\Controllers;
 
@@ -58,6 +58,8 @@ class AsistenciaController extends Controller
                     ->select('empleados.*')
                     ->join('sucursales', 'empleados.id_sucursal', '=', 'sucursales.id_sucursal')
                     ->where('empleados.status', 'Alta')
+                    // 🔥 FILTRO DE VIAJE EN EL TIEMPO: Solo empleados ingresados hasta el fin del periodo consultado
+                    ->whereDate('empleados.fecha_ingreso', '<=', $finPeriodo->toDateString()) 
                     ->orderBy('sucursales.nombre_sucursal', 'asc')
                     ->orderBy('empleados.nombre_completo', 'asc')
                     ->get();
@@ -68,6 +70,8 @@ class AsistenciaController extends Controller
                 $empleadosDeSucursal = Empleado::with('sucursal')
                     ->where('status', 'Alta')
                     ->where('id_sucursal', $id_sucursal_seleccionada)
+                    // 🔥 FILTRO DE VIAJE EN EL TIEMPO
+                    ->whereDate('fecha_ingreso', '<=', $finPeriodo->toDateString())
                     ->orderBy('nombre_completo', 'asc')
                     ->get();
             }
@@ -119,7 +123,7 @@ class AsistenciaController extends Controller
                 $notas = $calculo['notas_incidencia'];
             }
         } elseif ($status === 'Incidencia') {
-            // 🔥 PERMITE HORA + INCIDENCIA AL MISMO TIEMPO
+            // 🔥 AHORA PERMITE GUARDAR LA HORA MANUAL TAMBIÉN PARA INCIDENCIAS
             $hora = $validatedData['hora_llegada_manual'] ?? null;
         }
 
