@@ -14,6 +14,7 @@ use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Str;
 use App\Models\Tenant;
 use App\Models\ConfiguracionNomina;
+use Illuminate\Support\Facades\DB;
 
 class ListaDeRayaController extends Controller
 {
