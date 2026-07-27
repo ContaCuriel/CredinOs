@@ -126,6 +126,11 @@
                                                     $fechaString = $fecha->toDateString();
                                                     $asistenciaDia = $asistenciaProcesada->get($empleado->id_empleado, collect())->get($fechaString);
                                                     
+                                                    // 🔥 NUEVO: Detectar si el día es laborable según el horario del empleado
+                                                    $mapaDias = [1 => 'lunes', 2 => 'martes', 3 => 'miercoles', 4 => 'jueves', 5 => 'viernes', 6 => 'sabado', 7 => 'domingo'];
+                                                    $nombreDia = $mapaDias[$fecha->dayOfWeekIso];
+                                                    $esLaborable = $empleado->horario ? $empleado->horario->{$nombreDia} : true;
+                                                    
                                                     $claseFondo = '';
                                                     if ($asistenciaDia) {
                                                         switch ($asistenciaDia->status_asistencia) {
@@ -134,6 +139,9 @@
                                                             case 'Baja_Dia': $claseFondo = 'bg-dark bg-opacity-10'; break;
                                                             case 'Incidencia': $claseFondo = 'bg-info bg-opacity-25'; break;
                                                         }
+                                                    } elseif (!$esLaborable) {
+                                                        // Fondo gris sutil para los días de descanso
+                                                        $claseFondo = 'bg-secondary bg-opacity-10'; 
                                                     }
                                                     $estadoActualForm = $asistenciaDia ? ($asistenciaDia->status_asistencia == 'Retardo' ? 'Presente' : $asistenciaDia->status_asistencia) : 'Presente';
                                                 @endphp
@@ -165,7 +173,12 @@
                                                                 @endif
                                                             </div>
                                                         @else
-                                                            <span class="text-muted small border border-dashed rounded px-2"><i class="bi bi-plus"></i></span>
+                                                            {{-- 🔥 NUEVO: Si no hay registro, verificamos si es su descanso --}}
+                                                            @if(!$esLaborable)
+                                                                <span class="text-secondary fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">DESCANSO</span>
+                                                            @else
+                                                                <span class="text-muted small border border-dashed rounded px-2"><i class="bi bi-plus"></i></span>
+                                                            @endif
                                                         @endif
                                                     </div>
 
