@@ -51,6 +51,63 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
 
     private function calculateResults(): void
     {
+        // ---------------------------------------------------------
+        // 1. INTENTAR LEER DESDE EL HISTÓRICO (LA FOTOGRAFÍA)
+        // ---------------------------------------------------------
+        $periodoGuardado = \App\Models\ListaRayaPeriodo::with('detalles.empleado')
+            ->where('periodo_rango', $this->periodo)
+            ->where('id_sucursal', $this->sucursal_id)
+            ->first();
+
+        $this->resultados = collect();
+
+        // Si existe en la BD, llenamos con los datos guardados
+        if ($periodoGuardado && $periodoGuardado->detalles->isNotEmpty()) {
+            foreach ($periodoGuardado->detalles as $detalle) {
+                $this->resultados->push([
+                    // --- DATOS OCULTOS PARA LA BD ---
+                    'id_empleado' => $detalle->id_empleado,
+                    'sueldo_mensual' => (float)$detalle->sueldo_mensual_historico,
+                    'sueldo_diario' => (float)$detalle->sueldo_diario_historico,
+                    'dias_periodo' => $detalle->dias_periodo,
+                    'faltas_directas' => $detalle->faltas_directas,
+                    // ---------------------------------------
+                    
+                    'empleado_nombre' => strtoupper($detalle->empleado ? $detalle->empleado->nombre_completo : 'DESCONOCIDO'),
+                    'fecha_ingreso' => $detalle->empleado ? $detalle->empleado->fecha_ingreso : null,
+                    'puesto' => $detalle->puesto_historico,
+                    'sueldo_quincenal' => (float)($detalle->sueldo_diario_historico * $detalle->dias_periodo), 
+                    
+                    // Bonos y extras
+                    'bono_permanencia' => 0, 
+                    'bono_cumpleanos' => 0,
+                    'prima_vacacional' => (float)$detalle->percepciones_extra, 
+                    'total_percepciones' => (float)(($detalle->sueldo_diario_historico * $detalle->dias_periodo) + $detalle->percepciones_extra), 
+                    
+                    // Deducciones
+                    'deduccion_faltas' => (float)$detalle->descuento_por_faltas,
+                    'deduccion_prestamo' => 0, 
+                    'deduccion_prevision' => 0, 
+                    'deduccion_caja_ahorro' => 0, 
+                    'deduccion_infonavit' => 0,
+                    'deduccion_isr' => 0, 
+                    'deduccion_imss' => 0, 
+                    'deduccion_otro' => (float)$detalle->otras_deducciones,
+                    'total_deducciones' => (float)($detalle->descuento_por_faltas + $detalle->otras_deducciones), 
+                    
+                    'neto_a_pagar' => (float)$detalle->total_neto,
+                ]);
+            }
+            
+            // ¡MAGIA! Con este "return", el código termina aquí y omite el cálculo en vivo de abajo.
+            return; 
+        }
+
+
+        // ---------------------------------------------------------
+        // 2. CÁLCULO AL VUELO (TU CÓDIGO ORIGINAL INTACTO)
+        // Se ejecuta SOLO si no encontró foto guardada.
+        // ---------------------------------------------------------
         list($fechaInicioStr, $fechaFinStr) = explode('_', $this->periodo);
         $fechaInicioPeriodo = Carbon::parse($fechaInicioStr);
         $fechaFinPeriodo = Carbon::parse($fechaFinStr);
@@ -59,8 +116,6 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             ->where('id_sucursal', $this->sucursal_id)
             ->with(['puesto'])
             ->get();
-
-        $this->resultados = collect();
 
         foreach ($empleados as $empleado) {
             $salarioDiario = $empleado->puesto ? ($empleado->puesto->salario_mensual / 30) : 0;

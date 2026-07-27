@@ -30,6 +30,7 @@ class ListaDeRayaController extends Controller
         
         $resultados = collect();
         $sucursalSeleccionada = null;
+        $esHistorico = false; // <-- AGREGADO PARA DETECTAR FOTOGRAFÍA
 
         if ($request->filled('periodo') && $request->filled('id_sucursal')) {
             $periodoSeleccionado = $request->input('periodo');
@@ -39,6 +40,12 @@ class ListaDeRayaController extends Controller
                 $sucursalSeleccionada = (object)['nombre_sucursal' => 'Todas las Sucursales (Solo para Exportar)'];
             } else {
                 $sucursalSeleccionada = Sucursal::find($idSucursal);
+                
+                // <-- VERIFICAMOS SI YA EXISTE UN HISTÓRICO GUARDADO EN BD
+                $esHistorico = \App\Models\ListaRayaPeriodo::where('periodo_rango', $periodoSeleccionado)
+                    ->where('id_sucursal', $idSucursal)
+                    ->exists();
+
                 // Usamos la misma clase de exportación para obtener los resultados para la vista,
                 // asegurando que la lógica sea idéntica.
                 $export = new ListaDeRayaSheetExport($periodoSeleccionado, (int)$idSucursal);
@@ -50,7 +57,8 @@ class ListaDeRayaController extends Controller
             'sucursales',
             'opcionesPeriodo',
             'resultados',
-            'sucursalSeleccionada'
+            'sucursalSeleccionada',
+            'esHistorico' // <-- PASAMOS LA VARIABLE A LA VISTA
         ));
     }
 
@@ -78,63 +86,70 @@ class ListaDeRayaController extends Controller
                 return back()->with('error', 'No hay datos calculados para guardar en este periodo.');
             }
 
-            // 2. Evitar duplicados: Revisar si ya existe este periodo para esta sucursal
+            // 2. Revisar si ya existe este periodo
             $existe = \App\Models\ListaRayaPeriodo::where('periodo_rango', $periodoRango)
                         ->where('id_sucursal', $idSucursal)
                         ->first();
             
             if ($existe) {
-                return back()->with('error', 'Ya existe un histórico guardado para esta sucursal en este periodo.');
+                // Si la nómina ya fue pagada/cerrada, bloqueamos la edición
+                if ($existe->status_periodo !== 'Borrador') {
+                    return back()->with('error', 'Esta nómina ya está cerrada o pagada y no se puede sobrescribir.');
+                }
+                
+                // Si es Borrador, "rompemos la foto vieja" para tomar una nueva
+                $existe->delete(); 
             }
 
-            // 3. Crear el Encabezado del periodo
+            // 3. Crear el Encabezado del periodo (La nueva foto)
             $periodo = \App\Models\ListaRayaPeriodo::create([
                 'periodo_rango'  => $periodoRango,
                 'id_sucursal'    => $idSucursal,
                 'status_periodo' => 'Borrador'
             ]);
 
-            // 4. Guardar la "Fotografía" de cada empleado
+            // 4. Guardar los nuevos detalles actualizados
             foreach ($resultados as $fila) {
-                // Sumamos las percepciones extra
-                $percepcionesExtra = $fila['bono_permanencia'] + $fila['bono_cumpleanos'] + $fila['prima_vacacional'];
+                $percepcionesExtra = ($fila['bono_permanencia'] ?? 0) + 
+                                     ($fila['bono_cumpleanos'] ?? 0) + 
+                                     ($fila['prima_vacacional'] ?? 0);
 
-                // Sumamos todas las demás deducciones que no son faltas
-                $otrasDeducciones = $fila['deduccion_prestamo'] + 
-                                    $fila['deduccion_prevision'] + 
-                                    $fila['deduccion_caja_ahorro'] + 
-                                    $fila['deduccion_infonavit'] + 
-                                    $fila['deduccion_isr'] + 
-                                    $fila['deduccion_imss'] + 
-                                    $fila['deduccion_otro'];
+                $otrasDeducciones = ($fila['deduccion_prestamo'] ?? 0) + 
+                                    ($fila['deduccion_prevision'] ?? 0) + 
+                                    ($fila['deduccion_caja_ahorro'] ?? 0) + 
+                                    ($fila['deduccion_infonavit'] ?? 0) + 
+                                    ($fila['deduccion_isr'] ?? 0) + 
+                                    ($fila['deduccion_imss'] ?? 0) + 
+                                    ($fila['deduccion_otro'] ?? 0);
 
                 \App\Models\ListaRayaDetalle::create([
                     'id_periodo_lista'         => $periodo->id_periodo_lista,
-                    'id_empleado'              => $fila['id_empleado'], 
-                    'sueldo_mensual_historico' => $fila['sueldo_mensual'],
-                    'sueldo_diario_historico'  => $fila['sueldo_diario'],
-                    'puesto_historico'         => $fila['puesto'],
-                    'dias_periodo'             => $fila['dias_periodo'], 
-                    'faltas_directas'          => $fila['faltas_directas'], 
-                    'retardos_acumulados'      => 0, // Aún no tienes esta lógica en tu export
-                    'faltas_por_retardos'      => 0, // Aún no tienes esta lógica en tu export
-                    'descuento_por_faltas'     => $fila['deduccion_faltas'],
+                    'id_empleado'              => $fila['id_empleado'] ?? 0, 
+                    'sueldo_mensual_historico' => ($fila['sueldo_quincenal'] ?? 0) * 2, 
+                    'sueldo_diario_historico'  => ($fila['sueldo_quincenal'] ?? 0) / 15,
+                    'puesto_historico'         => $fila['puesto'] ?? 'General',
+                    'dias_periodo'             => $fila['dias_periodo'] ?? 15, 
+                    'faltas_directas'          => $fila['faltas_directas'] ?? 0, 
+                    'retardos_acumulados'      => 0, 
+                    'faltas_por_retardos'      => 0, 
+                    'descuento_por_faltas'     => $fila['deduccion_faltas'] ?? 0,
                     'otras_deducciones'        => $otrasDeducciones,
                     'percepciones_extra'       => $percepcionesExtra,
-                    'total_neto'               => $fila['neto_a_pagar'],
+                    'total_neto'               => $fila['neto_a_pagar'] ?? 0,
                 ]);
             }
 
             DB::commit();
 
-            return back()->with('success', 'Histórico guardado correctamente como Borrador.');
+            return back()->with('success', 'Histórico actualizado y guardado correctamente.');
 
         } catch (\Exception $e) {
             DB::rollBack();
             \Illuminate\Support\Facades\Log::error('Error guardando histórico de nómina: ' . $e->getMessage());
-            return back()->with('error', 'Ocurrió un error al guardar el histórico.');
+            return back()->with('error', 'Ocurrió un error al guardar el histórico: ' . $e->getMessage());
         }
     }
+
     /**
      * Genera y descarga un reporte de la lista de raya en formato Excel.
      */

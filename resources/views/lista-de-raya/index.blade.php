@@ -63,7 +63,16 @@
                 @if ($resultados)
                     <hr>
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h6 class="mb-0">Resultados para: <span class="text-primary">{{ $sucursalSeleccionada->nombre_sucursal ?? 'Ninguna sucursal seleccionada' }}</span></h6>
+                        
+                        {{-- AQUÍ ESTÁ EL NUEVO LETRERO DE HISTÓRICO --}}
+                        <h6 class="mb-0">
+                            Resultados para: <span class="text-primary">{{ $sucursalSeleccionada->nombre_sucursal ?? 'Ninguna sucursal seleccionada' }}</span>
+                            @if ($esHistorico ?? false)
+                                <span class="badge bg-warning text-dark ms-2"><i class="bi bi-archive"></i> Viendo Histórico Guardado</span>
+                            @else
+                                <span class="badge bg-info text-dark ms-2"><i class="bi bi-lightning"></i> Cálculo en Vivo</span>
+                            @endif
+                        </h6>
                         
                         <div class="d-flex gap-2">
                             {{-- BOTÓN: GUARDAR HISTÓRICO (Solo visible si NO es "Todas las Sucursales") --}}
