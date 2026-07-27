@@ -75,16 +75,28 @@
                         </h6>
                         
                         <div class="d-flex gap-2">
-                            {{-- BOTÓN: GUARDAR HISTÓRICO (Solo visible si NO es "Todas las Sucursales") --}}
                             @if(request('id_sucursal') != 'todas')
-                                <form method="POST" action="{{ route('lista_raya.guardar_historico') }}">
-                                    @csrf
-                                    <input type="hidden" name="periodo" value="{{ request('periodo') }}">
-                                    <input type="hidden" name="id_sucursal" value="{{ request('id_sucursal') }}">
-                                    <button type="submit" class="btn btn-primary" onclick="return confirm('¿Estás seguro de guardar esta nómina como histórico?');">
-                                        <i class="bi bi-save"></i> Guardar Histórico
-                                    </button>
-                                </form>
+                                {{-- Si estamos viendo la foto guardada (Histórico), mostramos el botón para eliminar/recalcular --}}
+                                @if($esHistorico ?? false)
+                                    <form method="POST" action="{{ route('lista_raya.eliminar_borrador') }}">
+                                        @csrf
+                                        <input type="hidden" name="periodo" value="{{ request('periodo') }}">
+                                        <input type="hidden" name="id_sucursal" value="{{ request('id_sucursal') }}">
+                                        <button type="submit" class="btn btn-danger" onclick="return confirm('¿Estás seguro de eliminar este borrador? El sistema volverá a calcular los sueldos en vivo basándose en los datos actuales de los empleados.');">
+                                            <i class="bi bi-trash"></i> Eliminar Borrador (Recalcular)
+                                        </button>
+                                    </form>
+                                @else
+                                    {{-- Si NO hay foto, mostramos el botón para Guardar --}}
+                                    <form method="POST" action="{{ route('lista_raya.guardar_historico') }}">
+                                        @csrf
+                                        <input type="hidden" name="periodo" value="{{ request('periodo') }}">
+                                        <input type="hidden" name="id_sucursal" value="{{ request('id_sucursal') }}">
+                                        <button type="submit" class="btn btn-primary" onclick="return confirm('¿Estás seguro de guardar esta nómina como histórico?');">
+                                            <i class="bi bi-save"></i> Guardar Histórico
+                                        </button>
+                                    </form>
+                                @endif
                             @endif
 
                             {{-- BOTÓN: EXPORTAR A EXCEL (Ya lo tenías) --}}

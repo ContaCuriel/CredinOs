@@ -127,6 +127,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/lista-de-raya/exportar', [ListaDeRayaController::class, 'exportarExcel'])->name('lista_de_raya.exportar')->middleware('can:exportar-lista-raya');
         Route::post('/lista-de-raya/configuracion', [ListaDeRayaController::class, 'guardarConfiguracion'])->name('lista_raya.configuracion');
         Route::post('/lista-de-raya/guardar-historico', [ListaDeRayaController::class, 'guardarHistorico'])->name('lista_raya.guardar_historico');
+        Route::post('/lista-de-raya/eliminar-borrador', [ListaDeRayaController::class, 'eliminarBorrador'])->name('lista_raya.eliminar_borrador');
 
         // Finiquitos y Liquidaciones
         Route::get('/finiquitos', [FiniquitoController::class, 'index'])->name('finiquitos.index')->middleware('can:ver-finiquitos');

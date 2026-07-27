@@ -206,6 +206,32 @@ class ListaDeRayaController extends Controller
 
         return back()->with('success', 'Configuración de nómina guardada correctamente.');
     }
+
+    /**
+     * Elimina el histórico (Borrador) para forzar un nuevo cálculo en vivo.
+     */
+    public function eliminarBorrador(Request $request)
+    {
+        $request->validate([
+            'periodo' => 'required|string',
+            'id_sucursal' => 'required|numeric',
+        ]);
+
+        $existe = \App\Models\ListaRayaPeriodo::where('periodo_rango', $request->periodo)
+                    ->where('id_sucursal', $request->id_sucursal)
+                    ->first();
+
+        if ($existe) {
+            if ($existe->status_periodo !== 'Borrador') {
+                return back()->with('error', 'No puedes eliminar esta nómina porque ya está Cerrada/Pagada.');
+            }
+            
+            $existe->delete(); // Esto borra la carpeta y todos sus detalles automáticamente
+            return back()->with('success', 'Borrador eliminado correctamente. El sistema ha vuelto a calcular los datos en vivo.');
+        }
+
+        return back()->with('error', 'No se encontró un borrador para eliminar.');
+    }
     /**
      * Helper para generar las opciones de periodo.
      */
