@@ -54,7 +54,7 @@ class AsistenciaController extends Controller
         if ($id_sucursal_seleccionada) {
             if ($id_sucursal_seleccionada === 'todas') {
                 $sucursalSeleccionadaNombre = 'TODAS LAS SUCURSALES';
-                $empleadosDeSucursal = Empleado::with('sucursal')
+                $empleadosDeSucursal = Empleado::with(['sucursal', 'puesto'])
                     ->select('empleados.*')
                     ->join('sucursales', 'empleados.id_sucursal', '=', 'sucursales.id_sucursal')
                     ->where('empleados.status', 'Alta')
@@ -67,7 +67,7 @@ class AsistenciaController extends Controller
                 $sucursalActual = Sucursal::find($id_sucursal_seleccionada);
                 if ($sucursalActual) $sucursalSeleccionadaNombre = $sucursalActual->nombre_sucursal;
                 
-                $empleadosDeSucursal = Empleado::with('sucursal')
+                $empleadosDeSucursal = Empleado::with(['sucursal', 'puesto'])
                     ->where('status', 'Alta')
                     ->where('id_sucursal', $id_sucursal_seleccionada)
                     // 🔥 FILTRO DE VIAJE EN EL TIEMPO
@@ -202,14 +202,14 @@ class AsistenciaController extends Controller
         $fechaActual = Carbon::now();
         for ($i = 0; $i < 6; $i++) {
             $fecha = $fechaActual->copy()->subMonths($i);
-            // 1ra Quincena
+            
             $inicioQ1 = $fecha->copy()->startOfMonth();
             $finQ1 = $fecha->copy()->startOfMonth()->addDays(14);
             $opcionesPeriodo[] = [
                 'valor' => $inicioQ1->toDateString() . '_' . $finQ1->toDateString(),
                 'texto' => '1ra Quincena ' . $inicioQ1->translatedFormat('F Y')
             ];
-            // 2da Quincena
+            
             $inicioQ2 = $fecha->copy()->startOfMonth()->addDays(15);
             $finQ2 = $fecha->copy()->endOfMonth();
             $opcionesPeriodo[] = [
@@ -226,20 +226,30 @@ class AsistenciaController extends Controller
             $fechaInicio = Carbon::parse($fechaInicioStr);
             $fechaFin = Carbon::parse($fechaFinStr);
 
-            $sucursalSeleccionada = Sucursal::find($id_sucursal);
-
-            $empleados = Empleado::with(['horario', 'asistencias' => function($q) use ($fechaInicioStr, $fechaFinStr) {
+            $query = Empleado::with(['horario', 'sucursal', 'puesto', 'asistencias' => function($q) use ($fechaInicioStr, $fechaFinStr) {
                 $q->whereBetween('fecha', [$fechaInicioStr, $fechaFinStr]);
             }])
-            ->where('id_sucursal', $id_sucursal)
             ->where('status', 'Alta')
-            ->whereDate('fecha_ingreso', '<=', $fechaFinStr) // Filtro de viaje en el tiempo
-            ->orderBy('nombre_completo')
-            ->get();
+            ->whereDate('fecha_ingreso', '<=', $fechaFinStr); // Filtro de viaje en el tiempo
+
+            if ($id_sucursal === 'todas') {
+                $sucursalSeleccionada = (object) ['nombre_sucursal' => 'TODAS LAS SUCURSALES'];
+                $empleados = $query->orderBy('id_sucursal')->orderBy('nombre_completo')->get();
+            } else {
+                $sucursalSeleccionada = Sucursal::find($id_sucursal);
+                $empleados = $query->where('id_sucursal', $id_sucursal)->orderBy('nombre_completo')->get();
+            }
+
+            $hoy = Carbon::today();
 
             foreach ($empleados as $empleado) {
                 $horario = $empleado->horario;
                 if (!$horario) continue; // Si no tiene horario, lo saltamos por seguridad
+
+                // 🔥 SOLUCIÓN CRÍTICA: Indexar las asistencias por fecha exacta (string)
+                $asistenciasDelEmpleado = $empleado->asistencias->keyBy(function($item) {
+                    return Carbon::parse($item->fecha)->toDateString();
+                });
 
                 // Variables para acumular las incidencias crudas de la quincena
                 $retardos_crudos = 0;
@@ -251,6 +261,11 @@ class AsistenciaController extends Controller
 
                 // Evaluamos día por día
                 for ($date = $fechaInicio->copy(); $date->lte($fechaFin); $date->addDay()) {
+                    // NO CASTIGAR DÍAS FUTUROS
+                    if ($date->gt($hoy)) {
+                        continue; 
+                    }
+
                     $fechaStr = $date->toDateString();
                     $mapaDias = [1=>'lunes', 2=>'martes', 3=>'miercoles', 4=>'jueves', 5=>'viernes', 6=>'sabado', 7=>'domingo'];
                     $nombreDia = $mapaDias[$date->dayOfWeekIso];
@@ -258,7 +273,25 @@ class AsistenciaController extends Controller
                     $esLaborable = $horario->{$nombreDia};
                     if (!$esLaborable) continue; // Si descansa, no hay penalización
 
-                    $asistencia = $empleado->asistencias->where('fecha', $fechaStr)->first();
+                    // 🔥 Buscar la asistencia usando la llave exacta
+                    $asistencia = $asistenciasDelEmpleado->get($fechaStr);
+
+                    // SI VINO O FUE BAJA, SE IGNORA PARA EL CASTIGO
+                    if ($asistencia && in_array($asistencia->status_asistencia, ['Presente', 'Baja_Dia'])) {
+                        continue; 
+                    }
+
+                    // 🔥 NUEVO: VISIBILIDAD DE INCIDENCIAS
+                    if ($asistencia && $asistencia->status_asistencia == 'Incidencia') {
+                        $detalles_dias[] = [
+                            'fecha' => $fechaStr, 
+                            'tipo' => 'incidencia', 
+                            'penalizacion' => 0, // No descuenta automáticamente, solo es visual
+                            'notas' => $asistencia->notas_incidencia ?? 'Incidencia',
+                            'perdonado' => false // Para este caso, true significará que está "activa" en el checkbox
+                        ];
+                        continue; 
+                    }
 
                     if (!$asistencia || $asistencia->status_asistencia == 'Falta') {
                         // FALTA DIRECTA O NO VINO
@@ -314,6 +347,7 @@ class AsistenciaController extends Controller
                 $empleadosData->push([
                     'id_empleado' => $empleado->id_empleado,
                     'nombre' => $empleado->nombre_completo,
+                    'sucursal' => $empleado->sucursal->nombre_sucursal ?? 'Sin Sucursal',
                     'puesto' => $empleado->puesto->nombre_puesto ?? 'General',
                     'regla_retardos' => $regla_retardos,
                     'retardos_crudos' => $retardos_crudos,
