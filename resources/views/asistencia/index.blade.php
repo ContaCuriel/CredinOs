@@ -4,11 +4,16 @@
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
                 <h5 class="mb-0 text-dark fw-bold">Control de Asistencias</h5>
                 <div>
-                    <a href="{{ route('asistencia.resumenIncidencias') }}" class="btn btn-info btn-sm me-2 text-white">
-                        <i class="bi bi-file-earmark-text"></i> Ver Resumen de Incidencias
+                    {{-- NUEVO BOTÓN PARA EL PANEL INTERACTIVO --}}
+                    <a href="{{ route('asistencia.pre_cierre') }}" class="btn btn-primary btn-sm me-2 text-white shadow-sm">
+                        <i class="bi bi-shield-check"></i> Panel de Pre-Cierre
+                    </a>
+                    
+                    <a href="{{ route('asistencia.resumenIncidencias') }}" class="btn btn-info btn-sm text-white shadow-sm">
+                        <i class="bi bi-file-earmark-text"></i> Ver Resumen PDF
                     </a>
                 </div>
-            </div>
+            </div>         
             <div class="card-body">
                 @if (session('success'))
                     <div class="alert alert-success alert-dismissible fade show" role="alert">{{ session('success') }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
