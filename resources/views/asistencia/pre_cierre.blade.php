@@ -10,8 +10,8 @@
             
             <div class="card-body bg-light">
                 <div class="alert alert-light border border-info border-start-5 mb-4 shadow-sm text-secondary rounded" style="border-left-width: 5px !important;">
-                    <strong><i class="bi bi-info-circle text-info me-1"></i> ¿Cómo funciona?</strong> Aquí verás el cálculo puro de incidencias a descontar.
-                    <br><i class="bi bi-check2-square text-success me-1"></i> Desmarca la casilla de una incidencia para "perdonarla" y ver cómo se recalcula el total.
+                    <strong><i class="bi bi-info-circle text-info me-1"></i> ¿Cómo funciona?</strong> Aquí verás a los empleados que tuvieron incidencias a descontar.
+                    <br><i class="bi bi-check2-square text-success me-1"></i> Desmarca la casilla de una incidencia para "perdonarla" y ver cómo se recalcula el total al instante.
                     <br><i class="bi bi-exclamation-circle text-warning me-1"></i> Las <strong>Incidencias/Permisos</strong> valen 0 días por defecto, pero puedes asignarles una penalización manual.
                     <br><i class="bi bi-trash text-danger me-1"></i> Oculta empleados temporalmente (ej. dueños o exentos) para limpiar tu reporte.
                 </div>
@@ -88,63 +88,58 @@
                                             </span>
                                         </td>
                                         <td style="text-align: left; background-color: #fafbfc;">
-                                            @if(count($emp['detalles']) > 0)
-                                                <div class="d-flex flex-wrap gap-2">
-                                                    @foreach($emp['detalles'] as $idx => $incidencia)
-                                                        @php
-                                                            $fechaFormateada = \Carbon\Carbon::parse($incidencia['fecha'])->format('d/m');
-                                                            $etiqueta = '';
-                                                            $colorClass = '';
-                                                            
-                                                            if ($incidencia['tipo'] == 'falta') {
-                                                                $etiqueta = "Falta ({$incidencia['penalizacion']}d)";
-                                                                $colorClass = "danger";
-                                                            } elseif ($incidencia['tipo'] == 'falta_por_retardo_extremo') {
-                                                                $etiqueta = "R. Extremo ({$incidencia['penalizacion']}d)";
-                                                                $colorClass = "danger";
-                                                            } elseif ($incidencia['tipo'] == 'medio_dia') {
-                                                                $etiqueta = "Medio Día (0.5d)";
-                                                                $colorClass = "warning text-dark";
-                                                            } elseif ($incidencia['tipo'] == 'retardo') {
-                                                                $etiqueta = "Retardo";
-                                                                $colorClass = "secondary text-dark";
-                                                            } elseif ($incidencia['tipo'] == 'incidencia') {
-                                                                // 🔥 AQUI DETECTAMOS LA INCIDENCIA
-                                                                $nota = isset($incidencia['notas']) && $incidencia['notas'] != '' ? $incidencia['notas'] : 'Incidencia';
-                                                                $etiqueta = strtoupper($nota);
-                                                                $colorClass = "info text-dark";
-                                                            }
-                                                        @endphp
+                                            <div class="d-flex flex-wrap gap-2">
+                                                @foreach($emp['detalles'] as $idx => $incidencia)
+                                                    @php
+                                                        $fechaFormateada = \Carbon\Carbon::parse($incidencia['fecha'])->format('d/m');
+                                                        $etiqueta = '';
+                                                        $colorClass = '';
                                                         
-                                                        <div class="form-check form-switch bg-white border border-{{ str_replace(' text-dark', '', $colorClass) }} rounded-pill px-3 py-1 shadow-sm d-flex align-items-center mb-1" style="font-size: 0.8rem; border-width: 2px !important;">
-                                                            <input class="form-check-input mt-0 me-2 check-incidencia" type="checkbox" checked
-                                                                id="chk_{{ $emp['id_empleado'] }}_{{ $idx }}"
-                                                                data-tipo="{{ $incidencia['tipo'] }}"
-                                                                data-penalizacion="{{ $incidencia['penalizacion'] }}"
-                                                                onchange="recalcularFila({{ $emp['id_empleado'] }}, {{ $emp['regla_retardos'] }}, this)">
-                                                            
-                                                            <label class="form-check-label text-{{ $colorClass }} fw-bold mb-0 pt-1 me-2" for="chk_{{ $emp['id_empleado'] }}_{{ $idx }}" style="cursor: pointer; user-select: none;">
-                                                                {{ $fechaFormateada }} - {{ $etiqueta }}
-                                                            </label>
+                                                        // Agregamos la hora si existe
+                                                        $horaTxt = isset($incidencia['hora']) && $incidencia['hora'] ? " ({$incidencia['hora']})" : "";
+                                                        
+                                                        if ($incidencia['tipo'] == 'falta') {
+                                                            $etiqueta = "Falta ({$incidencia['penalizacion']}d)";
+                                                            $colorClass = "danger";
+                                                        } elseif ($incidencia['tipo'] == 'falta_por_retardo_extremo') {
+                                                            $etiqueta = "R. Extremo{$horaTxt} ({$incidencia['penalizacion']}d)";
+                                                            $colorClass = "danger";
+                                                        } elseif ($incidencia['tipo'] == 'medio_dia') {
+                                                            $etiqueta = "Medio Día{$horaTxt} (0.5d)";
+                                                            $colorClass = "warning text-dark";
+                                                        } elseif ($incidencia['tipo'] == 'retardo') {
+                                                            $etiqueta = "Retardo{$horaTxt}";
+                                                            $colorClass = "secondary text-dark";
+                                                        } elseif ($incidencia['tipo'] == 'incidencia') {
+                                                            $nota = isset($incidencia['notas']) && $incidencia['notas'] != '' ? $incidencia['notas'] : 'Incidencia';
+                                                            $etiqueta = strtoupper($nota) . $horaTxt;
+                                                            $colorClass = "info text-dark";
+                                                        }
+                                                    @endphp
+                                                    
+                                                    <div class="form-check form-switch bg-white border border-{{ str_replace(' text-dark', '', $colorClass) }} rounded-pill px-3 py-1 shadow-sm d-flex align-items-center mb-1" style="font-size: 0.8rem; border-width: 2px !important;">
+                                                        <input class="form-check-input mt-0 me-2 check-incidencia" type="checkbox" checked
+                                                            id="chk_{{ $emp['id_empleado'] }}_{{ $idx }}"
+                                                            data-tipo="{{ $incidencia['tipo'] }}"
+                                                            data-penalizacion="{{ $incidencia['penalizacion'] }}"
+                                                            onchange="recalcularFila({{ $emp['id_empleado'] }}, {{ $emp['regla_retardos'] }}, this)">
+                                                        
+                                                        <label class="form-check-label text-{{ $colorClass }} fw-bold mb-0 pt-1 me-2" for="chk_{{ $emp['id_empleado'] }}_{{ $idx }}" style="cursor: pointer; user-select: none;">
+                                                            {{ $fechaFormateada }} - {{ $etiqueta }}
+                                                        </label>
 
-                                                            {{-- 🔥 SELECTOR DE CASTIGO MANUAL SOLO PARA INCIDENCIAS --}}
-                                                            @if($incidencia['tipo'] == 'incidencia')
-                                                                <select class="form-select form-select-sm border-info text-info fw-bold py-0 bg-info bg-opacity-10" style="width: auto; font-size: 0.75rem; cursor: pointer;" onchange="actualizarPenalizacionIncidencia(this, 'chk_{{ $emp['id_empleado'] }}_{{ $idx }}', {{ $emp['id_empleado'] }}, {{ $emp['regla_retardos'] }})">
-                                                                    <option value="0" selected>Pena: 0d</option>
-                                                                    <option value="0.5">Pena: 0.5d</option>
-                                                                    <option value="1">Pena: 1d</option>
-                                                                    <option value="2">Pena: 2d</option>
-                                                                    <option value="3">Pena: 3d</option>
-                                                                </select>
-                                                            @endif
-                                                        </div>
-                                                    @endforeach
-                                                </div>
-                                            @else
-                                                <div class="text-success fw-bold d-flex align-items-center h-100 p-2 bg-success bg-opacity-10 rounded" style="font-size: 0.9rem;">
-                                                    <i class="bi bi-star-fill text-warning me-2"></i> Asistencia Perfecta
-                                                </div>
-                                            @endif
+                                                        @if($incidencia['tipo'] == 'incidencia')
+                                                            <select class="form-select form-select-sm border-info text-info fw-bold py-0 bg-info bg-opacity-10" style="width: auto; font-size: 0.75rem; cursor: pointer;" onchange="actualizarPenalizacionIncidencia(this, 'chk_{{ $emp['id_empleado'] }}_{{ $idx }}', {{ $emp['id_empleado'] }}, {{ $emp['regla_retardos'] }})">
+                                                                <option value="0" selected>Pena: 0d</option>
+                                                                <option value="0.5">Pena: 0.5d</option>
+                                                                <option value="1">Pena: 1d</option>
+                                                                <option value="2">Pena: 2d</option>
+                                                                <option value="3">Pena: 3d</option>
+                                                            </select>
+                                                        @endif
+                                                    </div>
+                                                @endforeach
+                                            </div>
                                         </td>
                                         <td class="text-center align-middle bg-light border-start-0">
                                             @if($emp['total_dias_descuento_inicial'] > 0)
@@ -161,8 +156,8 @@
                         </table>
                     </div>
                 @elseif(request()->filled('periodo'))
-                    <div class="alert alert-info text-center mt-3 shadow-sm border-0">
-                        <i class="bi bi-emoji-smile"></i> No se encontraron empleados con incidencias para los parámetros seleccionados.
+                    <div class="alert alert-success text-center mt-3 shadow-sm border-0">
+                        <i class="bi bi-emoji-sunglasses"></i> ¡Excelente! Todos los empleados tuvieron <strong>Asistencia Perfecta</strong> o no se encontraron datos para estos parámetros.
                     </div>
                 @endif
             </div>
@@ -171,18 +166,14 @@
 
     @push('scripts')
         <script>
-        // 🔥 FUNCIÓN NUEVA: Actualiza la penalización de una incidencia dinámica
         function actualizarPenalizacionIncidencia(selectElement, checkboxId, idEmpleado, reglaRetardos) {
             let checkbox = document.getElementById(checkboxId);
-            // Sobrescribimos el valor de penalización del checkbox
             checkbox.setAttribute('data-penalizacion', selectElement.value);
             
-            // Si el usuario decide castigar (>0), nos aseguramos de que el switch esté encendido
             if (parseFloat(selectElement.value) > 0 && !checkbox.checked) {
                 checkbox.checked = true;
             }
             
-            // Recalculamos la fila con el nuevo valor
             recalcularFila(idEmpleado, reglaRetardos, checkbox);
         }
 
@@ -190,7 +181,6 @@
             let label = checkboxToggled.nextElementSibling;
             let container = checkboxToggled.closest('.form-check');
             
-            // Efecto visual: Tachado y opaco si está desmarcado (perdonado)
             if (checkboxToggled.checked) {
                 label.style.textDecoration = 'none';
                 container.style.opacity = '1';
@@ -211,7 +201,6 @@
                 let tipo = chk.getAttribute('data-tipo');
                 let penalizacion = parseFloat(chk.getAttribute('data-penalizacion'));
 
-                // 🔥 AHORA INCLUIMOS LA INCIDENCIA EN LA SUMA DIRECTA
                 if (tipo === 'falta' || tipo === 'falta_por_retardo_extremo' || tipo === 'incidencia') {
                     totalDias += penalizacion;
                 } else if (tipo === 'medio_dia') {
@@ -221,16 +210,13 @@
                 }
             });
 
-            // Aplicar regla de retardos a los que quedaron vivos
             if (reglaRetardos > 0) {
                 totalDias += Math.floor(conteoRetardosNormales / reglaRetardos);
             }
 
-            // Actualizar la interfaz
             let txtTotal = document.getElementById('txt_total_' + idEmpleado);
             txtTotal.innerText = totalDias % 1 === 0 ? totalDias : totalDias.toFixed(1);
 
-            // Cambiar color si bajó a cero
             let parentTd = txtTotal.closest('td');
             let smallLabel = parentTd.querySelector('span');
             

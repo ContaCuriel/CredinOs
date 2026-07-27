@@ -197,7 +197,7 @@ class AsistenciaController extends Controller
         $id_sucursal = $request->input('id_sucursal');
         $periodo = $request->input('periodo');
 
-        // Generar opciones de periodo (Quincenas) igual que en Lista de Raya
+        // Generar opciones de periodo (Quincenas)
         $opcionesPeriodo = [];
         $fechaActual = Carbon::now();
         for ($i = 0; $i < 6; $i++) {
@@ -230,7 +230,7 @@ class AsistenciaController extends Controller
                 $q->whereBetween('fecha', [$fechaInicioStr, $fechaFinStr]);
             }])
             ->where('status', 'Alta')
-            ->whereDate('fecha_ingreso', '<=', $fechaFinStr); // Filtro de viaje en el tiempo
+            ->whereDate('fecha_ingreso', '<=', $fechaFinStr); 
 
             if ($id_sucursal === 'todas') {
                 $sucursalSeleccionada = (object) ['nombre_sucursal' => 'TODAS LAS SUCURSALES'];
@@ -244,24 +244,19 @@ class AsistenciaController extends Controller
 
             foreach ($empleados as $empleado) {
                 $horario = $empleado->horario;
-                if (!$horario) continue; // Si no tiene horario, lo saltamos por seguridad
+                if (!$horario) continue; 
 
-                // 🔥 SOLUCIÓN CRÍTICA: Indexar las asistencias por fecha exacta (string)
                 $asistenciasDelEmpleado = $empleado->asistencias->keyBy(function($item) {
                     return Carbon::parse($item->fecha)->toDateString();
                 });
 
-                // Variables para acumular las incidencias crudas de la quincena
                 $retardos_crudos = 0;
                 $medios_dias_crudos = 0;
                 $faltas_directas_crudas = 0;
-                $dias_castigo_acumulados = 0; // Por multiplicador
+                $dias_castigo_acumulados = 0; 
+                $detalles_dias = []; 
 
-                $detalles_dias = []; // Para saber qué pasó cada día y poder "perdonarlo"
-
-                // Evaluamos día por día
                 for ($date = $fechaInicio->copy(); $date->lte($fechaFin); $date->addDay()) {
-                    // NO CASTIGAR DÍAS FUTUROS
                     if ($date->gt($hoy)) {
                         continue; 
                     }
@@ -271,34 +266,33 @@ class AsistenciaController extends Controller
                     $nombreDia = $mapaDias[$date->dayOfWeekIso];
                     
                     $esLaborable = $horario->{$nombreDia};
-                    if (!$esLaborable) continue; // Si descansa, no hay penalización
+                    if (!$esLaborable) continue; 
 
-                    // 🔥 Buscar la asistencia usando la llave exacta
                     $asistencia = $asistenciasDelEmpleado->get($fechaStr);
 
-                    // SI VINO O FUE BAJA, SE IGNORA PARA EL CASTIGO
                     if ($asistencia && in_array($asistencia->status_asistencia, ['Presente', 'Baja_Dia'])) {
                         continue; 
                     }
 
-                    // 🔥 NUEVO: VISIBILIDAD DE INCIDENCIAS
                     if ($asistencia && $asistencia->status_asistencia == 'Incidencia') {
+                        // 🔥 CAPTURAMOS LA HORA PARA LA INCIDENCIA TAMBIÉN
+                        $horaIncidencia = $asistencia->hora_llegada ? Carbon::parse($asistencia->hora_llegada)->format('H:i') : null;
                         $detalles_dias[] = [
                             'fecha' => $fechaStr, 
                             'tipo' => 'incidencia', 
-                            'penalizacion' => 0, // No descuenta automáticamente, solo es visual
+                            'penalizacion' => 0, 
                             'notas' => $asistencia->notas_incidencia ?? 'Incidencia',
-                            'perdonado' => false // Para este caso, true significará que está "activa" en el checkbox
+                            'hora' => $horaIncidencia,
+                            'perdonado' => false 
                         ];
                         continue; 
                     }
 
                     if (!$asistencia || $asistencia->status_asistencia == 'Falta') {
-                        // FALTA DIRECTA O NO VINO
                         $faltas_directas_crudas++;
                         $multiplicador = 1;
                         if ($horario->aplica_castigo_multiplicador) {
-                            if (in_array($date->dayOfWeekIso, [1, 5])) { // Lunes o Viernes
+                            if (in_array($date->dayOfWeekIso, [1, 5])) { 
                                 $multiplicador = $horario->multiplicador_lunes_viernes ?? 1;
                             } else {
                                 $multiplicador = $horario->multiplicador_dias_regulares ?? 1;
@@ -308,34 +302,38 @@ class AsistenciaController extends Controller
                         $detalles_dias[] = ['fecha' => $fechaStr, 'tipo' => 'falta', 'penalizacion' => $multiplicador, 'perdonado' => false];
                     
                     } elseif ($asistencia->status_asistencia == 'Retardo') {
-                        // EVALUAR RETARDO VS MEDIO DÍA usando el nuevo motor de Horarios
                         $horaOficial = Carbon::parse($fechaStr . ' ' . $horario->{$nombreDia.'_entrada'});
-                        $horaLlegada = Carbon::parse($asistencia->hora_llegada);
-                        $minutosTarde = $horaOficial->diffInMinutes($horaLlegada);
+                        $horaLlegadaObj = Carbon::parse($asistencia->hora_llegada);
+                        $minutosTarde = $horaOficial->diffInMinutes($horaLlegadaObj);
+                        
+                        // 🔥 CAPTURAMOS LA HORA DEL RETARDO
+                        $horaLlegadaStr = $horaLlegadaObj->format('H:i');
 
                         if ($horario->aplica_medio_dia && $minutosTarde > ($horario->minutos_limite_retardo ?? 15) && $minutosTarde <= ($horario->minutos_limite_medio_dia ?? 30)) {
                             $medios_dias_crudos++;
-                            $detalles_dias[] = ['fecha' => $fechaStr, 'tipo' => 'medio_dia', 'penalizacion' => 0.5, 'perdonado' => false];
+                            $detalles_dias[] = ['fecha' => $fechaStr, 'tipo' => 'medio_dia', 'penalizacion' => 0.5, 'hora' => $horaLlegadaStr, 'perdonado' => false];
                         } 
                         elseif ($horario->aplica_medio_dia && $minutosTarde > ($horario->minutos_limite_medio_dia ?? 30)) {
-                            // Se pasó del medio día, es Falta Directa
                             $faltas_directas_crudas++;
                             $multiplicador = 1;
                             if ($horario->aplica_castigo_multiplicador) {
                                 $multiplicador = in_array($date->dayOfWeekIso, [1, 5]) ? ($horario->multiplicador_lunes_viernes ?? 1) : ($horario->multiplicador_dias_regulares ?? 1);
                             }
                             $dias_castigo_acumulados += $multiplicador;
-                            $detalles_dias[] = ['fecha' => $fechaStr, 'tipo' => 'falta_por_retardo_extremo', 'penalizacion' => $multiplicador, 'perdonado' => false];
+                            $detalles_dias[] = ['fecha' => $fechaStr, 'tipo' => 'falta_por_retardo_extremo', 'penalizacion' => $multiplicador, 'hora' => $horaLlegadaStr, 'perdonado' => false];
                         }
                         else {
-                            // Es un retardo normal
                             $retardos_crudos++;
-                            $detalles_dias[] = ['fecha' => $fechaStr, 'tipo' => 'retardo', 'penalizacion' => 0, 'perdonado' => false];
+                            $detalles_dias[] = ['fecha' => $fechaStr, 'tipo' => 'retardo', 'penalizacion' => 0, 'hora' => $horaLlegadaStr, 'perdonado' => false];
                         }
                     }
                 }
 
-                // Cálculo de faltas por acumulación de retardos
+                // 🔥 NUEVA REGLA: SI NO HAY DETALLES, ES ASISTENCIA PERFECTA Y LO OMITIMOS DE LA PANTALLA
+                if (empty($detalles_dias)) {
+                    continue; 
+                }
+
                 $regla_retardos = $horario->retardos_por_falta ?? 0;
                 $faltas_por_retardos = 0;
                 if ($regla_retardos > 0) {
