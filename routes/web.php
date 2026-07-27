@@ -126,6 +126,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/lista-de-raya', [ListaDeRayaController::class, 'index'])->name('lista_de_raya.index')->middleware('can:ver-lista-raya');
         Route::get('/lista-de-raya/exportar', [ListaDeRayaController::class, 'exportarExcel'])->name('lista_de_raya.exportar')->middleware('can:exportar-lista-raya');
         Route::post('/lista-de-raya/configuracion', [ListaDeRayaController::class, 'guardarConfiguracion'])->name('lista_raya.configuracion');
+        Route::post('/lista-de-raya/guardar-historico', [ListaDeRayaController::class, 'guardarHistorico'])->name('lista_raya.guardar_historico');
 
         // Finiquitos y Liquidaciones
         Route::get('/finiquitos', [FiniquitoController::class, 'index'])->name('finiquitos.index')->middleware('can:ver-finiquitos');

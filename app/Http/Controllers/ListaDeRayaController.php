@@ -53,7 +53,87 @@ class ListaDeRayaController extends Controller
         ));
     }
 
+   /**
+     * Toma el cálculo dinámico existente y lo guarda en el historial (Borrador).
+     */
+    public function guardarHistorico(Request $request)
+    {
+        $request->validate([
+            'periodo' => 'required|string',
+            'id_sucursal' => 'required|numeric',
+        ]);
 
+        $periodoRango = $request->input('periodo');
+        $idSucursal = $request->input('id_sucursal');
+
+        DB::beginTransaction();
+
+        try {
+            // 1. Ejecutamos tu motor actual para obtener la quincena calculada
+            $export = new \App\Exports\ListaDeRayaSheetExport($periodoRango, (int)$idSucursal);
+            $resultados = $export->collection();
+
+            if ($resultados->isEmpty()) {
+                return back()->with('error', 'No hay datos calculados para guardar en este periodo.');
+            }
+
+            // 2. Evitar duplicados: Revisar si ya existe este periodo para esta sucursal
+            $existe = \App\Models\ListaRayaPeriodo::where('periodo_rango', $periodoRango)
+                        ->where('id_sucursal', $idSucursal)
+                        ->first();
+            
+            if ($existe) {
+                return back()->with('error', 'Ya existe un histórico guardado para esta sucursal en este periodo.');
+            }
+
+            // 3. Crear el Encabezado del periodo
+            $periodo = \App\Models\ListaRayaPeriodo::create([
+                'periodo_rango'  => $periodoRango,
+                'id_sucursal'    => $idSucursal,
+                'status_periodo' => 'Borrador'
+            ]);
+
+            // 4. Guardar la "Fotografía" de cada empleado
+            foreach ($resultados as $fila) {
+                // Sumamos las percepciones extra
+                $percepcionesExtra = $fila['bono_permanencia'] + $fila['bono_cumpleanos'] + $fila['prima_vacacional'];
+
+                // Sumamos todas las demás deducciones que no son faltas
+                $otrasDeducciones = $fila['deduccion_prestamo'] + 
+                                    $fila['deduccion_prevision'] + 
+                                    $fila['deduccion_caja_ahorro'] + 
+                                    $fila['deduccion_infonavit'] + 
+                                    $fila['deduccion_isr'] + 
+                                    $fila['deduccion_imss'] + 
+                                    $fila['deduccion_otro'];
+
+                \App\Models\ListaRayaDetalle::create([
+                    'id_periodo_lista'         => $periodo->id_periodo_lista,
+                    'id_empleado'              => $fila['id_empleado'], 
+                    'sueldo_mensual_historico' => $fila['sueldo_mensual'],
+                    'sueldo_diario_historico'  => $fila['sueldo_diario'],
+                    'puesto_historico'         => $fila['puesto'],
+                    'dias_periodo'             => $fila['dias_periodo'], 
+                    'faltas_directas'          => $fila['faltas_directas'], 
+                    'retardos_acumulados'      => 0, // Aún no tienes esta lógica en tu export
+                    'faltas_por_retardos'      => 0, // Aún no tienes esta lógica en tu export
+                    'descuento_por_faltas'     => $fila['deduccion_faltas'],
+                    'otras_deducciones'        => $otrasDeducciones,
+                    'percepciones_extra'       => $percepcionesExtra,
+                    'total_neto'               => $fila['neto_a_pagar'],
+                ]);
+            }
+
+            DB::commit();
+
+            return back()->with('success', 'Histórico guardado correctamente como Borrador.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Illuminate\Support\Facades\Log::error('Error guardando histórico de nómina: ' . $e->getMessage());
+            return back()->with('error', 'Ocurrió un error al guardar el histórico.');
+        }
+    }
     /**
      * Genera y descarga un reporte de la lista de raya en formato Excel.
      */

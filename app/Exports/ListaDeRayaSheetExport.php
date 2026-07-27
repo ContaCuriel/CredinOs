@@ -123,6 +123,14 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             $netoAPagar = $totalPercepciones - $totalDeducciones;
 
             $this->resultados->push([
+                // --- DATOS NUEVOS OCULTOS PARA LA BD ---
+                'id_empleado' => $empleado->id_empleado,
+                'sueldo_mensual' => $empleado->puesto ? $empleado->puesto->salario_mensual : 0,
+                'sueldo_diario' => $salarioDiario,
+                'dias_periodo' => $diasAPagar,
+                'faltas_directas' => $diasFalta,
+                // ---------------------------------------
+
                 'empleado_nombre' => strtoupper($empleado->nombre_completo),
                 'fecha_ingreso' => $empleado->fecha_ingreso,
                 'puesto' => $empleado->puesto ? $empleado->puesto->nombre_puesto : 'N/A',

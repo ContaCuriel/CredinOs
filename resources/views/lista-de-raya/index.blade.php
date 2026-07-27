@@ -64,13 +64,29 @@
                     <hr>
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h6 class="mb-0">Resultados para: <span class="text-primary">{{ $sucursalSeleccionada->nombre_sucursal ?? 'Ninguna sucursal seleccionada' }}</span></h6>
-                        <form method="GET" action="{{ route('lista_de_raya.exportar') }}">
-                            <input type="hidden" name="periodo" value="{{ request('periodo') }}">
-                            <input type="hidden" name="id_sucursal" value="{{ request('id_sucursal') }}">
-                            <button type="submit" class="btn btn-success" {{ !request()->filled('periodo') || !request()->filled('id_sucursal') ? 'disabled' : '' }}>
-                                <i class="bi bi-file-earmark-excel"></i> Exportar a Excel
-                            </button>
-                        </form>
+                        
+                        <div class="d-flex gap-2">
+                            {{-- BOTÓN: GUARDAR HISTÓRICO (Solo visible si NO es "Todas las Sucursales") --}}
+                            @if(request('id_sucursal') != 'todas')
+                                <form method="POST" action="{{ route('lista_raya.guardar_historico') }}">
+                                    @csrf
+                                    <input type="hidden" name="periodo" value="{{ request('periodo') }}">
+                                    <input type="hidden" name="id_sucursal" value="{{ request('id_sucursal') }}">
+                                    <button type="submit" class="btn btn-primary" onclick="return confirm('¿Estás seguro de guardar esta nómina como histórico?');">
+                                        <i class="bi bi-save"></i> Guardar Histórico
+                                    </button>
+                                </form>
+                            @endif
+
+                            {{-- BOTÓN: EXPORTAR A EXCEL (Ya lo tenías) --}}
+                            <form method="GET" action="{{ route('lista_de_raya.exportar') }}">
+                                <input type="hidden" name="periodo" value="{{ request('periodo') }}">
+                                <input type="hidden" name="id_sucursal" value="{{ request('id_sucursal') }}">
+                                <button type="submit" class="btn btn-success" {{ !request()->filled('periodo') || !request()->filled('id_sucursal') ? 'disabled' : '' }}>
+                                    <i class="bi bi-file-earmark-excel"></i> Exportar a Excel
+                                </button>
+                            </form>
+                        </div>
                     </div>
 
                     @if (request('id_sucursal') == 'todas')
@@ -79,7 +95,7 @@
                             Haga clic en <strong>"Exportar a Excel"</strong> para descargar el reporte completo con una pestaña por sucursal.
                         </div>
                     @else
-                         <div class="table-responsive">
+                        <div class="table-responsive">
                             <table class="table table-bordered table-sm">
                                 <thead class="table-light">
                                     <tr class="text-center">
