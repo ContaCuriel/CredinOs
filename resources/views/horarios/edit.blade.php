@@ -75,21 +75,100 @@
                     </div>
 
                     <hr>
-                    <h6 class="fw-bold text-primary mb-3"><i class="bi bi-shield-check"></i> 2. Regla Simplificada de Tolerancia</h6>
+                    <h6 class="fw-bold text-primary mb-3"><i class="bi bi-shield-check"></i> 2. Reglas de Disciplina y Castigos (Flexibles)</h6>
                     
+                    {{-- BLOQUE: TOLERANCIA Y RETARDOS --}}
                     @php
                         $tieneToleranciaCheck = old('tiene_tolerancia', $horario->aplicar_reglas_avanzadas);
                     @endphp
-                    <div class="card border-warning bg-warning bg-opacity-10 p-3 mb-4" style="max-width: 500px;">
-                        <div class="form-check form-switch mb-2">
-                            <input class="form-check-input" type="checkbox" id="tiene_tolerancia" name="tiene_tolerancia" value="1" {{ $tieneToleranciaCheck ? 'checked' : '' }}>
-                            <label class="form-check-label fw-bold text-warning-emphasis" for="tiene_tolerancia">¿Este horario aplica tolerancia de retardos?</label>
+                    <div class="card border-warning bg-warning bg-opacity-10 p-3 mb-3">
+                        <div class="row">
+                            <div class="col-md-4 border-end border-warning">
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="tiene_tolerancia" name="tiene_tolerancia" value="1" {{ $tieneToleranciaCheck ? 'checked' : '' }}>
+                                    <label class="form-check-label fw-bold text-warning-emphasis" for="tiene_tolerancia">Aplicar Tolerancia</label>
+                                </div>
+                                <div id="container_tolerancia" style="display: {{ $tieneToleranciaCheck ? 'block' : 'none' }};">
+                                    <label for="tolerancia_minutos" class="form-label small fw-bold text-dark">Minutos de tolerancia:</label>
+                                    <div class="input-group input-group-sm mb-2">
+                                        <input type="number" class="form-control" id="tolerancia_minutos" name="tolerancia_minutos" value="{{ old('tolerancia_minutos', $horario->tolerancia_minutos ?? 0) }}" min="0">
+                                        <span class="input-group-text">min</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 border-end border-warning">
+                                <label class="form-label small fw-bold text-dark">Límite para ser RETARDO:</label>
+                                <div class="input-group input-group-sm mb-2">
+                                    <input type="number" class="form-control" name="minutos_limite_retardo" value="{{ old('minutos_limite_retardo', $horario->minutos_limite_retardo ?? 15) }}" min="0">
+                                    <span class="input-group-text">min</span>
+                                </div>
+                                <small class="text-muted" style="font-size: 0.75rem;">Después de la tolerancia hasta este minuto.</small>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold text-dark">Castigo por retardos:</label>
+                                <div class="input-group input-group-sm mb-2">
+                                    <input type="number" class="form-control" name="retardos_por_falta" value="{{ old('retardos_por_falta', $horario->retardos_por_falta ?? 3) }}" min="0">
+                                    <span class="input-group-text">retardos = 1 falta</span>
+                                </div>
+                                <small class="text-muted" style="font-size: 0.75rem;">Pon 0 para no castigar acumulados.</small>
+                            </div>
                         </div>
-                        <div id="container_tolerancia" style="display: {{ $tieneToleranciaCheck ? 'block' : 'none' }};">
-                            <label for="tolerancia_minutos" class="form-label small fw-bold text-dark">Minutos de tolerancia permitidos:</label>
-                            <div class="input-group input-group-sm" style="width: 160px;">
-                                <input type="number" class="form-control text-center" id="tolerancia_minutos" name="tolerancia_minutos" value="{{ old('tolerancia_minutos', $horario->tolerancia_minutos ?? 0) }}" min="0" {{ $tieneToleranciaCheck ? 'required' : '' }}>
-                                <span class="input-group-text">minutos</span>
+                    </div>
+
+                    {{-- BLOQUE: MEDIO DÍA --}}
+                    @php
+                        $aplicaMedioDiaCheck = old('aplica_medio_dia', $horario->aplica_medio_dia);
+                    @endphp
+                    <div class="card border-info bg-info bg-opacity-10 p-3 mb-3">
+                        <div class="row align-items-center">
+                            <div class="col-md-4 border-end border-info">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="aplica_medio_dia" name="aplica_medio_dia" value="1" {{ $aplicaMedioDiaCheck ? 'checked' : '' }}>
+                                    <label class="form-check-label fw-bold text-info-emphasis" for="aplica_medio_dia">Descuento Medio Día (0.5)</label>
+                                </div>
+                            </div>
+                            <div class="col-md-8">
+                                <div id="container_medio_dia" style="display: {{ $aplicaMedioDiaCheck ? 'flex' : 'none' }}; align-items: center; gap: 15px;">
+                                    <label class="form-label small fw-bold text-dark mb-0">Límite para Medio Día:</label>
+                                    <div class="input-group input-group-sm" style="width: 150px;">
+                                        <input type="number" class="form-control" id="minutos_limite_medio_dia" name="minutos_limite_medio_dia" value="{{ old('minutos_limite_medio_dia', $horario->minutos_limite_medio_dia ?? 30) }}" min="0">
+                                        <span class="input-group-text">min</span>
+                                    </div>
+                                    <small class="text-muted" style="font-size: 0.75rem;">Exceder este límite será Falta Directa.</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- BLOQUE: MULTIPLICADOR DE FALTAS --}}
+                    @php
+                        $aplicaMultiplicadorCheck = old('aplica_castigo_multiplicador', $horario->aplica_castigo_multiplicador);
+                    @endphp
+                    <div class="card border-danger bg-danger bg-opacity-10 p-3 mb-4">
+                        <div class="row align-items-center">
+                            <div class="col-md-4 border-end border-danger">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="aplica_castigo_multiplicador" name="aplica_castigo_multiplicador" value="1" {{ $aplicaMultiplicadorCheck ? 'checked' : '' }}>
+                                    <label class="form-check-label fw-bold text-danger-emphasis" for="aplica_castigo_multiplicador">Multiplicar Días x Falta</label>
+                                </div>
+                            </div>
+                            <div class="col-md-8">
+                                <div id="container_multiplicadores" style="display: {{ $aplicaMultiplicadorCheck ? 'flex' : 'none' }}; gap: 15px;">
+                                    <div>
+                                        <label class="form-label small fw-bold text-dark mb-1">Lunes/Viernes:</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" class="form-control" id="multiplicador_lunes_viernes" name="multiplicador_lunes_viernes" value="{{ old('multiplicador_lunes_viernes', $horario->multiplicador_lunes_viernes ?? 3) }}" min="1">
+                                            <span class="input-group-text">días</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="form-label small fw-bold text-dark mb-1">Días Regulares:</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" class="form-control" id="multiplicador_dias_regulares" name="multiplicador_dias_regulares" value="{{ old('multiplicador_dias_regulares', $horario->multiplicador_dias_regulares ?? 2) }}" min="1">
+                                            <span class="input-group-text">días</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -122,7 +201,7 @@
                 });
             });
 
-            // Activar/Desactivar campo de tolerancia quincenal
+            // Lógica Toggle: Tolerancia
             const checkTolerancia = document.getElementById('tiene_tolerancia');
             const containerTolerancia = document.getElementById('container_tolerancia');
             const inputTolerancia = document.getElementById('tolerancia_minutos');
@@ -136,6 +215,43 @@
                         containerTolerancia.style.display = 'none';
                         inputTolerancia.required = false;
                         inputTolerancia.value = 0;
+                    }
+                });
+            }
+
+            // Lógica Toggle: Medio Día
+            const checkMedioDia = document.getElementById('aplica_medio_dia');
+            const containerMedioDia = document.getElementById('container_medio_dia');
+            const inputMedioDia = document.getElementById('minutos_limite_medio_dia');
+
+            if (checkMedioDia) {
+                checkMedioDia.addEventListener('change', function() {
+                    if (this.checked) {
+                        containerMedioDia.style.display = 'flex';
+                        inputMedioDia.required = true;
+                    } else {
+                        containerMedioDia.style.display = 'none';
+                        inputMedioDia.required = false;
+                    }
+                });
+            }
+
+            // Lógica Toggle: Multiplicadores
+            const checkMulti = document.getElementById('aplica_castigo_multiplicador');
+            const containerMulti = document.getElementById('container_multiplicadores');
+            const inputLV = document.getElementById('multiplicador_lunes_viernes');
+            const inputReg = document.getElementById('multiplicador_dias_regulares');
+
+            if (checkMulti) {
+                checkMulti.addEventListener('change', function() {
+                    if (this.checked) {
+                        containerMulti.style.display = 'flex';
+                        inputLV.required = true;
+                        inputReg.required = true;
+                    } else {
+                        containerMulti.style.display = 'none';
+                        inputLV.required = false;
+                        inputReg.required = false;
                     }
                 });
             }

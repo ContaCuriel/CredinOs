@@ -194,11 +194,6 @@
                 <form action="{{ route('lista_raya.configuracion') }}" method="POST">
                     @csrf
                     <div class="modal-body">
-                        
-                        <div class="mb-3">
-                            <label class="form-label">Retardos para aplicar 1 Falta (0 = No penalizar)</label>
-                            <input type="number" name="retardos_para_falta" value="3" min="0" class="form-control" required>
-                        </div>
 
                         <div class="mb-3">
                             <label class="form-label">Cálculo de Días de Periodo</label>

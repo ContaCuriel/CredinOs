@@ -53,12 +53,21 @@ class ListaDeRayaController extends Controller
             }
         }
 
+        // 🔥 MODIFICACIÓN: Traer la configuración actual para que la vista no salga en blanco
+        $configuracion = ConfiguracionNomina::first() ?? new ConfiguracionNomina([
+            'descontar_septimo_dia' => 1,
+            'metodo_calculo_dias' => 'exactos',
+            'pagar_dia_31' => 'todos',
+            'redondear_neto' => 1,
+        ]);
+
         return view('lista-de-raya.index', compact(
             'sucursales',
             'opcionesPeriodo',
             'resultados',
             'sucursalSeleccionada',
-            'esHistorico' // <-- PASAMOS LA VARIABLE A LA VISTA
+            'esHistorico', // <-- PASAMOS LA VARIABLE A LA VISTA
+            'configuracion' // <-- NUEVA VARIABLE ENVIADA A LA VISTA
         ));
     }
 
@@ -185,8 +194,8 @@ class ListaDeRayaController extends Controller
      */
     public function guardarConfiguracion(Request $request)
     {
+        // 🔥 MODIFICACIÓN: Ya no pedimos retardos_para_falta aquí, se movió a Horarios
         $request->validate([
-            'retardos_para_falta' => 'required|integer|min:0',
             'descontar_septimo_dia' => 'required|boolean',
             'metodo_calculo_dias' => 'required|in:exactos,factor,fijos_15',
             'pagar_dia_31' => 'required|in:todos,nuevos,nadie',
@@ -196,7 +205,6 @@ class ListaDeRayaController extends Controller
         // Buscamos la configuración o creamos una nueva si es la primera vez
         $configuracion = ConfiguracionNomina::first() ?? new ConfiguracionNomina();
         
-        $configuracion->retardos_para_falta = $request->retardos_para_falta;
         $configuracion->descontar_septimo_dia = $request->descontar_septimo_dia;
         $configuracion->metodo_calculo_dias = $request->metodo_calculo_dias;
         $configuracion->pagar_dia_31 = $request->pagar_dia_31;
@@ -232,6 +240,7 @@ class ListaDeRayaController extends Controller
 
         return back()->with('error', 'No se encontró un borrador para eliminar.');
     }
+
     /**
      * Helper para generar las opciones de periodo.
      */
