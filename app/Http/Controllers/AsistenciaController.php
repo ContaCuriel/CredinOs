@@ -188,6 +188,147 @@ class AsistenciaController extends Controller
         return $pdf->download("Resumen_Incidencias_{$fechaInicio}_al_{$fechaFin}.pdf");
     }
 
+    /**
+     * Panel Interactivo de Pre-Cierre de Asistencias
+     */
+    public function preCierre(Request $request)
+    {
+        $sucursales = Sucursal::where('status', 'Activa')->orderBy('nombre_sucursal')->get();
+        $id_sucursal = $request->input('id_sucursal');
+        $periodo = $request->input('periodo');
+
+        // Generar opciones de periodo (Quincenas) igual que en Lista de Raya
+        $opcionesPeriodo = [];
+        $fechaActual = Carbon::now();
+        for ($i = 0; $i < 6; $i++) {
+            $fecha = $fechaActual->copy()->subMonths($i);
+            // 1ra Quincena
+            $inicioQ1 = $fecha->copy()->startOfMonth();
+            $finQ1 = $fecha->copy()->startOfMonth()->addDays(14);
+            $opcionesPeriodo[] = [
+                'valor' => $inicioQ1->toDateString() . '_' . $finQ1->toDateString(),
+                'texto' => '1ra Quincena ' . $inicioQ1->translatedFormat('F Y')
+            ];
+            // 2da Quincena
+            $inicioQ2 = $fecha->copy()->startOfMonth()->addDays(15);
+            $finQ2 = $fecha->copy()->endOfMonth();
+            $opcionesPeriodo[] = [
+                'valor' => $inicioQ2->toDateString() . '_' . $finQ2->toDateString(),
+                'texto' => '2da Quincena ' . $inicioQ2->translatedFormat('F Y')
+            ];
+        }
+
+        $empleadosData = collect();
+        $sucursalSeleccionada = null;
+
+        if ($periodo && $id_sucursal) {
+            list($fechaInicioStr, $fechaFinStr) = explode('_', $periodo);
+            $fechaInicio = Carbon::parse($fechaInicioStr);
+            $fechaFin = Carbon::parse($fechaFinStr);
+
+            $sucursalSeleccionada = Sucursal::find($id_sucursal);
+
+            $empleados = Empleado::with(['horario', 'asistencias' => function($q) use ($fechaInicioStr, $fechaFinStr) {
+                $q->whereBetween('fecha', [$fechaInicioStr, $fechaFinStr]);
+            }])
+            ->where('id_sucursal', $id_sucursal)
+            ->where('status', 'Alta')
+            ->whereDate('fecha_ingreso', '<=', $fechaFinStr) // Filtro de viaje en el tiempo
+            ->orderBy('nombre_completo')
+            ->get();
+
+            foreach ($empleados as $empleado) {
+                $horario = $empleado->horario;
+                if (!$horario) continue; // Si no tiene horario, lo saltamos por seguridad
+
+                // Variables para acumular las incidencias crudas de la quincena
+                $retardos_crudos = 0;
+                $medios_dias_crudos = 0;
+                $faltas_directas_crudas = 0;
+                $dias_castigo_acumulados = 0; // Por multiplicador
+
+                $detalles_dias = []; // Para saber qué pasó cada día y poder "perdonarlo"
+
+                // Evaluamos día por día
+                for ($date = $fechaInicio->copy(); $date->lte($fechaFin); $date->addDay()) {
+                    $fechaStr = $date->toDateString();
+                    $mapaDias = [1=>'lunes', 2=>'martes', 3=>'miercoles', 4=>'jueves', 5=>'viernes', 6=>'sabado', 7=>'domingo'];
+                    $nombreDia = $mapaDias[$date->dayOfWeekIso];
+                    
+                    $esLaborable = $horario->{$nombreDia};
+                    if (!$esLaborable) continue; // Si descansa, no hay penalización
+
+                    $asistencia = $empleado->asistencias->where('fecha', $fechaStr)->first();
+
+                    if (!$asistencia || $asistencia->status_asistencia == 'Falta') {
+                        // FALTA DIRECTA O NO VINO
+                        $faltas_directas_crudas++;
+                        $multiplicador = 1;
+                        if ($horario->aplica_castigo_multiplicador) {
+                            if (in_array($date->dayOfWeekIso, [1, 5])) { // Lunes o Viernes
+                                $multiplicador = $horario->multiplicador_lunes_viernes ?? 1;
+                            } else {
+                                $multiplicador = $horario->multiplicador_dias_regulares ?? 1;
+                            }
+                        }
+                        $dias_castigo_acumulados += $multiplicador;
+                        $detalles_dias[] = ['fecha' => $fechaStr, 'tipo' => 'falta', 'penalizacion' => $multiplicador, 'perdonado' => false];
+                    
+                    } elseif ($asistencia->status_asistencia == 'Retardo') {
+                        // EVALUAR RETARDO VS MEDIO DÍA usando el nuevo motor de Horarios
+                        $horaOficial = Carbon::parse($fechaStr . ' ' . $horario->{$nombreDia.'_entrada'});
+                        $horaLlegada = Carbon::parse($asistencia->hora_llegada);
+                        $minutosTarde = $horaOficial->diffInMinutes($horaLlegada);
+
+                        if ($horario->aplica_medio_dia && $minutosTarde > ($horario->minutos_limite_retardo ?? 15) && $minutosTarde <= ($horario->minutos_limite_medio_dia ?? 30)) {
+                            $medios_dias_crudos++;
+                            $detalles_dias[] = ['fecha' => $fechaStr, 'tipo' => 'medio_dia', 'penalizacion' => 0.5, 'perdonado' => false];
+                        } 
+                        elseif ($horario->aplica_medio_dia && $minutosTarde > ($horario->minutos_limite_medio_dia ?? 30)) {
+                            // Se pasó del medio día, es Falta Directa
+                            $faltas_directas_crudas++;
+                            $multiplicador = 1;
+                            if ($horario->aplica_castigo_multiplicador) {
+                                $multiplicador = in_array($date->dayOfWeekIso, [1, 5]) ? ($horario->multiplicador_lunes_viernes ?? 1) : ($horario->multiplicador_dias_regulares ?? 1);
+                            }
+                            $dias_castigo_acumulados += $multiplicador;
+                            $detalles_dias[] = ['fecha' => $fechaStr, 'tipo' => 'falta_por_retardo_extremo', 'penalizacion' => $multiplicador, 'perdonado' => false];
+                        }
+                        else {
+                            // Es un retardo normal
+                            $retardos_crudos++;
+                            $detalles_dias[] = ['fecha' => $fechaStr, 'tipo' => 'retardo', 'penalizacion' => 0, 'perdonado' => false];
+                        }
+                    }
+                }
+
+                // Cálculo de faltas por acumulación de retardos
+                $regla_retardos = $horario->retardos_por_falta ?? 0;
+                $faltas_por_retardos = 0;
+                if ($regla_retardos > 0) {
+                    $faltas_por_retardos = floor($retardos_crudos / $regla_retardos);
+                }
+
+                $total_dias_descuento = $dias_castigo_acumulados + ($medios_dias_crudos * 0.5) + $faltas_por_retardos;
+
+                $empleadosData->push([
+                    'id_empleado' => $empleado->id_empleado,
+                    'nombre' => $empleado->nombre_completo,
+                    'puesto' => $empleado->puesto->nombre_puesto ?? 'General',
+                    'regla_retardos' => $regla_retardos,
+                    'retardos_crudos' => $retardos_crudos,
+                    'medios_dias_crudos' => $medios_dias_crudos,
+                    'faltas_directas' => $faltas_directas_crudas,
+                    'faltas_por_retardos' => $faltas_por_retardos,
+                    'total_dias_descuento_inicial' => $total_dias_descuento,
+                    'detalles' => $detalles_dias
+                ]);
+            }
+        }
+
+        return view('asistencia.pre_cierre', compact('sucursales', 'opcionesPeriodo', 'empleadosData', 'periodo', 'id_sucursal', 'sucursalSeleccionada'));
+    }
+
     private function obtenerDatosResumen($fechaInicio, $fechaFin)
     {
         $empleados = Empleado::with(['sucursal', 'asistencias' => function($query) use ($fechaInicio, $fechaFin) {

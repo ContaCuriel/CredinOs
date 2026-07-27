@@ -111,11 +111,12 @@ Route::middleware('auth')->group(function () {
         Route::get('/asistencia/vista-periodo', [AsistenciaController::class, 'index'])->name('asistencia.vistaPeriodo')->middleware('can:ver-asistencias');
         Route::get('/asistencia/resumen-incidencias', [AsistenciaController::class, 'resumenIncidencias'])->name('asistencia.resumenIncidencias')->middleware('can:ver-asistencias');
         Route::get('/asistencia/exportar-pdf', [AsistenciaController::class, 'exportarResumenPDF'])->name('asistencia.exportarPDF')->middleware('can:ver-asistencias');
+        Route::get('/asistencia/pre-cierre', [App\Http\Controllers\AsistenciaController::class, 'preCierre'])->name('asistencia.pre_cierre');
 
         // Vacaciones
         Route::resource('vacaciones', VacacionController::class)->only(['index', 'create', 'store'])->middleware('can:ver-vacaciones');
         Route::get('/vacaciones/historial/{empleado}', [VacacionController::class, 'historialPorEmpleado'])->name('vacaciones.historial')->middleware('can:ver-vacaciones');
-
+        
         // Deducciones
         Route::resource('deducciones', DeduccionController::class)
             ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
