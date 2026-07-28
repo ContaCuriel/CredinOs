@@ -1,8 +1,3 @@
-Aquí tienes el archivo completo de la vista Blade listo para **copiar y pegar**.
-
-Incluye la **auto-selección del patrón**, el **resaltado visual verde** al detectar contrato, la restauración del color si el usuario lo modifica a mano, y toda la integración con la IA y TinyMCE:
-
-```blade
 <x-app-layout>
     <style>
         #tabla_resultados_wrapper { max-width: 750px; margin: 0 auto; }
