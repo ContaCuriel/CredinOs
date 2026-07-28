@@ -404,8 +404,7 @@ class FiniquitoController extends Controller
             $dominio = 'generativelanguage' . '.googleapis' . '.com';
             
             // Usamos tu modelo gemini-2.5-pro que ya está verificado en tus reportes
-            $ruta = '/v1beta/models/gemini-pro:generateContent?key=';            
-            $apiUrl = $protocolo . $dominio . $ruta . trim($apiKey);
+            $ruta = '/v1beta/models/gemini-2.5-pro:generateContent?key=';            $apiUrl = $protocolo . $dominio . $ruta . trim($apiKey);
             
             $response = \Illuminate\Support\Facades\Http::timeout(60)
                 ->withHeaders(['Content-Type' => 'application/json'])
