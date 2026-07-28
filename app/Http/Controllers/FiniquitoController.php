@@ -353,7 +353,7 @@ class FiniquitoController extends Controller
         return $pdf->stream("Aviso_Terminacion_" . \Illuminate\Support\Str::slug($empleado->nombre_completo) . ".pdf");
     }
 
-  /**
+/**
      * Llama a la API de IA para redactar documentos legales/RH a partir de contexto crudo.
      */
     public function redactarDocumentoIA(Request $request)
@@ -367,44 +367,62 @@ class FiniquitoController extends Controller
                 'tipo_documento' => 'required|string'
             ]);
 
-            $empleado = Empleado::with('ultimoContrato')->findOrFail($data['id_empleado']);
+            // 1. Ahora traemos también la Sucursal para saber el municipio
+            $empleado = Empleado::with(['ultimoContrato', 'sucursal'])->findOrFail($data['id_empleado']);
             $patron = Patron::findOrFail($data['id_patron']);
 
-            $fechaIngreso = Carbon::parse($empleado->fecha_ingreso)->translatedFormat('d \d\e F \d\e Y');$fechaBaja = Carbon::parse($data['fecha_final'])->translatedFormat('d \d\e F \d\e Y');$vencimientoContrato = 'No especificado';
-            if ($empleado->ultimoContrato &&$empleado->ultimoContrato->fecha_fin) {
-                $vencimientoContrato = Carbon::parse($empleado->ultimoContrato->fecha_fin)->translatedFormat('d \d\e F \d\e Y');
+            // 2. Procesamos las fechas
+            $fechaIngreso = Carbon::parse($empleado->fecha_ingreso)->translatedFormat('d \d\e F \d\e Y');
+            $fechaBaja = Carbon::parse($data['fecha_final'])->translatedFormat('d \d\e F \d\e Y');
+            
+            $vencimientoContrato = 'No especificado';$tipoContrato = 'No especificado';
+            
+            if ($empleado->ultimoContrato) {
+                $tipoContrato =$empleado->ultimoContrato->tipo_contrato ?? 'Indeterminado';
+                if ($empleado->ultimoContrato->fecha_fin) {
+                    $vencimientoContrato = Carbon::parse($empleado->ultimoContrato->fecha_fin)->translatedFormat('d \d\e F \d\e Y');
+                }
             }
 
-            $prompt = "Actúa como un abogado laboral corporativo en México. Tu tarea es redactar un(a) '{$data['tipo_documento']}' formal, profesional y legalmente blindado.
+            // 3. Procesamos el lugar y domicilio
+            $lugarEmision = $empleado->sucursal->municipio ?? $empleado->sucursal->nombre_sucursal ?? 'México';
+            $domicilioPatron =$patron->domicilio ?? 'su domicilio fiscal registrado';
+
+            // 4. El "Super Prompt" blindado
+            $prompt = "Actúa como un abogado laboral corporativo en México. Tu tarea es redactar un(a) '{$data['tipo_documento']}' formal, profesional y legalmente blindado, adaptado estrictamente a la naturaleza del contrato.
             
-            DATOS DUROS OBLIGATORIOS A INCLUIR:
+            DATOS DUROS OBLIGATORIOS A INCLUIR (PROHIBIDO INVENTAR DATOS O DEJAR ESPACIOS):
             - Empresa / Patrón: {$patron->razon_social}
-            - Empleado: {$empleado->nombre_completo}
-            - Fecha de Ingreso del empleado: {$fechaIngreso}
+            - Domicilio legal de la empresa: {$domicilioPatron}
+            - Empleado / Prestador: {$empleado->nombre_completo}
+            - Tipo de Contrato actual: {$tipoContrato}
+            - Fecha de Ingreso: {$fechaIngreso}
             - Fecha de Baja / Emisión del documento: {$fechaBaja}
-            - Fecha de vencimiento de su contrato actual: {$vencimientoContrato}
+            - Fecha de vencimiento de contrato: {$vencimientoContrato}
+            - Lugar de expedición: {$lugarEmision}
 
             CONTEXTO DE LOS HECHOS (Mensajes o notas crudas):
             \"{$data['contexto_crudo']}\"
 
-            INSTRUCCIONES DE FORMATO ESTRICTAS:
-            1. Transforma el contexto crudo en lenguaje legal y estructurado (Antecedentes, Hechos, Determinación).
-            2. Devuelve la respuesta ÚNICAMENTE en formato HTML válido (usa etiquetas <p>, <strong>, <ul>, <li>, <h3>, <br>).
-            3. NO incluyas las etiquetas <html>, <head> o <body>, solo el contenido interior para ser inyectado en un editor de texto.
-            4. NO uses Markdown como ```html ni asteriscos. Solo etiquetas HTML puras.
-            5. Al final, incluye líneas de firma para la empresa y para el empleado.";
+            INSTRUCCIONES DE FORMATO Y REDACCIÓN ESTRICTAS:
+            1. REGLA DE ORO: NO dejes espacios en blanco, ni corchetes como [Insertar Domicilio] o [Ciudad]. Usa EXCLUSIVAMENTE los datos proporcionados. Si un dato no aplica, adapta la redacción para omitirlo sin dejar huecos.
+            2. Adapta la terminología legal al 'Tipo de Contrato'. Si es de Honorarios o Asimilados, usa términos civiles/mercantiles (prestador de servicios, honorarios, rescisión civil). Si es Indeterminado/Determinado, usa la Ley Federal del Trabajo.
+            3. Transforma el contexto crudo en una narrativa legal detallada (Antecedentes, Hechos y Determinación).
+            4. Devuelve la respuesta ÚNICAMENTE en formato HTML válido (usa etiquetas <p>, <strong>, <ul>, <li>, <h3>, <br>).
+            5. NO incluyas las etiquetas <html>, <head> o <body>, solo el contenido interior.
+            6. NO uses Markdown como ```html ni asteriscos. Solo etiquetas HTML puras.
+            7. Al final, incluye líneas de firma para la empresa y para quien recibe la notificación.";
 
             $apiKey = env('GEMINI_API_KEY', '');
             if (empty($apiKey)) {
                 return response()->json(['error' => 'API Key de Gemini no configurada.'], 500);
             }
 
-            // 🔥 TRAMPA ANTI-MARKDOWN Y FIX DEL MODELO (2.5-pro) 🔥
+            // 🔥 TRAMPA ANTI-MARKDOWN Y MODELO DEFINITIVO (2.5-pro) 🔥
             $protocolo = 'http' . 's://';
             $dominio = 'generativelanguage' . '.googleapis' . '.com';
-            
-            // Usamos tu modelo gemini-2.5-pro que ya está verificado en tus reportes
-            $ruta = '/v1beta/models/gemini-2.5-pro:generateContent?key=';            $apiUrl = $protocolo . $dominio . $ruta . trim($apiKey);
+            $ruta = '/v1beta/models/gemini-2.5-pro:generateContent?key=';
+            $apiUrl = $protocolo . $dominio . $ruta . trim($apiKey);
             
             $response = \Illuminate\Support\Facades\Http::timeout(60)
                 ->withHeaders(['Content-Type' => 'application/json'])
