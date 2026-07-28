@@ -356,13 +356,10 @@ class FiniquitoController extends Controller
 /**
      * Llama a la API de IA para redactar documentos legales/RH a partir de contexto crudo.
      */
-    /**
-     * Llama a la API de IA para redactar documentos legales/RH a partir de contexto crudo.
-     */
     public function redactarDocumentoIA(Request $request)
     {
         try {
-            $data =$request->validate([
+            $data = $request->validate([
                 'id_empleado' => 'required|exists:empleados,id_empleado',
                 'id_patron' => 'required|exists:patrones,id_patron',
                 'fecha_final' => 'required|date',
@@ -376,61 +373,100 @@ class FiniquitoController extends Controller
             $fechaIngreso = Carbon::parse($empleado->fecha_ingreso)->translatedFormat('d \d\e F \d\e Y');
             $fechaBaja = Carbon::parse($data['fecha_final'])->translatedFormat('d \d\e F \d\e Y');
             
-            $vencimientoContrato = 'No especificado';$tipoContrato = 'No especificado';
+            $vencimientoContrato = 'No especificado';
+            $tipoContrato = 'No especificado';
             
             if ($empleado->ultimoContrato) {
-                $tipoContrato =$empleado->ultimoContrato->tipo_contrato ?? 'Indeterminado';
+                $tipoContrato = $empleado->ultimoContrato->tipo_contrato ?? 'Indeterminado';
                 if ($empleado->ultimoContrato->fecha_fin) {
                     $vencimientoContrato = Carbon::parse($empleado->ultimoContrato->fecha_fin)->translatedFormat('d \d\e F \d\e Y');
                 }
             }
 
-            $lugarEmision = $empleado->sucursal->municipio ?? $empleado->sucursal->nombre_sucursal ?? 'México';
-            $domicilioPatron =$patron->domicilio ?? 'su domicilio fiscal registrado';
+            // 🔥 FIX DEL LUGAR: Seguro por si el empleado no tiene sucursal asignada en BD 🔥
+            $municipio = $empleado->sucursal->municipio ?? null;
+            $nombreSucursal = $empleado->sucursal->nombre_sucursal ?? null;
+            $lugarEmision = $municipio ?: ($nombreSucursal ?: 'la Ciudad de México');
+            
+            $domicilioPatron = $patron->domicilio ?? 'su domicilio fiscal registrado';
 
-            // 🔥 NUEVO SUPER PROMPT: LEGAL, EJECUTIVO Y BLINDADO 🔥
-            $prompt = "Actúa como un abogado corporativo experto. Tu tarea es redactar un(a) '{$data['tipo_documento']}' con rigor jurídico, pero de estilo ejecutivo.
-            
-            TONO Y ESTILO (MUY IMPORTANTE):
-            - Directo al grano, objetivo, contundente y estrictamente profesional.
-            - Utiliza terminología jurídica precisa (ej. 'devengado', 'rescisión', 'finiquito', 'contraprestación', según aplique).
-            - NO uses lenguaje pomposo, dramático, ni repetitivo. 
-            - NO asignes culpas con adjetivos exagerados; redacta los hechos de forma neutral, documentada y ejecutiva.
-            
-            DATOS OBLIGATORIOS (PROHIBIDO DEJAR ESPACIOS EN BLANCO):
-            - Empresa: {$patron->razon_social}
-            - Empleado/Prestador: {$empleado->nombre_completo}
-            - Tipo de Contrato actual: {$tipoContrato}
-            - Fecha de Ingreso: {$fechaIngreso}
-            - Fecha de Baja: {$fechaBaja}
-            - Lugar: {$lugarEmision}
+            // LÓGICA DE PROMPT SEGÚN EL TIPO DE DOCUMENTO
+            $tipoDoc = strtolower($data['tipo_documento']);
 
-            HECHOS / CONTEXTO A PROCESAR:
-            \"{$data['contexto_crudo']}\"
+            if (str_contains($tipoDoc, 'recomendaci') || str_contains($tipoDoc, 'constancia')) {
+                // PROMPT PARA CARTA DE RECOMENDACIÓN / CONSTANCIA
+                $prompt = "Actúa como el departamento de Recursos Humanos de {$patron->razon_social}. 
+                Tu tarea es redactar una '{$data['tipo_documento']}' formal, positiva y profesional.
 
-            ESTRUCTURA EXACTA QUE DEBES SEGUIR (Usa números romanos y viñetas):
-            Redacta este párrafo inicial de forma exacta y literal, SIN usar corchetes: 'En {$lugarEmision}, a {$fechaBaja}, {$patron->razon_social} notifica formalmente a {$empleado->nombre_completo} la {$data['tipo_documento']}, con base en las siguientes consideraciones:'
-            
-            <strong>I. ANTECEDENTES:</strong> (Un solo párrafo muy breve sobre el inicio del vínculo legal y la posición/funciones).
-            
-            <strong>II. DE LOS HECHOS:</strong> (Convierte el contexto crudo en una lista con viñetas <ul><li>. Detalla los incumplimientos de forma objetiva y directa).
-            
-            <strong>III. DETERMINACIÓN:</strong> (Un párrafo breve anunciando la terminación anticipada, rescisión o sanción, fundamentada en los hechos descritos).
-            
-            <strong>IV. CIERRE Y LIQUIDACIÓN FINAL:</strong> (Un párrafo indicando la procedencia del pago de contraprestaciones o finiquito devengado, estableciendo que con ello se otorga el más amplio finiquito legal y se extinguen las obligaciones).
+                DATOS OBLIGATORIOS:
+                - Empresa / Patrón: {$patron->razon_social}
+                - Empleado / Ex-empleado: {$empleado->nombre_completo}
+                - Puesto / Naturaleza: {$tipoContrato}
+                - Fecha de Ingreso: {$fechaIngreso}
+                - Fecha de Salida: {$fechaBaja}
+                - Lugar y Fecha de Emisión: {$lugarEmision}, a {$fechaBaja}
 
-            INSTRUCCIONES FINALES:
-            1. Adapta los conceptos al 'Tipo de Contrato' (Si es Laboral usa 'patrón/trabajador, liquidación, LFT'; si es Honorarios usa 'empresa/prestador de servicios, contraprestación, código civil').
-            2. Devuelve la respuesta ÚNICAMENTE en formato HTML (usa <p>, <strong>, <ul>, <li>, <br>, <table>, <tr>, <td>).
-            3. NO incluyas <html>, <head> o <body>. NO uses comillas Markdown (```html).
-            4. PARA LAS FIRMAS: Inserta EXACTAMENTE este código HTML al final del documento para que queden alineadas a la par:
-            <br><br>
-            <table style=\"width: 100%; border: none; text-align: center; margin-top: 50px;\">
-                <tr>
-                    <td style=\"width: 50%;\">___________________________________<br><strong>{$patron->razon_social}</strong></td>
-                    <td style=\"width: 50%;\">___________________________________<br><strong>Recibí de conformidad:<br>{$empleado->nombre_completo}</strong></td>
-                </tr>
-            </table>";
+                CONTEXTO / NOTAS ADICIONALES:
+                \"{$data['contexto_crudo']}\"
+
+                ESTRUCTURA REQUERIDA:
+                - Encabezado: 'A QUIEN CORRESPONDA:'
+                - Un párrafo formal certificando que {$empleado->nombre_completo} prestó sus servicios en {$patron->razon_social} durante el periodo del {$fechaIngreso} al {$fechaBaja}.
+                - Un párrafo destacando su buen desempeño, responsabilidad, puntualidad y valores observados durante su estancia.
+                - Un párrafo final otorgando la recomendación para los fines legales o laborales que al interesado convengan.
+
+                FORMATO Y FIRMAS:
+                - Devuelve ÚNICAMENTE HTML (<p>, <strong>, <br>, <table>, <tr>, <td>). Sin comillas ```html ni <body>.
+                - Al final, incluye esta tabla de firma centrada:
+                <br><br>
+                <table style=\"width: 100%; border: none; text-align: center; margin-top: 40px;\">
+                    <tr>
+                        <td style=\"width: 100%;\">___________________________________<br><strong>{$patron->razon_social}</strong><br>Departamento de Recursos Humanos</td>
+                    </tr>
+                </table>";
+            } else {
+                // PROMPT CORPORATIVO / EJECUTIVO PARA RESCISIONES, ACTAS Y VENCIMIENTOS
+                $prompt = "Actúa como un abogado corporativo experto. Tu tarea es redactar un(a) '{$data['tipo_documento']}' con rigor jurídico y estilo ejecutivo.
+                
+                TONO Y ESTILO:
+                - Directo al grano, objetivo, contundente y estrictamente profesional.
+                - Utiliza terminología jurídica precisa (ej. 'devengado', 'rescisión', 'finiquito', 'contraprestación').
+                - NO uses lenguaje pomposo o dramático. Redacta de forma neutral y documentada.
+                
+                DATOS OBLIGATORIOS (PROHIBIDO DEJAR ESPACIOS EN BLANCO):
+                - Empresa: {$patron->razon_social}
+                - Empleado/Prestador: {$empleado->nombre_completo}
+                - Tipo de Contrato actual: {$tipoContrato}
+                - Fecha de Ingreso: {$fechaIngreso}
+                - Fecha de Baja: {$fechaBaja}
+                - Lugar: {$lugarEmision}
+
+                HECHOS / CONTEXTO A PROCESAR:
+                \"{$data['contexto_crudo']}\"
+
+                ESTRUCTURA EXACTA QUE DEBES SEGUIR (Usa números romanos y viñetas):
+                Párrafo inicial literal: 'En {$lugarEmision}, a {$fechaBaja}, {$patron->razon_social} hace entrega del(a) presente {$data['tipo_documento']} a {$empleado->nombre_completo}, con base en las siguientes consideraciones:'
+                
+                <strong>I. ANTECEDENTES:</strong> (Un párrafo breve sobre el inicio del vínculo legal y la posición/funciones).
+                
+                <strong>II. DE LOS HECHOS:</strong> (Convierte el contexto crudo en una lista con viñetas <ul><li> de forma enteramente objetiva, detallando los incumplimientos sin exagerar).
+                
+                <strong>III. DETERMINACIÓN:</strong> (Un párrafo breve anunciando la terminación anticipada, rescisión o sanción fundamentada).
+                
+                <strong>IV. CIERRE Y LIQUIDACIÓN FINAL:</strong> (Un párrafo indicando el pago de contraprestaciones o finiquito devengado, otorgando finiquito legal y extinción de obligaciones).
+
+                INSTRUCCIONES FINALES:
+                1. Adapta los conceptos al 'Tipo de Contrato' (Laboral vs Honorarios).
+                2. Devuelve la respuesta ÚNICAMENTE en HTML (<p>, <strong>, <ul>, <li>, <br>, <table>, <tr>, <td>). Sin comillas ```html ni <body>.
+                3. PARA LAS FIRMAS: Inserta EXACTAMENTE esta tabla de firmas al final:
+                <br><br>
+                <table style=\"width: 100%; border: none; text-align: center; margin-top: 50px;\">
+                    <tr>
+                        <td style=\"width: 50%;\">___________________________________<br><strong>{$patron->razon_social}</strong></td>
+                        <td style=\"width: 50%;\">___________________________________<br><strong>Recibí de conformidad:<br>{$empleado->nombre_completo}</strong></td>
+                    </tr>
+                </table>";
+            }
 
             $apiKey = env('GEMINI_API_KEY', '');
             if (empty($apiKey)) {
