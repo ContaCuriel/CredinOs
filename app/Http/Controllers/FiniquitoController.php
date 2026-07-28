@@ -207,11 +207,14 @@ class FiniquitoController extends Controller
         $mediosDias = 0;
 
         foreach($asistenciasFinales as $asis) {
-            if (in_array($asis->tipo_incidencia, ['falta', 'falta_por_retardo_extremo'])) {
+            // 🔥 CORRECCIÓN: Buscamos 'tipo' en lugar de 'tipo_incidencia'
+            $tipo = $asis->tipo ?? $asis->tipo_incidencia ?? '';
+
+            if (in_array($tipo, ['falta', 'falta_por_retardo_extremo'])) {
                 $faltasCrudas += ($asis->penalizacion ?? 1);
-            } elseif ($asis->tipo_incidencia == 'medio_dia') {
+            } elseif ($tipo == 'medio_dia') {
                 $mediosDias += 0.5;
-            } elseif ($asis->tipo_incidencia == 'retardo') {
+            } elseif ($tipo == 'retardo') {
                 $retardosCrudos += 1;
             }
         }

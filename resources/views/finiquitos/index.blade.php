@@ -272,19 +272,30 @@
             });
 
             function construirTablaEditable(data) {
-                // 🔥 ALERTA DINÁMICA DE ASISTENCIAS
+                // 🔥 ALERTA DINÁMICA DE ASISTENCIAS (MEJORADA)
                 let alertHtml = '';
-                if (data.info_asistencia && data.info_asistencia.total_dias_descontar > 0) {
+                if (data.info_asistencia && (data.info_asistencia.faltas_directas > 0 || data.info_asistencia.retardos > 0 || data.info_asistencia.medios_dias > 0)) {
+                    
+                    let info = data.info_asistencia;
+                    let botonDescuento = '';
+                    
+                    if (info.total_dias_descontar > 0) {
+                        botonDescuento = `
+                        <div class="mt-2">
+                            <button type="button" class="btn btn-sm btn-danger fw-bold shadow-sm" onclick="window.aplicarDescuentoFaltas(${info.monto_sugerido_descuento}, this)">
+                                <i class="bi bi-scissors"></i> Aplicar descuento por $${window.limpiarNumero(info.monto_sugerido_descuento).toFixed(2)}
+                            </button>
+                        </div>`;
+                    } else {
+                        botonDescuento = `<div class="mt-2 text-muted small"><i class="bi bi-info-circle"></i> Los retardos registrados no alcanzan a generar descuento según las reglas (Ej. Necesita 3 retardos para 1 falta).</div>`;
+                    }
+
                     alertHtml = `
                     <div class="alert alert-warning alert-dismissible fade show shadow-sm" role="alert" style="max-width: 750px; margin: 0 auto 20px auto;">
                         <strong><i class="bi bi-exclamation-triangle-fill"></i> ¡Atención! Incidencias en la última quincena</strong><br>
-                        El sistema detectó <b>${data.info_asistencia.faltas_directas}</b> falta(s), <b>${data.info_asistencia.retardos}</b> retardo(s) y <b>${data.info_asistencia.medios_dias}</b> medio(s) día(s).
-                        <br>Total sugerido a descontar: <b>${data.info_asistencia.total_dias_descontar} días</b>.
-                        <div class="mt-2">
-                            <button type="button" class="btn btn-sm btn-danger fw-bold shadow-sm" onclick="window.aplicarDescuentoFaltas(${data.info_asistencia.monto_sugerido_descuento}, this)">
-                                <i class="bi bi-scissors"></i> Aplicar descuento por $${window.limpiarNumero(data.info_asistencia.monto_sugerido_descuento).toFixed(2)}
-                            </button>
-                        </div>
+                        El sistema detectó <b>${info.faltas_directas}</b> falta(s), <b>${info.retardos}</b> retardo(s) y <b>${info.medios_dias}</b> medio(s) día(s).
+                        <br>Total sugerido a descontar: <b>${info.total_dias_descontar} días</b>.
+                        ${botonDescuento}
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                     `;
