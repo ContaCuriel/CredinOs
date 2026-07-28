@@ -363,20 +363,18 @@ class FiniquitoController extends Controller
                 'id_empleado' => 'required|exists:empleados,id_empleado',
                 'id_patron' => 'required|exists:patrones,id_patron',
                 'fecha_final' => 'required|date',
-                'contexto_crudo' => 'required|string|min:10', // Aquí llega el chat de WhatsApp
-                'tipo_documento' => 'required|string' // Ej. "Rescisión de Contrato", "Acta Administrativa"
+                'contexto_crudo' => 'required|string|min:10',
+                'tipo_documento' => 'required|string'
             ]);
 
             $empleado = Empleado::with('ultimoContrato')->findOrFail($data['id_empleado']);
             $patron = Patron::findOrFail($data['id_patron']);
 
-            // Recopilamos las fechas y las formateamos en español
             $fechaIngreso = Carbon::parse($empleado->fecha_ingreso)->translatedFormat('d \d\e F \d\e Y');$fechaBaja = Carbon::parse($data['fecha_final'])->translatedFormat('d \d\e F \d\e Y');$vencimientoContrato = 'No especificado';
             if ($empleado->ultimoContrato &&$empleado->ultimoContrato->fecha_fin) {
                 $vencimientoContrato = Carbon::parse($empleado->ultimoContrato->fecha_fin)->translatedFormat('d \d\e F \d\e Y');
             }
 
-            // Construimos el "Super Prompt" para la IA
             $prompt = "Actúa como un abogado laboral corporativo en México. Tu tarea es redactar un(a) '{$data['tipo_documento']}' formal, profesional y legalmente blindado.
             
             DATOS DUROS OBLIGATORIOS A INCLUIR:
@@ -401,22 +399,31 @@ class FiniquitoController extends Controller
                 return response()->json(['error' => 'API Key de Gemini no configurada.'], 500);
             }
 
-            // Usamos la versión Pro porque redactar contratos requiere mucho razonamiento legal
-            $apiUrl = "[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=){$apiKey}";
+            // URL 100% limpia sin corchetes de Markdown
+            $apiUrl = '[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=)' . $apiKey;
             
-            $response = \Illuminate\Support\Facades\Http::timeout(60)->post($apiUrl, [
-                'contents' => [['role' => 'user', 'parts' => [['text' => $prompt]]]]
-            ]);
+            $response = \Illuminate\Support\Facades\Http::timeout(60)
+                ->withHeaders(['Content-Type' => 'application/json'])
+                ->post($apiUrl, [
+                    'contents' => [
+                        [
+                            'role' => 'user', 
+                            'parts' => [
+                                ['text' => $prompt]
+                            ]
+                        ]
+                    ]
+                ]);
 
             if ($response->successful()) {
                 $htmlRedactado = $response->json('candidates.0.content.parts.0.text', '<p>No se pudo generar el documento.</p>');
                 
-                // Limpiamos si la IA accidentalmente agregó las comillas de Markdown
+                // Limpieza de Markdown residual en caso de que la IA responda con comillas de código
                 $htmlRedactado = str_replace(['```html', '```'], '', $htmlRedactado);
                 
                 return response()->json(['documento_html' => trim($htmlRedactado)]);
             } else {
-                return response()->json(['error' => 'La IA rechazó la solicitud. Error de Google.'], 500);
+                return response()->json(['error' => 'Google API Error: ' . $response->body()], 500);
             }
 
         } catch (\Exception $e) {
