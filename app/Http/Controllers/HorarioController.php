@@ -81,10 +81,10 @@ class HorarioController extends Controller
             'multiplicador_dias_regulares' => 'nullable|numeric|min:1',
         ]);
 
-        // 1. Procesar días de la semana
+        // 1. Procesar días de la semana (Forzando true/false para PostgreSQL)
         $dias = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
         foreach ($dias as $dia) {
-            $data[$dia] = $request->has($dia);
+            $data[$dia] = $request->has($dia) ? true : false;
             if (!$data[$dia]) {
                 $data[$dia.'_entrada'] = null;
                 $data[$dia.'_salida'] = null;
@@ -92,22 +92,22 @@ class HorarioController extends Controller
         }
 
         // 2. Procesar Reglas Básicas de Tolerancia
-        $data['aplicar_reglas_avanzadas'] = $request->has('tiene_tolerancia');
-        $data['tolerancia_minutos'] = $data['aplicar_reglas_avanzadas'] ? ($request->tolerancia_minutos ?? 0) : 0;
+        $data['aplicar_reglas_avanzadas'] = $request->has('tiene_tolerancia') ? true : false;
+        $data['tolerancia_minutos'] = $data['aplicar_reglas_avanzadas'] ? (int)($request->tolerancia_minutos ?? 0) : 0;
         
         // 3. Procesar Retardos
-        $data['minutos_limite_retardo'] = $request->minutos_limite_retardo ?? 15;
-        $data['retardos_por_falta'] = $request->retardos_por_falta ?? 3; // Por defecto 3 retardos = 1 falta
+        $data['minutos_limite_retardo'] = (int)($request->minutos_limite_retardo ?? 15);
+        $data['retardos_por_falta'] = (int)($request->retardos_por_falta ?? 3); // Por defecto 3 retardos = 1 falta
 
-        // 4. Procesar Medio Día
-        $data['aplica_medio_dia'] = $request->has('aplica_medio_dia');
-        $data['minutos_limite_medio_dia'] = $data['aplica_medio_dia'] ? ($request->minutos_limite_medio_dia ?? 30) : null;
+        // 4. Procesar Medio Día (Evitamos enviar null para prevenir fallos en BD)
+        $data['aplica_medio_dia'] = $request->has('aplica_medio_dia') ? true : false;
+        $data['minutos_limite_medio_dia'] = $data['aplica_medio_dia'] ? (int)($request->minutos_limite_medio_dia ?? 30) : 30;
 
         // 5. Procesar Multiplicadores
-        $data['aplica_castigo_multiplicador'] = $request->has('aplica_castigo_multiplicador');
+        $data['aplica_castigo_multiplicador'] = $request->has('aplica_castigo_multiplicador') ? true : false;
         if ($data['aplica_castigo_multiplicador']) {
-            $data['multiplicador_lunes_viernes'] = $request->multiplicador_lunes_viernes ?? 3;
-            $data['multiplicador_dias_regulares'] = $request->multiplicador_dias_regulares ?? 2;
+            $data['multiplicador_lunes_viernes'] = (int)($request->multiplicador_lunes_viernes ?? 3);
+            $data['multiplicador_dias_regulares'] = (int)($request->multiplicador_dias_regulares ?? 2);
         } else {
             $data['multiplicador_lunes_viernes'] = 1;
             $data['multiplicador_dias_regulares'] = 1;

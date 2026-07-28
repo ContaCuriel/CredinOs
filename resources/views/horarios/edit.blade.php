@@ -79,7 +79,8 @@
                     
                     {{-- BLOQUE: TOLERANCIA Y RETARDOS --}}
                     @php
-                        $tieneToleranciaCheck = old('tiene_tolerancia', $horario->aplicar_reglas_avanzadas);
+                        // Evaluamos si tiene tolerancia_minutos guardada > 0
+                        $tieneToleranciaCheck = old('tiene_tolerancia', ($horario->tolerancia_minutos > 0));
                     @endphp
                     <div class="card border-warning bg-warning bg-opacity-10 p-3 mb-3">
                         <div class="row">
@@ -117,7 +118,8 @@
 
                     {{-- BLOQUE: MEDIO DÍA --}}
                     @php
-                        $aplicaMedioDiaCheck = old('aplica_medio_dia', $horario->aplica_medio_dia);
+                        // Corrección de lectura booleana
+                        $aplicaMedioDiaCheck = old('aplica_medio_dia', $horario->aplica_medio_dia == 1 || $horario->aplica_medio_dia === true || $horario->aplica_medio_dia === 't');
                     @endphp
                     <div class="card border-info bg-info bg-opacity-10 p-3 mb-3">
                         <div class="row align-items-center">
@@ -142,7 +144,8 @@
 
                     {{-- BLOQUE: MULTIPLICADOR DE FALTAS --}}
                     @php
-                        $aplicaMultiplicadorCheck = old('aplica_castigo_multiplicador', $horario->aplica_castigo_multiplicador);
+                        // Corrección de lectura booleana
+                        $aplicaMultiplicadorCheck = old('aplica_castigo_multiplicador', $horario->aplica_castigo_multiplicador == 1 || $horario->aplica_castigo_multiplicador === true || $horario->aplica_castigo_multiplicador === 't');
                     @endphp
                     <div class="card border-danger bg-danger bg-opacity-10 p-3 mb-4">
                         <div class="row align-items-center">

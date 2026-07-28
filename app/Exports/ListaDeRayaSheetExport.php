@@ -6,6 +6,7 @@ use App\Models\Empleado;
 use App\Models\Asistencia;
 use App\Models\DeduccionEmpleado;
 use App\Models\Sucursal;
+use App\Models\AsistenciaCierre; // 🔥 IMPORTAMOS LA TABLA PUENTE
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -65,26 +66,25 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
         if ($periodoGuardado && $periodoGuardado->detalles->isNotEmpty()) {
             foreach ($periodoGuardado->detalles as $detalle) {
                 $this->resultados->push([
-                    // --- DATOS OCULTOS PARA LA BD ---
                     'id_empleado' => $detalle->id_empleado,
                     'sueldo_mensual' => (float)$detalle->sueldo_mensual_historico,
                     'sueldo_diario' => (float)$detalle->sueldo_diario_historico,
                     'dias_periodo' => $detalle->dias_periodo,
-                    'faltas_directas' => $detalle->faltas_directas,
-                    // ---------------------------------------
+                    
+                    // 🔥 Leemos los valores del histórico
+                    'retardos_reporte' => $detalle->retardos_acumulados ?? 0,
+                    'faltas_reporte' => $detalle->faltas_directas ?? 0,
                     
                     'empleado_nombre' => strtoupper($detalle->empleado ? $detalle->empleado->nombre_completo : 'DESCONOCIDO'),
                     'fecha_ingreso' => $detalle->empleado ? $detalle->empleado->fecha_ingreso : null,
                     'puesto' => $detalle->puesto_historico,
                     'sueldo_quincenal' => (float)($detalle->sueldo_diario_historico * $detalle->dias_periodo), 
                     
-                    // Bonos y extras
                     'bono_permanencia' => 0, 
                     'bono_cumpleanos' => 0,
                     'prima_vacacional' => (float)$detalle->percepciones_extra, 
                     'total_percepciones' => (float)(($detalle->sueldo_diario_historico * $detalle->dias_periodo) + $detalle->percepciones_extra), 
                     
-                    // Deducciones
                     'deduccion_faltas' => (float)$detalle->descuento_por_faltas,
                     'deduccion_prestamo' => 0, 
                     'deduccion_prevision' => 0, 
@@ -98,24 +98,27 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                     'neto_a_pagar' => (float)$detalle->total_neto,
                 ]);
             }
-            
-            // ¡MAGIA! Con este "return", el código termina aquí y omite el cálculo en vivo de abajo.
             return; 
         }
 
-
         // ---------------------------------------------------------
-        // 2. CÁLCULO AL VUELO (TU CÓDIGO ORIGINAL INTACTO)
-        // Se ejecuta SOLO si no encontró foto guardada.
+        // 2. CÁLCULO AL VUELO (AQUÍ LEEMOS LA TABLA PUENTE)
         // ---------------------------------------------------------
         list($fechaInicioStr, $fechaFinStr) = explode('_', $this->periodo);
         $fechaInicioPeriodo = Carbon::parse($fechaInicioStr);
         $fechaFinPeriodo = Carbon::parse($fechaFinStr);
 
+        // 🔥 Agregamos el 'horario' a la consulta para calcular los castigos
         $empleados = Empleado::where('status', 'Alta')
             ->where('id_sucursal', $this->sucursal_id)
-            ->with(['puesto'])
+            ->with(['puesto', 'horario'])
             ->get();
+
+        // 🔥 Obtenemos TODOS los cierres de asistencia de esta quincena en un solo query
+        $cierresAsistencia = AsistenciaCierre::where('periodo', $this->periodo)
+            ->where('id_sucursal', $this->sucursal_id)
+            ->get()
+            ->keyBy('id_empleado');
 
         foreach ($empleados as $empleado) {
             $salarioDiario = $empleado->puesto ? ($empleado->puesto->salario_mensual / 30) : 0;
@@ -129,10 +132,8 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             
             $sueldoQuincenalBruto = $salarioDiario * $diasAPagar;
 
-            $bonoPermanencia = 0;
-            $bonoCumpleanos = 0;
-            $primaVacacional = 0;
-
+            // ... (Cálculo de bonos se queda idéntico) ...
+            $bonoPermanencia = 0; $bonoCumpleanos = 0; $primaVacacional = 0;
             if ($empleado->fecha_ingreso) {
                 $fechaIngreso = Carbon::parse($empleado->fecha_ingreso);
                 $aniversarioEnAnoDelPeriodo = $fechaIngreso->copy()->year($fechaInicioPeriodo->year);
@@ -158,19 +159,34 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             }
             $totalPercepciones = $sueldoQuincenalBruto + $bonoPermanencia + $bonoCumpleanos + $primaVacacional;
 
+            // ---------------------------------------------------------
+            // 🔥 AQUÍ OCURRE LA MAGIA DEL CIERRE DE ASISTENCIA
+            // ---------------------------------------------------------
+            $cierre = $cierresAsistencia->get($empleado->id_empleado);
+            
+            $retardosCrudos = $cierre ? $cierre->retardos : 0; // Para la Columna D
+            $faltasCrudas = $cierre ? (float)$cierre->faltas : 0; // Para la Columna E
+            
+            // Calculamos si sus retardos le generaron faltas extra (por si la regla es 3 = 1)
+            $reglaRetardos = $empleado->horario ? ($empleado->horario->retardos_por_falta ?? 0) : 0;
+            $faltasPorRetardos = $reglaRetardos > 0 ? floor($retardosCrudos / $reglaRetardos) : 0;
+            
+            // Días totales a descontar monetariamente
+            $diasADescontar = $faltasCrudas + $faltasPorRetardos;
+
             $deduccionesActivas = DeduccionEmpleado::where('id_empleado', $empleado->id_empleado)->where('status', 'Activo')->get();
-            
-            $diasFalta = Asistencia::where('id_empleado', $empleado->id_empleado)->where('status_asistencia', 'Falta')->whereBetween('fecha', [$fechaInicioPeriodo, $fechaFinPeriodo])->count();
             $deduccionFaltasManuales = $deduccionesActivas->where('tipo_deduccion', 'Retardo/Falta Manual')->sum('monto_quincenal');
-            $deduccionFaltas = ($diasFalta * $salarioDiario) + $deduccionFaltasManuales;
             
+            // Multiplicamos por su sueldo diario (Columna K)
+            $deduccionFaltas = ($diasADescontar * $salarioDiario) + $deduccionFaltasManuales;
+            // ---------------------------------------------------------
+
             $deduccionPrestamo = $deduccionesActivas->where('tipo_deduccion', 'Préstamo')->sum('monto_quincenal');
             $deduccionPrevision = $deduccionesActivas->where('tipo_deduccion', 'Previsión')->sum('monto_quincenal'); 
             $deduccionCajaAhorro = $deduccionesActivas->where('tipo_deduccion', 'Caja de Ahorro')->sum('monto_quincenal');
             $deduccionInfonavit = $deduccionesActivas->where('tipo_deduccion', 'Infonavit')->sum('monto_quincenal');
             $deduccionISR = $deduccionesActivas->where('tipo_deduccion', 'ISR')->sum('monto_quincenal');
             $deduccionIMSS = $deduccionesActivas->where('tipo_deduccion', 'IMSS')->sum('monto_quincenal');
-            
             $deduccionOtro = $deduccionesActivas->whereIn('tipo_deduccion', ['Otro', 'Fijo Sin Plazo'])->sum('monto_quincenal');
             
             $totalDeducciones = $deduccionFaltas + $deduccionPrestamo + $deduccionPrevision + $deduccionCajaAhorro + $deduccionInfonavit + $deduccionISR + $deduccionIMSS + $deduccionOtro;
@@ -178,14 +194,16 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             $netoAPagar = $totalPercepciones - $totalDeducciones;
 
             $this->resultados->push([
-                // --- DATOS NUEVOS OCULTOS PARA LA BD ---
                 'id_empleado' => $empleado->id_empleado,
                 'sueldo_mensual' => $empleado->puesto ? $empleado->puesto->salario_mensual : 0,
                 'sueldo_diario' => $salarioDiario,
                 'dias_periodo' => $diasAPagar,
-                'faltas_directas' => $diasFalta,
-                // ---------------------------------------
-
+                
+                // 🔥 Valores inyectados para las columnas D y E
+                'retardos_reporte' => $retardosCrudos,
+                'faltas_reporte' => $faltasCrudas,
+                'faltas_por_retardos_historico' => $faltasPorRetardos, // Por si se ocupa en el controlador
+                
                 'empleado_nombre' => strtoupper($empleado->nombre_completo),
                 'fecha_ingreso' => $empleado->fecha_ingreso,
                 'puesto' => $empleado->puesto ? $empleado->puesto->nombre_puesto : 'N/A',
@@ -238,7 +256,11 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             $filaResultado['empleado_nombre'],
             $filaResultado['fecha_ingreso'] ? Carbon::parse($filaResultado['fecha_ingreso'])->format('d/m/Y') : 'N/A',
             $filaResultado['puesto'],
-            0, 0, // 🔥 AQUI ESTÁ EL CAMBIO: Columnas D y E fijas en cero
+            
+            // 🔥 AQUÍ IMPRIMIMOS LAS COLUMNAS D Y E
+            $filaResultado['retardos_reporte'], // D (Retardos)
+            $filaResultado['faltas_reporte'],   // E (Faltas)
+            
             (float) $filaResultado['sueldo_quincenal'],      // F
             (float) $filaResultado['bono_permanencia'],      // G
             (float) $filaResultado['bono_cumpleanos'],       // H
@@ -300,7 +322,6 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                         'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
                     ]);
 
-                    // 🔥 Centramos los ceros de Retardos(D) y Faltas(E)
                     $sheet->getStyle("D3:E{$lastDataRow}")->applyFromArray([
                         'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER]
                     ]);
@@ -321,7 +342,6 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                     $sheet->getStyle("F{$totalsRow}:{$lastColumn}{$totalsRow}")->getNumberFormat()
                           ->setFormatCode('"$" #,##0.00;[Red]-"$" #,##0.00;"$" 0.00');
                     
-                    // Ocultar columnas sin datos
                     $columnsToCheck = [
                         'G' => 'Bono Permanencia', 'H' => 'Bono Cumpleaños', 'I' => 'Prima Vacacional',
                         'K' => 'Ded. Faltas', 'L' => 'Ded. Préstamo', 'M' => 'Ded. Previsión', 'N' => 'Ded. Caja Ahorro',
