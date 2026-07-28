@@ -399,11 +399,12 @@ class FiniquitoController extends Controller
                 return response()->json(['error' => 'API Key de Gemini no configurada.'], 500);
             }
 
-            // 🔥 TRAMPA ANTI-MARKDOWN 🔥
-            // Armamos la URL pieza por pieza para que ningún chat o editor la reconozca como link
+            // 🔥 TRAMPA ANTI-MARKDOWN Y FIX DEL MODELO (2.5-pro) 🔥
             $protocolo = 'http' . 's://';
             $dominio = 'generativelanguage' . '.googleapis' . '.com';
-            $ruta = '/v1beta/models/gemini-1.5-pro:generateContent?key=';
+            
+            // Usamos tu modelo gemini-2.5-pro que ya está verificado en tus reportes
+            $ruta = '/v1beta/models/gemini-2.5-pro:generateContent?key=';
             
             $apiUrl = $protocolo . $dominio . $ruta . trim($apiKey);
             
