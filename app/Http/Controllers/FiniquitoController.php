@@ -365,14 +365,17 @@ class FiniquitoController extends Controller
                 'fecha_final'    => 'required|date',
                 'contexto_crudo' => 'required|string|min:10',
                 'tipo_documento' => 'required|string',
-                // 🔥 NUEVO: Recibimos al representante legal (opcional) para las firmas
                 'representante_legal' => 'nullable|string' 
             ]);
 
             $empleado = Empleado::with(['ultimoContrato', 'sucursal'])->findOrFail($data['id_empleado']);
             $patron = Patron::findOrFail($data['id_patron']);
 
-            $fechaIngreso = Carbon::parse($empleado->fecha_ingreso)->translatedFormat('d \d\e F \d\e Y');
+            // Al estar casteado en el modelo, fecha_ingreso ya es un objeto Carbon
+            $fechaIngreso = $empleado->fecha_ingreso 
+                ? $empleado->fecha_ingreso->translatedFormat('d \d\e F \d\e Y') 
+                : 'No especificada';
+                
             $fechaBaja = Carbon::parse($data['fecha_final'])->translatedFormat('d \d\e F \d\e Y');
             
             $vencimientoContrato = 'No especificado';
@@ -385,13 +388,12 @@ class FiniquitoController extends Controller
                 }
             }
 
-            // 🔥 FIX DEL LUGAR
-            $municipio = $empleado->sucursal->municipio ?? null;
-            $nombreSucursal = $empleado->sucursal->nombre_sucursal ?? null;
-            $lugarEmision = $municipio ?: ($nombreSucursal ?: 'la Ciudad de México');
+            // 🔥 FIX DEL LUGAR Y DOMICILIO EXACTO SEGÚN TUS MODELOS
+            $lugarEmision = $empleado->sucursal->municipio ?? $empleado->sucursal->nombre_sucursal ?? 'la Ciudad de México';
+            $domicilioPatron = $patron->direccion_fiscal ?? 'su domicilio fiscal registrado'; // Usando el campo real del modelo Patron
             
-            // 🔥 REPRESENTANTE LEGAL (Fallback si no lo envían)
-            $representante = $data['representante_legal'] ?? 'Representante Legal';
+            // 🔥 REPRESENTANTE LEGAL: 1° del formulario, 2° del modelo Patron, 3° Texto Genérico
+            $representante = $data['representante_legal'] ?? $patron->representante_legal ?? 'Representante Legal';
 
             // LÓGICA DE PROMPT SEGÚN EL TIPO DE DOCUMENTO
             $tipoDoc = strtolower($data['tipo_documento']);
@@ -424,18 +426,17 @@ class FiniquitoController extends Controller
                 <br><br>
                 <table style=\"width: 100%; border: none; text-align: center; margin-top: 40px;\">
                     <tr>
-                        <td style=\"width: 100%;\">___________________________________<br><strong>{$patron->razon_social}</strong><br>Departamento de Recursos Humanos</td>
+                        <td style=\"width: 100%;\">___________________________________<br><strong>{$representante}</strong><br>{$patron->razon_social}<br>Departamento de Recursos Humanos</td>
                     </tr>
                 </table>";
             } else {
                 
                 // 🔥 MAGIA AQUÍ: LÓGICA CONDICIONAL LABORAL VS HONORARIOS 🔥
-                // Detectamos si el tipo de contrato menciona honorarios, asimilados o servicios
                 $esHonorarios = preg_match('/honorarios\vert{}prestación\vert{}civil\vert{}independiente/i', $tipoContrato);
                 
                 $terminoRol =$esHonorarios ? 'PRESTADOR DE SERVICIOS' : 'TRABAJADOR';
                 $terminoRelacion =$esHonorarios ? 'relación civil de prestación de servicios' : 'relación laboral';
-                $terminoCierre =$esHonorarios 
+                $terminoCierre =$esHonorarios  
                     ? 'el pago total de las contraprestaciones y honorarios devengados. (REGLA ESTRICTA: TIENES PROHIBIDO USAR LA PALABRA FINIQUITO O LIQUIDACIÓN LABORAL).' 
                     : 'el pago del finiquito legal y/o liquidación correspondiente.';
 
@@ -449,6 +450,7 @@ class FiniquitoController extends Controller
                 
                 DATOS OBLIGATORIOS (PROHIBIDO DEJAR ESPACIOS EN BLANCO):
                 - Empresa: {$patron->razon_social}
+                - Domicilio Empresa: {$domicilioPatron}
                 - {$terminoRol}: {$empleado->nombre_completo}
                 - Tipo de Contrato actual: {$tipoContrato}
                 - Fecha de Ingreso: {$fechaIngreso}
@@ -481,14 +483,16 @@ class FiniquitoController extends Controller
                 </table>";
             }
 
-            // Nota: Es mejor usar config('services.gemini.api_key') en Laravel en lugar de env()
             $apiKey = env('GEMINI_API_KEY', '');
             if (empty($apiKey)) {
                 return response()->json(['error' => 'API Key de Gemini no configurada.'], 500);
             }
 
-            // Asegúrate de usar un modelo válido, ej. gemini-1.5-pro o gemini-1.5-flash
-            $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=" . trim($apiKey);
+            // TRAMPA ANTI-MARKDOWN Y MODELO DEFINITIVO (2.5-pro)
+            $protocolo = 'http' . 's://';
+            $dominio = 'generativelanguage' . '.googleapis' . '.com';
+            $ruta = '/v1beta/models/gemini-2.5-pro:generateContent?key=';
+            $apiUrl = $protocolo . $dominio . $ruta . trim($apiKey);
             
             $response = \Illuminate\Support\Facades\Http::timeout(60)
                 ->withHeaders(['Content-Type' => 'application/json'])
