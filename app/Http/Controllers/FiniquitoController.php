@@ -365,7 +365,8 @@ class FiniquitoController extends Controller
                 'fecha_final'    => 'required|date',
                 'contexto_crudo' => 'required|string|min:10',
                 'tipo_documento' => 'required|string',
-                'representante_legal' => 'nullable|string' 
+                'representante_legal' => 'nullable|string',
+                'esquema'        => 'nullable|in:HONORARIOS,LABORAL' // Opcional: Si el front lo manda, se respeta
             ]);
 
             $empleado = Empleado::with(['ultimoContrato', 'sucursal'])->findOrFail($data['id_empleado']);
@@ -376,24 +377,26 @@ class FiniquitoController extends Controller
                 : 'No especificada';
                 
             $fechaBaja = Carbon::parse($data['fecha_final'])->translatedFormat('d \d\e F \d\e Y');
-            
-            $vencimientoContrato = 'No especificado';
-            $tipoContrato = 'No especificado';
-            
-            if ($empleado->ultimoContrato) {
-                $tipoContrato = $empleado->ultimoContrato->tipo_contrato ?? 'Indeterminado';
-                if ($empleado->ultimoContrato->fecha_fin) {
-                    $vencimientoContrato = Carbon::parse($empleado->ultimoContrato->fecha_fin)->translatedFormat('d \d\e F \d\e Y');
-                }
-            }
+            $tipoContrato = $empleado->ultimoContrato->tipo_contrato ?? 'No especificado';
 
-            // 🔥 FIX DEL LUGAR: Formato "Municipio, Estado"
+            // FIX DEL LUGAR: Formato "Municipio, Estado"
             $municipio = $empleado->sucursal->municipio ?? $empleado->sucursal->nombre_sucursal ?? 'Ciudad';
             $estado = $empleado->sucursal->estado ?? 'México';
             $lugarEmision = "{$municipio}, {$estado}";
             
-            $domicilioPatron = $patron->direccion_fiscal ?? 'su domicilio fiscal registrado';
             $representante = $data['representante_legal'] ?? $patron->representante_legal ?? 'Representante Legal';
+
+            // 🔥 DEDUCCIÓN AUTOMÁTICA O MANUAL DEL ESQUEMA 🔥
+            if (!empty($data['esquema'])) {
+                $esHonorarios = ($data['esquema'] === 'HONORARIOS');
+            } else {
+                // Si el empleado está en Alta en el IMSS, NUNCA es Honorarios
+                if ($empleado->estado_imss === 'Alta') {
+                    $esHonorarios = false;
+                } else {
+                    $esHonorarios = ($tipoContrato === 'Honorarios');
+                }
+            }
 
             $tipoDoc = strtolower($data['tipo_documento']);
 
@@ -405,7 +408,6 @@ class FiniquitoController extends Controller
                 DATOS OBLIGATORIOS:
                 - Empresa / Patrón: {$patron->razon_social}
                 - Empleado / Ex-empleado: {$empleado->nombre_completo}
-                - Puesto / Naturaleza: {$tipoContrato}
                 - Fecha de Ingreso: {$fechaIngreso}
                 - Fecha de Salida: {$fechaBaja}
 
@@ -429,14 +431,12 @@ class FiniquitoController extends Controller
                 </table>";
             } else {
                 
-                // 🔥 EL ANTÍDOTO ANTI-FRANKENSTEIN 🔥
-                $esHonorarios = preg_match('/honorarios\vert{}prestación\vert{}civil\vert{}independiente/i', $tipoContrato);
-                
+                // CONFIGURACIÓN DE VOCABULARIO SEGÚN EL ESQUEMA
                 if ($esHonorarios) {
                     $terminoRol = 'PRESTADOR DE SERVICIOS';$reglasVocabulario = "REGLA DE ORO (ANTISIMULACIÓN): El contrato es puramente CIVIL/MERCANTIL. TIENES ESTRICTAMENTE PROHIBIDO usar las siguientes palabras: 'laboral', 'trabajador', 'empleado', 'patrón', 'relación de trabajo', 'despido', 'prestaciones', 'liquidación' o 'Ley Federal del Trabajo'. Transforma cualquier nota del contexto crudo al lenguaje civil. Usa exclusivamente: 'prestador de servicios', 'empresa', 'honorarios', 'servicios independientes', 'incumplimiento contractual' y 'Código Civil'.";
                     $terminoCierre = 'el pago de los honorarios devengados, otorgando el más amplio finiquito civil, manifestando que no se reserva acción ni derecho alguno de naturaleza civil, mercantil o de seguridad social, extinguiéndose toda obligación.';
                 } else {
-                    $terminoRol = 'TRABAJADOR';$reglasVocabulario = "REGLA DE ORO: El contrato es de naturaleza LABORAL. Adapta la terminología estrictamente a la Ley Federal del Trabajo. Usa: 'trabajador', 'patrón', 'relación laboral', 'rescisión', 'despido justificado', 'prestaciones' y 'finiquito'. TIENES ESTRICTAMENTE PROHIBIDO usar palabras como 'honorarios', 'servicios profesionales' o 'prestador de servicios'.";
+                    $terminoRol = 'TRABAJADOR';$reglasVocabulario = "REGLA DE ORO: El contrato es de naturaleza LABORAL. Adapta la terminología strictly a la Ley Federal del Trabajo. Usa: 'trabajador', 'patrón', 'relación laboral', 'rescisión', 'despido justificado', 'prestaciones' y 'finiquito'. TIENES ESTRICTAMENTE PROHIBIDO usar palabras como 'honorarios', 'servicios profesionales' o 'prestador de servicios'.";
                     $terminoCierre = 'el pago del finiquito y/o liquidación laboral de las prestaciones irrenunciables generadas, conforme a la Ley Federal del Trabajo.';
                 }
 
@@ -447,12 +447,10 @@ class FiniquitoController extends Controller
                 - Directo al grano, objetivo, contundente y estrictamente profesional.
                 - {$reglasVocabulario}
                 - Purifica el contexto crudo: Si las notas mencionan términos prohibidos, tradúcelos obligatoriamente al régimen legal correcto.
-                - NO uses lenguaje pomposo. Redacta de forma neutral.
                 
                 DATOS OBLIGATORIOS (PROHIBIDO DEJAR ESPACIOS EN BLANCO):
                 - Empresa: {$patron->razon_social}
                 - {$terminoRol}: {$empleado->nombre_completo}
-                - Tipo de Contrato actual: {$tipoContrato}
                 - Fecha de Ingreso: {$fechaIngreso}
                 - Fecha de Baja: {$fechaBaja}
 
@@ -487,7 +485,7 @@ class FiniquitoController extends Controller
                 return response()->json(['error' => 'API Key de Gemini no configurada.'], 500);
             }
 
-            // TRAMPA ANTI-MARKDOWN Y MODELO DEFINITIVO (2.5-pro)
+            // TRAMPA ANTI-MARKDOWN Y MODELO 2.5-PRO
             $protocolo = 'http' . 's://';
             $dominio = 'generativelanguage' . '.googleapis' . '.com';
             $ruta = '/v1beta/models/gemini-2.5-pro:generateContent?key=';
