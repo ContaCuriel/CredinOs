@@ -207,14 +207,15 @@ class FiniquitoController extends Controller
         $mediosDias = 0;
 
         foreach($asistenciasFinales as $asis) {
-            // 🔥 CORRECCIÓN: Buscamos 'tipo' en lugar de 'tipo_incidencia'
-            $tipo = $asis->tipo ?? $asis->tipo_incidencia ?? '';
+            // 🔥 CORRECCIÓN: Buscamos en status_asistencia y lo convertimos a minúsculas
+            $estado = strtolower($asis->status_asistencia ?? '');
 
-            if (in_array($tipo, ['falta', 'falta_por_retardo_extremo'])) {
+            if (in_array($estado, ['falta', 'falta_por_retardo_extremo'])) {
+                // Si tienes un campo penalizacion en DB úsalo, sino asume 1
                 $faltasCrudas += ($asis->penalizacion ?? 1);
-            } elseif ($tipo == 'medio_dia') {
+            } elseif (in_array($estado, ['medio_dia', 'medio día', 'mediodia'])) {
                 $mediosDias += 0.5;
-            } elseif ($tipo == 'retardo') {
+            } elseif ($estado == 'retardo') {
                 $retardosCrudos += 1;
             }
         }
@@ -233,7 +234,9 @@ class FiniquitoController extends Controller
             'total_dias_descontar' => $totalFaltasSugeridas,
             'monto_sugerido_descuento' => $totalFaltasSugeridas * $salarioDiario
         ];
-        $resultados['debug_asistencias'] = $asistenciasFinales;
+        
+        // El debug ya no es necesario, pero lo dejamos vacío para limpiar el JSON
+        $resultados['debug_asistencias'] = [];
         // =========================================================================
 
         $deducciones = DeduccionEmpleado::where('id_empleado', $empleado->id_empleado)->where('status', 'Activo')->get();
