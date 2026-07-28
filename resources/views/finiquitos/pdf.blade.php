@@ -127,12 +127,12 @@
                 </tr>
                 @endif
 
-                {{-- CONCEPTOS DINÁMICOS (PERCEPCIONES EXTRA) --}}
+                {{-- CONCEPTOS DINÁMICOS (PERCEPCIONES EXTRA) 🔥 CORREGIDO --}}
                 @if(isset($conceptos_extras) && is_array($conceptos_extras))
                     @foreach($conceptos_extras as $extra)
                         @if(isset($extra['tipo']) && $extra['tipo'] === 'percepcion')
                         <tr>
-                            <td>{{ mb_strtoupper($extra['concepto'], 'UTF-8') }}</td>
+                            <td>{{ ucfirst($extra['concepto']) }}</td>
                             <td class="text-right">${{ number_format($extra['monto'], 2) }}</td>
                         </tr>
                         @endif
@@ -147,12 +147,12 @@
                 </tr>
                 @endif
 
-                {{-- CONCEPTOS DINÁMICOS (DEDUCCIONES EXTRA) --}}
+                {{-- CONCEPTOS DINÁMICOS (DEDUCCIONES EXTRA) 🔥 CORREGIDO --}}
                 @if(isset($conceptos_extras) && is_array($conceptos_extras))
                     @foreach($conceptos_extras as $extra)
                         @if(isset($extra['tipo']) && $extra['tipo'] === 'deduccion')
                         <tr>
-                            <td>{{ mb_strtoupper($extra['concepto'], 'UTF-8') }}</td>
+                            <td>{{ ucfirst($extra['concepto']) }}</td>
                             <td class="text-right">-${{ number_format($extra['monto'], 2) }}</td>
                         </tr>
                         @endif
