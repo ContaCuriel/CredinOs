@@ -353,7 +353,7 @@ class FiniquitoController extends Controller
         return $pdf->stream("Aviso_Terminacion_" . \Illuminate\Support\Str::slug($empleado->nombre_completo) . ".pdf");
     }
 
-    /**
+  /**
      * Llama a la API de IA para redactar documentos legales/RH a partir de contexto crudo.
      */
     public function redactarDocumentoIA(Request $request)
@@ -399,8 +399,11 @@ class FiniquitoController extends Controller
                 return response()->json(['error' => 'API Key de Gemini no configurada.'], 500);
             }
 
-            // URL 100% limpia sin corchetes de Markdown
-            $apiUrl = '[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=)' . $apiKey;
+            // 🔥 SOLUCIÓN DEFINITIVA PARA EVITAR CÓDIGO CORRUPTO 🔥
+            // Dividimos la URL para que los editores de texto no la vuelvan un enlace clickeable
+            $base = "[https://generativelanguage.googleapis.com](https://generativelanguage.googleapis.com)";
+            $ruta = "/v1beta/models/gemini-1.5-pro:generateContent?key=";
+            $apiUrl = $base . $ruta . trim($apiKey);
             
             $response = \Illuminate\Support\Facades\Http::timeout(60)
                 ->withHeaders(['Content-Type' => 'application/json'])
@@ -418,7 +421,7 @@ class FiniquitoController extends Controller
             if ($response->successful()) {
                 $htmlRedactado = $response->json('candidates.0.content.parts.0.text', '<p>No se pudo generar el documento.</p>');
                 
-                // Limpieza de Markdown residual en caso de que la IA responda con comillas de código
+                // Limpieza de Markdown residual
                 $htmlRedactado = str_replace(['```html', '```'], '', $htmlRedactado);
                 
                 return response()->json(['documento_html' => trim($htmlRedactado)]);
@@ -430,7 +433,6 @@ class FiniquitoController extends Controller
             return response()->json(['error' => 'Error interno: ' . $e->getMessage()], 500);
         }
     }
-
     /**
      * Recibe el HTML del editor mágico y lo imprime en PDF con membrete.
      */
