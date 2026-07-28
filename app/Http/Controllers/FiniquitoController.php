@@ -360,11 +360,13 @@ class FiniquitoController extends Controller
     {
         try {
             $data = $request->validate([
-                'id_empleado' => 'required|exists:empleados,id_empleado',
-                'id_patron' => 'required|exists:patrones,id_patron',
-                'fecha_final' => 'required|date',
+                'id_empleado'    => 'required|exists:empleados,id_empleado',
+                'id_patron'      => 'required|exists:patrones,id_patron',
+                'fecha_final'    => 'required|date',
                 'contexto_crudo' => 'required|string|min:10',
-                'tipo_documento' => 'required|string'
+                'tipo_documento' => 'required|string',
+                // 🔥 NUEVO: Recibimos al representante legal (opcional) para las firmas
+                'representante_legal' => 'nullable|string' 
             ]);
 
             $empleado = Empleado::with(['ultimoContrato', 'sucursal'])->findOrFail($data['id_empleado']);
@@ -383,12 +385,13 @@ class FiniquitoController extends Controller
                 }
             }
 
-            // 🔥 FIX DEL LUGAR: Seguro por si el empleado no tiene sucursal asignada en BD 🔥
+            // 🔥 FIX DEL LUGAR
             $municipio = $empleado->sucursal->municipio ?? null;
             $nombreSucursal = $empleado->sucursal->nombre_sucursal ?? null;
             $lugarEmision = $municipio ?: ($nombreSucursal ?: 'la Ciudad de México');
             
-            $domicilioPatron = $patron->domicilio ?? 'su domicilio fiscal registrado';
+            // 🔥 REPRESENTANTE LEGAL (Fallback si no lo envían)
+            $representante = $data['representante_legal'] ?? 'Representante Legal';
 
             // LÓGICA DE PROMPT SEGÚN EL TIPO DE DOCUMENTO
             $tipoDoc = strtolower($data['tipo_documento']);
@@ -425,17 +428,28 @@ class FiniquitoController extends Controller
                     </tr>
                 </table>";
             } else {
-                // PROMPT CORPORATIVO / EJECUTIVO PARA RESCISIONES, ACTAS Y VENCIMIENTOS
+                
+                // 🔥 MAGIA AQUÍ: LÓGICA CONDICIONAL LABORAL VS HONORARIOS 🔥
+                // Detectamos si el tipo de contrato menciona honorarios, asimilados o servicios
+                $esHonorarios = preg_match('/honorarios\vert{}prestación\vert{}civil\vert{}independiente/i', $tipoContrato);
+                
+                $terminoRol =$esHonorarios ? 'PRESTADOR DE SERVICIOS' : 'TRABAJADOR';
+                $terminoRelacion =$esHonorarios ? 'relación civil de prestación de servicios' : 'relación laboral';
+                $terminoCierre =$esHonorarios 
+                    ? 'el pago total de las contraprestaciones y honorarios devengados. (REGLA ESTRICTA: TIENES PROHIBIDO USAR LA PALABRA FINIQUITO O LIQUIDACIÓN LABORAL).' 
+                    : 'el pago del finiquito legal y/o liquidación correspondiente.';
+
+                // PROMPT CORPORATIVO / EJECUTIVO
                 $prompt = "Actúa como un abogado corporativo experto. Tu tarea es redactar un(a) '{$data['tipo_documento']}' con rigor jurídico y estilo ejecutivo.
                 
                 TONO Y ESTILO:
                 - Directo al grano, objetivo, contundente y estrictamente profesional.
-                - Utiliza terminología jurídica precisa (ej. 'devengado', 'rescisión', 'finiquito', 'contraprestación').
+                - El sujeto es un {$terminoRol}, por lo tanto debes adaptar toda la terminología a una {$terminoRelacion}.
                 - NO uses lenguaje pomposo o dramático. Redacta de forma neutral y documentada.
                 
                 DATOS OBLIGATORIOS (PROHIBIDO DEJAR ESPACIOS EN BLANCO):
                 - Empresa: {$patron->razon_social}
-                - Empleado/Prestador: {$empleado->nombre_completo}
+                - {$terminoRol}: {$empleado->nombre_completo}
                 - Tipo de Contrato actual: {$tipoContrato}
                 - Fecha de Ingreso: {$fechaIngreso}
                 - Fecha de Baja: {$fechaBaja}
@@ -453,31 +467,28 @@ class FiniquitoController extends Controller
                 
                 <strong>III. DETERMINACIÓN:</strong> (Un párrafo breve anunciando la terminación anticipada, rescisión o sanción fundamentada).
                 
-                <strong>IV. CIERRE Y LIQUIDACIÓN FINAL:</strong> (Un párrafo indicando el pago de contraprestaciones o finiquito devengado, otorgando finiquito legal y extinción de obligaciones).
+                <strong>IV. CIERRE Y PAGOS:</strong> (Un párrafo indicando {$terminoCierre} otorgando la extinción de obligaciones).
 
                 INSTRUCCIONES FINALES:
-                1. Adapta los conceptos al 'Tipo de Contrato' (Laboral vs Honorarios).
-                2. Devuelve la respuesta ÚNICAMENTE en HTML (<p>, <strong>, <ul>, <li>, <br>, <table>, <tr>, <td>). Sin comillas ```html ni <body>.
-                3. PARA LAS FIRMAS: Inserta EXACTAMENTE esta tabla de firmas al final:
+                1. Devuelve la respuesta ÚNICAMENTE en HTML (<p>, <strong>, <ul>, <li>, <br>, <table>, <tr>, <td>). Sin comillas ```html ni <body>.
+                2. PARA LAS FIRMAS: Inserta EXACTAMENTE esta tabla de firmas al final:
                 <br><br>
                 <table style=\"width: 100%; border: none; text-align: center; margin-top: 50px;\">
                     <tr>
-                        <td style=\"width: 50%;\">___________________________________<br><strong>{$patron->razon_social}</strong></td>
+                        <td style=\"width: 50%;\">___________________________________<br><strong>{$representante}</strong><br>{$patron->razon_social}</td>
                         <td style=\"width: 50%;\">___________________________________<br><strong>Recibí de conformidad:<br>{$empleado->nombre_completo}</strong></td>
                     </tr>
                 </table>";
             }
 
+            // Nota: Es mejor usar config('services.gemini.api_key') en Laravel en lugar de env()
             $apiKey = env('GEMINI_API_KEY', '');
             if (empty($apiKey)) {
                 return response()->json(['error' => 'API Key de Gemini no configurada.'], 500);
             }
 
-            // TRAMPA ANTI-MARKDOWN Y MODELO DEFINITIVO (2.5-pro)
-            $protocolo = 'http' . 's://';
-            $dominio = 'generativelanguage' . '.googleapis' . '.com';
-            $ruta = '/v1beta/models/gemini-2.5-pro:generateContent?key=';
-            $apiUrl = $protocolo . $dominio . $ruta . trim($apiKey);
+            // Asegúrate de usar un modelo válido, ej. gemini-1.5-pro o gemini-1.5-flash
+            $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=" . trim($apiKey);
             
             $response = \Illuminate\Support\Facades\Http::timeout(60)
                 ->withHeaders(['Content-Type' => 'application/json'])
