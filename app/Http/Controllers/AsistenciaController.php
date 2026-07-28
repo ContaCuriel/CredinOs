@@ -384,4 +384,64 @@ class AsistenciaController extends Controller
         }
         return $resumen;
     }
+
+    /**
+     * Guarda los datos del Pre-Cierre en la tabla puente
+     */
+    public function procesarCierre(Request $request)
+    {
+        $request->validate([
+            'periodo_cierre' => 'required|string',
+            'id_sucursal_cierre' => 'required',
+            'empleados' => 'required|array'
+        ]);
+
+        $periodo = $request->input('periodo_cierre');
+        $idSucursalFiltro = $request->input('id_sucursal_cierre');
+        $empleados = $request->input('empleados');
+
+        \Illuminate\Support\Facades\DB::beginTransaction();
+
+        try {
+            // 1. Determinar qué sucursales estamos procesando para limpiar registros viejos (evitar duplicados)
+            $sucursalesAProcesar = [];
+            if ($idSucursalFiltro === 'todas') {
+                $empleadosIds = array_keys($empleados);
+                $sucursalesAProcesar = Empleado::whereIn('id_empleado', $empleadosIds)->pluck('id_sucursal')->unique()->toArray();
+            } else {
+                $sucursalesAProcesar = [$idSucursalFiltro];
+            }
+
+            // 2. Limpiar la tabla puente para este periodo y sucursal (para poder "re-cerrar" si nos equivocamos)
+            \App\Models\AsistenciaCierre::where('periodo', $periodo)
+                ->whereIn('id_sucursal', $sucursalesAProcesar)
+                ->delete();
+
+            // 3. Guardar los nuevos valores que vienen de la vista
+            foreach ($empleados as $idEmpleado => $datos) {
+                $empleadoBD = Empleado::find($idEmpleado);
+                if(!$empleadoBD) continue;
+
+                \App\Models\AsistenciaCierre::create([
+                    'id_empleado' => $idEmpleado,
+                    'id_sucursal' => $empleadoBD->id_sucursal, // Tomamos su sucursal real siempre
+                    'periodo' => $periodo,
+                    'faltas' => $datos['faltas'] ?? 0,
+                    'retardos' => $datos['retardos'] ?? 0
+                ]);
+            }
+
+            \Illuminate\Support\Facades\DB::commit();
+
+            // Regresamos a la vista con un mensaje de éxito
+            return redirect()->route('asistencia.pre_cierre', [
+                'periodo' => $periodo, 
+                'id_sucursal' => $idSucursalFiltro
+            ])->with('success', '¡Cierre de asistencia guardado exitosamente! Los datos ya están listos para la Lista de Raya.');
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            return back()->with('error', 'Hubo un error al procesar el cierre: ' . $e->getMessage());
+        }
+    }
 }

@@ -112,6 +112,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/asistencia/resumen-incidencias', [AsistenciaController::class, 'resumenIncidencias'])->name('asistencia.resumenIncidencias')->middleware('can:ver-asistencias');
         Route::get('/asistencia/exportar-pdf', [AsistenciaController::class, 'exportarResumenPDF'])->name('asistencia.exportarPDF')->middleware('can:ver-asistencias');
         Route::get('/asistencia/pre-cierre', [App\Http\Controllers\AsistenciaController::class, 'preCierre'])->name('asistencia.pre_cierre');
+        Route::post('/asistencia/procesar-cierre', [App\Http\Controllers\AsistenciaController::class, 'procesarCierre'])->name('asistencia.procesar_cierre');
 
         // Vacaciones
         Route::resource('vacaciones', VacacionController::class)->only(['index', 'create', 'store'])->middleware('can:ver-vacaciones');
