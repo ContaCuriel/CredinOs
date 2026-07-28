@@ -399,11 +399,13 @@ class FiniquitoController extends Controller
                 return response()->json(['error' => 'API Key de Gemini no configurada.'], 500);
             }
 
-            // 🔥 SOLUCIÓN DEFINITIVA PARA EVITAR CÓDIGO CORRUPTO 🔥
-            // Dividimos la URL para que los editores de texto no la vuelvan un enlace clickeable
-            $base = "[https://generativelanguage.googleapis.com](https://generativelanguage.googleapis.com)";
-            $ruta = "/v1beta/models/gemini-1.5-pro:generateContent?key=";
-            $apiUrl = $base . $ruta . trim($apiKey);
+            // 🔥 TRAMPA ANTI-MARKDOWN 🔥
+            // Armamos la URL pieza por pieza para que ningún chat o editor la reconozca como link
+            $protocolo = 'http' . 's://';
+            $dominio = 'generativelanguage' . '.googleapis' . '.com';
+            $ruta = '/v1beta/models/gemini-1.5-pro:generateContent?key=';
+            
+            $apiUrl = $protocolo . $dominio . $ruta . trim($apiKey);
             
             $response = \Illuminate\Support\Facades\Http::timeout(60)
                 ->withHeaders(['Content-Type' => 'application/json'])
