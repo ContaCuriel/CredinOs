@@ -132,7 +132,6 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             
             $sueldoQuincenalBruto = $salarioDiario * $diasAPagar;
 
-            // ... (Cálculo de bonos se queda idéntico) ...
             $bonoPermanencia = 0; $bonoCumpleanos = 0; $primaVacacional = 0;
             if ($empleado->fecha_ingreso) {
                 $fechaIngreso = Carbon::parse($empleado->fecha_ingreso);
@@ -174,7 +173,12 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             // Días totales a descontar monetariamente
             $diasADescontar = $faltasCrudas + $faltasPorRetardos;
 
-            $deduccionesActivas = DeduccionEmpleado::where('id_empleado', $empleado->id_empleado)->where('status', 'Activo')->get();
+            // 🔥 CANDADO DE FECHAS APLICADO AQUÍ
+            $deduccionesActivas = DeduccionEmpleado::where('id_empleado', $empleado->id_empleado)
+                ->where('status', 'Activo')
+                ->whereDate('fecha_solicitud', '<=', $fechaFinPeriodo->toDateString())
+                ->get();
+
             $deduccionFaltasManuales = $deduccionesActivas->where('tipo_deduccion', 'Retardo/Falta Manual')->sum('monto_quincenal');
             
             // Multiplicamos por su sueldo diario (Columna K)
