@@ -22,17 +22,17 @@ class Horario extends Model
         'viernes', 'viernes_entrada', 'viernes_salida',
         'sabado', 'sabado_entrada', 'sabado_salida',
         'domingo', 'domingo_entrada', 'domingo_salida',
-        // --- NUEVOS CAMPOS DE REGLAS ---
+        
+        // --- REGLAS DE DISCIPLINA ACTUALIZADAS ---
         'aplicar_reglas_avanzadas',
         'tolerancia_minutos',
-        'retardo_menor_minutos_inicio',
-        'retardo_menor_minutos_fin',
-        'retardos_para_falta',
-        'medio_dia_minutos_inicio',
-        'medio_dia_minutos_fin',
-        'falta_minutos_inicio',
-        'castigo_falta_lun_vie',
-        'castigo_falta_mar_jue_sab'
+        'minutos_limite_retardo',
+        'retardos_por_falta',
+        'aplica_medio_dia',
+        'minutos_limite_medio_dia',
+        'aplica_castigo_multiplicador',
+        'multiplicador_lunes_viernes',
+        'multiplicador_dias_regulares'
     ];
 
     public function empleados()
