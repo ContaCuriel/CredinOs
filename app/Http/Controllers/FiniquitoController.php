@@ -356,6 +356,9 @@ class FiniquitoController extends Controller
 /**
      * Llama a la API de IA para redactar documentos legales/RH a partir de contexto crudo.
      */
+    /**
+     * Llama a la API de IA para redactar documentos legales/RH a partir de contexto crudo.
+     */
     public function redactarDocumentoIA(Request $request)
     {
         try {
@@ -385,13 +388,14 @@ class FiniquitoController extends Controller
             $lugarEmision = $empleado->sucursal->municipio ?? $empleado->sucursal->nombre_sucursal ?? 'México';
             $domicilioPatron =$patron->domicilio ?? 'su domicilio fiscal registrado';
 
-            // 🔥 NUEVO SUPER PROMPT: ESTILO EJECUTIVO, DIRECTO Y SIN RODEOS 🔥
-            $prompt = "Actúa como un abogado corporativo moderno. Tu tarea es redactar un(a) '{$data['tipo_documento']}'.
+            // 🔥 NUEVO SUPER PROMPT: LEGAL, EJECUTIVO Y BLINDADO 🔥
+            $prompt = "Actúa como un abogado corporativo experto. Tu tarea es redactar un(a) '{$data['tipo_documento']}' con rigor jurídico, pero de estilo ejecutivo.
             
             TONO Y ESTILO (MUY IMPORTANTE):
-            - Directo al grano, objetivo y estrictamente profesional.
+            - Directo al grano, objetivo, contundente y estrictamente profesional.
+            - Utiliza terminología jurídica precisa (ej. 'devengado', 'rescisión', 'finiquito', 'contraprestación', según aplique).
             - NO uses lenguaje pomposo, dramático, ni repetitivo. 
-            - NO asignes culpas de forma exagerada, redacta los hechos de forma neutral y ejecutiva.
+            - NO asignes culpas con adjetivos exagerados; redacta los hechos de forma neutral, documentada y ejecutiva.
             
             DATOS OBLIGATORIOS (PROHIBIDO DEJAR ESPACIOS EN BLANCO):
             - Empresa: {$patron->razon_social}
@@ -405,21 +409,28 @@ class FiniquitoController extends Controller
             \"{$data['contexto_crudo']}\"
 
             ESTRUCTURA EXACTA QUE DEBES SEGUIR (Usa números romanos y viñetas):
-            Redacta un párrafo inicial directo: 'En [Lugar], a [Fecha de Baja], [Empresa] notifica formalmente a [Empleado/Prestador] la [Tipo de documento], con base en las siguientes consideraciones:'
+            Redacta este párrafo inicial de forma exacta y literal, SIN usar corchetes: 'En {$lugarEmision}, a {$fechaBaja}, {$patron->razon_social} notifica formalmente a {$empleado->nombre_completo} la {$data['tipo_documento']}, con base en las siguientes consideraciones:'
             
-            <strong>I. ANTECEDENTES:</strong> (Un solo párrafo muy breve sobre su fecha de ingreso y posición).
+            <strong>I. ANTECEDENTES:</strong> (Un solo párrafo muy breve sobre el inicio del vínculo legal y la posición/funciones).
             
-            <strong>II. DE LOS HECHOS:</strong> (Convierte el contexto crudo en una lista con viñetas (<ul><li>). Sé objetivo y directo, sin rodeos).
+            <strong>II. DE LOS HECHOS:</strong> (Convierte el contexto crudo en una lista con viñetas <ul><li>. Detalla los incumplimientos de forma objetiva y directa).
             
-            <strong>III. DETERMINACIÓN:</strong> (Un párrafo breve anunciando el fin de la relación o la sanción correspondiente, dependiendo del tipo de documento y contrato).
+            <strong>III. DETERMINACIÓN:</strong> (Un párrafo breve anunciando la terminación anticipada, rescisión o sanción, fundamentada en los hechos descritos).
             
-            <strong>IV. CIERRE Y LIQUIDACIÓN FINAL:</strong> (Un párrafo indicando que se le pagará su finiquito o liquidación correspondiente y que con esto se dan por terminadas las obligaciones entre ambas partes).
+            <strong>IV. CIERRE Y LIQUIDACIÓN FINAL:</strong> (Un párrafo indicando la procedencia del pago de contraprestaciones o finiquito devengado, estableciendo que con ello se otorga el más amplio finiquito legal y se extinguen las obligaciones).
 
             INSTRUCCIONES FINALES:
-            1. Adapta los términos legales al 'Tipo de Contrato' (Laboral vs Honorarios).
-            2. Devuelve la respuesta ÚNICAMENTE en formato HTML (usa <p>, <strong>, <ul>, <li>, <br>).
+            1. Adapta los conceptos al 'Tipo de Contrato' (Si es Laboral usa 'patrón/trabajador, liquidación, LFT'; si es Honorarios usa 'empresa/prestador de servicios, contraprestación, código civil').
+            2. Devuelve la respuesta ÚNICAMENTE en formato HTML (usa <p>, <strong>, <ul>, <li>, <br>, <table>, <tr>, <td>).
             3. NO incluyas <html>, <head> o <body>. NO uses comillas Markdown (```html).
-            4. Al final, incluye líneas para firmas de la empresa y de quien recibe.";
+            4. PARA LAS FIRMAS: Inserta EXACTAMENTE este código HTML al final del documento para que queden alineadas a la par:
+            <br><br>
+            <table style=\"width: 100%; border: none; text-align: center; margin-top: 50px;\">
+                <tr>
+                    <td style=\"width: 50%;\">___________________________________<br><strong>{$patron->razon_social}</strong></td>
+                    <td style=\"width: 50%;\">___________________________________<br><strong>Recibí de conformidad:<br>{$empleado->nombre_completo}</strong></td>
+                </tr>
+            </table>";
 
             $apiKey = env('GEMINI_API_KEY', '');
             if (empty($apiKey)) {
