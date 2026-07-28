@@ -115,7 +115,6 @@
                                 <select class="form-select form-select-sm" id="id_patron_manual" required>
                                     <option value="">Seleccione un patrón...</option>
                                     @foreach($patrones as $patron)
-                                        {{-- AJUSTE APLICADO: Mostrar Nombre Comercial y Razón Social --}}
                                         <option value="{{ $patron->id_patron }}">{{ $patron->nombre_comercial }} - {{ $patron->razon_social }}</option>
                                     @endforeach
                                 </select>
@@ -206,7 +205,6 @@
 
             let salarioDiarioGlobal = 0;
 
-            // Variables puestas en window para que el HTML inyectado las pueda usar
             window.limpiarNumero = (val) => {
                 if (!val) return 0;
                 const num = parseFloat(String(val).replace(/,/g, ''));
@@ -274,6 +272,24 @@
             });
 
             function construirTablaEditable(data) {
+                // 🔥 ALERTA DINÁMICA DE ASISTENCIAS
+                let alertHtml = '';
+                if (data.info_asistencia && data.info_asistencia.total_dias_descontar > 0) {
+                    alertHtml = `
+                    <div class="alert alert-warning alert-dismissible fade show shadow-sm" role="alert" style="max-width: 750px; margin: 0 auto 20px auto;">
+                        <strong><i class="bi bi-exclamation-triangle-fill"></i> ¡Atención! Incidencias en la última quincena</strong><br>
+                        El sistema detectó <b>${data.info_asistencia.faltas_directas}</b> falta(s), <b>${data.info_asistencia.retardos}</b> retardo(s) y <b>${data.info_asistencia.medios_dias}</b> medio(s) día(s).
+                        <br>Total sugerido a descontar: <b>${data.info_asistencia.total_dias_descontar} días</b>.
+                        <div class="mt-2">
+                            <button type="button" class="btn btn-sm btn-danger fw-bold shadow-sm" onclick="window.aplicarDescuentoFaltas(${data.info_asistencia.monto_sugerido_descuento}, this)">
+                                <i class="bi bi-scissors"></i> Aplicar descuento por $${window.limpiarNumero(data.info_asistencia.monto_sugerido_descuento).toFixed(2)}
+                            </button>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    `;
+                }
+
                 let p = ''; 
                 const conceptos = [
                     {l: `Días Laborados <input type="number" id="input_dias_cantidad" class="form-control d-inline-block text-center" style="width: 70px; height: 28px; font-size: 13px; margin: 0 5px;" value="${data.dias_laborados_dias || 0}"> d`, i: 'dias_laborados_monto', v: data.dias_laborados_monto},
@@ -299,7 +315,7 @@
                     }
                 });
 
-                tablaResultadosDiv.innerHTML = `
+                tablaResultadosDiv.innerHTML = alertHtml + `
                     <div id="tabla_resultados_wrapper">
                         <table class="table table-hover border bg-white shadow-sm" id="tabla_calculos_cuerpo">
                             <thead class="table-dark"><tr><th class="ps-4 py-3">Concepto</th><th class="text-center py-3">Monto Editable ($)</th></tr></thead>
@@ -321,34 +337,47 @@
                 window.recalcularTotales();
             }
 
-            // FUNCIÓN MÁGICA: Agregar Fila Extra
-            window.agregarConceptoExtra = function() {
+            // FUNCIÓN MÁGICA: Agregar Fila Extra (Actualizada para recibir parámetros)
+            window.agregarConceptoExtra = function(defaultDesc = '', defaultTipo = 'percepcion', defaultMonto = 0) {
                 const tbody = document.querySelector('#tabla_calculos_cuerpo tbody');
                 if(!tbody) return;
 
+                const isDeduccion = (defaultTipo === 'deduccion');
+
                 const tr = document.createElement('tr');
-                tr.className = 'concepto-extra-row bg-white border-bottom';
+                tr.className = 'concepto-extra-row bg-white border-bottom ' + (isDeduccion ? 'row-deduccion' : 'row-percepcion');
+                
                 tr.innerHTML = `
                     <td class="ps-4">
-                        <input type="text" class="form-control form-control-sm desc-extra shadow-sm mb-1 border-success" placeholder="Escribe el concepto (Ej. Bono especial)">
+                        <input type="text" class="form-control form-control-sm desc-extra shadow-sm mb-1 ${isDeduccion ? 'border-danger text-danger' : 'border-success'}" placeholder="Escribe el concepto" value="${defaultDesc}">
                     </td>
                     <td class="text-end pe-4 align-middle">
                         <div class="d-flex justify-content-end align-items-center gap-2">
                             <select class="form-select form-select-sm tipo-extra shadow-sm text-center" style="width: 110px;" onchange="window.recalcularTotales()">
-                                <option value="percepcion">Suma (+)</option>
-                                <option value="deduccion">Resta (-)</option>
+                                <option value="percepcion" ${!isDeduccion ? 'selected' : ''}>Suma (+)</option>
+                                <option value="deduccion" ${isDeduccion ? 'selected' : ''}>Resta (-)</option>
                             </select>
                             <div class="input-moneda-wrapper">
-                                <input type="number" step="0.01" class="monto-editable monto-extra shadow-sm" value="0.00" oninput="window.recalcularTotales()">
+                                <input type="number" step="0.01" class="monto-editable monto-extra shadow-sm ${isDeduccion ? 'text-danger' : ''}" value="${defaultMonto > 0 ? defaultMonto.toFixed(2) : '0.00'}" oninput="window.recalcularTotales()">
                             </div>
                             <button type="button" class="btn btn-sm btn-outline-danger shadow-sm" onclick="this.closest('tr').remove(); window.recalcularTotales();"><i class="bi bi-trash"></i></button>
                         </div>
                     </td>
                 `;
                 
-                // Lo insertamos justo arriba de la fila "Total Neto a Pagar"
                 const totalRow = document.getElementById('neto_p').closest('tr');
                 tbody.insertBefore(tr, totalRow);
+                window.recalcularTotales();
+            };
+
+            // 🔥 NUEVA FUNCIÓN: Llamada por la alerta amarilla
+            window.aplicarDescuentoFaltas = function(monto, btnElement) {
+                window.agregarConceptoExtra('Descuento por Faltas y Retardos', 'deduccion', monto);
+                
+                // Deshabilitamos el botón y cambiamos su estilo para evitar doble clic
+                btnElement.disabled = true;
+                btnElement.classList.replace('btn-danger', 'btn-secondary');
+                btnElement.innerHTML = '<i class="bi bi-check2-all"></i> Descuento Agregado';
             };
 
             // Recálculo Inteligente
@@ -362,8 +391,14 @@
                     let tipo = row.querySelector('.tipo-extra').value;
                     if (tipo === 'percepcion') {
                         tp += monto;
+                        row.classList.remove('row-deduccion');
+                        row.classList.add('row-percepcion');
+                        row.querySelector('.monto-extra').classList.remove('text-danger');
                     } else {
                         td += monto;
+                        row.classList.remove('row-percepcion');
+                        row.classList.add('row-deduccion');
+                        row.querySelector('.monto-extra').classList.add('text-danger');
                     }
                 });
 

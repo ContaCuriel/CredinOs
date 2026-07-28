@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Empleado;
 use App\Models\Patron;
 use App\Models\DeduccionEmpleado;
+use App\Models\Asistencia; // 🔥 IMPORTAMOS EL MODELO DE ASISTENCIA
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
 use Throwable;
@@ -158,7 +159,8 @@ class FiniquitoController extends Controller
             throw new \Exception($validator->errors()->first());
         }
 
-        $empleado = Empleado::with('puesto')->findOrFail($request->id_empleado);
+        // 🔥 OBTENEMOS TAMBIÉN EL HORARIO PARA VER REGLAS DE RETARDOS
+        $empleado = Empleado::with(['puesto', 'horario'])->findOrFail($request->id_empleado);
         $fechaIngreso = Carbon::parse($empleado->fecha_ingreso);
         $fechaBaja = Carbon::parse($request->fecha_final);
         
@@ -192,6 +194,43 @@ class FiniquitoController extends Controller
 
         $resultados['dias_laborados_monto'] = $diasLaboradosPeriodo * $salarioDiario;
         $resultados['dias_laborados_dias'] = $diasLaboradosPeriodo;
+
+        // =========================================================================
+        // 🔥 ANÁLISIS DE ASISTENCIAS DE LA ÚLTIMA QUINCENA PARA LA ALERTA "i"
+        // =========================================================================
+        $asistenciasFinales = Asistencia::where('id_empleado', $empleado->id_empleado)
+            ->whereBetween('fecha', [$inicioQuincenaTeorico->format('Y-m-d'), $fechaBaja->format('Y-m-d')])
+            ->get();
+
+        $faltasCrudas = 0;
+        $retardosCrudos = 0;
+        $mediosDias = 0;
+
+        foreach($asistenciasFinales as $asis) {
+            if (in_array($asis->tipo_incidencia, ['falta', 'falta_por_retardo_extremo'])) {
+                $faltasCrudas += ($asis->penalizacion ?? 1);
+            } elseif ($asis->tipo_incidencia == 'medio_dia') {
+                $mediosDias += 0.5;
+            } elseif ($asis->tipo_incidencia == 'retardo') {
+                $retardosCrudos += 1;
+            }
+        }
+
+        // Calculamos faltas generadas por retardos si existe la regla
+        $reglaRetardos = $empleado->horario ? ($empleado->horario->retardos_por_falta ?? 0) : 0;
+        $faltasPorRetardos = $reglaRetardos > 0 ? floor($retardosCrudos / $reglaRetardos) : 0;
+        
+        $totalFaltasSugeridas = $faltasCrudas + $mediosDias + $faltasPorRetardos;
+
+        // Lo mandamos al JSON para que la vista decida qué hacer
+        $resultados['info_asistencia'] = [
+            'faltas_directas' => $faltasCrudas,
+            'retardos' => $retardosCrudos,
+            'medios_dias' => $mediosDias * 2, // Para mostrar "1 medio día" en vez de 0.5
+            'total_dias_descontar' => $totalFaltasSugeridas,
+            'monto_sugerido_descuento' => $totalFaltasSugeridas * $salarioDiario
+        ];
+        // =========================================================================
 
         $deducciones = DeduccionEmpleado::where('id_empleado', $empleado->id_empleado)->where('status', 'Activo')->get();
         $resultados['caja_ahorro_monto'] = $deducciones->where('tipo_deduccion', 'Caja de Ahorro')->sum('monto_acumulado');
