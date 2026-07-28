@@ -189,7 +189,7 @@ class AsistenciaController extends Controller
     }
 
     /**
-     * Panel Interactivo de Pre-Cierre de Asistencias
+     * Panel Interactivo de Pre-Cierre de Asistencias (CORREGIDO)
      */
     public function preCierre(Request $request)
     {
@@ -270,12 +270,22 @@ class AsistenciaController extends Controller
 
                     $asistencia = $asistenciasDelEmpleado->get($fechaStr);
 
-                    if ($asistencia && in_array($asistencia->status_asistencia, ['Presente', 'Baja_Dia'])) {
-                        continue; 
+                    // Si no vino o se marcó Falta Directa en BD
+                    if (!$asistencia || $asistencia->status_asistencia == 'Falta') {
+                        $faltas_directas_crudas++;
+                        $multiplicador = 1;
+                        if ($horario->aplica_castigo_multiplicador) {
+                            $multiplicador = in_array($date->dayOfWeekIso, [1, 5]) 
+                                ? ($horario->multiplicador_lunes_viernes ?? 1) 
+                                : ($horario->multiplicador_dias_regulares ?? 1);
+                        }
+                        $dias_castigo_acumulados += $multiplicador;
+                        $detalles_dias[] = ['fecha' => $fechaStr, 'tipo' => 'falta', 'penalizacion' => $multiplicador, 'perdonado' => false];
+                        continue;
                     }
 
-                    if ($asistencia && $asistencia->status_asistencia == 'Incidencia') {
-                        // 🔥 CAPTURAMOS LA HORA PARA LA INCIDENCIA TAMBIÉN
+                    // Si hay Permisos/Justificaciones especiales
+                    if ($asistencia->status_asistencia == 'Incidencia') {
                         $horaIncidencia = $asistencia->hora_llegada ? Carbon::parse($asistencia->hora_llegada)->format('H:i') : null;
                         $detalles_dias[] = [
                             'fecha' => $fechaStr, 
@@ -288,52 +298,75 @@ class AsistenciaController extends Controller
                         continue; 
                     }
 
-                    if (!$asistencia || $asistencia->status_asistencia == 'Falta') {
-                        $faltas_directas_crudas++;
-                        $multiplicador = 1;
-                        if ($horario->aplica_castigo_multiplicador) {
-                            if (in_array($date->dayOfWeekIso, [1, 5])) { 
-                                $multiplicador = $horario->multiplicador_lunes_viernes ?? 1;
-                            } else {
-                                $multiplicador = $horario->multiplicador_dias_regulares ?? 1;
-                            }
-                        }
-                        $dias_castigo_acumulados += $multiplicador;
-                        $detalles_dias[] = ['fecha' => $fechaStr, 'tipo' => 'falta', 'penalizacion' => $multiplicador, 'perdonado' => false];
-                    
-                    } elseif ($asistencia->status_asistencia == 'Retardo') {
+                    // 🔥 EVALUACIÓN REAL DE LA HORA DE LLEGADA (SIN IMPORTAR EL STATUS 'Presente' O 'Retardo')
+                    if ($asistencia->hora_llegada) {
                         $horaOficial = Carbon::parse($fechaStr . ' ' . $horario->{$nombreDia.'_entrada'});
-                        $horaLlegadaObj = Carbon::parse($asistencia->hora_llegada);
-                        $minutosTarde = $horaOficial->diffInMinutes($horaLlegadaObj);
-                        
-                        // 🔥 CAPTURAMOS LA HORA DEL RETARDO
+                        $horaLlegadaObj = Carbon::parse($fechaStr . ' ' . $asistencia->hora_llegada);
                         $horaLlegadaStr = $horaLlegadaObj->format('H:i');
 
-                        if ($horario->aplica_medio_dia && $minutosTarde > ($horario->minutos_limite_retardo ?? 15) && $minutosTarde <= ($horario->minutos_limite_medio_dia ?? 30)) {
-                            $medios_dias_crudos++;
-                            $detalles_dias[] = ['fecha' => $fechaStr, 'tipo' => 'medio_dia', 'penalizacion' => 0.5, 'hora' => $horaLlegadaStr, 'perdonado' => false];
-                        } 
-                        elseif ($horario->aplica_medio_dia && $minutosTarde > ($horario->minutos_limite_medio_dia ?? 30)) {
-                            $faltas_directas_crudas++;
-                            $multiplicador = 1;
-                            if ($horario->aplica_castigo_multiplicador) {
-                                $multiplicador = in_array($date->dayOfWeekIso, [1, 5]) ? ($horario->multiplicador_lunes_viernes ?? 1) : ($horario->multiplicador_dias_regulares ?? 1);
+                        // Si llegó después de la hora oficial, calculamos minutos tarde
+                        if ($horaLlegadaObj->gt($horaOficial)) {
+                            $minutosTarde = $horaOficial->diffInMinutes($horaLlegadaObj);
+                            $tolerancia = $horario->aplicar_reglas_avanzadas ? ($horario->tolerancia_minutos ?? 0) : 0;
+
+                            // 1. Puntual dentro de tolerancia
+                            if ($minutosTarde <= $tolerancia) {
+                                continue; 
                             }
-                            $dias_castigo_acumulados += $multiplicador;
-                            $detalles_dias[] = ['fecha' => $fechaStr, 'tipo' => 'falta_por_retardo_extremo', 'penalizacion' => $multiplicador, 'hora' => $horaLlegadaStr, 'perdonado' => false];
-                        }
-                        else {
-                            $retardos_crudos++;
-                            $detalles_dias[] = ['fecha' => $fechaStr, 'tipo' => 'retardo', 'penalizacion' => 0, 'hora' => $horaLlegadaStr, 'perdonado' => false];
+
+                            $limiteRetardo = $horario->minutos_limite_retardo ?? 15;
+                            $limiteMedioDia = $horario->minutos_limite_medio_dia ?? 30;
+
+                            // 2. ¿CAE EN MEDIO DÍA? (Llegó entre min_retardo y min_medio_dia)
+                            if ($horario->aplica_medio_dia && $minutosTarde > $limiteRetardo && $minutosTarde <= $limiteMedioDia) {
+                                $medios_dias_crudos++;
+                                $detalles_dias[] = [
+                                    'fecha' => $fechaStr, 
+                                    'tipo' => 'medio_dia', 
+                                    'penalizacion' => 0.5, 
+                                    'hora' => $horaLlegadaStr, 
+                                    'perdonado' => false
+                                ];
+                            } 
+                            // 3. ¿EXCEDIÓ EL MEDIO DÍA? -> FALTA DIRECTA POR RETARDO EXTREMO
+                            elseif ($horario->aplica_medio_dia && $minutosTarde > $limiteMedioDia) {
+                                $faltas_directas_crudas++;
+                                $multiplicador = 1;
+                                if ($horario->aplica_castigo_multiplicador) {
+                                    $multiplicador = in_array($date->dayOfWeekIso, [1, 5]) 
+                                        ? ($horario->multiplicador_lunes_viernes ?? 1) 
+                                        : ($horario->multiplicador_dias_regulares ?? 1);
+                                }
+                                $dias_castigo_acumulados += $multiplicador;
+                                $detalles_dias[] = [
+                                    'fecha' => $fechaStr, 
+                                    'tipo' => 'falta_por_retardo_extremo', 
+                                    'penalizacion' => $multiplicador, 
+                                    'hora' => $horaLlegadaStr, 
+                                    'perdonado' => false
+                                ];
+                            }
+                            // 4. RETARDO SIMPLE
+                            else {
+                                $retardos_crudos++;
+                                $detalles_dias[] = [
+                                    'fecha' => $fechaStr, 
+                                    'tipo' => 'retardo', 
+                                    'penalizacion' => 0, 
+                                    'hora' => $horaLlegadaStr, 
+                                    'perdonado' => false
+                                ];
+                            }
                         }
                     }
                 }
 
-                // 🔥 NUEVA REGLA: SI NO HAY DETALLES, ES ASISTENCIA PERFECTA Y LO OMITIMOS DE LA PANTALLA
+                // SI NO TIENE DETALLES, TIENE ASISTENCIA PERFECTA Y NO SE MUESTRA EN PANTALLA
                 if (empty($detalles_dias)) {
                     continue; 
                 }
 
+                // 🔥 AHORA SÍ LEEMOS LA REGLA REAL DEL HORARIO ASIGNADO AL EMPLEADO
                 $regla_retardos = $horario->retardos_por_falta ?? 0;
                 $faltas_por_retardos = 0;
                 if ($regla_retardos > 0) {
@@ -347,7 +380,7 @@ class AsistenciaController extends Controller
                     'nombre' => $empleado->nombre_completo,
                     'sucursal' => $empleado->sucursal->nombre_sucursal ?? 'Sin Sucursal',
                     'puesto' => $empleado->puesto->nombre_puesto ?? 'General',
-                    'regla_retardos' => $regla_retardos,
+                    'regla_retardos' => $regla_retardos, // 🔥 REGLA DINÁMICA DEL HORARIO
                     'retardos_crudos' => $retardos_crudos,
                     'medios_dias_crudos' => $medios_dias_crudos,
                     'faltas_directas' => $faltas_directas_crudas,
