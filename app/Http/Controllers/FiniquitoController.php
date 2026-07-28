@@ -371,7 +371,6 @@ class FiniquitoController extends Controller
             $empleado = Empleado::with(['ultimoContrato', 'sucursal'])->findOrFail($data['id_empleado']);
             $patron = Patron::findOrFail($data['id_patron']);
 
-            // Al estar casteado en el modelo, fecha_ingreso ya es un objeto Carbon
             $fechaIngreso = $empleado->fecha_ingreso 
                 ? $empleado->fecha_ingreso->translatedFormat('d \d\e F \d\e Y') 
                 : 'No especificada';
@@ -388,14 +387,14 @@ class FiniquitoController extends Controller
                 }
             }
 
-            // 🔥 FIX DEL LUGAR Y DOMICILIO EXACTO SEGÚN TUS MODELOS
-            $lugarEmision = $empleado->sucursal->municipio ?? $empleado->sucursal->nombre_sucursal ?? 'la Ciudad de México';
-            $domicilioPatron = $patron->direccion_fiscal ?? 'su domicilio fiscal registrado'; // Usando el campo real del modelo Patron
+            // 🔥 FIX DEL LUGAR: Formato "Municipio, Estado"
+            $municipio = $empleado->sucursal->municipio ?? $empleado->sucursal->nombre_sucursal ?? 'Ciudad';
+            $estado = $empleado->sucursal->estado ?? 'México';
+            $lugarEmision = "{$municipio}, {$estado}";
             
-            // 🔥 REPRESENTANTE LEGAL: 1° del formulario, 2° del modelo Patron, 3° Texto Genérico
+            $domicilioPatron = $patron->direccion_fiscal ?? 'su domicilio fiscal registrado';
             $representante = $data['representante_legal'] ?? $patron->representante_legal ?? 'Representante Legal';
 
-            // LÓGICA DE PROMPT SEGÚN EL TIPO DE DOCUMENTO
             $tipoDoc = strtolower($data['tipo_documento']);
 
             if (str_contains($tipoDoc, 'recomendaci') || str_contains($tipoDoc, 'constancia')) {
@@ -409,7 +408,6 @@ class FiniquitoController extends Controller
                 - Puesto / Naturaleza: {$tipoContrato}
                 - Fecha de Ingreso: {$fechaIngreso}
                 - Fecha de Salida: {$fechaBaja}
-                - Lugar y Fecha de Emisión: {$lugarEmision}, a {$fechaBaja}
 
                 CONTEXTO / NOTAS ADICIONALES:
                 \"{$data['contexto_crudo']}\"
@@ -417,8 +415,8 @@ class FiniquitoController extends Controller
                 ESTRUCTURA REQUERIDA:
                 - Encabezado: 'A QUIEN CORRESPONDA:'
                 - Un párrafo formal certificando que {$empleado->nombre_completo} prestó sus servicios en {$patron->razon_social} durante el periodo del {$fechaIngreso} al {$fechaBaja}.
-                - Un párrafo destacando su buen desempeño, responsabilidad, puntualidad y valores observados durante su estancia.
-                - Un párrafo final otorgando la recomendación para los fines legales o laborales que al interesado convengan.
+                - Un párrafo destacando su buen desempeño, responsabilidad y valores observados.
+                - Párrafo de cierre: 'Se extiende la presente en {$lugarEmision}, a {$fechaBaja}, para los fines legales o laborales que al interesado convengan.'
 
                 FORMATO Y FIRMAS:
                 - Devuelve ÚNICAMENTE HTML (<p>, <strong>, <br>, <table>, <tr>, <td>). Sin comillas ```html ni <body>.
@@ -431,31 +429,32 @@ class FiniquitoController extends Controller
                 </table>";
             } else {
                 
-                // 🔥 MAGIA AQUÍ: LÓGICA CONDICIONAL LABORAL VS HONORARIOS 🔥
+                // 🔥 EL ANTÍDOTO ANTI-FRANKENSTEIN 🔥
                 $esHonorarios = preg_match('/honorarios\vert{}prestación\vert{}civil\vert{}independiente/i', $tipoContrato);
                 
-                $terminoRol =$esHonorarios ? 'PRESTADOR DE SERVICIOS' : 'TRABAJADOR';
-                $terminoRelacion =$esHonorarios ? 'relación civil de prestación de servicios' : 'relación laboral';
-                $terminoCierre =$esHonorarios  
-                    ? 'el pago total de las contraprestaciones y honorarios devengados. (REGLA ESTRICTA: TIENES PROHIBIDO USAR LA PALABRA FINIQUITO O LIQUIDACIÓN LABORAL).' 
-                    : 'el pago del finiquito legal y/o liquidación correspondiente.';
+                if ($esHonorarios) {
+                    $terminoRol = 'PRESTADOR DE SERVICIOS';$reglasVocabulario = "REGLA DE ORO (ANTISIMULACIÓN): El contrato es puramente CIVIL/MERCANTIL. TIENES ESTRICTAMENTE PROHIBIDO usar las siguientes palabras: 'laboral', 'trabajador', 'empleado', 'patrón', 'relación de trabajo', 'despido', 'prestaciones', 'liquidación' o 'Ley Federal del Trabajo'. Transforma cualquier nota del contexto crudo al lenguaje civil. Usa exclusivamente: 'prestador de servicios', 'empresa', 'honorarios', 'servicios independientes', 'incumplimiento contractual' y 'Código Civil'.";
+                    $terminoCierre = 'el pago de los honorarios devengados, otorgando el más amplio finiquito civil, manifestando que no se reserva acción ni derecho alguno de naturaleza civil, mercantil o de seguridad social, extinguiéndose toda obligación.';
+                } else {
+                    $terminoRol = 'TRABAJADOR';$reglasVocabulario = "REGLA DE ORO: El contrato es de naturaleza LABORAL. Adapta la terminología estrictamente a la Ley Federal del Trabajo. Usa: 'trabajador', 'patrón', 'relación laboral', 'rescisión', 'despido justificado', 'prestaciones' y 'finiquito'. TIENES ESTRICTAMENTE PROHIBIDO usar palabras como 'honorarios', 'servicios profesionales' o 'prestador de servicios'.";
+                    $terminoCierre = 'el pago del finiquito y/o liquidación laboral de las prestaciones irrenunciables generadas, conforme a la Ley Federal del Trabajo.';
+                }
 
                 // PROMPT CORPORATIVO / EJECUTIVO
-                $prompt = "Actúa como un abogado corporativo experto. Tu tarea es redactar un(a) '{$data['tipo_documento']}' con rigor jurídico y estilo ejecutivo.
+                $prompt = "Actúa como un abogado corporativo experto. Tu tarea es redactar un(a) '{$data['tipo_documento']}' con rigor jurídico y estilo ejecutivo, sin inconsistencias.
                 
                 TONO Y ESTILO:
                 - Directo al grano, objetivo, contundente y estrictamente profesional.
-                - El sujeto es un {$terminoRol}, por lo tanto debes adaptar toda la terminología a una {$terminoRelacion}.
-                - NO uses lenguaje pomposo o dramático. Redacta de forma neutral y documentada.
+                - {$reglasVocabulario}
+                - Purifica el contexto crudo: Si las notas mencionan términos prohibidos, tradúcelos obligatoriamente al régimen legal correcto.
+                - NO uses lenguaje pomposo. Redacta de forma neutral.
                 
                 DATOS OBLIGATORIOS (PROHIBIDO DEJAR ESPACIOS EN BLANCO):
                 - Empresa: {$patron->razon_social}
-                - Domicilio Empresa: {$domicilioPatron}
                 - {$terminoRol}: {$empleado->nombre_completo}
                 - Tipo de Contrato actual: {$tipoContrato}
                 - Fecha de Ingreso: {$fechaIngreso}
                 - Fecha de Baja: {$fechaBaja}
-                - Lugar: {$lugarEmision}
 
                 HECHOS / CONTEXTO A PROCESAR:
                 \"{$data['contexto_crudo']}\"
@@ -463,13 +462,13 @@ class FiniquitoController extends Controller
                 ESTRUCTURA EXACTA QUE DEBES SEGUIR (Usa números romanos y viñetas):
                 Párrafo inicial literal: 'En {$lugarEmision}, a {$fechaBaja}, {$patron->razon_social} hace entrega del(a) presente {$data['tipo_documento']} a {$empleado->nombre_completo}, con base en las siguientes consideraciones:'
                 
-                <strong>I. ANTECEDENTES:</strong> (Un párrafo breve sobre el inicio del vínculo legal y la posición/funciones).
+                <strong>I. ANTECEDENTES:</strong> (Un párrafo breve sobre el inicio del vínculo legal y la naturaleza del servicio/funciones, respetando la regla de vocabulario).
                 
-                <strong>II. DE LOS HECHOS:</strong> (Convierte el contexto crudo en una lista con viñetas <ul><li> de forma enteramente objetiva, detallando los incumplimientos sin exagerar).
+                <strong>II. DE LOS HECHOS:</strong> (Convierte el contexto crudo en una lista con viñetas <ul><li> de forma enteramente objetiva, detallando los incumplimientos sin exagerar y respetando la regla de vocabulario).
                 
-                <strong>III. DETERMINACIÓN:</strong> (Un párrafo breve anunciando la terminación anticipada, rescisión o sanción fundamentada).
+                <strong>III. DETERMINACIÓN:</strong> (Un párrafo breve anunciando la terminación anticipada, rescisión o sanción fundamentada en el régimen correcto).
                 
-                <strong>IV. CIERRE Y PAGOS:</strong> (Un párrafo indicando {$terminoCierre} otorgando la extinción de obligaciones).
+                <strong>IV. CIERRE Y PAGOS:</strong> (Un párrafo indicando {$terminoCierre}).
 
                 INSTRUCCIONES FINALES:
                 1. Devuelve la respuesta ÚNICAMENTE en HTML (<p>, <strong>, <ul>, <li>, <br>, <table>, <tr>, <td>). Sin comillas ```html ni <body>.
