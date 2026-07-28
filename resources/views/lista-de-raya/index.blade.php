@@ -11,15 +11,15 @@
             </div>
             <div class="card-body">
                 @if (session('success'))
-                    <div class="alert alert-success alert-dismissible fade show" role="alert">
-                        {{ session('success') }}
+                    <div class="alert alert-success alert-dismissible fade show shadow-sm border-0" role="alert">
+                        <i class="bi bi-check-circle-fill me-2"></i> {{ session('success') }}
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 @endif
                 
                 @if (session('error'))
-                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        {{ session('error') }}
+                    <div class="alert alert-danger alert-dismissible fade show shadow-sm border-0" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i> {{ session('error') }}
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 @endif
@@ -99,7 +99,7 @@
                                 @endif
                             @endif
 
-                            {{-- BOTÓN: EXPORTAR A EXCEL (Ya lo tenías) --}}
+                            {{-- BOTÓN: EXPORTAR A EXCEL --}}
                             <form method="GET" action="{{ route('lista_de_raya.exportar') }}">
                                 <input type="hidden" name="periodo" value="{{ request('periodo') }}">
                                 <input type="hidden" name="id_sucursal" value="{{ request('id_sucursal') }}">
@@ -116,29 +116,60 @@
                             Haga clic en <strong>"Exportar a Excel"</strong> para descargar el reporte completo con una pestaña por sucursal.
                         </div>
                     @else
+                        
+                        {{-- 🔥 LÓGICA DINÁMICA DE OCULTAMIENTO DE COLUMNAS --}}
+                        @php
+                            $showRetardos = $resultados->sum('retardos_reporte') > 0;
+                            $showFaltas = $resultados->sum('faltas_reporte') > 0;
+                            
+                            $showBonoPerm = $resultados->sum('bono_permanencia') > 0;
+                            $showBonoCump = $resultados->sum('bono_cumpleanos') > 0;
+                            $showPrimaVac = $resultados->sum('prima_vacacional') > 0;
+                            
+                            $showDedFaltas = $resultados->sum('deduccion_faltas') > 0;
+                            $showPrestamo = $resultados->sum('deduccion_prestamo') > 0;
+                            $showCajaAhorro = $resultados->sum('deduccion_caja_ahorro') > 0;
+                            $showInfonavit = $resultados->sum('deduccion_infonavit') > 0;
+                            $showIsr = $resultados->sum('deduccion_isr') > 0;
+                            $showImss = $resultados->sum('deduccion_imss') > 0;
+                            $showOtro = $resultados->sum('deduccion_otro') > 0;
+                            
+                            $colspanPercepciones = 1 + ($showBonoPerm ? 1 : 0) + ($showBonoCump ? 1 : 0) + ($showPrimaVac ? 1 : 0);
+                            $colspanDeducciones = ($showDedFaltas ? 1 : 0) + ($showPrestamo ? 1 : 0) + ($showCajaAhorro ? 1 : 0) + ($showInfonavit ? 1 : 0) + ($showIsr ? 1 : 0) + ($showImss ? 1 : 0) + ($showOtro ? 1 : 0);
+                        @endphp
+
                         <div class="table-responsive">
-                            <table class="table table-bordered table-sm">
+                            <table class="table table-bordered table-sm align-middle">
                                 <thead class="table-light">
                                     <tr class="text-center">
                                         <th rowspan="2" class="align-middle">Empleado</th>
-                                        <th colspan="4" class="align-middle">Percepciones</th>
-                                        <th colspan="7" class="align-middle">Deducciones</th>
+                                        
+                                        @if($showRetardos) <th rowspan="2" class="align-middle text-secondary" style="width: 50px;">R</th> @endif
+                                        @if($showFaltas) <th rowspan="2" class="align-middle text-danger" style="width: 50px;">F</th> @endif
+                                        
+                                        <th colspan="{{ $colspanPercepciones }}" class="align-middle">Percepciones</th>
+                                        
+                                        @if($colspanDeducciones > 0)
+                                            <th colspan="{{ $colspanDeducciones }}" class="align-middle">Deducciones</th>
+                                        @endif
+                                        
                                         <th rowspan="2" class="align-middle">Neto a Pagar</th>
                                     </tr>
                                     <tr class="text-center">
                                         {{-- Percepciones --}}
                                         <th>Sueldo Quinc.</th>
-                                        <th>Bono Permanencia</th>
-                                        <th>Bono Cumpleaños</th>
-                                        <th>Prima Vacacional</th>
+                                        @if($showBonoPerm) <th>Bono Permanencia</th> @endif
+                                        @if($showBonoCump) <th>Bono Cumpleaños</th> @endif
+                                        @if($showPrimaVac) <th>Prima Vacacional</th> @endif
+                                        
                                         {{-- Deducciones --}}
-                                        <th>Faltas</th>
-                                        <th>Préstamo</th>
-                                        <th>Caja Ahorro</th>
-                                        <th>Infonavit</th>
-                                        <th>ISR</th>
-                                        <th>IMSS</th>
-                                        <th>Otro</th>
+                                        @if($showDedFaltas) <th>Faltas</th> @endif
+                                        @if($showPrestamo) <th>Préstamo</th> @endif
+                                        @if($showCajaAhorro) <th>Caja Ahorro</th> @endif
+                                        @if($showInfonavit) <th>Infonavit</th> @endif
+                                        @if($showIsr) <th>ISR</th> @endif
+                                        @if($showImss) <th>IMSS</th> @endif
+                                        @if($showOtro) <th>Otro</th> @endif
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -155,23 +186,33 @@
                                                         @endif
                                                     </small>
                                                 </td>
+                                                
+                                                @if($showRetardos)
+                                                    <td class="text-center fw-bold text-secondary bg-light">{{ $resultado['retardos_reporte'] ?? 0 }}</td>
+                                                @endif
+                                                @if($showFaltas)
+                                                    <td class="text-center fw-bold text-danger bg-light">{{ $resultado['faltas_reporte'] ?? 0 }}</td>
+                                                @endif
+                                                
                                                 <td class="text-end">$ {{ number_format($resultado['sueldo_quincenal'], 2) }}</td>
-                                                <td class="text-end">$ {{ number_format($resultado['bono_permanencia'], 2) }}</td>
-                                                <td class="text-end">$ {{ number_format($resultado['bono_cumpleanos'], 2) }}</td>
-                                                <td class="text-end text-success">$ {{ number_format($resultado['prima_vacacional'], 2) }}</td>
-                                                <td class="text-end text-danger">($ {{ number_format($resultado['deduccion_faltas'], 2) }})</td>
-                                                <td class="text-end text-danger">($ {{ number_format($resultado['deduccion_prestamo'], 2) }})</td>
-                                                <td class="text-end text-danger">($ {{ number_format($resultado['deduccion_caja_ahorro'], 2) }})</td>
-                                                <td class="text-end text-danger">($ {{ number_format($resultado['deduccion_infonavit'], 2) }})</td>
-                                                <td class="text-end text-danger">($ {{ number_format($resultado['deduccion_isr'], 2) }})</td>
-                                                <td class="text-end text-danger">($ {{ number_format($resultado['deduccion_imss'], 2) }})</td>
-                                                <td class="text-end text-danger">($ {{ number_format($resultado['deduccion_otro'], 2) }})</td>
+                                                @if($showBonoPerm) <td class="text-end">$ {{ number_format($resultado['bono_permanencia'], 2) }}</td> @endif
+                                                @if($showBonoCump) <td class="text-end">$ {{ number_format($resultado['bono_cumpleanos'], 2) }}</td> @endif
+                                                @if($showPrimaVac) <td class="text-end text-success">$ {{ number_format($resultado['prima_vacacional'], 2) }}</td> @endif
+                                                
+                                                @if($showDedFaltas) <td class="text-end text-danger">($ {{ number_format($resultado['deduccion_faltas'], 2) }})</td> @endif
+                                                @if($showPrestamo) <td class="text-end text-danger">($ {{ number_format($resultado['deduccion_prestamo'], 2) }})</td> @endif
+                                                @if($showCajaAhorro) <td class="text-end text-danger">($ {{ number_format($resultado['deduccion_caja_ahorro'], 2) }})</td> @endif
+                                                @if($showInfonavit) <td class="text-end text-danger">($ {{ number_format($resultado['deduccion_infonavit'], 2) }})</td> @endif
+                                                @if($showIsr) <td class="text-end text-danger">($ {{ number_format($resultado['deduccion_isr'], 2) }})</td> @endif
+                                                @if($showImss) <td class="text-end text-danger">($ {{ number_format($resultado['deduccion_imss'], 2) }})</td> @endif
+                                                @if($showOtro) <td class="text-end text-danger">($ {{ number_format($resultado['deduccion_otro'], 2) }})</td> @endif
+                                                
                                                 <td class="text-end fw-bold fs-6">$ {{ number_format($resultado['neto_a_pagar'], 2) }}</td>
                                             </tr>
                                         @endforeach
                                     @else
                                         <tr>
-                                            <td colspan="13" class="text-center text-muted">No se encontraron empleados activos en la sucursal seleccionada para este periodo.</td>
+                                            <td colspan="15" class="text-center text-muted py-4">No se encontraron empleados activos en la sucursal seleccionada para este periodo.</td>
                                         </tr>
                                     @endif
                                 </tbody>
