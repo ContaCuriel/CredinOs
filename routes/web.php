@@ -192,6 +192,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/reconciliation/upload', [ReconciliationController::class, 'store'])->name('reconciliation.store');
         Route::get('/reconciliation/confirm', [ReconciliationController::class, 'confirm'])->name('reconciliation.confirm');
         Route::post('/reconciliation/process', [ReconciliationController::class, 'process'])->name('reconciliation.process');
+        // Rutas para la IA de Documentos Legales
+        Route::post('/finiquitos/redactar-ia', [\App\Http\Controllers\FiniquitoController::class, 'redactarDocumentoIA'])->name('finiquitos.redactar.ia');
+        Route::post('/finiquitos/exportar-ia-pdf', [\App\Http\Controllers\FiniquitoController::class, 'exportarDocumentoIAPdf'])->name('finiquitos.export.ia.pdf');
 
         // APIs Internas
         Route::get('/api/groups/{group}/members', [App\Http\Controllers\GroupController::class, 'getMembers'])->name('groups.members')->middleware(['auth']);

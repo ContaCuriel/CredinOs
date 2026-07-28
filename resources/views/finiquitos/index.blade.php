@@ -1,64 +1,17 @@
 <x-app-layout>
-    {{-- 1. SECCIÓN DE ESTILOS CSS --}}
     <style>
-        #tabla_resultados_wrapper {
-            max-width: 750px;
-            margin: 0 auto;
-        }
-
-        /* Colores para diferenciar percepciones y deducciones */
+        #tabla_resultados_wrapper { max-width: 750px; margin: 0 auto; }
         .row-percepcion { background-color: #f0fff4 !important; }
         .row-deduccion { background-color: #fff5f5 !important; }
-
-        /* Estilo para los inputs con formato de moneda */
-        .input-moneda-wrapper { 
-            position: relative; 
-            display: inline-block;
-        }
-
-        .input-moneda-wrapper::before {
-            content: "$";
-            position: absolute;
-            left: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #4a5568;
-            font-weight: bold;
-            z-index: 10;
-            pointer-events: none;
-        }
-
-        .spinner-border-sm { margin-right: 8px; display: none; }
-
-        .monto-editable {
-            border: 1px solid #dee2e6;
-            border-radius: 5px;
-            padding: 5px 10px 5px 25px !important;
-            background-color: #fff;
-            transition: all 0.2s;
-            width: 160px;
-            font-weight: 600;
-            color: #2c3e50;
-            text-align: right;
-        }
-
-        .monto-editable:focus {
-            border-color: #0d6efd;
-            outline: none;
-            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
-            background-color: #f8fbff;
-        }
-
-        .row-categoria {
-            background-color: #f8f9fa !important;
-            font-weight: bold;
-            text-transform: uppercase;
-            font-size: 0.75rem;
-            color: #6c757d;
-            letter-spacing: 1px;
-        }
-        
+        .input-moneda-wrapper { position: relative; display: inline-block; }
+        .input-moneda-wrapper::before { content: "$"; position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #4a5568; font-weight: bold; z-index: 10; pointer-events: none; }
+        .monto-editable { border: 1px solid #dee2e6; border-radius: 5px; padding: 5px 10px 5px 25px !important; background-color: #fff; transition: all 0.2s; width: 160px; font-weight: 600; color: #2c3e50; text-align: right; }
+        .monto-editable:focus { border-color: #0d6efd; outline: none; box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15); background-color: #f8fbff; }
+        .row-categoria { background-color: #f8f9fa !important; font-weight: bold; text-transform: uppercase; font-size: 0.75rem; color: #6c757d; letter-spacing: 1px; }
         .table td { vertical-align: middle !important; }
+        
+        /* Estilos para el Editor IA */
+        .tox-promotion { display: none !important; } /* Oculta logo de TinyMCE */
     </style>
 
     <div class="container-fluid py-4">
@@ -148,10 +101,8 @@
                         <span class="badge bg-dark px-3 py-2" id="badge_tipo_calculo"></span>
                     </div>
                     
-                    {{-- TABLA RESULTADOS --}}
                     <div id="tabla_resultados"></div>
                     
-                    {{-- BOTÓN PARA AGREGAR CONCEPTOS EXTRA --}}
                     <div class="mt-2 text-center" style="max-width: 750px; margin: 0 auto;">
                         <button type="button" class="btn btn-sm btn-outline-success fw-bold shadow-sm" onclick="window.agregarConceptoExtra()">
                             <i class="bi bi-plus-lg"></i> Agregar Concepto Extra
@@ -175,10 +126,13 @@
                             <input type="hidden" name="caja_ahorro_monto" id="export_caja_ahorro_monto">
                             <input type="hidden" name="prestamo_saldo" id="export_prestamo_saldo">
                             <input type="hidden" name="gratificacion_monto" id="export_gratificacion_monto">
-                            
-                            {{-- NUEVO CAMPO OCULTO PARA LOS CONCEPTOS EXTRAS --}}
                             <input type="hidden" name="conceptos_extras_json" id="export_conceptos_extras">
                             
+                            {{-- 🔥 NUEVO BOTÓN PARA LA IA --}}
+                            <button type="button" class="btn btn-info fw-bold text-white shadow-sm" data-bs-toggle="modal" data-bs-target="#modalIA">
+                                <i class="bi bi-stars"></i> Redactar con IA
+                            </button>
+
                             <button type="button" id="btn_export_aviso_terminacion" class="btn btn-dark fw-bold">Aviso de Terminación</button>
                             <button type="button" id="btn_export_pdf" class="btn btn-danger fw-bold">Finiquito PDF</button>
                             <button type="button" id="btn_export_renuncia" class="btn btn-secondary fw-bold">Carta Renuncia</button>
@@ -190,9 +144,85 @@
         </div>
     </div>
 
+    {{-- 🔥 MODAL PARA REDACTAR CON IA 🔥 --}}
+    <div class="modal fade" id="modalIA" tabindex="-1" aria-labelledby="modalIALabel" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title fw-bold" id="modalIALabel"><i class="bi bi-stars"></i> Asistente Legal de Inteligencia Artificial</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body bg-light">
+                    <div class="row">
+                        {{-- PANEL IZQUIERDO: CONTROLES --}}
+                        <div class="col-md-4 border-end pe-4">
+                            <h6 class="fw-bold text-secondary mb-3">1. Instrucciones a la IA</h6>
+                            
+                            <label class="form-label small fw-bold">¿Qué documento deseas crear?</label>
+                            <select id="ia_tipo_documento" class="form-select form-select-sm mb-3">
+                                <option value="Notificación de Rescisión de Contrato">Rescisión de Contrato</option>
+                                <option value="Acta Administrativa por Faltas/Abandono">Acta Administrativa (Abandono/Faltas)</option>
+                                <option value="Carta de Recomendación Laboral">Carta de Recomendación</option>
+                                <option value="Aviso de Término de Contrato (Sin Renovación)">Vencimiento de Contrato</option>
+                            </select>
+
+                            <label class="form-label small fw-bold">Contexto / Hechos (Ej. Chat de WhatsApp)</label>
+                            <textarea id="ia_contexto_crudo" class="form-control mb-3" rows="8" placeholder="Pega aquí la conversación, los motivos de despido o las instrucciones sueltas. La IA lo transformará en texto legal..."></textarea>
+
+                            <div class="d-grid">
+                                <button type="button" id="btn_generar_ia" class="btn btn-primary fw-bold shadow-sm">
+                                    <i class="bi bi-magic"></i> Generar Borrador
+                                </button>
+                            </div>
+                        </div>
+
+                        {{-- PANEL DERECHO: EDITOR DE TEXTO --}}
+                        <div class="col-md-8 ps-4">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="fw-bold text-secondary mb-0">2. Editor Final (Editable)</h6>
+                                <span id="ia_status" class="badge bg-secondary">Esperando instrucciones...</span>
+                            </div>
+                            
+                            <!-- Editor TinyMCE -->
+                            <textarea id="ia_editor"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    
+                    <form id="form_export_ia" method="POST" action="{{ route('finiquitos.export.ia.pdf') }}" target="_blank">
+                        @csrf
+                        <input type="hidden" name="html_content" id="ia_export_html">
+                        <input type="hidden" name="id_patron" id="ia_export_patron">
+                        <input type="hidden" name="tipo_documento" id="ia_export_tipo">
+                        
+                        <button type="submit" id="btn_imprimir_ia" class="btn btn-danger fw-bold shadow-sm" disabled>
+                            <i class="bi bi-file-earmark-pdf-fill"></i> Descargar PDF Oficial
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     @push('scripts')
+    <!-- Script de TinyMCE -->
+    <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+    
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            // Inicializar TinyMCE
+            tinymce.init({
+                selector: '#ia_editor',
+                height: 400,
+                menubar: false,
+                plugins: 'lists advlist',
+                toolbar: 'undo redo | formatselect | bold italic underline | alignleft aligncenter alignright alignjustify | bullist numlist',
+                language: 'es_MX'
+            });
+
+            // Lógica principal
             const empleadoSelect = document.getElementById('id_empleado');
             const fechaIngresoInput = document.getElementById('fecha_ingreso');
             const fechaFinalInput = document.getElementById('fecha_final');
@@ -272,33 +302,16 @@
             });
 
             function construirTablaEditable(data) {
-                // 🔥 ALERTA DINÁMICA DE ASISTENCIAS (MEJORADA)
                 let alertHtml = '';
                 if (data.info_asistencia && (data.info_asistencia.faltas_directas > 0 || data.info_asistencia.retardos > 0 || data.info_asistencia.medios_dias > 0)) {
-                    
                     let info = data.info_asistencia;
                     let botonDescuento = '';
-                    
                     if (info.total_dias_descontar > 0) {
-                        botonDescuento = `
-                        <div class="mt-2">
-                            <button type="button" class="btn btn-sm btn-danger fw-bold shadow-sm" onclick="window.aplicarDescuentoFaltas(${info.monto_sugerido_descuento}, this)">
-                                <i class="bi bi-scissors"></i> Aplicar descuento por $${window.limpiarNumero(info.monto_sugerido_descuento).toFixed(2)}
-                            </button>
-                        </div>`;
+                        botonDescuento = `<div class="mt-2"><button type="button" class="btn btn-sm btn-danger fw-bold shadow-sm" onclick="window.aplicarDescuentoFaltas(${info.monto_sugerido_descuento}, this)"><i class="bi bi-scissors"></i> Aplicar descuento por $${window.limpiarNumero(info.monto_sugerido_descuento).toFixed(2)}</button></div>`;
                     } else {
-                        botonDescuento = `<div class="mt-2 text-muted small"><i class="bi bi-info-circle"></i> Los retardos registrados no alcanzan a generar descuento según las reglas (Ej. Necesita 3 retardos para 1 falta).</div>`;
+                        botonDescuento = `<div class="mt-2 text-muted small"><i class="bi bi-info-circle"></i> Los retardos registrados no alcanzan a generar descuento según las reglas.</div>`;
                     }
-
-                    alertHtml = `
-                    <div class="alert alert-warning alert-dismissible fade show shadow-sm" role="alert" style="max-width: 750px; margin: 0 auto 20px auto;">
-                        <strong><i class="bi bi-exclamation-triangle-fill"></i> ¡Atención! Incidencias en la última quincena</strong><br>
-                        El sistema detectó <b>${info.faltas_directas}</b> falta(s), <b>${info.retardos}</b> retardo(s) y <b>${info.medios_dias}</b> medio(s) día(s).
-                        <br>Total sugerido a descontar: <b>${info.total_dias_descontar} días</b>.
-                        ${botonDescuento}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                    `;
+                    alertHtml = `<div class="alert alert-warning alert-dismissible fade show shadow-sm" role="alert" style="max-width: 750px; margin: 0 auto 20px auto;"><strong><i class="bi bi-exclamation-triangle-fill"></i> ¡Atención! Incidencias detectadas</strong><br>El sistema detectó <b>${info.faltas_directas}</b> falta(s), <b>${info.retardos}</b> retardo(s) y <b>${info.medios_dias}</b> medio(s) día(s).<br>Total sugerido a descontar: <b>${info.total_dias_descontar} días</b>.${botonDescuento}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>`;
                 }
 
                 let p = ''; 
@@ -315,104 +328,42 @@
                 
                 conceptos.forEach(c => {
                     if(window.limpiarNumero(c.v) > 0 || c.i === 'dias_laborados_monto') {
-                        p += `<tr class="row-percepcion">
-                                <td class="ps-4">${c.l}</td>
-                                <td class="text-end pe-4">
-                                    <div class="input-moneda-wrapper">
-                                        <input type="number" step="0.01" id="${c.i}" class="monto-editable monto-p" value="${window.limpiarNumero(c.v).toFixed(2)}">
-                                    </div>
-                                </td>
-                              </tr>`;
+                        p += `<tr class="row-percepcion"><td class="ps-4">${c.l}</td><td class="text-end pe-4"><div class="input-moneda-wrapper"><input type="number" step="0.01" id="${c.i}" class="monto-editable monto-p" value="${window.limpiarNumero(c.v).toFixed(2)}"></div></td></tr>`;
                     }
                 });
 
-                tablaResultadosDiv.innerHTML = alertHtml + `
-                    <div id="tabla_resultados_wrapper">
-                        <table class="table table-hover border bg-white shadow-sm" id="tabla_calculos_cuerpo">
-                            <thead class="table-dark"><tr><th class="ps-4 py-3">Concepto</th><th class="text-center py-3">Monto Editable ($)</th></tr></thead>
-                            <tbody>
-                                <tr class="row-categoria"><td colspan="2" class="py-2 ps-3">Percepciones (+)</td></tr>${p}
-                                <tr class="row-categoria"><td colspan="2" class="py-2 ps-3">Deducciones (-)</td></tr>
-                                <tr class="row-deduccion">
-                                    <td class="ps-4">Deducciones / Préstamos</td>
-                                    <td class="text-end pe-4">
-                                        <div class="input-moneda-wrapper">
-                                            <input type="number" step="0.01" id="prestamo_saldo" class="monto-editable monto-d text-danger" value="${window.limpiarNumero(data.prestamo_saldo).toFixed(2)}">
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr class="fs-5 fw-bold table-primary"><td class="text-end pe-4">Total Neto a Pagar:</td><td class="text-end pe-4" id="neto_p" style="font-size: 1.5rem; color: #0d6efd;">$0.00</td></tr>
-                            </tbody>
-                        </table>
-                    </div>`;
+                tablaResultadosDiv.innerHTML = alertHtml + `<div id="tabla_resultados_wrapper"><table class="table table-hover border bg-white shadow-sm" id="tabla_calculos_cuerpo"><thead class="table-dark"><tr><th class="ps-4 py-3">Concepto</th><th class="text-center py-3">Monto Editable ($)</th></tr></thead><tbody><tr class="row-categoria"><td colspan="2" class="py-2 ps-3">Percepciones (+)</td></tr>${p}<tr class="row-categoria"><td colspan="2" class="py-2 ps-3">Deducciones (-)</td></tr><tr class="row-deduccion"><td class="ps-4">Deducciones / Préstamos</td><td class="text-end pe-4"><div class="input-moneda-wrapper"><input type="number" step="0.01" id="prestamo_saldo" class="monto-editable monto-d text-danger" value="${window.limpiarNumero(data.prestamo_saldo).toFixed(2)}"></div></td></tr><tr class="fs-5 fw-bold table-primary"><td class="text-end pe-4">Total Neto a Pagar:</td><td class="text-end pe-4" id="neto_p" style="font-size: 1.5rem; color: #0d6efd;">$0.00</td></tr></tbody></table></div>`;
                 window.recalcularTotales();
             }
 
-            // FUNCIÓN MÁGICA: Agregar Fila Extra (Actualizada para recibir parámetros)
             window.agregarConceptoExtra = function(defaultDesc = '', defaultTipo = 'percepcion', defaultMonto = 0) {
                 const tbody = document.querySelector('#tabla_calculos_cuerpo tbody');
                 if(!tbody) return;
-
                 const isDeduccion = (defaultTipo === 'deduccion');
-
                 const tr = document.createElement('tr');
                 tr.className = 'concepto-extra-row bg-white border-bottom ' + (isDeduccion ? 'row-deduccion' : 'row-percepcion');
-                
-                tr.innerHTML = `
-                    <td class="ps-4">
-                        <input type="text" class="form-control form-control-sm desc-extra shadow-sm mb-1 ${isDeduccion ? 'border-danger text-danger' : 'border-success'}" placeholder="Escribe el concepto" value="${defaultDesc}">
-                    </td>
-                    <td class="text-end pe-4 align-middle">
-                        <div class="d-flex justify-content-end align-items-center gap-2">
-                            <select class="form-select form-select-sm tipo-extra shadow-sm text-center" style="width: 110px;" onchange="window.recalcularTotales()">
-                                <option value="percepcion" ${!isDeduccion ? 'selected' : ''}>Suma (+)</option>
-                                <option value="deduccion" ${isDeduccion ? 'selected' : ''}>Resta (-)</option>
-                            </select>
-                            <div class="input-moneda-wrapper">
-                                <input type="number" step="0.01" class="monto-editable monto-extra shadow-sm ${isDeduccion ? 'text-danger' : ''}" value="${defaultMonto > 0 ? defaultMonto.toFixed(2) : '0.00'}" oninput="window.recalcularTotales()">
-                            </div>
-                            <button type="button" class="btn btn-sm btn-outline-danger shadow-sm" onclick="this.closest('tr').remove(); window.recalcularTotales();"><i class="bi bi-trash"></i></button>
-                        </div>
-                    </td>
-                `;
-                
+                tr.innerHTML = `<td class="ps-4"><input type="text" class="form-control form-control-sm desc-extra shadow-sm mb-1 ${isDeduccion ? 'border-danger text-danger' : 'border-success'}" placeholder="Escribe el concepto" value="${defaultDesc}"></td><td class="text-end pe-4 align-middle"><div class="d-flex justify-content-end align-items-center gap-2"><select class="form-select form-select-sm tipo-extra shadow-sm text-center" style="width: 110px;" onchange="window.recalcularTotales()"><option value="percepcion" ${!isDeduccion ? 'selected' : ''}>Suma (+)</option><option value="deduccion" ${isDeduccion ? 'selected' : ''}>Resta (-)</option></select><div class="input-moneda-wrapper"><input type="number" step="0.01" class="monto-editable monto-extra shadow-sm ${isDeduccion ? 'text-danger' : ''}" value="${defaultMonto > 0 ? defaultMonto.toFixed(2) : '0.00'}" oninput="window.recalcularTotales()"></div><button type="button" class="btn btn-sm btn-outline-danger shadow-sm" onclick="this.closest('tr').remove(); window.recalcularTotales();"><i class="bi bi-trash"></i></button></div></td>`;
                 const totalRow = document.getElementById('neto_p').closest('tr');
                 tbody.insertBefore(tr, totalRow);
                 window.recalcularTotales();
             };
 
-            // 🔥 NUEVA FUNCIÓN: Llamada por la alerta amarilla
             window.aplicarDescuentoFaltas = function(monto, btnElement) {
                 window.agregarConceptoExtra('Descuento por Faltas y Retardos', 'deduccion', monto);
-                
-                // Deshabilitamos el botón y cambiamos su estilo para evitar doble clic
                 btnElement.disabled = true;
                 btnElement.classList.replace('btn-danger', 'btn-secondary');
                 btnElement.innerHTML = '<i class="bi bi-check2-all"></i> Descuento Agregado';
             };
 
-            // Recálculo Inteligente
             window.recalcularTotales = function() {
                 let tp = 0; document.querySelectorAll('.monto-p').forEach(i => tp += window.limpiarNumero(i.value));
                 let td = 0; document.querySelectorAll('.monto-d').forEach(i => td += window.limpiarNumero(i.value));
-                
-                // Sumar o restar los conceptos dinámicos extra
                 document.querySelectorAll('.concepto-extra-row').forEach(row => {
                     let monto = window.limpiarNumero(row.querySelector('.monto-extra').value);
                     let tipo = row.querySelector('.tipo-extra').value;
-                    if (tipo === 'percepcion') {
-                        tp += monto;
-                        row.classList.remove('row-deduccion');
-                        row.classList.add('row-percepcion');
-                        row.querySelector('.monto-extra').classList.remove('text-danger');
-                    } else {
-                        td += monto;
-                        row.classList.remove('row-percepcion');
-                        row.classList.add('row-deduccion');
-                        row.querySelector('.monto-extra').classList.add('text-danger');
-                    }
+                    if (tipo === 'percepcion') { tp += monto; row.classList.replace('row-deduccion', 'row-percepcion'); row.querySelector('.monto-extra').classList.remove('text-danger'); } 
+                    else { td += monto; row.classList.replace('row-percepcion', 'row-deduccion'); row.querySelector('.monto-extra').classList.add('text-danger'); }
                 });
-
                 const neto = document.getElementById('neto_p');
                 if (neto) neto.textContent = `$${(tp - td).toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
             };
@@ -420,9 +371,7 @@
             document.addEventListener('input', function (e) {
                 if (e.target.id === 'input_dias_cantidad') {
                     const montoInput = document.getElementById('dias_laborados_monto');
-                    if (montoInput && salarioDiarioGlobal > 0) {
-                        montoInput.value = (window.limpiarNumero(e.target.value) * salarioDiarioGlobal).toFixed(2);
-                    }
+                    if (montoInput && salarioDiarioGlobal > 0) { montoInput.value = (window.limpiarNumero(e.target.value) * salarioDiarioGlobal).toFixed(2); }
                     window.recalcularTotales();
                 } else if (e.target.classList.contains('monto-editable')) {
                     window.recalcularTotales();
@@ -432,11 +381,7 @@
             function prepararEnvio(format) {
                 const idEmp = empleadoSelect.value;
                 if (!idEmp) return;
-                
-                if (format === 'aviso') { 
-                    window.open("{{ url('finiquitos/aviso-terminacion') }}/" + idEmp, '_blank'); 
-                    return; 
-                }
+                if (format === 'aviso') { window.open("{{ url('finiquitos/aviso-terminacion') }}/" + idEmp, '_blank'); return; }
 
                 const form = document.getElementById('form_export');
                 form.method = "POST";
@@ -456,18 +401,14 @@
                     if (hidden) hidden.value = val ? window.limpiarNumero(val.value) : 0;
                 });
 
-                // EMPAQUETAMOS LOS CONCEPTOS EXTRAS EN FORMATO JSON
                 const extras = [];
                 document.querySelectorAll('.concepto-extra-row').forEach(row => {
                     const desc = row.querySelector('.desc-extra').value;
                     const tipo = row.querySelector('.tipo-extra').value;
                     const monto = window.limpiarNumero(row.querySelector('.monto-extra').value);
-                    if(desc.trim() !== '' && monto > 0) {
-                        extras.push({ concepto: desc, tipo: tipo, monto: monto });
-                    }
+                    if(desc.trim() !== '' && monto > 0) { extras.push({ concepto: desc, tipo: tipo, monto: monto }); }
                 });
                 document.getElementById('export_conceptos_extras').value = JSON.stringify(extras);
-
                 form.submit();
             }
 
@@ -477,6 +418,73 @@
             document.getElementById('btn_export_aviso_terminacion').addEventListener('click', () => prepararEnvio('aviso'));
 
             [fechaFinalInput, patronManualSelect].forEach(i => i.addEventListener('change', toggleButtons));
+
+            // 🔥 LÓGICA DE LA IA 🔥
+            document.getElementById('btn_generar_ia').addEventListener('click', function() {
+                const idEmp = empleadoSelect.value;
+                const fecFin = fechaFinalInput.value;
+                const idPat = patronManualSelect.value;
+                const contexto = document.getElementById('ia_contexto_crudo').value;
+                const tipoDoc = document.getElementById('ia_tipo_documento').value;
+
+                if (!idEmp || !fecFin || !idPat || contexto.trim().length < 10) {
+                    alert("Asegúrate de haber seleccionado Empleado, Fecha Baja, Patrón y escribir un contexto válido (mínimo 10 letras).");
+                    return;
+                }
+
+                const btn = this;
+                const originalHtml = btn.innerHTML;
+                btn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display:inline-block"></span> Pensando...`;
+                btn.disabled = true;
+                document.getElementById('ia_status').className = 'badge bg-warning text-dark';
+                document.getElementById('ia_status').innerText = 'Generando borrador legal...';
+                document.getElementById('btn_imprimir_ia').disabled = true;
+
+                fetch("{{ route('finiquitos.redactar.ia') }}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    body: JSON.stringify({
+                        id_empleado: idEmp,
+                        fecha_final: fecFin,
+                        id_patron: idPat,
+                        contexto_crudo: contexto,
+                        tipo_documento: tipoDoc
+                    })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+                    
+                    if(data.error) {
+                        alert(data.error);
+                        document.getElementById('ia_status').className = 'badge bg-danger';
+                        document.getElementById('ia_status').innerText = 'Error al generar';
+                    } else {
+                        // Inyectar el HTML en el editor de TinyMCE
+                        tinymce.get('ia_editor').setContent(data.documento_html);
+                        
+                        document.getElementById('ia_status').className = 'badge bg-success';
+                        document.getElementById('ia_status').innerText = '¡Borrador Listo para Revisar!';
+                        
+                        // Preparar el formulario de impresión
+                        document.getElementById('ia_export_patron').value = idPat;
+                        document.getElementById('ia_export_tipo').value = tipoDoc;
+                        document.getElementById('btn_imprimir_ia').disabled = false;
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+                    alert("Ocurrió un error de conexión con la IA.");
+                });
+            });
+
+            // Antes de enviar el PDF, sacamos el contenido limpio de TinyMCE
+            document.getElementById('form_export_ia').addEventListener('submit', function() {
+                document.getElementById('ia_export_html').value = tinymce.get('ia_editor').getContent();
+            });
         });
     </script>
     @endpush

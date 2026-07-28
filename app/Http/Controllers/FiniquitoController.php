@@ -352,4 +352,106 @@ class FiniquitoController extends Controller
         
         return $pdf->stream("Aviso_Terminacion_" . \Illuminate\Support\Str::slug($empleado->nombre_completo) . ".pdf");
     }
+
+    /**
+     * Llama a la API de IA para redactar documentos legales/RH a partir de contexto crudo.
+     */
+    public function redactarDocumentoIA(Request $request)
+    {
+        try {
+            $data =$request->validate([
+                'id_empleado' => 'required|exists:empleados,id_empleado',
+                'id_patron' => 'required|exists:patrones,id_patron',
+                'fecha_final' => 'required|date',
+                'contexto_crudo' => 'required|string|min:10', // Aquí llega el chat de WhatsApp
+                'tipo_documento' => 'required|string' // Ej. "Rescisión de Contrato", "Acta Administrativa"
+            ]);
+
+            $empleado = Empleado::with('ultimoContrato')->findOrFail($data['id_empleado']);
+            $patron = Patron::findOrFail($data['id_patron']);
+
+            // Recopilamos las fechas y las formateamos en español
+            $fechaIngreso = Carbon::parse($empleado->fecha_ingreso)->translatedFormat('d \d\e F \d\e Y');$fechaBaja = Carbon::parse($data['fecha_final'])->translatedFormat('d \d\e F \d\e Y');$vencimientoContrato = 'No especificado';
+            if ($empleado->ultimoContrato &&$empleado->ultimoContrato->fecha_fin) {
+                $vencimientoContrato = Carbon::parse($empleado->ultimoContrato->fecha_fin)->translatedFormat('d \d\e F \d\e Y');
+            }
+
+            // Construimos el "Super Prompt" para la IA
+            $prompt = "Actúa como un abogado laboral corporativo en México. Tu tarea es redactar un(a) '{$data['tipo_documento']}' formal, profesional y legalmente blindado.
+            
+            DATOS DUROS OBLIGATORIOS A INCLUIR:
+            - Empresa / Patrón: {$patron->razon_social}
+            - Empleado: {$empleado->nombre_completo}
+            - Fecha de Ingreso del empleado: {$fechaIngreso}
+            - Fecha de Baja / Emisión del documento: {$fechaBaja}
+            - Fecha de vencimiento de su contrato actual: {$vencimientoContrato}
+
+            CONTEXTO DE LOS HECHOS (Mensajes o notas crudas):
+            \"{$data['contexto_crudo']}\"
+
+            INSTRUCCIONES DE FORMATO ESTRICTAS:
+            1. Transforma el contexto crudo en lenguaje legal y estructurado (Antecedentes, Hechos, Determinación).
+            2. Devuelve la respuesta ÚNICAMENTE en formato HTML válido (usa etiquetas <p>, <strong>, <ul>, <li>, <h3>, <br>).
+            3. NO incluyas las etiquetas <html>, <head> o <body>, solo el contenido interior para ser inyectado en un editor de texto.
+            4. NO uses Markdown como ```html ni asteriscos. Solo etiquetas HTML puras.
+            5. Al final, incluye líneas de firma para la empresa y para el empleado.";
+
+            $apiKey = env('GEMINI_API_KEY', '');
+            if (empty($apiKey)) {
+                return response()->json(['error' => 'API Key de Gemini no configurada.'], 500);
+            }
+
+            // Usamos la versión Pro porque redactar contratos requiere mucho razonamiento legal
+            $apiUrl = "[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=){$apiKey}";
+            
+            $response = \Illuminate\Support\Facades\Http::timeout(60)->post($apiUrl, [
+                'contents' => [['role' => 'user', 'parts' => [['text' => $prompt]]]]
+            ]);
+
+            if ($response->successful()) {
+                $htmlRedactado = $response->json('candidates.0.content.parts.0.text', '<p>No se pudo generar el documento.</p>');
+                
+                // Limpiamos si la IA accidentalmente agregó las comillas de Markdown
+                $htmlRedactado = str_replace(['```html', '```'], '', $htmlRedactado);
+                
+                return response()->json(['documento_html' => trim($htmlRedactado)]);
+            } else {
+                return response()->json(['error' => 'La IA rechazó la solicitud. Error de Google.'], 500);
+            }
+
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Error interno: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Recibe el HTML del editor mágico y lo imprime en PDF con membrete.
+     */
+    public function exportarDocumentoIAPdf(Request $request)
+    {
+        $request->validate([
+            'html_content' => 'required|string',
+            'id_patron' => 'required|exists:patrones,id_patron',
+            'tipo_documento' => 'required|string'
+        ]);
+
+        $patron = Patron::findOrFail($request->id_patron);
+
+        $logo_base64 = null;
+        if ($patron->logo_path && File::exists(storage_path('app/public/' . $patron->logo_path))) {
+            $logoPath = storage_path('app/public/' . $patron->logo_path);
+            $logo_base64 = 'data:' . File::mimeType($logoPath) . ';base64,' . base64_encode(File::get($logoPath));
+        }
+
+        $data = [
+            'html_content' => $request->html_content,
+            'patron' => $patron,
+            'logo_base64' => $logo_base64,
+            'titulo_documento' => mb_strtoupper($request->tipo_documento, 'UTF-8')
+        ];
+
+        // Crearemos una vista súper sencilla para este PDF en el siguiente paso
+        $pdf = Pdf::loadView('finiquitos.pdf_ia', $data);
+        return $pdf->stream(Str::slug($request->tipo_documento) . '_' . date('Ymd_His') . '.pdf');
+    }
 }
