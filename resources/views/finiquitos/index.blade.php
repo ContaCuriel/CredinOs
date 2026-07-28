@@ -1,3 +1,8 @@
+Aquí tienes el archivo completo de la vista Blade listo para **copiar y pegar**.
+
+Incluye la **auto-selección del patrón**, el **resaltado visual verde** al detectar contrato, la restauración del color si el usuario lo modifica a mano, y toda la integración con la IA y TinyMCE:
+
+```blade
 <x-app-layout>
     <style>
         #tabla_resultados_wrapper { max-width: 750px; margin: 0 auto; }
@@ -41,7 +46,8 @@
                                         <option value="{{ $empleado->id_empleado }}" 
                                                 data-fecha_ingreso="{{ $empleado->fecha_ingreso?->format('Y-m-d') }}" 
                                                 data-fecha_baja="{{ $empleado->fecha_baja?->format('Y-m-d') }}"
-                                                data-salario="{{ $sueldoMensual }}">
+                                                data-salario="{{ $sueldoMensual }}"
+                                                data-id_patron="{{ $empleado->ultimoContrato?->id_patron }}">
                                             {{ $empleado->nombre_completo }} | ${{ number_format($sueldoMensual, 2) }} | ({{ $empleado->status }})
                                         </option>
                                     @endforeach
@@ -128,7 +134,7 @@
                             <input type="hidden" name="gratificacion_monto" id="export_gratificacion_monto">
                             <input type="hidden" name="conceptos_extras_json" id="export_conceptos_extras">
                             
-                            {{-- 🔥 NUEVO BOTÓN PARA LA IA --}}
+                            {{-- 🔥 BOTÓN PARA LA IA --}}
                             <button type="button" class="btn btn-info fw-bold text-white shadow-sm" data-bs-toggle="modal" data-bs-target="#modalIA">
                                 <i class="bi bi-stars"></i> Redactar con IA
                             </button>
@@ -246,10 +252,28 @@
                 botonesCalculo.forEach(btn => btn.disabled = !habilitar);
             }
 
+            // 🔥 SELECCIÓN DE EMPLEADO Y AUTO-SELECCIÓN DE PATRÓN 🔥
             empleadoSelect.addEventListener('change', function() {
                 const opt = this.options[this.selectedIndex];
                 fechaIngresoInput.value = opt.dataset.fecha_ingreso || '';
                 fechaFinalInput.value = opt.dataset.fecha_baja || '';
+                
+                // AUTO-SELECCIÓN Y RESALTADO VERDE DEL PATRÓN
+                const patronId = opt.dataset.id_patron || '';
+                if (patronId) {
+                    patronManualSelect.value = patronId;
+                    patronManualSelect.style.backgroundColor = '#e8f5e9'; 
+                    patronManualSelect.style.borderColor = '#2e7d32';
+                    patronManualSelect.style.color = '#1b5e20';
+                    patronManualSelect.style.fontWeight = 'bold';
+                } else {
+                    patronManualSelect.value = '';
+                    patronManualSelect.style.backgroundColor = '';
+                    patronManualSelect.style.borderColor = '';
+                    patronManualSelect.style.color = '';
+                    patronManualSelect.style.fontWeight = 'normal';
+                }
+
                 toggleButtons();
                 
                 if (this.value) {
@@ -268,6 +292,15 @@
                         new bootstrap.Popover(el, { content: html, html: true, trigger: 'hover focus', container: 'body', placement: 'right', sanitize: false });
                     });
                 }
+            });
+
+            // Si se cambia el patrón manualmente, se restablece el estilo visual
+            patronManualSelect.addEventListener('change', function() {
+                this.style.backgroundColor = '';
+                this.style.borderColor = '';
+                this.style.color = '';
+                this.style.fontWeight = 'normal';
+                toggleButtons();
             });
 
             botonesCalculo.forEach(btn => {
@@ -489,3 +522,5 @@
     </script>
     @endpush
 </x-app-layout>
+
+```
