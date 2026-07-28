@@ -233,6 +233,7 @@ class FiniquitoController extends Controller
             'total_dias_descontar' => $totalFaltasSugeridas,
             'monto_sugerido_descuento' => $totalFaltasSugeridas * $salarioDiario
         ];
+        $resultados['debug_asistencias'] = $asistenciasFinales;
         // =========================================================================
 
         $deducciones = DeduccionEmpleado::where('id_empleado', $empleado->id_empleado)->where('status', 'Activo')->get();
