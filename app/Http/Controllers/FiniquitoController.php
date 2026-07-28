@@ -433,10 +433,14 @@ class FiniquitoController extends Controller
                 
                 // CONFIGURACIÓN DE VOCABULARIO SEGÚN EL ESQUEMA
                 if ($esHonorarios) {
-                    $terminoRol = 'PRESTADOR DE SERVICIOS';$reglasVocabulario = "REGLA DE ORO (ANTISIMULACIÓN): El contrato es puramente CIVIL/MERCANTIL. TIENES ESTRICTAMENTE PROHIBIDO usar las siguientes palabras: 'laboral', 'trabajador', 'empleado', 'patrón', 'relación de trabajo', 'despido', 'prestaciones', 'liquidación' o 'Ley Federal del Trabajo'. Transforma cualquier nota del contexto crudo al lenguaje civil. Usa exclusivamente: 'prestador de servicios', 'empresa', 'honorarios', 'servicios independientes', 'incumplimiento contractual' y 'Código Civil'.";
-                    $terminoCierre = 'el pago de los honorarios devengados, otorgando el más amplio finiquito civil, manifestando que no se reserva acción ni derecho alguno de naturaleza civil, mercantil o de seguridad social, extinguiéndose toda obligación.';
+                    $terminoRol = 'PRESTADOR DE SERVICIOS';
+                    $reglasVocabulario = "REGLA DE ORO (ANTISIMULACIÓN): El contrato es puramente CIVIL/MERCANTIL. TIENES ESTRICTAMENTE PROHIBIDO usar las siguientes palabras: 'laboral', 'trabajador', 'empleado', 'patrón', 'relación de trabajo', 'despido', 'prestaciones', 'liquidación', 'finiquito' o 'Ley Federal del Trabajo'. Transforma cualquier nota del contexto crudo al lenguaje civil. Usa exclusivamente: 'prestador de servicios', 'empresa', 'honorarios', 'servicios independientes', 'incumplimiento contractual' y 'Código Civil'.";
+                    
+                    // 🔥 APLICAMOS TU OPCIÓN 1 (BLINDAJE CIVIL PERFECTION)
+                    $terminoCierre = 'el pago total de los honorarios devengados a la fecha. Con la recepción de dicho pago, el PRESTADOR DE SERVICIOS manifiesta encontrarse enteramente satisfecho, otorgando el más amplio deslinde de responsabilidad civil, comercial y mercantil a favor de la empresa, declarando que no subsiste ninguna obligación, adeudo ni reclamación pendiente entre las partes.';
                 } else {
-                    $terminoRol = 'TRABAJADOR';$reglasVocabulario = "REGLA DE ORO: El contrato es de naturaleza LABORAL. Adapta la terminología strictly a la Ley Federal del Trabajo. Usa: 'trabajador', 'patrón', 'relación laboral', 'rescisión', 'despido justificado', 'prestaciones' y 'finiquito'. TIENES ESTRICTAMENTE PROHIBIDO usar palabras como 'honorarios', 'servicios profesionales' o 'prestador de servicios'.";
+                    $terminoRol = 'TRABAJADOR';
+                    $reglasVocabulario = "REGLA DE ORO: El contrato es de naturaleza LABORAL. Adapta la terminología estrictamente a la Ley Federal del Trabajo. Usa: 'trabajador', 'patrón', 'relación laboral', 'rescisión', 'despido justificado', 'prestaciones' y 'finiquito'. TIENES ESTRICTAMENTE PROHIBIDO usar palabras como 'honorarios', 'servicios profesionales' o 'prestador de servicios'.";
                     $terminoCierre = 'el pago del finiquito y/o liquidación laboral de las prestaciones irrenunciables generadas, conforme a la Ley Federal del Trabajo.';
                 }
 
