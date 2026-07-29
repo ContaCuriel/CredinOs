@@ -8,7 +8,7 @@ use App\Models\ListaRayaDetalle;
 use App\Models\NominaTimbrada;
 use App\Models\Sucursal;
 use App\Services\CalculadoraImpuestosService;
-use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class NominaTimbradoController extends Controller
 {
@@ -24,99 +24,102 @@ class NominaTimbradoController extends Controller
      */
     public function index(Request $request)
     {
-        // 1. Cargar Opciones de Periodos (Fotografías Guardadas)
-        $periodosGuardados = ListaRayaPeriodo::orderBy('id_periodo_lista', 'desc')->get();
-        $opcionesPeriodo = $periodosGuardados->map(function ($p) {
-            return [
-                'valor' => $p->id_periodo_lista,
-                'texto' => $p->periodo_rango . ' (' . ($p->sucursal->nombre_sucursal ?? 'Global') . ')'
-            ];
-        });
+        // 1. Opciones Genéricas de Periodo (Homologado con Lista de Raya)
+        $opcionesPeriodo = $this->getOpcionesPeriodo();
 
-        // 2. Cargar Sucursales
-        $sucursales = Sucursal::all();
+        // 2. Cargar Sucursales Activas
+        $sucursales = Sucursal::where('status', 'Activa')->orderBy('nombre_sucursal')->get();
 
-        // Variables de respuesta para la vista
         $resultados = collect();
         $sucursalSeleccionada = null;
 
-        $periodoId = $request->input('periodo');
+        $periodoRango = $request->input('periodo');
         $sucursalId = $request->input('id_sucursal');
-        $modoTrabajo = $request->input('modo_trabajo', 'interna'); // 'interna' o 'fiscal'
-        $baseCalculo = $request->input('base_calculo', 'bruto');  // 'bruto' o 'neto'
+        $modoTrabajo = $request->input('modo_trabajo', 'interna'); 
+        $baseCalculo = $request->input('base_calculo', 'bruto');  
 
-        // 3. Si se seleccionó un periodo e id_sucursal, cargamos los datos
-        if ($periodoId) {
-            $queryDetalles = ListaRayaDetalle::with(['empleado', 'nominaTimbrada', 'periodo'])
-                ->where('id_periodo_lista', $periodoId);
+        // 3. Buscar si se seleccionaron filtros
+        if ($periodoRango && $sucursalId) {
+            
+            // Buscar los encabezados de periodo que coincidan con la quincena elegida
+            $queryPeriodos = ListaRayaPeriodo::where('periodo_rango', $periodoRango);
 
-            if ($sucursalId && $sucursalId !== 'todas') {
-                $queryDetalles->whereHas('empleado', function ($q) use ($sucursalId) {
-                    $q->where('id_sucursal', $sucursalId);
-                });
+            if ($sucursalId !== 'todas') {
+                $queryPeriodos->where('id_sucursal', $sucursalId);
                 $sucursalSeleccionada = Sucursal::find($sucursalId);
+            } else {
+                $sucursalSeleccionada = (object)['nombre_sucursal' => 'Todas las Sucursales (Procesamiento Masivo)'];
             }
 
-            $detalles = $queryDetalles->get();
+            // Obtenemos los IDs de los periodos guardados que coinciden
+            $periodosIds = $queryPeriodos->pluck('id_periodo_lista');
 
-            // 4. Mapear y procesar cada registro según los switches
-            $resultados = $detalles->map(function ($det) use ($modoTrabajo, $baseCalculo) {
-                $emp = $det->empleado;
-                $montoNetoInterno = floatval($det->total_neto);
+            if ($periodosIds->isNotEmpty()) {
+                // Buscamos los detalles de esos periodos
+                $detalles = ListaRayaDetalle::with(['empleado', 'nominaTimbrada', 'periodo'])
+                    ->whereIn('id_periodo_lista', $periodosIds)
+                    ->get();
 
-                // Datos base del empleado
-                $datos = [
-                    'id_detalle_lista'    => $det->id_detalle_lista,
-                    'id_empleado'         => $det->id_empleado,
-                    'empleado_nombre'     => $emp ? ($emp->nombre . ' ' . $emp->apellido_paterno . ' ' . $emp->apellido_materno) : 'Empleado no encontrado',
-                    'puesto'              => $det->puesto_historico ?? ($emp->puesto ?? 'Sin puesto'),
-                    'tipo_contrato'       => $emp->tipo_contrato ?? 'Indeterminado',
-                    'rfc'                 => $emp->rfc ?? null,
-                    'cp_fiscal'           => $emp->cp_fiscal ?? $emp->codigo_postal ?? null,
-                    'retardos_reporte'    => $det->retardos_acumulados ?? 0,
-                    'faltas_reporte'      => $det->faltas_directas ?? 0,
-                    'sueldo_quincenal'    => $det->sueldo_mensual_historico ? ($det->sueldo_mensual_historico / 2) : 0,
-                    'bono_permanencia'    => 0,
-                    'bono_cumpleanos'     => 0,
-                    'prima_vacacional'    => 0,
-                    'deduccion_faltas'    => $det->descuento_por_faltas ?? 0,
-                    'deduccion_prestamo'  => 0,
-                    'deduccion_caja_ahorro' => 0,
-                    'neto_a_pagar'        => $montoNetoInterno,
-                    
-                    // Estado de Timbrado
-                    'estado_timbrado'     => $det->nominaTimbrada->estado_timbrado ?? 'pendiente',
-                    'uuid_cfdi'           => $det->nominaTimbrada->uuid_cfdi ?? null,
-                    'xml_path'            => $det->nominaTimbrada->xml_path ?? null,
-                    'pdf_path'            => $det->nominaTimbrada->pdf_path ?? null,
-                    'mensaje_error_sat'   => $det->nominaTimbrada->mensaje_error_sat ?? null,
-                ];
+                // 4. Mapear y procesar cada registro
+                $resultados = $detalles->map(function ($det) use ($modoTrabajo, $baseCalculo) {
+                    $emp = $det->empleado;
+                    $montoNetoInterno = floatval($det->total_neto);
 
-                // 5. Si estamos en Modo Fiscal, aplicamos la calculadora de impuestos
-                if ($modoTrabajo === 'fiscal') {
-                    $aplicaImss = !in_array(strtolower($emp->tipo_contrato ?? ''), ['honorarios', 'asimilados']);
+                    $datos = [
+                        'id_detalle_lista'    => $det->id_detalle_lista,
+                        'id_empleado'         => $det->id_empleado,
+                        'empleado_nombre'     => $emp ? ($emp->nombre . ' ' . $emp->apellido_paterno . ' ' . $emp->apellido_materno) : 'Empleado no encontrado',
+                        'puesto'              => $det->puesto_historico ?? ($emp->puesto ?? 'Sin puesto'),
+                        'tipo_contrato'       => $emp->tipo_contrato ?? 'Indeterminado',
+                        'rfc'                 => $emp->rfc ?? null,
+                        'cp_fiscal'           => $emp->cp_fiscal ?? $emp->codigo_postal ?? null,
+                        'retardos_reporte'    => $det->retardos_acumulados ?? 0,
+                        'faltas_reporte'      => $det->faltas_directas ?? 0,
+                        'sueldo_quincenal'    => $det->sueldo_mensual_historico ? ($det->sueldo_mensual_historico / 2) : 0,
+                        
+                        // Campos desglosados de la nueva estructura
+                        'bono_permanencia'    => $det->bono_permanencia ?? 0,
+                        'bono_cumpleanos'     => $det->bono_cumpleanos ?? 0,
+                        'prima_vacacional'    => $det->prima_vacacional ?? 0,
+                        'deduccion_faltas'    => $det->descuento_por_faltas ?? 0,
+                        'deduccion_prestamo'  => $det->deduccion_prestamo ?? 0,
+                        'deduccion_caja_ahorro' => $det->deduccion_caja_ahorro ?? 0,
+                        'deduccion_infonavit' => $det->deduccion_infonavit ?? 0,
+                        
+                        'neto_a_pagar'        => $montoNetoInterno,
+                        
+                        // Estado de Timbrado
+                        'estado_timbrado'     => $det->nominaTimbrada->estado_timbrado ?? 'pendiente',
+                        'uuid_cfdi'           => $det->nominaTimbrada->uuid_cfdi ?? null,
+                        'xml_path'            => $det->nominaTimbrada->xml_path ?? null,
+                        'pdf_path'            => $det->nominaTimbrada->pdf_path ?? null,
+                        'mensaje_error_sat'   => $det->nominaTimbrada->mensaje_error_sat ?? null,
+                    ];
 
-                    if ($baseCalculo === 'neto') {
-                        // Búsqueda inversa: Parte del Neto que recibió en la lista de raya
-                        $calculoFiscal = $this->calculadoraImpuestos->calcularDesdeNeto($montoNetoInterno, $aplicaImss);
+                    // Si estamos en Modo Fiscal, aplicamos la calculadora de impuestos
+                    if ($modoTrabajo === 'fiscal') {
+                        $aplicaImss = !in_array(strtolower($emp->tipo_contrato ?? ''), ['honorarios', 'asimilados']);
+
+                        if ($baseCalculo === 'neto') {
+                            $calculoFiscal = $this->calculadoraImpuestos->calcularDesdeNeto($montoNetoInterno, $aplicaImss);
+                        } else {
+                            $sueldoBrutoBase = floatval($det->sueldo_mensual_historico) / 2;
+                            $calculoFiscal = $this->calculadoraImpuestos->calcularDesdeBruto($sueldoBrutoBase, $aplicaImss);
+                        }
+
+                        $datos['sueldo_bruto']   = $calculoFiscal['bruto'];
+                        $datos['deduccion_isr']  = $calculoFiscal['isr'];
+                        $datos['deduccion_imss'] = $calculoFiscal['imss'];
+                        $datos['neto_a_pagar']   = $calculoFiscal['neto'];
                     } else {
-                        // Búsqueda directa: Toma el Sueldo Quincenal como Bruto
-                        $sueldoBrutoBase = floatval($det->sueldo_mensual_historico) / 2;
-                        $calculoFiscal = $this->calculadoraImpuestos->calcularDesdeBruto($sueldoBrutoBase, $aplicaImss);
+                        $datos['sueldo_bruto']   = 0;
+                        $datos['deduccion_isr']  = 0;
+                        $datos['deduccion_imss'] = 0;
                     }
 
-                    $datos['sueldo_bruto']   = $calculoFiscal['bruto'];
-                    $datos['deduccion_isr']  = $calculoFiscal['isr'];
-                    $datos['deduccion_imss'] = $calculoFiscal['imss'];
-                    $datos['neto_a_pagar']   = $calculoFiscal['neto'];
-                } else {
-                    $datos['sueldo_bruto']   = 0;
-                    $datos['deduccion_isr']  = 0;
-                    $datos['deduccion_imss'] = 0;
-                }
-
-                return $datos;
-            });
+                    return $datos;
+                });
+            }
         }
 
         return view('nomina.timbrado.index', compact(
@@ -125,5 +128,36 @@ class NominaTimbradoController extends Controller
             'resultados',
             'sucursalSeleccionada'
         ));
+    }
+
+    /**
+     * Helper para generar las opciones de periodo idéntico a Lista de Raya.
+     */
+    private function getOpcionesPeriodo(): array
+    {
+        $opcionesPeriodo = [];
+        $fechaActual = Carbon::now();
+        for ($i = 0; $i < 13; $i++) {
+            $fecha = $fechaActual->copy()->subMonths($i);
+            
+            // 1ra Quincena
+            $inicioQuincena1 = $fecha->copy()->startOfMonth();
+            $finQuincena1 = $fecha->copy()->startOfMonth()->addDays(14);
+            $valor1 = $inicioQuincena1->toDateString() . '_' . $finQuincena1->toDateString();
+            $texto1 = '1ra Quincena ' . $inicioQuincena1->translatedFormat('F Y');
+            if(!in_array($texto1, array_column($opcionesPeriodo, 'texto'))) {
+                $opcionesPeriodo[] = ['valor' => $valor1, 'texto' => $texto1];
+            }
+            
+            // 2da Quincena
+            $inicioQuincena2 = $fecha->copy()->startOfMonth()->addDays(15);
+            $finQuincena2 = $fecha->copy()->endOfMonth();
+            $valor2 = $inicioQuincena2->toDateString() . '_' . $finQuincena2->toDateString();
+            $texto2 = '2da Quincena ' . $inicioQuincena2->translatedFormat('F Y');
+            if(!in_array($texto2, array_column($opcionesPeriodo, 'texto'))) {
+                 $opcionesPeriodo[] = ['valor' => $valor2, 'texto' => $texto2];
+            }
+        }
+        return $opcionesPeriodo;
     }
 }

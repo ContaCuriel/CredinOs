@@ -23,9 +23,17 @@ class ListaRayaDetalle extends Model
         'retardos_acumulados',
         'faltas_por_retardos',
         'descuento_por_faltas',
-        'otras_deducciones',
-        'percepciones_extra',
-        'total_neto'
+        'otras_deducciones', // Puedes dejar estas por si tienes "Otros" genéricos
+        'percepciones_extra', 
+        'total_neto',
+
+        // 🔥 NUEVOS CAMPOS DESGLOSADOS 🔥
+        'bono_permanencia',
+        'bono_cumpleanos',
+        'prima_vacacional',
+        'deduccion_prestamo',
+        'deduccion_caja_ahorro',
+        'deduccion_infonavit',
     ];
 
     public function periodo()

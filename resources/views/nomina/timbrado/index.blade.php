@@ -33,39 +33,39 @@
                 @endif
 
                 {{-- Formulario de Filtros y Switches --}}
-                <form method="GET" action="{{ route('nomina.timbrado.index') }}" id="form_filtros" class="mb-4 border p-3 rounded bg-light shadow-sm">
-                    <h6 class="mb-3 fw-bold text-secondary"><i class="bi bi-funnel-fill me-1"></i> Parámetros de Consulta</h6>
-                    <div class="row align-items-end g-3 mb-3">
-                        <div class="col-md-5">
-                            <label for="periodo" class="form-label mb-1 small fw-bold">Periodo Guardado (Fotografía): <span class="text-danger">*</span></label>
-                            <select name="periodo" id="periodo" class="form-select form-select-sm" required>
-                                <option value="">Seleccione una quincena guardada...</option>
-                                @foreach ($opcionesPeriodo as $opcion)
-                                    <option value="{{ $opcion['valor'] }}" {{ request('periodo') == $opcion['valor'] ? 'selected' : '' }}>
-                                        {{ $opcion['texto'] }}
-                                    </option>
-                                @endforeach
-                            </select>
+                    <form method="GET" action="{{ route('nomina.timbrado.index') }}" id="form_filtros" class="mb-4 border p-3 rounded bg-light shadow-sm">
+                        <h6 class="mb-3 fw-bold text-secondary"><i class="bi bi-funnel-fill me-1"></i> Parámetros de Consulta</h6>
+                        <div class="row align-items-end g-3 mb-3">
+                            <div class="col-md-5">
+                                <label for="periodo" class="form-label mb-1 small fw-bold">Periodo (Quincena): <span class="text-danger">*</span></label>
+                                <select name="periodo" id="periodo" class="form-select form-select-sm" required>
+                                    <option value="">Seleccione una quincena...</option>
+                                    @foreach ($opcionesPeriodo as $opcion)
+                                        <option value="{{ $opcion['valor'] }}" {{ request('periodo') == $opcion['valor'] ? 'selected' : '' }}>
+                                            {{ $opcion['texto'] }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-5">
+                                <label for="id_sucursal" class="form-label mb-1 small fw-bold">Sucursal: <span class="text-danger">*</span></label>
+                                <select name="id_sucursal" id="id_sucursal" class="form-select form-select-sm" required>
+                                    <option value="">Seleccione una sucursal...</option>
+                                    <option value="todas" {{ request('id_sucursal') == 'todas' ? 'selected' : '' }}>-- Todas las Sucursales (Masivo) --</option>
+                                    @foreach ($sucursales as $sucursal)
+                                        <option value="{{ $sucursal->id_sucursal }}" {{ request('id_sucursal') == $sucursal->id_sucursal ? 'selected' : '' }}>
+                                            {{ $sucursal->nombre_sucursal }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold">
+                                    <i class="bi bi-search me-1"></i> Cargar Datos
+                                </button>
+                            </div>
                         </div>
-                        <div class="col-md-5">
-                            <label for="id_sucursal" class="form-label mb-1 small fw-bold">Sucursal: <span class="text-danger">*</span></label>
-                            <select name="id_sucursal" id="id_sucursal" class="form-select form-select-sm" required>
-                                <option value="">Seleccione una sucursal...</option>
-                                <option value="todas" {{ request('id_sucursal') == 'todas' ? 'selected' : '' }}>-- Todas las Sucursales --</option>
-                                @foreach ($sucursales as $sucursal)
-                                    <option value="{{ $sucursal->id_sucursal }}" {{ request('id_sucursal') == $sucursal->id_sucursal ? 'selected' : '' }}>
-                                        {{ $sucursal->nombre_sucursal }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-2 d-flex align-items-end">
-                            <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold">
-                                <i class="bi bi-search me-1"></i> Cargar Datos
-                            </button>
-                        </div>
-                    </div>
-
+                
                     {{-- Switches de Control Dinámico --}}
                     @if ($resultados && $resultados->isNotEmpty())
                     <hr class="my-3">

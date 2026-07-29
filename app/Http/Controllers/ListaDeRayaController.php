@@ -117,16 +117,10 @@ class ListaDeRayaController extends Controller
                 'status_periodo' => 'Borrador'
             ]);
 
-            // 4. Guardar los nuevos detalles actualizados
+           // 4. Guardar los nuevos detalles actualizados y desglosados para el SAT
             foreach ($resultados as $fila) {
-                $percepcionesExtra = ($fila['bono_permanencia'] ?? 0) + 
-                                     ($fila['bono_cumpleanos'] ?? 0) + 
-                                     ($fila['prima_vacacional'] ?? 0);
-
-                $otrasDeducciones = ($fila['deduccion_prestamo'] ?? 0) + 
-                                    ($fila['deduccion_prevision'] ?? 0) + 
-                                    ($fila['deduccion_caja_ahorro'] ?? 0) + 
-                                    ($fila['deduccion_infonavit'] ?? 0) + 
+                // Lo genérico que aún no tiene columna propia lo mandamos a "otras_deducciones"
+                $otrasDeducciones = ($fila['deduccion_prevision'] ?? 0) + 
                                     ($fila['deduccion_isr'] ?? 0) + 
                                     ($fila['deduccion_imss'] ?? 0) + 
                                     ($fila['deduccion_otro'] ?? 0);
@@ -142,8 +136,17 @@ class ListaDeRayaController extends Controller
                     'retardos_acumulados'      => 0, 
                     'faltas_por_retardos'      => 0, 
                     'descuento_por_faltas'     => $fila['deduccion_faltas'] ?? 0,
-                    'otras_deducciones'        => $otrasDeducciones,
-                    'percepciones_extra'       => $percepcionesExtra,
+                    'otras_deducciones'        => $otrasDeducciones, // Solo genéricos fiscales / otros
+                    'percepciones_extra'       => 0, // Ya no aplastamos los bonos
+                    
+                    // 🔥 NUEVAS COLUMNAS DESGLOSADAS PARA EL SAT 🔥
+                    'bono_permanencia'         => $fila['bono_permanencia'] ?? 0,
+                    'bono_cumpleanos'          => $fila['bono_cumpleanos'] ?? 0,
+                    'prima_vacacional'         => $fila['prima_vacacional'] ?? 0,
+                    'deduccion_prestamo'       => $fila['deduccion_prestamo'] ?? 0,
+                    'deduccion_caja_ahorro'    => $fila['deduccion_caja_ahorro'] ?? 0,
+                    'deduccion_infonavit'      => $fila['deduccion_infonavit'] ?? 0,
+                    
                     'total_neto'               => $fila['neto_a_pagar'] ?? 0,
                 ]);
             }
