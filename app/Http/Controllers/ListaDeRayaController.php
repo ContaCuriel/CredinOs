@@ -117,12 +117,10 @@ class ListaDeRayaController extends Controller
                 'status_periodo' => 'Borrador'
             ]);
 
-           // 4. Guardar los nuevos detalles actualizados y desglosados para el SAT
+            // 4. Guardar los nuevos detalles actualizados y desglosados para el SAT
             foreach ($resultados as $fila) {
-                // Lo genérico que aún no tiene columna propia lo mandamos a "otras_deducciones"
+                // 🔥 AHORA SOLO LA PREVISIÓN Y "OTROS" SE VAN A LA BOLSA GENÉRICA
                 $otrasDeducciones = ($fila['deduccion_prevision'] ?? 0) + 
-                                    ($fila['deduccion_isr'] ?? 0) + 
-                                    ($fila['deduccion_imss'] ?? 0) + 
                                     ($fila['deduccion_otro'] ?? 0);
 
                 \App\Models\ListaRayaDetalle::create([
@@ -136,16 +134,18 @@ class ListaDeRayaController extends Controller
                     'retardos_acumulados'      => 0, 
                     'faltas_por_retardos'      => 0, 
                     'descuento_por_faltas'     => $fila['deduccion_faltas'] ?? 0,
-                    'otras_deducciones'        => $otrasDeducciones, // Solo genéricos fiscales / otros
+                    'otras_deducciones'        => $otrasDeducciones, // Solo genéricos
                     'percepciones_extra'       => 0, // Ya no aplastamos los bonos
                     
-                    // 🔥 NUEVAS COLUMNAS DESGLOSADAS PARA EL SAT 🔥
+                    // 🔥 COLUMNAS DESGLOSADAS PARA EL SAT 🔥
                     'bono_permanencia'         => $fila['bono_permanencia'] ?? 0,
                     'bono_cumpleanos'          => $fila['bono_cumpleanos'] ?? 0,
                     'prima_vacacional'         => $fila['prima_vacacional'] ?? 0,
                     'deduccion_prestamo'       => $fila['deduccion_prestamo'] ?? 0,
                     'deduccion_caja_ahorro'    => $fila['deduccion_caja_ahorro'] ?? 0,
                     'deduccion_infonavit'      => $fila['deduccion_infonavit'] ?? 0,
+                    'deduccion_isr'            => $fila['deduccion_isr'] ?? 0,  // NUEVO
+                    'deduccion_imss'           => $fila['deduccion_imss'] ?? 0, // NUEVO
                     
                     'total_neto'               => $fila['neto_a_pagar'] ?? 0,
                 ]);

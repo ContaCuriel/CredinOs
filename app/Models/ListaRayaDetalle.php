@@ -34,6 +34,8 @@ class ListaRayaDetalle extends Model
         'deduccion_prestamo',
         'deduccion_caja_ahorro',
         'deduccion_infonavit',
+        'deduccion_isr', 
+        'deduccion_imss',
     ];
 
     public function periodo()

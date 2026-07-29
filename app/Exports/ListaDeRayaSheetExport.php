@@ -6,7 +6,7 @@ use App\Models\Empleado;
 use App\Models\Asistencia;
 use App\Models\DeduccionEmpleado;
 use App\Models\Sucursal;
-use App\Models\AsistenciaCierre; // 🔥 IMPORTAMOS LA TABLA PUENTE
+use App\Models\AsistenciaCierre;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -79,7 +79,7 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                     'puesto' => $detalle->puesto_historico,
                     'sueldo_quincenal' => (float)($detalle->sueldo_diario_historico * $detalle->dias_periodo), 
                     
-                    // 🔥 AQUÍ ESTÁ LA MAGIA: LEEMOS LAS COLUMNAS NUEVAS DE LA BD 🔥
+                    // 🔥 LEYENDO COLUMNAS DESGLOSADAS DE LA BASE DE DATOS 🔥
                     'bono_permanencia' => (float)($detalle->bono_permanencia ?? 0), 
                     'bono_cumpleanos' => (float)($detalle->bono_cumpleanos ?? 0),
                     'prima_vacacional' => (float)($detalle->prima_vacacional ?? 0), 
@@ -93,17 +93,19 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                     
                     'deduccion_faltas' => (float)($detalle->descuento_por_faltas ?? 0),
                     'deduccion_prestamo' => (float)($detalle->deduccion_prestamo ?? 0), 
-                    'deduccion_prevision' => 0, // Está agrupado en "otras_deducciones" fiscalmente
+                    'deduccion_prevision' => 0, // En histórico está agrupado en "otras_deducciones"
                     'deduccion_caja_ahorro' => (float)($detalle->deduccion_caja_ahorro ?? 0), 
                     'deduccion_infonavit' => (float)($detalle->deduccion_infonavit ?? 0),
-                    'deduccion_isr' => 0, 
-                    'deduccion_imss' => 0, 
+                    'deduccion_isr' => (float)($detalle->deduccion_isr ?? 0),  // 🔥 AHORA SÍ LEE EL ISR
+                    'deduccion_imss' => (float)($detalle->deduccion_imss ?? 0), // 🔥 AHORA SÍ LEE EL IMSS
                     'deduccion_otro' => (float)($detalle->otras_deducciones ?? 0),
                     'total_deducciones' => (float)(
                         ($detalle->descuento_por_faltas ?? 0) + 
                         ($detalle->deduccion_prestamo ?? 0) + 
                         ($detalle->deduccion_caja_ahorro ?? 0) + 
                         ($detalle->deduccion_infonavit ?? 0) + 
+                        ($detalle->deduccion_isr ?? 0) + 
+                        ($detalle->deduccion_imss ?? 0) + 
                         ($detalle->otras_deducciones ?? 0)
                     ), 
                     
@@ -120,13 +122,11 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
         $fechaInicioPeriodo = Carbon::parse($fechaInicioStr);
         $fechaFinPeriodo = Carbon::parse($fechaFinStr);
 
-        // 🔥 Agregamos el 'horario' a la consulta para calcular los castigos
         $empleados = Empleado::where('status', 'Alta')
             ->where('id_sucursal', $this->sucursal_id)
             ->with(['puesto', 'horario'])
             ->get();
 
-        // 🔥 Obtenemos TODOS los cierres de asistencia de esta quincena en un solo query
         $cierresAsistencia = AsistenciaCierre::where('periodo', $this->periodo)
             ->where('id_sucursal', $this->sucursal_id)
             ->get()
@@ -178,14 +178,11 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             $retardosCrudos = $cierre ? $cierre->retardos : 0; // Para la Columna D
             $faltasCrudas = $cierre ? (float)$cierre->faltas : 0; // Para la Columna E
             
-            // Calculamos si sus retardos le generaron faltas extra (por si la regla es 3 = 1)
             $reglaRetardos = $empleado->horario ? ($empleado->horario->retardos_por_falta ?? 0) : 0;
             $faltasPorRetardos = $reglaRetardos > 0 ? floor($retardosCrudos / $reglaRetardos) : 0;
             
-            // Días totales a descontar monetariamente
             $diasADescontar = $faltasCrudas + $faltasPorRetardos;
 
-            // 🔥 CANDADO DE FECHAS APLICADO AQUÍ
             $deduccionesActivas = DeduccionEmpleado::where('id_empleado', $empleado->id_empleado)
                 ->where('status', 'Activo')
                 ->whereDate('fecha_solicitud', '<=', $fechaFinPeriodo->toDateString())
@@ -193,7 +190,6 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
 
             $deduccionFaltasManuales = $deduccionesActivas->where('tipo_deduccion', 'Retardo/Falta Manual')->sum('monto_quincenal');
             
-            // Multiplicamos por su sueldo diario (Columna K)
             $deduccionFaltas = ($diasADescontar * $salarioDiario) + $deduccionFaltasManuales;
             // ---------------------------------------------------------
 
@@ -215,10 +211,9 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                 'sueldo_diario' => $salarioDiario,
                 'dias_periodo' => $diasAPagar,
                 
-                // 🔥 Valores inyectados para las columnas D y E
                 'retardos_reporte' => $retardosCrudos,
                 'faltas_reporte' => $faltasCrudas,
-                'faltas_por_retardos_historico' => $faltasPorRetardos, // Por si se ocupa en el controlador
+                'faltas_por_retardos_historico' => $faltasPorRetardos, 
                 
                 'empleado_nombre' => strtoupper($empleado->nombre_completo),
                 'fecha_ingreso' => $empleado->fecha_ingreso,
@@ -273,7 +268,6 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             $filaResultado['fecha_ingreso'] ? Carbon::parse($filaResultado['fecha_ingreso'])->format('d/m/Y') : 'N/A',
             $filaResultado['puesto'],
             
-            // 🔥 AQUÍ IMPRIMIMOS LAS COLUMNAS D Y E
             $filaResultado['retardos_reporte'], // D (Retardos)
             $filaResultado['faltas_reporte'],   // E (Faltas)
             
