@@ -47,6 +47,8 @@ class PermissionSeeder extends Seeder
                 'ver-vacaciones', 'registrar-vacaciones',
                 'ver-deducciones', 'crear-deducciones', 'editar-deducciones', 'eliminar-deducciones',
                 'ver-lista-raya', 'exportar-lista-raya',
+                // 🔥 NUEVOS PERMISOS PARA NÓMINA FISCAL 🔥
+                'ver-timbrado', 'ejecutar-timbrado', 'configurar-timbrado',
                 'ver-finiquitos', 'calcular-finiquitos', 'exportar-finiquitos',
                 'ver-gestion-imss', 'tramitar-imss',
                 'ver-aguinaldo', 'calcular-aguinaldo', 'exportar-aguinaldo',

@@ -37,7 +37,8 @@ use App\Http\Controllers\ReconciliationController;
 use App\Http\Controllers\Api\CodigoPostalController;
 use App\Models\CodigoPostal;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Http\Request; 
+use Illuminate\Http\Request;
+use App\Http\Controllers\NominaTimbradoController; 
 
 /*
 |--------------------------------------------------------------------------
@@ -130,6 +131,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/lista-de-raya/configuracion', [ListaDeRayaController::class, 'guardarConfiguracion'])->name('lista_raya.configuracion');
         Route::post('/lista-de-raya/guardar-historico', [ListaDeRayaController::class, 'guardarHistorico'])->name('lista_raya.guardar_historico');
         Route::post('/lista-de-raya/eliminar-borrador', [ListaDeRayaController::class, 'eliminarBorrador'])->name('lista_raya.eliminar_borrador');
+        Route::get('/nomina/timbrado', [NominaTimbradoController::class, 'index'])->name('nomina.timbrado.index');
+
 
         // Finiquitos y Liquidaciones
         Route::get('/finiquitos', [FiniquitoController::class, 'index'])->name('finiquitos.index')->middleware('can:ver-finiquitos');

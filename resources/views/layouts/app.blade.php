@@ -138,6 +138,14 @@
                         @can('ver-vacaciones')<li class="nav-item"><a class="nav-link {{ request()->routeIs('vacaciones.*') ? 'active' : '' }}" href="{{ route('vacaciones.index') }}"><i class="bi bi-briefcase-fill"></i> Vacaciones</a></li>@endcan
                         @can('ver-deducciones')<li class="nav-item"><a class="nav-link {{ request()->routeIs('deducciones.*') ? 'active' : '' }}" href="{{ route('deducciones.index') }}"><i class="bi bi-wallet2"></i> Deducciones</a></li>@endcan
                         @can('ver-lista-raya')<li class="nav-item"><a class="nav-link {{ request()->routeIs('lista_de_raya.*') ? 'active' : '' }}" href="{{ route('lista_de_raya.index') }}"><i class="bi bi-file-spreadsheet"></i> Lista de Raya</a></li>@endcan
+                        {{-- 🔥 MÓDULO: TIMBRADO DE NÓMINA 🔥 --}}
+@can('ver-timbrado')
+<li class="nav-item">
+    <a class="nav-link {{ request()->routeIs('nomina.timbrado.*') ? 'active' : '' }}" href="{{ route('nomina.timbrado.index') }}">
+        <i class="bi bi-receipt-cutoff"></i> Timbrado CFDI
+    </a>
+</li>
+@endcan
                         @can('ver-finiquitos')<li class="nav-item"><a class="nav-link {{ request()->routeIs('finiquitos.*') ? 'active' : '' }}" href="{{ route('finiquitos.index') }}"><i class="bi bi-person-x"></i> Finiquitos y Liquidaciones</a></li>@endcan
                         @can('ver-gestion-imss')<li class="nav-item"><a class="nav-link {{ request()->routeIs('imss.*') ? 'active' : '' }}" href="{{ route('imss.index') }}"><i class="bi bi-shield-check"></i> Gestión IMSS</a></li>@endcan
                         @can('ver-renuncias')
