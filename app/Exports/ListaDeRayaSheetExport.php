@@ -71,7 +71,6 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                     'sueldo_diario' => (float)$detalle->sueldo_diario_historico,
                     'dias_periodo' => $detalle->dias_periodo,
                     
-                    // 🔥 Leemos los valores del histórico
                     'retardos_reporte' => $detalle->retardos_acumulados ?? 0,
                     'faltas_reporte' => $detalle->faltas_directas ?? 0,
                     
@@ -80,20 +79,33 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                     'puesto' => $detalle->puesto_historico,
                     'sueldo_quincenal' => (float)($detalle->sueldo_diario_historico * $detalle->dias_periodo), 
                     
-                    'bono_permanencia' => 0, 
-                    'bono_cumpleanos' => 0,
-                    'prima_vacacional' => (float)$detalle->percepciones_extra, 
-                    'total_percepciones' => (float)(($detalle->sueldo_diario_historico * $detalle->dias_periodo) + $detalle->percepciones_extra), 
+                    // 🔥 AQUÍ ESTÁ LA MAGIA: LEEMOS LAS COLUMNAS NUEVAS DE LA BD 🔥
+                    'bono_permanencia' => (float)($detalle->bono_permanencia ?? 0), 
+                    'bono_cumpleanos' => (float)($detalle->bono_cumpleanos ?? 0),
+                    'prima_vacacional' => (float)($detalle->prima_vacacional ?? 0), 
+                    'total_percepciones' => (float)(
+                        ($detalle->sueldo_diario_historico * $detalle->dias_periodo) + 
+                        ($detalle->bono_permanencia ?? 0) + 
+                        ($detalle->bono_cumpleanos ?? 0) + 
+                        ($detalle->prima_vacacional ?? 0) + 
+                        ($detalle->percepciones_extra ?? 0)
+                    ), 
                     
-                    'deduccion_faltas' => (float)$detalle->descuento_por_faltas,
-                    'deduccion_prestamo' => 0, 
-                    'deduccion_prevision' => 0, 
-                    'deduccion_caja_ahorro' => 0, 
-                    'deduccion_infonavit' => 0,
+                    'deduccion_faltas' => (float)($detalle->descuento_por_faltas ?? 0),
+                    'deduccion_prestamo' => (float)($detalle->deduccion_prestamo ?? 0), 
+                    'deduccion_prevision' => 0, // Está agrupado en "otras_deducciones" fiscalmente
+                    'deduccion_caja_ahorro' => (float)($detalle->deduccion_caja_ahorro ?? 0), 
+                    'deduccion_infonavit' => (float)($detalle->deduccion_infonavit ?? 0),
                     'deduccion_isr' => 0, 
                     'deduccion_imss' => 0, 
-                    'deduccion_otro' => (float)$detalle->otras_deducciones,
-                    'total_deducciones' => (float)($detalle->descuento_por_faltas + $detalle->otras_deducciones), 
+                    'deduccion_otro' => (float)($detalle->otras_deducciones ?? 0),
+                    'total_deducciones' => (float)(
+                        ($detalle->descuento_por_faltas ?? 0) + 
+                        ($detalle->deduccion_prestamo ?? 0) + 
+                        ($detalle->deduccion_caja_ahorro ?? 0) + 
+                        ($detalle->deduccion_infonavit ?? 0) + 
+                        ($detalle->otras_deducciones ?? 0)
+                    ), 
                     
                     'neto_a_pagar' => (float)$detalle->total_neto,
                 ]);
