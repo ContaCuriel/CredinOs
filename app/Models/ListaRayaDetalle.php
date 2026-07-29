@@ -37,4 +37,9 @@ class ListaRayaDetalle extends Model
     {
         return $this->belongsTo(Empleado::class, 'id_empleado', 'id_empleado');
     }
+
+    public function nominaTimbrada()
+    {
+        return $this->hasOne(NominaTimbrada::class, 'id_detalle_lista', 'id_detalle_lista');
+    }
 }
