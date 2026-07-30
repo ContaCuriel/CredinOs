@@ -201,8 +201,9 @@ class PatronController extends Controller
 
         $folder = "csd/patron_{$patron->id_patron}";
         
-        $cerPath = $request->file('csd_cer')->store($folder, 'private');
-        $keyPath = $request->file('csd_key')->store($folder, 'private');
+        // Usamos el disco 'local' que es privado por defecto en Laravel
+        $cerPath = $request->file('csd_cer')->store($folder, 'local');
+        $keyPath = $request->file('csd_key')->store($folder, 'local');
         $csdPassword = $request->csd_password;
 
         // Lectura de la vigencia del certificado
@@ -222,8 +223,9 @@ class PatronController extends Controller
             'csd_expires_at' => $expiresAt,
         ]);
 
-        $cerContent = Storage::disk('private')->get($cerPath);
-        $keyContent = Storage::disk('private')->get($keyPath);
+        // Leemos con el disco 'local'
+        $cerContent = Storage::disk('local')->get($cerPath);
+        $keyContent = Storage::disk('local')->get($keyPath);
 
         // Envío a Facturama API-Lite
         $response = $facturama->uploadCsd($patron->rfc, $cerContent, $keyContent, $csdPassword);
