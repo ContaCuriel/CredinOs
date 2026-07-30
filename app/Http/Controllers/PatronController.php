@@ -6,6 +6,8 @@ use App\Models\Patron;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage; // Para manejar archivos (logo)
 use Illuminate\Support\Str;              // Para generar nombres de archivo
+use App\Services\FacturamaService;
+use Carbon\Carbon;
 
 class PatronController extends Controller
 {
@@ -48,6 +50,11 @@ class PatronController extends Controller
             'actividad_principal' => 'nullable|string|max:500',
             'representante_legal' => 'nullable|string|max:255',
             'logo_path' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            
+            // 🔥 NUEVOS CAMPOS FISCALES OBLIGATORIOS PARA CFDI 4.0
+            'registro_patronal' => 'nullable|string|max:20',
+            'regimen_fiscal' => 'required|string|max:5',
+            'codigo_postal' => 'required|string|size:5',
         ]);
 
         if ($request->hasFile('logo_path')) {
@@ -132,6 +139,57 @@ class PatronController extends Controller
         $patron->save();
 
         return redirect()->route('patrones.index')->with('success', 'Logo actualizado exitosamente.');
+    }
+
+    /**
+     * Sube el CSD de un Patrón a Facturama y lo guarda en el sistema Multi-tenant.
+     */
+    public function storeCsd(Request $request, Patron $patron, FacturamaService $facturama)
+    {
+        $request->validate([
+            'csd_cer' => 'required|file|extensions:cer',
+            'csd_key' => 'required|file|extensions:key',
+            'csd_password' => 'required|string',
+        ]);
+
+        // Guardamos los archivos de forma segura por tenant y patrón
+        $tenantId = tenant('id') ?? 'global';
+        $folder = "csd/{$tenantId}/patron_{$patron->id_patron}";
+        
+        $cerPath = $request->file('csd_cer')->store($folder, 'private');
+        $keyPath = $request->file('csd_key')->store($folder, 'private');
+        $csdPassword = $request->csd_password;
+
+        // 🧠 LECTURA AUTOMÁTICA DE LA CADUCIDAD DEL CSD
+        $cerContentRaw = file_get_contents($request->file('csd_cer')->getRealPath());
+        $pemContent = "-----BEGIN CERTIFICATE-----\n" . chunk_split(base64_encode($cerContentRaw), 64, "\n") . "-----END CERTIFICATE-----\n";
+        
+        $certInfo = openssl_x509_parse($pemContent);
+        $expiresAt = null;
+        if ($certInfo && isset($certInfo['validTo_time_t'])) {
+            $expiresAt = Carbon::createFromTimestamp($certInfo['validTo_time_t']);
+        }
+
+        // Actualizamos la base de datos del patrón
+        $patron->update([
+            'csd_cer_path' => $cerPath,
+            'csd_key_path' => $keyPath,
+            'csd_password' => $csdPassword,
+            'csd_expires_at' => $expiresAt,
+        ]);
+
+        // Leemos los archivos y los enviamos a Facturama
+        $cerContent = Storage::disk('private')->get($cerPath);
+        $keyContent = Storage::disk('private')->get($keyPath);
+
+        $response = $facturama->uploadCsd($patron->rfc, $cerContent, $keyContent, $csdPassword);
+
+        if ($response->failed()) {
+            return back()->with('error', 'Falló la sincronización con Facturama. Detalles: ' . $response->body());
+        }
+
+        return redirect()->route('patrones.index')
+                         ->with('success', '¡Certificados (CSD) sincronizados con Facturama! Caducidad: ' . ($expiresAt ? $expiresAt->format('d/m/Y') : 'Desconocida'));
     }
 }
 

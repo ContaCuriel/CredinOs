@@ -244,6 +244,7 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/patrones/{patron}/logo', [PatronController::class, 'editLogo'])->name('patrones.logo.edit');
         Route::post('/patrones/{patron}/logo', [PatronController::class, 'updateLogo'])->name('patrones.logo.update');
+        Route::post('patrones/{patron}/csd', [App\Http\Controllers\PatronController::class, 'storeCsd'])->name('patrones.csd.store');
 
         Route::resource('patrones', PatronController::class)->middleware([
             'can:ver-patrones',
