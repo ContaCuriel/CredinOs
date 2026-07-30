@@ -101,6 +101,7 @@ Route::middleware('auth')->group(function () {
         Route::resource('empleados', EmpleadoController::class)->middleware('can:ver-empleados');
         Route::get('/empleados/{empleado}/historial-contratos', [EmpleadoController::class, 'historialContratos'])->name('empleados.contratos.historial')->middleware('can:ver-contratos');
         Route::put('/empleados/{empleado}/reactivar', [EmpleadoController::class, 'reactivar'])->name('empleados.reactivar')->middleware('can:editar-empleados');
+        Route::post('/empleados/{empleado}/datos-fiscales', [App\Http\Controllers\EmpleadoController::class, 'updateDatosFiscales'])->name('empleados.datosFiscales');
 
         // Contratos
         Route::resource('contratos', ContratoController::class)->middleware('can:ver-contratos');

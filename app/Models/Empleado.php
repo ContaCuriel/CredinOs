@@ -19,6 +19,7 @@ class Empleado extends Model
 
     protected $fillable = [
         'nombre_completo',
+        'nombre_fiscal',
         'id_puesto',
         'id_sucursal',
         'status',
@@ -28,6 +29,8 @@ class Empleado extends Model
         'sexo',
         'estado_civil',
         'direccion',
+        'cp_fiscal',
+        'regimen_fiscal',
         'telefono',
         'curp',
         'rfc',

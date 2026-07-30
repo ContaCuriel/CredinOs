@@ -243,4 +243,33 @@ class EmpleadoController extends Controller
 
         return view('empleados.historial_contratos', compact('empleado', 'contratos'));
     }
+
+    public function updateDatosFiscales(Request $request, Empleado $empleado)
+    {
+        // Validamos los datos que vienen del modal
+        $request->validate([
+            'nombre_fiscal' => 'required|string|max:255',
+            'rfc' => 'required|string|size:13',
+            'curp' => 'required|string|size:18',
+            'nss' => 'required|string|size:11',
+            'cp_fiscal' => 'required|string|size:5',
+            'regimen_fiscal' => 'required|string|size:3',
+        ]);
+
+        // Actualizamos los campos fiscales + RFC, CURP y NSS
+        $empleado->update([
+            'nombre_fiscal'  => strtoupper($request->nombre_fiscal),
+            'rfc'            => strtoupper($request->rfc),
+            'curp'           => strtoupper($request->curp),
+            'nss'            => $request->nss,
+            'cp_fiscal'      => $request->cp_fiscal,
+            'regimen_fiscal' => $request->regimen_fiscal,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Datos fiscales actualizados correctamente.',
+            'empleado' => $empleado
+        ]);
+    }
 }

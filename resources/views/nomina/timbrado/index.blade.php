@@ -185,7 +185,7 @@
                                         @foreach($resultados as $resultado)
                                             @php
                                                 $hasRfcCp = !empty($resultado['rfc']) && !empty($resultado['cp_fiscal']);
-                                                $alreadyTimbrado = $resultado['estado_timbrado'] === 'timbrado';
+                                                $alreadyTimbrado = isset($resultado['estado_timbrado']) && $resultado['estado_timbrado'] === 'timbrado';
                                             @endphp
                                             <tr class="{{ $isFiscal && (!$hasRfcCp || $alreadyTimbrado) ? 'row-disabled' : '' }}">
                                                 @if($isFiscal)
@@ -194,7 +194,7 @@
                                                     </td>
                                                     <td class="text-center">
                                                         @if($alreadyTimbrado)
-                                                            <span class="badge bg-primary" data-bs-toggle="tooltip" title="UUID: {{ $resultado['uuid_cfdi'] }}"><i class="bi bi-patch-check-fill"></i> Timbrado</span>
+                                                            <span class="badge bg-primary" data-bs-toggle="tooltip" title="UUID: {{ $resultado['uuid_cfdi'] ?? '' }}"><i class="bi bi-patch-check-fill"></i> Timbrado</span>
                                                         @elseif($hasRfcCp)
                                                             <span class="badge bg-success"><i class="bi bi-check-circle"></i> Listo</span>
                                                         @else
@@ -208,41 +208,60 @@
                                                     <br>
                                                     <small class="text-muted">
                                                         {{ $resultado['puesto'] }} | 
-                                                        <span class="text-primary">{{ $resultado['tipo_contrato'] }}</span>
+                                                        <span class="text-primary">{{ $resultado['tipo_contrato'] ?? 'N/A' }}</span>
                                                     </small>
+                                                    
+                                                    {{-- BOTÓN DEL PANEL FISCAL --}}
+                                                    @if($isFiscal && !$alreadyTimbrado)
+                                                        <br>
+                                                        <button type="button" class="btn btn-sm btn-outline-danger mt-1 py-0 px-2 btn-editar-fiscal" 
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#modalDatosFiscales"
+                                                            data-id="{{ $resultado['id_empleado'] }}"
+                                                            data-nombre="{{ $resultado['empleado_nombre'] }}"
+                                                            data-nombrefiscal="{{ $resultado['nombre_fiscal'] ?? '' }}"
+                                                            data-rfc="{{ $resultado['rfc'] ?? '' }}"
+                                                            data-curp="{{ $resultado['curp'] ?? '' }}"
+                                                            data-nss="{{ $resultado['nss'] ?? '' }}"
+                                                            data-cp="{{ $resultado['cp_fiscal'] ?? '' }}"
+                                                            data-regimen="{{ $resultado['regimen_fiscal'] ?? '605' }}">
+                                                            <i class="bi bi-person-lines-fill"></i> Completar Datos Fiscales
+                                                        </button>
+                                                    @endif
+                                                    
                                                     @if(!empty($resultado['mensaje_error_sat']))
                                                         <br><small class="text-danger fw-bold"><i class="bi bi-x-circle me-1"></i>{{ $resultado['mensaje_error_sat'] }}</small>
                                                     @endif
                                                 </td>
                                                 
-                                                <td class="text-center fw-bold text-secondary bg-light">{{ $resultado['retardos_reporte'] }}</td>
-                                                <td class="text-center fw-bold text-danger bg-light">{{ $resultado['faltas_reporte'] }}</td>
+                                                <td class="text-center fw-bold text-secondary bg-light">{{ $resultado['retardos_reporte'] ?? 0 }}</td>
+                                                <td class="text-center fw-bold text-danger bg-light">{{ $resultado['faltas_reporte'] ?? 0 }}</td>
                                                 
                                                 {{-- Percepciones --}}
-                                                <td class="text-end fw-bold">$ {{ number_format($isFiscal ? $resultado['sueldo_bruto'] : $resultado['sueldo_quincenal'], 2) }}</td>
-                                                @if($showBonoPerm) <td class="text-end text-success">$ {{ number_format($resultado['bono_permanencia'], 2) }}</td> @endif
-                                                @if($showBonoCump) <td class="text-end text-success">$ {{ number_format($resultado['bono_cumpleanos'], 2) }}</td> @endif
-                                                @if($showPrimaVac) <td class="text-end text-success">$ {{ number_format($resultado['prima_vacacional'], 2) }}</td> @endif
+                                                <td class="text-end fw-bold">$ {{ number_format($isFiscal ? ($resultado['sueldo_bruto'] ?? 0) : ($resultado['sueldo_quincenal'] ?? 0), 2) }}</td>
+                                                @if($showBonoPerm) <td class="text-end text-success">$ {{ number_format($resultado['bono_permanencia'] ?? 0, 2) }}</td> @endif
+                                                @if($showBonoCump) <td class="text-end text-success">$ {{ number_format($resultado['bono_cumpleanos'] ?? 0, 2) }}</td> @endif
+                                                @if($showPrimaVac) <td class="text-end text-success">$ {{ number_format($resultado['prima_vacacional'] ?? 0, 2) }}</td> @endif
                                                 
                                                 {{-- Deducciones --}}
-                                                @if($showDedFaltas) <td class="text-end text-danger">($ {{ number_format($resultado['deduccion_faltas'], 2) }})</td> @endif
-                                                @if($showPrestamo) <td class="text-end text-danger">($ {{ number_format($resultado['deduccion_prestamo'], 2) }})</td> @endif
-                                                @if($showCajaAhorro) <td class="text-end text-danger">($ {{ number_format($resultado['deduccion_caja_ahorro'], 2) }})</td> @endif
-                                                @if($showInfonavit) <td class="text-end text-danger">($ {{ number_format($resultado['deduccion_infonavit'], 2) }})</td> @endif
-                                                @if($showIsr) <td class="text-end text-danger fw-bold">($ {{ number_format($resultado['deduccion_isr'], 2) }})</td> @endif
-                                                @if($showImss) <td class="text-end text-danger fw-bold">($ {{ number_format($resultado['deduccion_imss'], 2) }})</td> @endif
+                                                @if($showDedFaltas) <td class="text-end text-danger">($ {{ number_format($resultado['deduccion_faltas'] ?? 0, 2) }})</td> @endif
+                                                @if($showPrestamo) <td class="text-end text-danger">($ {{ number_format($resultado['deduccion_prestamo'] ?? 0, 2) }})</td> @endif
+                                                @if($showCajaAhorro) <td class="text-end text-danger">($ {{ number_format($resultado['deduccion_caja_ahorro'] ?? 0, 2) }})</td> @endif
+                                                @if($showInfonavit) <td class="text-end text-danger">($ {{ number_format($resultado['deduccion_infonavit'] ?? 0, 2) }})</td> @endif
+                                                @if($showIsr) <td class="text-end text-danger fw-bold">($ {{ number_format($resultado['deduccion_isr'] ?? 0, 2) }})</td> @endif
+                                                @if($showImss) <td class="text-end text-danger fw-bold">($ {{ number_format($resultado['deduccion_imss'] ?? 0, 2) }})</td> @endif
                                                 
                                                 {{-- Neto --}}
-                                                <td class="text-end fw-bold fs-6 text-primary">$ {{ number_format($resultado['neto_a_pagar'], 2) }}</td>
+                                                <td class="text-end fw-bold fs-6 text-primary">$ {{ number_format($resultado['neto_a_pagar'] ?? 0, 2) }}</td>
 
                                                 @if($isFiscal)
                                                     <td class="text-center">
                                                         @if($alreadyTimbrado)
                                                             <div class="btn-group btn-group-sm" role="group">
-                                                                @if($resultado['xml_path'])
+                                                                @if(!empty($resultado['xml_path']))
                                                                     <a href="{{ Storage::url($resultado['xml_path']) }}" class="btn btn-outline-secondary" target="_blank" title="Descargar XML"><i class="bi bi-filetype-xml"></i></a>
                                                                 @endif
-                                                                @if($resultado['pdf_path'])
+                                                                @if(!empty($resultado['pdf_path']))
                                                                     <a href="{{ Storage::url($resultado['pdf_path']) }}" class="btn btn-outline-danger" target="_blank" title="Descargar PDF"><i class="bi bi-filetype-pdf"></i></a>
                                                                 @endif
                                                             </div>
@@ -277,6 +296,67 @@
                         @endif
                     </form>
                 @endif
+            </div>
+        </div>
+    </div>
+
+    {{-- Modal de Datos Fiscales del Empleado --}}
+    <div class="modal fade" id="modalDatosFiscales" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white py-2">
+                    <h5 class="modal-title fs-6"><i class="bi bi-person-badge me-2"></i>Datos Fiscales (CFDI 4.0)</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="formDatosFiscales">
+                    @csrf
+                    <div class="modal-body">
+                        <div class="alert alert-info py-2 small">
+                            <i class="bi bi-info-circle-fill me-1"></i> Estos datos deben coincidir exactamente con la Constancia de Situación Fiscal (CSF) del trabajador.
+                        </div>
+                        
+                        <input type="hidden" id="fiscal_empleado_id" name="empleado_id">
+                        
+                        <div class="mb-2">
+                            <label class="form-label fw-bold small mb-1">Nombre Exacto del SAT (Sin Régimen Capital)</label>
+                            <input type="text" class="form-control form-control-sm text-uppercase" id="fiscal_nombre" name="nombre_fiscal" required placeholder="EJ: JUAN PEREZ LOPEZ">
+                        </div>
+                        
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label fw-bold small mb-1">RFC</label>
+                                <input type="text" class="form-control form-control-sm text-uppercase" id="fiscal_rfc" name="rfc" maxlength="13" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-bold small mb-1">CURP</label>
+                                <input type="text" class="form-control form-control-sm text-uppercase" id="fiscal_curp" name="curp" maxlength="18" required>
+                            </div>
+                        </div>
+
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label fw-bold small mb-1">Número de Seguro Social</label>
+                                <input type="text" class="form-control form-control-sm" id="fiscal_nss" name="nss" maxlength="11" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-bold small mb-1">C.P. Fiscal (SAT)</label>
+                                <input type="text" class="form-control form-control-sm" id="fiscal_cp" name="cp_fiscal" maxlength="5" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label fw-bold small mb-1">Régimen Fiscal</label>
+                            <select class="form-select form-select-sm" id="fiscal_regimen" name="regimen_fiscal" required>
+                                <option value="605">605 - Sueldos y Salarios e Ingresos Asimilados</option>
+                                <option value="612">612 - Personas Físicas con Actividades Empresariales y Profesionales</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer py-1">
+                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary btn-sm" id="btnGuardarFiscal">Guardar y Validar</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -322,9 +402,76 @@
 
             // Tooltips Bootstrap
             var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            tooltipTriggerList.map(function (tooltipTriggerEl) {
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
                 return new bootstrap.Tooltip(tooltipTriggerEl);
             });
+
+            // --- LÓGICA DEL PANEL FISCAL ---
+            
+            // 1. Llenar el modal con los datos del empleado al abrirlo
+            const modalFiscal = document.getElementById('modalDatosFiscales');
+            if (modalFiscal) {
+                modalFiscal.addEventListener('show.bs.modal', function (event) {
+                    const button = event.relatedTarget; // Botón que abrió el modal
+                    
+                    // Extraemos la información de los data-attributes
+                    const id = button.getAttribute('data-id');
+                    const nombreRh = button.getAttribute('data-nombre');
+                    const nombreFiscal = button.getAttribute('data-nombrefiscal');
+                    
+                    // Si no tiene nombre fiscal aún, le sugerimos el de RH
+                    document.getElementById('fiscal_empleado_id').value = id;
+                    document.getElementById('fiscal_nombre').value = nombreFiscal ? nombreFiscal : nombreRh.toUpperCase();
+                    document.getElementById('fiscal_rfc').value = button.getAttribute('data-rfc');
+                    document.getElementById('fiscal_curp').value = button.getAttribute('data-curp');
+                    document.getElementById('fiscal_nss').value = button.getAttribute('data-nss');
+                    document.getElementById('fiscal_cp').value = button.getAttribute('data-cp');
+                    document.getElementById('fiscal_regimen').value = button.getAttribute('data-regimen') || '605';
+                });
+            }
+
+            // 2. Enviar los datos por AJAX
+            const formDatosFiscales = document.getElementById('formDatosFiscales');
+            if(formDatosFiscales) {
+                formDatosFiscales.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    const empleadoId = document.getElementById('fiscal_empleado_id').value;
+                    const btnSubmit = document.getElementById('btnGuardarFiscal');
+                    const formData = new FormData(this);
+                    
+                    // Cambiar estado del botón a cargando
+                    btnSubmit.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Guardando...';
+                    btnSubmit.disabled = true;
+
+                    // Petición AJAX (Fetch API) a la ruta que creamos
+                    fetch(`/empleados/${empleadoId}/datos-fiscales`, {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value
+                        },
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Recargamos la página para que Laravel evalúe de nuevo el status y quite el botón rojo
+                            window.location.reload();
+                        } else {
+                            alert('Ocurrió un error al guardar. Verifique los datos.');
+                            btnSubmit.innerHTML = 'Guardar y Validar';
+                            btnSubmit.disabled = false;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Error de conexión. Intente nuevamente.');
+                        btnSubmit.innerHTML = 'Guardar y Validar';
+                        btnSubmit.disabled = false;
+                    });
+                });
+            }
         });
     </script>
     @endpush

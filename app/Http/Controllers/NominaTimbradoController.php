@@ -68,11 +68,19 @@ class NominaTimbradoController extends Controller
                     $datos = [
                         'id_detalle_lista'    => $det->id_detalle_lista,
                         'id_empleado'         => $det->id_empleado,
-                        'empleado_nombre'     => $emp ? ($emp->nombre . ' ' . $emp->apellido_paterno . ' ' . $emp->apellido_materno) : 'Empleado no encontrado',
-                        'puesto'              => $det->puesto_historico ?? ($emp->puesto ?? 'Sin puesto'),
+                        // Corregido a nombre_completo según el modelo Empleado
+                        'empleado_nombre'     => $emp ? $emp->nombre_completo : 'Empleado no encontrado',
+                        'puesto'              => $det->puesto_historico ?? ($emp->puesto->nombre_puesto ?? 'Sin puesto'),
                         'tipo_contrato'       => $emp->tipo_contrato ?? 'Indeterminado',
+                        
+                        // 🔥 DATOS FISCALES AÑADIDOS PARA EL MODAL 🔥
+                        'nombre_fiscal'       => $emp->nombre_fiscal ?? null,
                         'rfc'                 => $emp->rfc ?? null,
+                        'curp'                => $emp->curp ?? null,
+                        'nss'                 => $emp->nss ?? null,
                         'cp_fiscal'           => $emp->cp_fiscal ?? $emp->codigo_postal ?? null,
+                        'regimen_fiscal'      => $emp->regimen_fiscal ?? '605',
+                        
                         'retardos_reporte'    => $det->retardos_acumulados ?? 0,
                         'faltas_reporte'      => $det->faltas_directas ?? 0,
                         'sueldo_quincenal'    => $det->sueldo_mensual_historico ? ($det->sueldo_mensual_historico / 2) : 0,
