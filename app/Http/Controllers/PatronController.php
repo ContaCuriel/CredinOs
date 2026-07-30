@@ -199,14 +199,13 @@ class PatronController extends Controller
             'csd_password' => 'required|string',
         ]);
 
-        // Guardamos los archivos de forma segura organizados por id_patron
         $folder = "csd/patron_{$patron->id_patron}";
         
         $cerPath = $request->file('csd_cer')->store($folder, 'private');
         $keyPath = $request->file('csd_key')->store($folder, 'private');
         $csdPassword = $request->csd_password;
 
-        // 🧠 LECTURA AUTOMÁTICA DE LA CADUCIDAD DEL CSD
+        // Lectura de la vigencia del certificado
         $cerContentRaw = file_get_contents($request->file('csd_cer')->getRealPath());
         $pemContent = "-----BEGIN CERTIFICATE-----\n" . chunk_split(base64_encode($cerContentRaw), 64, "\n") . "-----END CERTIFICATE-----\n";
         
@@ -216,7 +215,6 @@ class PatronController extends Controller
             $expiresAt = Carbon::createFromTimestamp($certInfo['validTo_time_t']);
         }
 
-        // Actualizamos la base de datos del patrón
         $patron->update([
             'csd_cer_path' => $cerPath,
             'csd_key_path' => $keyPath,
@@ -224,11 +222,10 @@ class PatronController extends Controller
             'csd_expires_at' => $expiresAt,
         ]);
 
-        // Leemos el contenido real de los archivos guardados
         $cerContent = Storage::disk('private')->get($cerPath);
         $keyContent = Storage::disk('private')->get($keyPath);
 
-        // Subimos a Facturama
+        // Envío a Facturama API-Lite
         $response = $facturama->uploadCsd($patron->rfc, $cerContent, $keyContent, $csdPassword);
 
         if ($response->failed()) {
@@ -236,7 +233,7 @@ class PatronController extends Controller
         }
 
         return redirect()->route('patrones.index')
-                         ->with('success', '¡Certificados (CSD) cargados correctamente en Facturama! Caducidad: ' . ($expiresAt ? $expiresAt->format('d/m/Y') : 'Desconocida'));
+                         ->with('success', '¡Certificados (CSD) sincronizados con Facturama! Caducidad: ' . ($expiresAt ? $expiresAt->format('d/m/Y') : 'Desconocida'));
     }
 }
 
