@@ -79,7 +79,6 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                     'puesto' => $detalle->puesto_historico,
                     'sueldo_quincenal' => (float)($detalle->sueldo_diario_historico * $detalle->dias_periodo), 
                     
-                    // 🔥 LEYENDO COLUMNAS DESGLOSADAS DE LA BASE DE DATOS 🔥
                     'bono_permanencia' => (float)($detalle->bono_permanencia ?? 0), 
                     'bono_cumpleanos' => (float)($detalle->bono_cumpleanos ?? 0),
                     'prima_vacacional' => (float)($detalle->prima_vacacional ?? 0), 
@@ -93,18 +92,18 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                     
                     'deduccion_faltas' => (float)($detalle->descuento_por_faltas ?? 0),
                     'deduccion_prestamo' => (float)($detalle->deduccion_prestamo ?? 0), 
-                    'deduccion_prevision' => 0, // En histórico está agrupado en "otras_deducciones"
+                    'deduccion_prevision' => (float)($detalle->deduccion_prevision ?? 0), 
+                    'deduccion_fija'      => (float)($detalle->deduccion_fija ?? 0),
                     'deduccion_caja_ahorro' => (float)($detalle->deduccion_caja_ahorro ?? 0), 
                     'deduccion_infonavit' => (float)($detalle->deduccion_infonavit ?? 0),
-                    'deduccion_isr' => (float)($detalle->deduccion_isr ?? 0),  // 🔥 AHORA SÍ LEE EL ISR
-                    'deduccion_imss' => (float)($detalle->deduccion_imss ?? 0), // 🔥 AHORA SÍ LEE EL IMSS
-                    'deduccion_prevision' => (float)$deduccionPrevision, 
-                'deduccion_fija'      => (float)$deduccionFija, // AÑADIDO
-                'deduccion_caja_ahorro' => (float)$deduccionCajaAhorro,
+                    'deduccion_isr' => (float)($detalle->deduccion_isr ?? 0), 
+                    'deduccion_imss' => (float)($detalle->deduccion_imss ?? 0), 
                     'deduccion_otro' => (float)($detalle->otras_deducciones ?? 0),
                     'total_deducciones' => (float)(
                         ($detalle->descuento_por_faltas ?? 0) + 
                         ($detalle->deduccion_prestamo ?? 0) + 
+                        ($detalle->deduccion_prevision ?? 0) + 
+                        ($detalle->deduccion_fija ?? 0) + 
                         ($detalle->deduccion_caja_ahorro ?? 0) + 
                         ($detalle->deduccion_infonavit ?? 0) + 
                         ($detalle->deduccion_isr ?? 0) + 
@@ -234,6 +233,7 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                 'deduccion_infonavit' => (float)$deduccionInfonavit,
                 'deduccion_isr' => (float)$deduccionISR, 
                 'deduccion_imss' => (float)$deduccionIMSS, 
+                'deduccion_fija' => (float)$deduccionFija, 
                 'deduccion_otro' => (float)$deduccionOtro,
                 'total_deducciones' => (float)$totalDeducciones, 
                 'neto_a_pagar' => (float)$netoAPagar,
@@ -251,7 +251,7 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             'Empleado', 'Fecha Ingreso', 'Puesto',
             'R', 'F',
             'Sueldo Quincenal', 'Bono Permanencia', 'Bono Cumpleaños', 'Prima Vacacional',
-            'Total Percepciones', 'Ded. Faltas', 'Ded. Préstamo', 'Ded. Previsión', 'Ded. Caja Ahorro', 'Ded. Infonavit', 'Ded. ISR', 'Ded. IMSS', 'Ded. Otros',
+            'Total Percepciones', 'Ded. Faltas', 'Ded. Préstamo', 'Ded. Previsión', 'Ded. Fija', 'Ded. Caja Ahorro', 'Ded. Infonavit', 'Ded. ISR', 'Ded. IMSS', 'Ded. Otros',
             'Total Deducciones', 'Neto a Pagar',
         ];
     }
@@ -263,9 +263,10 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
 
         $rangoPercepciones    = "F{$filaActual}:I{$filaActual}";
         $colTotalPercepciones   = "J{$filaActual}";
-        $rangoDeducciones       = "K{$filaActual}:R{$filaActual}";
-        $colTotalDeducciones    = "S{$filaActual}";
-        $colNeto                = "T{$filaActual}";
+        // La columna Deducciones ahora va de K a S
+        $rangoDeducciones       = "K{$filaActual}:S{$filaActual}";
+        $colTotalDeducciones    = "T{$filaActual}";
+        $colNeto                = "U{$filaActual}";
 
         return [
             $filaResultado['empleado_nombre'],
@@ -283,20 +284,21 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             (float) $filaResultado['deduccion_faltas'],      // K
             (float) $filaResultado['deduccion_prestamo'],    // L
             (float) $filaResultado['deduccion_prevision'],   // M 
-            (float) $filaResultado['deduccion_caja_ahorro'], // N
-            (float) $filaResultado['deduccion_infonavit'],   // O
-            (float) $filaResultado['deduccion_isr'],         // P
-            (float) $filaResultado['deduccion_imss'],        // Q
-            (float) $filaResultado['deduccion_otro'],        // R
-            "=SUM({$rangoDeducciones})",                      // S
-            "={$colTotalPercepciones}-{$colTotalDeducciones}", // T
+            (float) $filaResultado['deduccion_fija'],        // N
+            (float) $filaResultado['deduccion_caja_ahorro'], // O
+            (float) $filaResultado['deduccion_infonavit'],   // P
+            (float) $filaResultado['deduccion_isr'],         // Q
+            (float) $filaResultado['deduccion_imss'],        // R
+            (float) $filaResultado['deduccion_otro'],        // S
+            "=SUM({$rangoDeducciones})",                      // T
+            "={$colTotalPercepciones}-{$colTotalDeducciones}", // U
         ];
     }
 
     public function columnFormats(): array
     {
         return [
-            'F:T' => '"$" #,##0.00;[Red]-"$" #,##0.00;"$" 0.00',
+            'F:U' => '"$" #,##0.00;[Red]-"$" #,##0.00;"$" 0.00',
             'B' => NumberFormat::FORMAT_DATE_DDMMYYYY 
         ];
     }
@@ -313,7 +315,7 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                 $tituloCompleto = 'NÓMINA ' . $this->periodoTexto;
                 $sheet->setCellValue('A1', $tituloCompleto);
                 
-                $lastColumn = 'T'; 
+                $lastColumn = 'U'; 
                 $sheet->mergeCells('A1:'.$lastColumn.'1');
                 $sheet->getStyle('A1')->applyFromArray([
                     'font' => ['bold' => true, 'size' => 14],
@@ -325,7 +327,7 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF4F81BD']]
                 ]);
                 
-                $sheet->getStyle('K2:S2')->applyFromArray([ 
+                $sheet->getStyle('K2:T2')->applyFromArray([ 
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFD9534F']]
                 ]);
 
@@ -343,7 +345,7 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                     $totalsRow = $lastDataRow + 2;
                     $sheet->setCellValue("A{$totalsRow}", 'TOTALES:');
 
-                    $columnsToSum = ['F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T'];
+                    $columnsToSum = ['F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U'];
                     foreach ($columnsToSum as $column) {
                         $sheet->setCellValue("{$column}{$totalsRow}", "=SUM({$column}3:{$column}{$lastDataRow})");
                     }
@@ -358,8 +360,8 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                     
                     $columnsToCheck = [
                         'G' => 'Bono Permanencia', 'H' => 'Bono Cumpleaños', 'I' => 'Prima Vacacional',
-                        'K' => 'Ded. Faltas', 'L' => 'Ded. Préstamo', 'M' => 'Ded. Previsión', 'N' => 'Ded. Caja Ahorro',
-                        'O' => 'Ded. Infonavit', 'P' => 'Ded. ISR', 'Q' => 'Ded. IMSS', 'R' => 'Ded. Otros'
+                        'K' => 'Ded. Faltas', 'L' => 'Ded. Préstamo', 'M' => 'Ded. Previsión', 'N' => 'Ded. Fija', 'O' => 'Ded. Caja Ahorro',
+                        'P' => 'Ded. Infonavit', 'Q' => 'Ded. ISR', 'R' => 'Ded. IMSS', 'S' => 'Ded. Otros'
                     ];
 
                     foreach ($columnsToCheck as $columnLetter => $columnName) {
