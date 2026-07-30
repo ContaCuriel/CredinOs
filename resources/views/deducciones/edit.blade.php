@@ -17,7 +17,7 @@
                     </div>
                 @endif
 
-                <form action="{{ route('deducciones.update', $deduccion->id) }}" method="POST">
+                <form action="{{ route('deducciones.update', $deduccion->id_deduccion ?? $deduccion->id) }}" method="POST">
                     @csrf
                     @method('PUT')
 
@@ -40,7 +40,7 @@
 
                     <div class="mb-3">
                         <label for="fecha_solicitud" class="form-label">Fecha de Inicio de la Deducción <span class="text-danger">*</span></label>
-                        <input type="date" class="form-control @error('fecha_solicitud') is-invalid @enderror" id="fecha_solicitud" name="fecha_solicitud" value="{{ old('fecha_solicitud', $deduccion->fecha_solicitud->format('Y-m-d')) }}" required>
+                        <input type="date" class="form-control @error('fecha_solicitud') is-invalid @enderror" id="fecha_solicitud" name="fecha_solicitud" value="{{ old('fecha_solicitud', \Carbon\Carbon::parse($deduccion->fecha_solicitud)->format('Y-m-d')) }}" required>
                         @error('fecha_solicitud') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                     
@@ -55,14 +55,19 @@
                                 @error('monto_quincenal') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                             </div>
 
-                            <div class="col-md-4 mb-3" id="campo_plazo" style="display: none;">
+                            {{-- Verificamos si es Préstamo o Previsión para mostrarlo al cargar --}}
+                            @php
+                                $aplicaPlazo = in_array(old('tipo_deduccion', $deduccion->tipo_deduccion), ['Préstamo', 'Previsión']);
+                            @endphp
+
+                            <div class="col-md-4 mb-3" id="campo_plazo" style="{{ $aplicaPlazo ? 'display: block;' : 'display: none;' }}">
                                 <label for="plazo_quincenas" class="form-label">Plazo (en quincenas)</label>
                                 <input type="number" class="form-control @error('plazo_quincenas') is-invalid @enderror" id="plazo_quincenas" name="plazo_quincenas" value="{{ old('plazo_quincenas', $deduccion->plazo_quincenas) }}" min="1">
                                 @error('plazo_quincenas') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
 
-                            <div class="col-md-4 mb-3" id="campo_monto_total" style="display: none;">
-                                <label for="monto_total_display" class="form-label">Monto Total del Préstamo (calculado)</label>
+                            <div class="col-md-4 mb-3" id="campo_monto_total" style="{{ $aplicaPlazo ? 'display: block;' : 'display: none;' }}">
+                                <label for="monto_total_display" class="form-label">Monto Total (calculado)</label>
                                 <div class="input-group">
                                     <span class="input-group-text">$</span>
                                     <input type="text" class="form-control" id="monto_total_display" value="{{ old('monto_total_prestamo', $deduccion->monto_total_prestamo) }}" readonly>
@@ -104,7 +109,6 @@
     </div>
 
     @push('scripts')
-        {{-- Reutilizamos el mismo script de la vista de creación --}}
         <script>
             document.addEventListener('DOMContentLoaded', function () {
                 const tipoDeduccionSelect = document.getElementById('tipo_deduccion');
@@ -116,7 +120,8 @@
 
                 function toggleCamposPrestamo() {
                     const tipoSeleccionado = tipoDeduccionSelect.value;
-                    if (tipoSeleccionado === 'Préstamo') {
+                    // 🔥 AHORA EVALÚA PRÉSTAMO Y PREVISIÓN 🔥
+                    if (tipoSeleccionado === 'Préstamo' || tipoSeleccionado === 'Previsión') {
                         campoPlazo.style.display = 'block';
                         plazoInput.setAttribute('required', 'required');
                         campoMontoTotal.style.display = 'block';
@@ -128,7 +133,8 @@
                 }
 
                 function calcularMontoTotalPrestamo() {
-                    if (tipoDeduccionSelect.value === 'Préstamo') {
+                    const tipoSeleccionado = tipoDeduccionSelect.value;
+                    if (tipoSeleccionado === 'Préstamo' || tipoSeleccionado === 'Previsión') {
                         const montoPago = parseFloat(montoPagoInput.value) || 0;
                         const plazo = parseInt(plazoInput.value) || 0;
                         if (montoPago > 0 && plazo > 0) {
