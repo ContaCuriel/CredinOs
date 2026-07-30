@@ -23,8 +23,9 @@
         AVISO DE TERMINACIÓN DE RELACIÓN JURÍDICA POR VENCIMIENTO DE TÉRMINO
     </div>
 
+    {{-- 🔥 CAMBIO AQUÍ: Ahora usa la variable $fecha_final_formateada que ustedes ingresan --}}
     <p class="text-end fw-bold">
-        {{ $empleado->sucursal->municipio ?? 'Municipio No Especificado' }}, {{ $empleado->sucursal->estado ?? 'Estado No Especificado' }} a {{ \Carbon\Carbon::parse($empleado->fecha_baja)->translatedFormat('d \d\e F \d\e Y') }}.
+        {{ $empleado->sucursal->municipio ?? 'Municipio No Especificado' }}, {{ $empleado->sucursal->estado ?? 'Estado No Especificado' }} a {{ $fecha_final_formateada ?? '' }}.
     </p>
 
     <div class="mt-2">
