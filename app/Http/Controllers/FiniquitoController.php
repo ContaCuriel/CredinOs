@@ -330,7 +330,7 @@ class FiniquitoController extends Controller
         return Storage::disk('public')->response($empleado->finiquito_firmado_path);
     }
 
-    public function generarAvisoTerminacion($id_empleado)
+    public function generarAvisoTerminacion(Request $request, $id_empleado)
     {
         $empleado = \App\Models\Empleado::with(['sucursal', 'puesto', 'contratos' => function($query) {
             $query->latest('fecha_inicio'); 
@@ -348,7 +348,16 @@ class FiniquitoController extends Controller
             return back()->with('error', 'El contrato del empleado no tiene un patrón (empresa) asignado.');
         }
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('documentos.generales.aviso_terminacion', compact('empleado', 'contrato', 'patron'));
+        // 🔥 OBTENEMOS LA FECHA FINAL (si viene por URL/Formulario, si no del contrato o baja)
+        $fechaFinalInput = $request->input('fecha_final') 
+            ?? $request->input('fecha_baja') 
+            ?? $contrato->fecha_fin 
+            ?? $empleado->fecha_baja 
+            ?? now();
+
+        $fecha_final_formateada = \Carbon\Carbon::parse($fechaFinalInput)->translatedFormat('d \d\e F \d\e Y');
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('documentos.generales.aviso_terminacion', compact('empleado', 'contrato', 'patron', 'fecha_final_formateada'));
         
         return $pdf->stream("Aviso_Terminacion_" . \Illuminate\Support\Str::slug($empleado->nombre_completo) . ".pdf");
     }
