@@ -61,18 +61,24 @@
                                                 <i class="bi bi-image"></i>
                                             </a>
                                             
-                                            {{-- NUEVO BOTÓN: Subir CSD --}}
+                                            {{-- BOTÓN: Subir CSD --}}
                                             <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalCSD_{{ $patron->id_patron }}" title="Subir Certificados SAT">
                                                 <i class="bi bi-shield-lock-fill"></i> CSD
                                             </button>
 
-                                            {{-- Botones originales --}}
-                                            <a href="#" class="btn btn-sm btn-info disabled" title="Editar Patrón Completo">
+                                            {{-- BOTÓN: Editar Patrón --}}
+                                            <a href="{{ route('patrones.edit', $patron->id_patron) }}" class="btn btn-sm btn-info" title="Editar Patrón Completo">
                                                 <i class="bi bi-pencil-square"></i>
                                             </a>
-                                            <button type="button" class="btn btn-sm btn-danger disabled" title="Eliminar Patrón">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
+
+                                            {{-- BOTÓN: Eliminar Patrón --}}
+                                            <form action="{{ route('patrones.destroy', $patron->id_patron) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este patrón? Esta acción no se puede deshacer.');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn btn-sm btn-danger" title="Eliminar Patrón">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
                                         </div>
 
                                         {{-- Indicador visual de si tiene CSD --}}

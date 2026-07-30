@@ -246,9 +246,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/patrones/{patron}/logo', [PatronController::class, 'updateLogo'])->name('patrones.logo.update');
         Route::post('patrones/{patron}/csd', [App\Http\Controllers\PatronController::class, 'storeCsd'])->name('patrones.csd.store');
 
-        Route::resource('patrones', PatronController::class)->middleware([
-            'can:ver-patrones',
-        ]);
+        // 🔥 CORRECCIÓN AQUÍ: Agregamos parameters para evitar el problema de "patrone"
+        Route::resource('patrones', PatronController::class)
+            ->parameters(['patrones' => 'patron'])
+            ->middleware(['can:ver-patrones']);
         
         Route::resource('horarios', HorarioController::class)->middleware('can:ver-horarios');
         Route::resource('categorias', CategoriaController::class)->except(['show']);

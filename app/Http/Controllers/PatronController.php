@@ -82,7 +82,7 @@ class PatronController extends Controller
      */
     public function edit(Patron $patron)
     {
-        // Esta función está actualmente deshabilitada por el problema de las rutas.
+        return view('patrones.edit', compact('patron'));
     }
 
     /**
@@ -90,7 +90,40 @@ class PatronController extends Controller
      */
     public function update(Request $request, Patron $patron)
     {
-        // Esta función está actualmente deshabilitada.
+        $validatedData = $request->validate([
+            'nombre_comercial' => 'required|string|max:255',
+            // OJO: Le decimos a Laravel que ignore el RFC y Razón Social de ESTE mismo patrón para que no marque error de duplicado
+            'razon_social' => 'required|string|max:255|unique:patrones,razon_social,' . $patron->id_patron . ',id_patron',
+            'tipo_persona' => 'required|string|in:fisica,moral',
+            'rfc' => 'required|string|max:13|unique:patrones,rfc,' . $patron->id_patron . ',id_patron',
+            'direccion_fiscal' => 'nullable|string|max:1000',
+            'actividad_principal' => 'nullable|string|max:500',
+            'representante_legal' => 'nullable|string|max:255',
+            'logo_path' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            
+            // CAMPOS FISCALES CFDI 4.0
+            'registro_patronal' => 'nullable|string|max:20',
+            'regimen_fiscal' => 'required|string|max:5',
+            'codigo_postal' => 'required|string|size:5',
+        ]);
+
+        // Manejo del reemplazo de logo
+        if ($request->hasFile('logo_path')) {
+            // Si ya tenía un logo, lo borramos del servidor para no dejar basura
+            if ($patron->logo_path) {
+                Storage::disk('public')->delete($patron->logo_path);
+            }
+
+            $logoNombre = Str::slug($validatedData['razon_social']) . '_' . time() . '.' . $request->file('logo_path')->getClientOriginalExtension();
+            $path = $request->file('logo_path')->storeAs('patron_logos', $logoNombre, 'public');
+            $validatedData['logo_path'] = $path;
+        }
+
+        // Actualizamos en base de datos
+        $patron->update($validatedData);
+
+        return redirect()->route('patrones.index')
+                         ->with('success', '¡Patrón actualizado exitosamente!');
     }
 
     /**
@@ -98,7 +131,21 @@ class PatronController extends Controller
      */
     public function destroy(Patron $patron)
     {
-        // Esta función está actualmente deshabilitada.
+        try {
+            // Si tiene un logo, lo borramos de la carpeta
+            if ($patron->logo_path) {
+                Storage::disk('public')->delete($patron->logo_path);
+            }
+            
+            $patron->delete();
+            
+            return redirect()->route('patrones.index')
+                             ->with('success', '¡Patrón eliminado exitosamente!');
+        } catch (\Exception $e) {
+            // Protegemos el sistema: si el patrón ya tiene contratos o empleados, la BD no dejará borrarlo.
+            return redirect()->route('patrones.index')
+                             ->with('error', 'No se puede eliminar el patrón porque tiene contratos, recibos o empleados asociados.');
+        }
     }
 
     // --- NUEVOS MÉTODOS PARA MANEJAR EL LOGO ---
