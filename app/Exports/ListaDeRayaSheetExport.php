@@ -98,6 +98,9 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
                     'deduccion_infonavit' => (float)($detalle->deduccion_infonavit ?? 0),
                     'deduccion_isr' => (float)($detalle->deduccion_isr ?? 0),  // 🔥 AHORA SÍ LEE EL ISR
                     'deduccion_imss' => (float)($detalle->deduccion_imss ?? 0), // 🔥 AHORA SÍ LEE EL IMSS
+                    'deduccion_prevision' => (float)$deduccionPrevision, 
+                'deduccion_fija'      => (float)$deduccionFija, // AÑADIDO
+                'deduccion_caja_ahorro' => (float)$deduccionCajaAhorro,
                     'deduccion_otro' => (float)($detalle->otras_deducciones ?? 0),
                     'total_deducciones' => (float)(
                         ($detalle->descuento_por_faltas ?? 0) + 
@@ -199,9 +202,10 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             $deduccionInfonavit = $deduccionesActivas->where('tipo_deduccion', 'Infonavit')->sum('monto_quincenal');
             $deduccionISR = $deduccionesActivas->where('tipo_deduccion', 'ISR')->sum('monto_quincenal');
             $deduccionIMSS = $deduccionesActivas->where('tipo_deduccion', 'IMSS')->sum('monto_quincenal');
-            $deduccionOtro = $deduccionesActivas->whereIn('tipo_deduccion', ['Otro', 'Fijo Sin Plazo'])->sum('monto_quincenal');
+            $deduccionFija = $deduccionesActivas->where('tipo_deduccion', 'Fijo Sin Plazo')->sum('monto_quincenal');
+            $deduccionOtro = $deduccionesActivas->where('tipo_deduccion', 'Otro')->sum('monto_quincenal');
             
-            $totalDeducciones = $deduccionFaltas + $deduccionPrestamo + $deduccionPrevision + $deduccionCajaAhorro + $deduccionInfonavit + $deduccionISR + $deduccionIMSS + $deduccionOtro;
+            $totalDeducciones = $deduccionFaltas + $deduccionPrestamo + $deduccionPrevision + $deduccionCajaAhorro + $deduccionInfonavit + $deduccionISR + $deduccionIMSS + $deduccionFija + $deduccionOtro;
 
             $netoAPagar = $totalPercepciones - $totalDeducciones;
 

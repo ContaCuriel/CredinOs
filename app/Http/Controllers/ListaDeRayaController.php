@@ -119,10 +119,6 @@ class ListaDeRayaController extends Controller
 
             // 4. Guardar los nuevos detalles actualizados y desglosados para el SAT
             foreach ($resultados as $fila) {
-                // 🔥 AHORA SOLO LA PREVISIÓN Y "OTROS" SE VAN A LA BOLSA GENÉRICA
-                $otrasDeducciones = ($fila['deduccion_prevision'] ?? 0) + 
-                                    ($fila['deduccion_otro'] ?? 0);
-
                 \App\Models\ListaRayaDetalle::create([
                     'id_periodo_lista'         => $periodo->id_periodo_lista,
                     'id_empleado'              => $fila['id_empleado'] ?? 0, 
@@ -130,22 +126,29 @@ class ListaDeRayaController extends Controller
                     'sueldo_diario_historico'  => ($fila['sueldo_quincenal'] ?? 0) / 15,
                     'puesto_historico'         => $fila['puesto'] ?? 'General',
                     'dias_periodo'             => $fila['dias_periodo'] ?? 15, 
-                    'faltas_directas'          => $fila['faltas_directas'] ?? 0, 
-                    'retardos_acumulados'      => 0, 
-                    'faltas_por_retardos'      => 0, 
+                    'faltas_directas'          => $fila['faltas_reporte'] ?? 0, 
+                    'retardos_acumulados'      => $fila['retardos_reporte'] ?? 0, 
+                    'faltas_por_retardos'      => $fila['faltas_por_retardos_historico'] ?? 0, 
                     'descuento_por_faltas'     => $fila['deduccion_faltas'] ?? 0,
-                    'otras_deducciones'        => $otrasDeducciones, // Solo genéricos
-                    'percepciones_extra'       => 0, // Ya no aplastamos los bonos
                     
-                    // 🔥 COLUMNAS DESGLOSADAS PARA EL SAT 🔥
+                    // Solo guardamos "Otro" puro (no previsión)
+                    'otras_deducciones'        => $fila['deduccion_otro'] ?? 0, 
+                    'percepciones_extra'       => 0,
+                    
+                    // 🔥 COLUMNAS DESGLOSADAS 🔥
                     'bono_permanencia'         => $fila['bono_permanencia'] ?? 0,
                     'bono_cumpleanos'          => $fila['bono_cumpleanos'] ?? 0,
                     'prima_vacacional'         => $fila['prima_vacacional'] ?? 0,
                     'deduccion_prestamo'       => $fila['deduccion_prestamo'] ?? 0,
+                    
+                    // 👉 SEPARADAS CORRECTAMENTE
+                    'deduccion_prevision'      => $fila['deduccion_prevision'] ?? 0,
+                    'deduccion_fija'           => $fila['deduccion_fija'] ?? 0,
+                    
                     'deduccion_caja_ahorro'    => $fila['deduccion_caja_ahorro'] ?? 0,
                     'deduccion_infonavit'      => $fila['deduccion_infonavit'] ?? 0,
-                    'deduccion_isr'            => $fila['deduccion_isr'] ?? 0,  // NUEVO
-                    'deduccion_imss'           => $fila['deduccion_imss'] ?? 0, // NUEVO
+                    'deduccion_isr'            => $fila['deduccion_isr'] ?? 0,  
+                    'deduccion_imss'           => $fila['deduccion_imss'] ?? 0, 
                     
                     'total_neto'               => $fila['neto_a_pagar'] ?? 0,
                 ]);

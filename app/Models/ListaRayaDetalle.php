@@ -36,6 +36,8 @@ class ListaRayaDetalle extends Model
         'deduccion_infonavit',
         'deduccion_isr', 
         'deduccion_imss',
+        'deduccion_prevision',
+        'deduccion_fija',
     ];
 
     public function periodo()
