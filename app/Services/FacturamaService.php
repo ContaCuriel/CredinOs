@@ -22,25 +22,16 @@ class FacturamaService
     public function uploadCsd(string $rfc, string $cerContent, string $keyContent, string $password)
     {
         $payload = [
-            'Rfc' => $rfc,
             'Certificate' => base64_encode($cerContent),
             'PrivateKey' => base64_encode($keyContent),
             'PrivateKeyPassword' => $password,
         ];
 
-        // 1. Intentamos ACTUALIZAR el certificado primero (Petición PUT)
-        $response = Http::withoutVerifying()
+        // Se envía a /TaxEntity/UploadCsd de Facturama
+        return Http::timeout(40)
+            ->withoutVerifying()
             ->withBasicAuth($this->apiUser, $this->apiPassword)
-            ->put($this->apiUrl . "/api-lite/csds/{$rfc}", $payload);
-
-        // 2. Si Facturama responde con un error, lo CREAMOS (Petición POST)
-        if ($response->failed()) {
-            $response = Http::withoutVerifying()
-                ->withBasicAuth($this->apiUser, $this->apiPassword)
-                ->post($this->apiUrl . '/api-lite/csds', $payload);
-        }
-
-        return $response;
+            ->put($this->apiUrl . '/TaxEntity/UploadCsd', $payload);
     }
 
     public function createInvoice(array $invoiceData)

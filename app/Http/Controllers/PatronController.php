@@ -188,8 +188,8 @@ class PatronController extends Controller
         return redirect()->route('patrones.index')->with('success', 'Logo actualizado exitosamente.');
     }
 
-    /**
-     * Sube el CSD de un Patrón a Facturama y lo guarda en el sistema Multi-tenant.
+   /**
+     * Sube el CSD de un Patrón a Facturama y lo guarda en el servidor.
      */
     public function storeCsd(Request $request, Patron $patron, FacturamaService $facturama)
     {
@@ -199,9 +199,8 @@ class PatronController extends Controller
             'csd_password' => 'required|string',
         ]);
 
-        // Guardamos los archivos de forma segura por tenant y patrón
-        $tenantId = tenant('id') ?? 'global';
-        $folder = "csd/{$tenantId}/patron_{$patron->id_patron}";
+        // Guardamos los archivos de forma segura organizados por id_patron
+        $folder = "csd/patron_{$patron->id_patron}";
         
         $cerPath = $request->file('csd_cer')->store($folder, 'private');
         $keyPath = $request->file('csd_key')->store($folder, 'private');
@@ -225,10 +224,11 @@ class PatronController extends Controller
             'csd_expires_at' => $expiresAt,
         ]);
 
-        // Leemos los archivos y los enviamos a Facturama
+        // Leemos el contenido real de los archivos guardados
         $cerContent = Storage::disk('private')->get($cerPath);
         $keyContent = Storage::disk('private')->get($keyPath);
 
+        // Subimos a Facturama
         $response = $facturama->uploadCsd($patron->rfc, $cerContent, $keyContent, $csdPassword);
 
         if ($response->failed()) {
@@ -236,7 +236,7 @@ class PatronController extends Controller
         }
 
         return redirect()->route('patrones.index')
-                         ->with('success', '¡Certificados (CSD) sincronizados con Facturama! Caducidad: ' . ($expiresAt ? $expiresAt->format('d/m/Y') : 'Desconocida'));
+                         ->with('success', '¡Certificados (CSD) cargados correctamente en Facturama! Caducidad: ' . ($expiresAt ? $expiresAt->format('d/m/Y') : 'Desconocida'));
     }
 }
 
