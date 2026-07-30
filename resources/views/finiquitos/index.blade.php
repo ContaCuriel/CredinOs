@@ -129,7 +129,7 @@
                             <input type="hidden" name="gratificacion_monto" id="export_gratificacion_monto">
                             <input type="hidden" name="conceptos_extras_json" id="export_conceptos_extras">
                             
-                            {{-- 🔥 BOTÓN PARA LA IA --}}
+                            {{-- BOTÓN PARA LA IA --}}
                             <button type="button" class="btn btn-info fw-bold text-white shadow-sm" data-bs-toggle="modal" data-bs-target="#modalIA">
                                 <i class="bi bi-stars"></i> Redactar con IA
                             </button>
@@ -145,7 +145,7 @@
         </div>
     </div>
 
-    {{-- 🔥 MODAL PARA REDACTAR CON IA 🔥 --}}
+    {{-- MODAL PARA REDACTAR CON IA --}}
     <div class="modal fade" id="modalIA" tabindex="-1" aria-labelledby="modalIALabel" aria-hidden="true" data-bs-backdrop="static">
         <div class="modal-dialog modal-xl modal-dialog-scrollable">
             <div class="modal-content">
@@ -247,7 +247,7 @@
                 botonesCalculo.forEach(btn => btn.disabled = !habilitar);
             }
 
-            // 🔥 SELECCIÓN DE EMPLEADO Y AUTO-SELECCIÓN DE PATRÓN 🔥
+            // SELECCIÓN DE EMPLEADO Y AUTO-SELECCIÓN DE PATRÓN
             empleadoSelect.addEventListener('change', function() {
                 const opt = this.options[this.selectedIndex];
                 fechaIngresoInput.value = opt.dataset.fecha_ingreso || '';
@@ -409,7 +409,13 @@
             function prepararEnvio(format) {
                 const idEmp = empleadoSelect.value;
                 if (!idEmp) return;
-                if (format === 'aviso') { window.open("{{ url('finiquitos/aviso-terminacion') }}/" + idEmp, '_blank'); return; }
+                
+                // 🔥 AQUÍ ESTÁ EL CAMBIO CLAVE: AHORA ENVÍA LA FECHA FINAL EN LA URL AL PDF DE AVISO DE TERMINACIÓN 🔥
+                if (format === 'aviso') { 
+                    const fechaFinalManual = fechaFinalInput.value;
+                    window.open("{{ url('finiquitos/aviso-terminacion') }}/" + idEmp + "?fecha_final=" + encodeURIComponent(fechaFinalManual), '_blank'); 
+                    return; 
+                }
 
                 const form = document.getElementById('form_export');
                 form.method = "POST";
@@ -447,7 +453,7 @@
 
             [fechaFinalInput, patronManualSelect].forEach(i => i.addEventListener('change', toggleButtons));
 
-            // 🔥 LÓGICA DE LA IA 🔥
+            // LÓGICA DE LA IA
             document.getElementById('btn_generar_ia').addEventListener('click', function() {
                 const idEmp = empleadoSelect.value;
                 const fecFin = fechaFinalInput.value;
@@ -517,5 +523,3 @@
     </script>
     @endpush
 </x-app-layout>
-
-```
