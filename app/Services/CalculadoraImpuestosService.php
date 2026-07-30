@@ -39,7 +39,7 @@ class CalculadoraImpuestosService
         return [
             'bruto' => round($sueldoBruto, 2),
             'isr'   => round($isr, 2),
-            'imss  '=> round($imss, 2),
+            'imss'=> round($imss, 2),
             'neto'  => round($neto, 2)
         ];
     }
