@@ -57,13 +57,9 @@ class ActualizarDeducciones extends Command
         Config::set('database.connections.tenant.driver', 'pgsql');
         Config::set('database.connections.tenant.host', $tenant->db_host);
         Config::set('database.connections.tenant.port', $tenant->db_port);
-        // --- CORRECCIÓN 1 ---
-        // Usamos 'db_database', el nombre correcto de la columna.
         Config::set('database.connections.tenant.database', $tenant->db_database);
         Config::set('database.connections.tenant.username', $tenant->db_username);
         Config::set('database.connections.tenant.password', $tenant->db_password);
-        // --- CORRECCIÓN 2 ---
-        // Forzamos el uso de encriptación SSL para cumplir con los requisitos de Render.
         Config::set('database.connections.tenant.sslmode', 'require');
         
         DB::reconnect('tenant');
@@ -102,26 +98,41 @@ class ActualizarDeducciones extends Command
         while ($fechaIterador->lessThan($hasta)) {
             $fechaIterador->addDay();
 
+            // Evalúa el cobro en día 15 o último día de mes
             if (($fechaIterador->day == 15 || $fechaIterador->isLastOfMonth()) && $fechaIterador >= $fechaSolicitud) {
-                $this->line("    - Procesando deducción #{$deduccion->id} en fecha {$fechaIterador->toDateString()}");
+                $this->line("    - Procesando deducción #{$deduccion->id} ({$deduccion->tipo_deduccion}) en fecha {$fechaIterador->toDateString()}");
+                
                 switch ($deduccion->tipo_deduccion) {
                     case 'Préstamo':
+                    case 'Previsión':
+                        // Deducciones con Plazo: Descuentan del saldo pendiente y avanzan el contador de quincenas
                         $deduccion->saldo_pendiente -= $deduccion->monto_quincenal;
                         $deduccion->quincenas_pagadas += 1;
                         if ($deduccion->saldo_pendiente <= 0) {
                             $deduccion->saldo_pendiente = 0;
                             $deduccion->status = 'Pagado';
-                            $this->warn("      ¡Préstamo #{$deduccion->id} LIQUIDADO!");
+                            $this->warn("      ¡Deducción #{$deduccion->id} ({$deduccion->tipo_deduccion}) LIQUIDADA!");
                         }
                         break;
+
+                    case 'Retardo/Falta Manual':
+                        // Descuento Único: Al ser procesado en la quincena correspondiente, se marca como finalizado automáticamente
+                        $deduccion->status = 'Finalizado';
+                        $this->info("      ¡Descuento único de falta/retardo #{$deduccion->id} FINALIZADO!");
+                        break;
+
                     case 'Caja de Ahorro':
+                        // Ahorro: Suma al monto acumulado en lugar de restar
                         $deduccion->monto_acumulado += $deduccion->monto_quincenal;
                         break;
+
+                    // Las deducciones fijas (Infonavit, Fijo Sin Plazo, ISR, IMSS, Otro) 
+                    // no requieren ajustar saldos; simplemente actualizan su fecha de último descuento al guardar.
                 }
+
                 $deduccion->fecha_ultimo_descuento = $fechaIterador->copy();
                 $deduccion->save(); 
             }
         }
     }
 }
-

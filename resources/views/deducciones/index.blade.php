@@ -1,22 +1,29 @@
 <x-app-layout>
     <div class="container-fluid py-4">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Gestión de Deducciones y Préstamos</h5>
-                <a href="{{ route('deducciones.create') }}" class="btn btn-success">
-                    <i class="bi bi-plus-lg"></i> Registrar Nueva Deducción
+        <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                <h5 class="mb-0 fw-bold text-primary">Gestión de Deducciones y Préstamos</h5>
+                <a href="{{ route('deducciones.create') }}" class="btn btn-success fw-bold">
+                    <i class="bi bi-plus-lg me-1"></i> Registrar Nueva Deducción
                 </a>
             </div>
             <div class="card-body">
                 @if (session('success'))
-                    <div class="alert alert-success alert-dismissible fade show" role="alert">
-                        {{ session('success') }}
+                    <div class="alert alert-success alert-dismissible fade show shadow-sm border-0 mb-4" role="alert">
+                        <i class="bi bi-check-circle-fill me-2"></i> {{ session('success') }}
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 @endif
 
-                {{-- Formulario de Filtros Actualizado --}}
-                <form method="GET" action="{{ route('deducciones.index') }}" class="mb-4">
+                @if (session('error'))
+                    <div class="alert alert-danger alert-dismissible fade show shadow-sm border-0 mb-4" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i> {{ session('error') }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                @endif
+
+                {{-- Formulario de Filtros --}}
+                <form method="GET" action="{{ route('deducciones.index') }}" class="mb-4 p-3 bg-light rounded border shadow-sm">
                     <div class="row align-items-end g-2">
                         <div class="col-md-2">
                             <label for="search_nombre" class="form-label mb-1 small fw-bold">Empleado:</label>
@@ -44,7 +51,6 @@
                                 @endif
                             </select>
                         </div>
-                        {{-- NUEVO FILTRO DE STATUS --}}
                         <div class="col-md-2">
                             <label for="status_filter" class="form-label mb-1 small fw-bold">Estatus:</label>
                             <select name="status_filter" id="status_filter" class="form-select form-select-sm">
@@ -55,7 +61,7 @@
                             </select>
                         </div>
                         <div class="col-md-2 d-flex align-items-end">
-                            <button type="submit" class="btn btn-primary btn-sm w-100">Buscar/Filtrar</button>
+                            <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold"><i class="bi bi-search me-1"></i> Buscar/Filtrar</button>
                         </div>
                         <div class="col-md-1 d-flex align-items-end">
                             @if(request('search_nombre') || request('id_sucursal_filter') || request('tipo_deduccion_filter') || request('status_filter'))
@@ -66,13 +72,13 @@
                 </form>
 
                 <div class="d-flex justify-content-end mb-3">
-                    <a href="{{ route('deducciones.exportar', request()->query()) }}" class="btn btn-outline-success">
-                        <i class="bi bi-file-earmark-excel"></i> Exportar a Excel
+                    <a href="{{ route('deducciones.exportar', request()->query()) }}" class="btn btn-outline-success btn-sm fw-bold">
+                        <i class="bi bi-file-earmark-excel me-1"></i> Exportar a Excel
                     </a>
                 </div>
 
                 <div class="table-responsive">
-                    <table class="table table-striped table-hover table-sm align-middle">
+                    <table class="table table-striped table-hover table-sm align-middle shadow-sm">
                         <thead class="table-light">
                             <tr>
                                 <th>Empleado</th>
@@ -88,19 +94,27 @@
                         </thead>
                         <tbody>
                             @forelse ($deducciones as $deduccion)
+                                @php
+                                    $esPlazo = in_array($deduccion->tipo_deduccion, ['Préstamo', 'Previsión']);
+                                @endphp
                                 <tr class="{{ $deduccion->status !== 'Activo' ? 'text-muted table-light' : '' }}">
                                     <td>{{ $deduccion->empleado ? $deduccion->empleado->nombre_completo : 'Empleado no encontrado' }}</td>
-                                    <td>{{ $deduccion->tipo_deduccion }}</td>
-                                    <td class="text-center">{{ $deduccion->fecha_solicitud->format('d/m/Y') }}</td>
+                                    <td>
+                                        <span class="fw-bold">{{ $deduccion->tipo_deduccion }}</span>
+                                    </td>
+                                    <td class="text-center">{{ \Carbon\Carbon::parse($deduccion->fecha_solicitud)->format('d/m/Y') }}</td>
+                                    
+                                    {{-- 🔥 CORREGIDO: AHORA MUESTRA PLAZO / PAGADAS EN PRÉSTAMO Y PREVISIÓN 🔥 --}}
                                     <td class="text-center">
-                                        @if ($deduccion->tipo_deduccion == 'Préstamo')
-                                            <span title="Plazo Total / Quincenas Pagadas">
+                                        @if ($esPlazo)
+                                            <span class="fw-bold text-dark" title="Plazo Total / Quincenas Pagadas">
                                                 {{ $deduccion->plazo_quincenas ?? 'N/A' }} / {{ $deduccion->quincenas_pagadas ?? 0 }}
                                             </span>
                                         @else
                                             <span class="text-muted">N/A</span>
                                         @endif
                                     </td>
+                                    
                                     <td class="text-center">
                                         @if($deduccion->fecha_ultimo_descuento)
                                             {{ \Carbon\Carbon::parse($deduccion->fecha_ultimo_descuento)->format('d/m/Y') }}
@@ -108,14 +122,17 @@
                                             <span class="text-muted">N/A</span>
                                         @endif
                                     </td>
-                                    <td class="text-end">$ {{ number_format($deduccion->monto_quincenal, 2) }}</td>
+                                    <td class="text-end fw-bold">$ {{ number_format($deduccion->monto_quincenal, 2) }}</td>
+                                    
+                                    {{-- 🔥 CORREGIDO: MUESTRA SALDO PENDIENTE EN ROJO PARA PRÉSTAMO Y PREVISIÓN 🔥 --}}
                                     <td class="text-end fw-bold">
-                                        @if ($deduccion->tipo_deduccion == 'Préstamo')
-                                            <span class="text-danger" title="Saldo Pendiente">$ {{ number_format($deduccion->saldo_pendiente, 2) }}</span>
+                                        @if ($esPlazo)
+                                            <span class="text-danger" title="Saldo Pendiente">$ {{ number_format($deduccion->saldo_pendiente ?? 0, 2) }}</span>
                                         @else
-                                            <span class="text-success" title="Monto Acumulado">$ {{ number_format($deduccion->monto_acumulado, 2) }}</span>
+                                            <span class="text-success" title="Monto Acumulado">$ {{ number_format($deduccion->monto_acumulado ?? 0, 2) }}</span>
                                         @endif
                                     </td>
+                                    
                                     <td class="text-center">
                                         @php
                                             $badgeClass = match($deduccion->status) {
@@ -128,26 +145,28 @@
                                         <span class="badge {{ $badgeClass }}">{{ $deduccion->status }}</span>
                                     </td>
                                     <td class="text-center">
-                                        <div class="btn-group">
-                                            <a href="{{ route('deducciones.edit', $deduccion->id) }}" class="btn btn-sm btn-info" title="Editar Deducción"><i class="bi bi-pencil-square"></i></a>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ route('deducciones.edit', $deduccion->id_deduccion ?? $deduccion->id) }}" class="btn btn-info text-white" title="Editar Deducción">
+                                                <i class="bi bi-pencil-square"></i>
+                                            </a>
                                             
                                             @if($deduccion->status === 'Activo')
-                                                <form action="{{ route('deducciones.destroy', $deduccion->id) }}" method="POST" class="d-inline">
+                                                <form action="{{ route('deducciones.destroy', $deduccion->id_deduccion ?? $deduccion->id) }}" method="POST" class="d-inline">
                                                     @csrf
                                                     @method('DELETE')
-                                                    <button type="submit" class="btn btn-sm btn-danger" title="Finalizar Deducción" onclick="return confirm('¿Estás seguro de finalizar este registro? Se moverá al historial.')">
+                                                    <button type="submit" class="btn btn-danger" title="Finalizar Deducción" onclick="return confirm('¿Estás seguro de finalizar este registro? Se moverá al historial.')">
                                                         <i class="bi bi-check-circle"></i>
                                                     </button>
                                                 </form>
                                             @else
-                                                <button class="btn btn-sm btn-light disabled"><i class="bi bi-lock"></i></button>
+                                                <button class="btn btn-light disabled"><i class="bi bi-lock"></i></button>
                                             @endif
                                         </div>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="9" class="text-center">No hay deducciones que coincidan con los filtros.</td>
+                                    <td colspan="9" class="text-center text-muted py-4">No hay deducciones que coincidan con los filtros seleccionados.</td>
                                 </tr>
                             @endforelse
                         </tbody>
