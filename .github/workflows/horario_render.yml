@@ -2,9 +2,9 @@ name: Horario de Operacion Sistema Render
 
 on:
   schedule:
-    # ENCENDER: Lunes a Sábado a las 7:30 AM (Hora CDMX). 
-    # En UTC son las 13:30 horas. (Adelantado para ganarle a la fila de GitHub)
-    - cron: '30 13 * * 1-6'
+    # ENCENDER: Lunes a Sábado a las 5:00 AM (Hora CDMX). 
+    # En UTC son las 11:00 horas.
+    - cron: '0 11 * * 1-6'
     
     # APAGAR: Lunes a Sábado a las 6:15 PM (Hora CDMX).
     # En UTC son las 00:15 horas del DÍA SIGUIENTE.
