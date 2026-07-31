@@ -316,6 +316,11 @@ class NominaTimbradoController extends Controller
                     "NameId" => "16", 
                     "ExpeditionPlace" => $patron->codigo_postal ?? "00000",
                     "CfdiType" => "N", 
+                    
+                    "PaymentMethod" => "PUE", // 🔥 LO REGRESAMOS: Es obligatorio y debe ser PUE
+                    "Exportation" => "01",    // 🔥 Agregado por regla general del CFDI 4.0
+                    // ❌ PaymentForm SIGUE ELIMINADO (Ese sí está prohibido) ❌
+                    
                     "Folio" => (string) $detalle->id_detalle_lista,
                     "Currency" => "MXN",
                     
