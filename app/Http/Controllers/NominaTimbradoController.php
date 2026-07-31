@@ -294,8 +294,8 @@ class NominaTimbradoController extends Controller
                     "NameId" => "16", 
                     "ExpeditionPlace" => $patron->codigo_postal ?? "00000",
                     "CfdiType" => "N", 
-                    "PaymentForm" => "99",    
-                    "PaymentMethod" => "PUE",
+                    "PaymentForm" => "03",    // 🔥 CAMBIO AQUÍ: 03 = Transferencia Electrónica (El SAT prohíbe 99 con PUE)
+                    "PaymentMethod" => "PUE", // PUE es obligatorio por ley para Nómina
                     "Folio" => (string) $detalle->id_detalle_lista,
                     "Currency" => "MXN",
                     
