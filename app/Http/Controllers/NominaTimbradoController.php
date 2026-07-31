@@ -199,15 +199,15 @@ class NominaTimbradoController extends Controller
                 
                 $fiscal = $this->calculadoraImpuestos->calcularDesdeBruto($sueldoBrutoBase, $aplicaImss);
 
-                // --- MAPEO EN INGLÉS COMO EXIGE FACTURAMA ---
+                // --- MAPEO CON FORMATEO ESTRICTO DE 2 DECIMALES (Anti-Error de PHP) ---
                 $perceptionsDetails = [];
 
                 $perceptionsDetails[] = [
                     "PerceptionType" => "001",
                     "Code" => "001",
                     "Description" => "Sueldo",
-                    "TaxedAmount" => round($fiscal['bruto'], 2),
-                    "ExemptAmount" => 0.0
+                    "TaxedAmount" => number_format($fiscal['bruto'], 2, '.', ''),
+                    "ExemptAmount" => "0.00"
                 ];
 
                 $bonos = floatval($detalle->bono_permanencia) + floatval($detalle->bono_cumpleanos);
@@ -216,8 +216,8 @@ class NominaTimbradoController extends Controller
                         "PerceptionType" => "038",
                         "Code" => "038",
                         "Description" => "Bonos Extra",
-                        "TaxedAmount" => round($bonos, 2),
-                        "ExemptAmount" => 0.0
+                        "TaxedAmount" => number_format($bonos, 2, '.', ''),
+                        "ExemptAmount" => "0.00"
                     ];
                 }
 
@@ -228,7 +228,7 @@ class NominaTimbradoController extends Controller
                         "DeduccionType" => "002",
                         "Code" => "002",
                         "Description" => "ISR",
-                        "Amount" => round($fiscal['isr_a_retener'], 2)
+                        "Amount" => number_format($fiscal['isr_a_retener'], 2, '.', '')
                     ];
                 }
 
@@ -237,7 +237,7 @@ class NominaTimbradoController extends Controller
                         "DeduccionType" => "001",
                         "Code" => "001",
                         "Description" => "IMSS",
-                        "Amount" => round($fiscal['imss'], 2)
+                        "Amount" => number_format($fiscal['imss'], 2, '.', '')
                     ];
                 }
 
@@ -247,7 +247,7 @@ class NominaTimbradoController extends Controller
                         "DeduccionType" => "020",
                         "Code" => "020",
                         "Description" => "Faltas y Retardos",
-                        "Amount" => round($faltas, 2)
+                        "Amount" => number_format($faltas, 2, '.', '')
                     ];
                 }
 
@@ -257,7 +257,7 @@ class NominaTimbradoController extends Controller
                         "DeduccionType" => "004",
                         "Code" => "004",
                         "Description" => "Caja de Ahorro",
-                        "Amount" => round($cajaAhorro, 2)
+                        "Amount" => number_format($cajaAhorro, 2, '.', '')
                     ];
                 }
 
@@ -267,21 +267,21 @@ class NominaTimbradoController extends Controller
                         "DeduccionType" => "009",
                         "Code" => "009",
                         "Description" => "Préstamo Infonavit",
-                        "Amount" => round($infonavit, 2)
+                        "Amount" => number_format($infonavit, 2, '.', '')
                     ];
                 }
 
                 $otherPayments = [];
-                $subsidio = round(floatval($fiscal['subsidio_empleo'] ?? 0), 2);
+                $subsidio = floatval($fiscal['subsidio_empleo'] ?? 0);
 
                 if ($aplicaImss || $subsidio > 0) {
                     $otherPayments[] = [
                         "OtherPaymentType" => "002",
                         "Code" => "002",
                         "Description" => "Subsidio al Empleo",
-                        "Amount" => $subsidio, 
+                        "Amount" => number_format($subsidio, 2, '.', ''), 
                         "EmploymentSubsidy" => [
-                            "Amount" => $subsidio
+                            "Amount" => number_format($subsidio, 2, '.', '')
                         ]
                     ];
                 }
@@ -311,16 +311,18 @@ class NominaTimbradoController extends Controller
                     $nominaIssuer["Curp"] = strtoupper(trim($patron->curp));
                 }
 
+                // Cálculo estricto de salario base y diario para 2 decimales
+                $baseSalaryFormatted = number_format($sueldoBrutoBase / 15, 2, '.', '');
+                $dailySalaryCalculated = floatval($emp->sdi) > 0 ? floatval($emp->sdi) : ($sueldoBrutoBase / 15) * 1.0452;
+                $dailySalaryFormatted = number_format($dailySalaryCalculated, 2, '.', '');
+
                 // 🔥 PAYLOAD DEFINITIVO CFDI 4.0 🔥
                 $payloadFacturama = [
                     "NameId" => "16", 
                     "ExpeditionPlace" => $patron->codigo_postal ?? "00000",
                     "CfdiType" => "N", 
-                    
-                    "PaymentMethod" => "PUE", // 🔥 LO REGRESAMOS: Es obligatorio y debe ser PUE
-                    "Exportation" => "01",    // 🔥 Agregado por regla general del CFDI 4.0
-                    // ❌ PaymentForm SIGUE ELIMINADO (Ese sí está prohibido) ❌
-                    
+                    "PaymentMethod" => "PUE",
+                    "Exportation" => "01",
                     "Folio" => (string) $detalle->id_detalle_lista,
                     "Currency" => "MXN",
                     
@@ -359,8 +361,8 @@ class NominaTimbradoController extends Controller
                                 "Department" => "GENERAL",
                                 "Position" => Str::limit($detalle->puesto_historico ?? "EMPLEADO", 50),
                                 "PositionRisk" => $aplicaImss ? "1" : "99", 
-                                "BaseSalary" => round($sueldoBrutoBase / 15, 2),
-                                "DailySalary" => floatval($emp->sdi) > 0 ? floatval($emp->sdi) : round(($sueldoBrutoBase / 15) * 1.0452, 2),
+                                "BaseSalary" => $baseSalaryFormatted,
+                                "DailySalary" => $dailySalaryFormatted,
                                 "FederalEntityKey" => "MEX" 
                             ],
                             "Perceptions" => [
