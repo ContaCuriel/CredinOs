@@ -271,17 +271,15 @@ class NominaTimbradoController extends Controller
                     ];
                 }
 
-                // 🔥 CORRECCIÓN DEL SAT PARA EL SUBSIDIO AL EMPLEO 🔥
                 $otherPayments = [];
                 $subsidio = round(floatval($fiscal['subsidio_empleo'] ?? 0), 2);
 
-                // Regla del SAT: Si el empleado está por Sueldos (aplicaImss), DEBE ir el nodo 002 aunque sea $0.00
                 if ($aplicaImss || $subsidio > 0) {
                     $otherPayments[] = [
                         "OtherPaymentType" => "002",
                         "Code" => "002",
                         "Description" => "Subsidio al Empleo",
-                        "Amount" => $subsidio, // Si es 0, Facturama enviará 0.00 como exige el SAT
+                        "Amount" => $subsidio, 
                         "EmploymentSubsidy" => [
                             "Amount" => $subsidio
                         ]
@@ -293,12 +291,11 @@ class NominaTimbradoController extends Controller
                 $fechaFin = explode('_', $periodo->periodo_rango)[1];
                 $fechaIngresoFormat = $emp->fecha_ingreso ? Carbon::parse($emp->fecha_ingreso)->format('Y-m-d\TH:i:s') : $fechaInicio . 'T00:00:00';
 
-                // --- PREPARAR EMISOR DE NÓMINA (Regla Inteligente SaaS) ---
+                // --- PREPARAR EMISOR DE NÓMINA ---
                 $nominaIssuer = [
                     "EmployerRegistration" => $patron->registro_patronal ?? "00000000000"
                 ];
 
-                // Regla SAT: Si el RFC del patrón tiene 13 caracteres (Persona Física), exige CURP
                 if (strlen(trim($patron->rfc ?? '')) === 13) {
                     if (empty($patron->curp)) {
                         throw new \Exception("El Patrón '{$patron->razon_social}' es Persona Física y el SAT exige su CURP. Por favor, agregue la CURP en el perfil de la empresa.");
@@ -306,13 +303,14 @@ class NominaTimbradoController extends Controller
                     $nominaIssuer["Curp"] = strtoupper(trim($patron->curp));
                 }
 
-                // 🔥 PAYLOAD DEFINITIVO 🔥
+                // 🔥 PAYLOAD DEFINITIVO CFDI 4.0 🔥
                 $payloadFacturama = [
                     "NameId" => "16", 
                     "ExpeditionPlace" => $patron->codigo_postal ?? "00000",
                     "CfdiType" => "N", 
-                    "PaymentForm" => "03", 
-                    "PaymentMethod" => "PUE",
+                    
+                    // ❌ ELIMINADOS PaymentForm Y PaymentMethod (PROHIBIDOS EN NÓMINA 4.0 POR EL SAT) ❌
+                    
                     "Folio" => (string) $detalle->id_detalle_lista,
                     "Currency" => "MXN",
                     
@@ -343,7 +341,7 @@ class NominaTimbradoController extends Controller
                                 "SocialSecurityNumber" => $emp->nss ?? "00000000000",
                                 "StartDateLaborRelations" => $fechaIngresoFormat,
                                 "ContractType" => $aplicaImss ? "01" : "09", 
-                                "RegimeType" => $aplicaImss ? "02" : "09", // 02 es el que dispara la validación del SAT
+                                "RegimeType" => $aplicaImss ? "02" : "09", 
                                 "Unionized" => false, 
                                 "TypeOfJourney" => "01",  
                                 "FrequencyPayment" => "04", 
