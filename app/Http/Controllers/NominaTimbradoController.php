@@ -100,13 +100,11 @@ class NominaTimbradoController extends Controller
                     if ($modoTrabajo === 'fiscal') {
                         $aplicaImss = !in_array(strtolower($emp->tipo_contrato ?? ''), ['honorarios', 'asimilados']);
 
-                        // 🔥 LÓGICA DE ESQUEMA MIXTO (SDI vs REAL)
+                        // LÓGICA DE ESQUEMA MIXTO (SDI vs REAL)
                         if ($aplicaImss && floatval($emp->sdi) > 0) {
-                            // Trabajadores con IMSS: Usamos su SDI x 15 días
                             $sueldoBrutoBase = floatval($emp->sdi) * 15;
                             $calculoFiscal = $this->calculadoraImpuestos->calcularDesdeBruto($sueldoBrutoBase, $aplicaImss);
                         } else {
-                            // Honorarios/Asimilados: Usamos su sueldo interno/real
                             $sueldoBrutoBase = floatval($det->sueldo_mensual_historico) / 2;
                             
                             if ($baseCalculo === 'neto') {
@@ -120,7 +118,9 @@ class NominaTimbradoController extends Controller
                         $datos['deduccion_isr']  = $calculoFiscal['isr_a_retener'];
                         $datos['subsidio_empleo']= $calculoFiscal['subsidio_empleo'];
                         $datos['deduccion_imss'] = $calculoFiscal['imss'];
-                        $datos['neto_a_pagar']   = $calculoFiscal['neto'];
+                        
+                        $totalOtrasDed = floatval($det->descuento_por_faltas) + floatval($det->deduccion_prestamo) + floatval($det->deduccion_caja_ahorro) + floatval($det->deduccion_infonavit);
+                        $datos['neto_a_pagar']   = $calculoFiscal['neto'] - $totalOtrasDed;
                     } else {
                         $datos['sueldo_bruto']   = 0;
                         $datos['deduccion_isr']  = 0;
@@ -175,7 +175,6 @@ class NominaTimbradoController extends Controller
 
         $idsDetalles = $request->input('empleados_timbrar');
         
-        // Obtenemos los detalles con toda la info necesaria para el timbrado
         $detalles = ListaRayaDetalle::with(['empleado', 'empleado.ultimoContrato.patron', 'periodo'])
                     ->whereIn('id_detalle_lista', $idsDetalles)
                     ->get();
@@ -184,7 +183,7 @@ class NominaTimbradoController extends Controller
         $errores = [];
 
         foreach ($detalles as $detalle) {
-            $fiscal = []; // Inicializamos la variable por si falla antes del cálculo
+            $fiscal = []; 
             
             try {
                 $emp = $detalle->empleado;
@@ -195,11 +194,9 @@ class NominaTimbradoController extends Controller
                     throw new \Exception("El empleado no tiene un patrón/empresa asignado.");
                 }
 
-                // 1. RECALCULAR VALORES (Modo Fiscal)
                 $sueldoBrutoBase = floatval($detalle->sueldo_mensual_historico) / 2;
                 $aplicaImss = !in_array(strtolower($emp->tipo_contrato ?? ''), ['honorarios', 'asimilados']);
                 
-                // Aplicar SDI si lo tiene
                 if ($aplicaImss && floatval($emp->sdi) > 0) {
                     $sueldoBrutoBase = floatval($emp->sdi) * 15;
                 }
@@ -211,7 +208,6 @@ class NominaTimbradoController extends Controller
                 $totalPercepcionesGravadas = $fiscal['bruto'];
                 $totalPercepcionesExentas = 0;
 
-                // Sueldo (Clave SAT: 001)
                 $percepcionesArr[] = [
                     "TipoPercepcion" => "001",
                     "Clave" => "001",
@@ -268,6 +264,28 @@ class NominaTimbradoController extends Controller
                     $totalOtrasDeducciones += $faltas;
                 }
 
+                $cajaAhorro = floatval($detalle->deduccion_caja_ahorro);
+                if ($cajaAhorro > 0) {
+                    $deduccionesArr[] = [
+                        "TipoDeduccion" => "004",
+                        "Clave" => "004",
+                        "Concepto" => "Caja de Ahorro",
+                        "Importe" => round($cajaAhorro, 2)
+                    ];
+                    $totalOtrasDeducciones += $cajaAhorro;
+                }
+
+                $infonavit = floatval($detalle->deduccion_infonavit);
+                if ($infonavit > 0) {
+                    $deduccionesArr[] = [
+                        "TipoDeduccion" => "009",
+                        "Clave" => "009",
+                        "Concepto" => "Préstamo Infonavit",
+                        "Importe" => round($infonavit, 2)
+                    ];
+                    $totalOtrasDeducciones += $infonavit;
+                }
+
                 $otrosPagosArr = [];
                 $totalOtrosPagos = 0;
                 if ($fiscal['subsidio_empleo'] > 0) {
@@ -283,7 +301,6 @@ class NominaTimbradoController extends Controller
                     $totalOtrosPagos += $fiscal['subsidio_empleo'];
                 }
 
-                // 2. TOTALES DEL CFDI
                 $subtotalCfdi = $totalPercepcionesGravadas + $totalPercepcionesExentas + $totalOtrosPagos;
                 $descuentoCfdi = $totalImpuestosRetenidos + $totalOtrasDeducciones;
                 $totalCfdi = $subtotalCfdi - $descuentoCfdi;
@@ -292,23 +309,21 @@ class NominaTimbradoController extends Controller
                 $fechaInicio = explode('_', $periodo->periodo_rango)[0];
                 $fechaFin = explode('_', $periodo->periodo_rango)[1];
 
-                // 3. ARMADO DEL JSON PARA FACTURAMA
                 $payloadFacturama = [
                     "Serie" => "NOM",
-                    "Folio" => (string) $detalle->id_detalle_lista, // 🔥 Agregado: Folio único interno
+                    "Folio" => (string) $detalle->id_detalle_lista,
                     "Date" => $fechaTimbrado,
-                    "CfdiType" => "N", // 🔥 Agregado: 'N' significa Nómina
+                    "CfdiType" => "N", 
                     "PaymentMethod" => "PUE", 
                     "PaymentForm" => "99",    
                     "Currency" => "MXN",
                     "Exportation" => "01",
                     "ExpeditionPlace" => $patron->codigo_postal ?? "00000", 
                     
-                    // 🔥 AGREGADO: Datos del Patrón (Emisor)
                     "Issuer" => [
                         "Rfc" => strtoupper($patron->rfc ?? ''),
                         "Name" => strtoupper($patron->razon_social ?? ''),
-                        "FiscalRegime" => $patron->regimen_fiscal ?? "601" // Si tu BD tiene otro nombre para el régimen, cámbialo aquí
+                        "FiscalRegime" => $patron->regimen_fiscal ?? "601"
                     ],
                     
                     "Receiver" => [
@@ -382,7 +397,6 @@ class NominaTimbradoController extends Controller
                 if ($response->successful()) {
                     $facturamaData = $response->json();
                     
-                    // 🔥 AGREGAMOS LOS MONTOS PARA QUE NO DE ERROR DE "NULL" EN LA BD
                     NominaTimbrada::updateOrCreate(
                         ['id_detalle_lista' => $detalle->id_detalle_lista],
                         [
@@ -410,7 +424,6 @@ class NominaTimbradoController extends Controller
                 }
 
             } catch (\Exception $e) {
-                // 🔥 AQUÍ TAMBIÉN AGREGAMOS LOS MONTOS PARA GUARDAR EL ERROR SIN ROMPER LA BD
                 NominaTimbrada::updateOrCreate(
                     ['id_detalle_lista' => $detalle->id_detalle_lista],
                     [
@@ -432,4 +445,5 @@ class NominaTimbradoController extends Controller
         }
 
         return back()->with('success', "Se han timbrado exitosamente $timbradosCorrectos recibos de nómina.");
-    }}
+    }
+}
