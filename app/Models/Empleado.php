@@ -45,6 +45,7 @@ class Empleado extends Model
         'estado_imss',
         'fecha_alta_imss',
         'fecha_baja_imss',
+        'sdi',
         'id_patron_imss',
         'id_horario',
         'finiquito_firmado_path',
