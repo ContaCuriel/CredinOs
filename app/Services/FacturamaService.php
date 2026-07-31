@@ -144,4 +144,20 @@ class FacturamaService
             ->withBasicAuth($this->apiUser, $this->apiPassword)
             ->get("{$this->apiUrl}/acuse/{$format}/{$type}/{$id}");
     }
+
+    /**
+     * Obtiene el archivo PDF o XML de un CFDI timbrado
+     * 
+     * @param string $id El ID único de Facturama
+     * @param string $format 'pdf' o 'xml'
+     */
+    public function getFile($id, $format)
+    {
+        // En base a tu documentación: /cfdi/{format}/{type}/{id}
+        // Usamos 'issuedLite' porque estás usando la API Multiemisor para tus clientes (Tenants)
+        $endpoint = "{$this->apiUrl}/cfdi/{$format}/issuedLite/{$id}";
+
+        return Http::withBasicAuth($this->apiUser, $this->apiPassword)
+                   ->get($endpoint);
+    }
 }
