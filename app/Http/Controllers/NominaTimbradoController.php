@@ -289,7 +289,15 @@ class NominaTimbradoController extends Controller
                 $fechaTimbrado = Carbon::now()->format('Y-m-d\TH:i:s');
                 $fechaInicio = explode('_', $periodo->periodo_rango)[0];
                 $fechaFin = explode('_', $periodo->periodo_rango)[1];
-                $fechaIngresoFormat = $emp->fecha_ingreso ? Carbon::parse($emp->fecha_ingreso)->format('Y-m-d\TH:i:s') : $fechaInicio . 'T00:00:00';
+                
+                // --- REGLA SAT/IMSS PARA FECHA INICIO RELACIÓN LABORAL ---
+                if ($aplicaImss && !empty($emp->fecha_alta_imss)) {
+                    $fechaBaseLaboral = $emp->fecha_alta_imss;
+                } else {
+                    $fechaBaseLaboral = $emp->fecha_ingreso;
+                }
+                
+                $fechaIngresoFormat = $fechaBaseLaboral ? Carbon::parse($fechaBaseLaboral)->format('Y-m-d\TH:i:s') : $fechaInicio . 'T00:00:00';
 
                 // --- PREPARAR EMISOR DE NÓMINA ---
                 $nominaIssuer = [
@@ -308,9 +316,6 @@ class NominaTimbradoController extends Controller
                     "NameId" => "16", 
                     "ExpeditionPlace" => $patron->codigo_postal ?? "00000",
                     "CfdiType" => "N", 
-                    
-                    // ❌ ELIMINADOS PaymentForm Y PaymentMethod (PROHIBIDOS EN NÓMINA 4.0 POR EL SAT) ❌
-                    
                     "Folio" => (string) $detalle->id_detalle_lista,
                     "Currency" => "MXN",
                     
