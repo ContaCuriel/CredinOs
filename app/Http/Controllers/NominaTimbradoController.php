@@ -271,15 +271,19 @@ class NominaTimbradoController extends Controller
                     ];
                 }
 
+                // 🔥 CORRECCIÓN DEL SAT PARA EL SUBSIDIO AL EMPLEO 🔥
                 $otherPayments = [];
-                if ($fiscal['subsidio_empleo'] > 0) {
+                $subsidio = round(floatval($fiscal['subsidio_empleo'] ?? 0), 2);
+
+                // Regla del SAT: Si el empleado está por Sueldos (aplicaImss), DEBE ir el nodo 002 aunque sea $0.00
+                if ($aplicaImss || $subsidio > 0) {
                     $otherPayments[] = [
                         "OtherPaymentType" => "002",
                         "Code" => "002",
                         "Description" => "Subsidio al Empleo",
-                        "Amount" => round($fiscal['subsidio_empleo'], 2),
+                        "Amount" => $subsidio, // Si es 0, Facturama enviará 0.00 como exige el SAT
                         "EmploymentSubsidy" => [
-                            "Amount" => round($fiscal['subsidio_empleo'], 2)
+                            "Amount" => $subsidio
                         ]
                     ];
                 }
@@ -339,7 +343,7 @@ class NominaTimbradoController extends Controller
                                 "SocialSecurityNumber" => $emp->nss ?? "00000000000",
                                 "StartDateLaborRelations" => $fechaIngresoFormat,
                                 "ContractType" => $aplicaImss ? "01" : "09", 
-                                "RegimeType" => $aplicaImss ? "02" : "09",
+                                "RegimeType" => $aplicaImss ? "02" : "09", // 02 es el que dispara la validación del SAT
                                 "Unionized" => false, 
                                 "TypeOfJourney" => "01",  
                                 "FrequencyPayment" => "04", 
