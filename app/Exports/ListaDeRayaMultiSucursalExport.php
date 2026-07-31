@@ -32,8 +32,11 @@ class ListaDeRayaMultiSucursalExport implements WithMultipleSheets
             $rowCount = $sheetExport->collection()->count();
             
             if ($rowCount > 0) {
-                $totalRow = 1 + 1 + $rowCount + 2;
-                $netoTotalFormula = "='" . $sheetName . "'!T" . $totalRow; 
+                // Cálculo de la fila exacta donde cae el Total en la otra pestaña
+                $totalRow = 4 + $rowCount;
+                
+                // 🔥 AQUÍ ESTABA EL ERROR: Apuntaba a la T (Deducciones). Ahora es U (Neto a Pagar)
+                $netoTotalFormula = "='" . $sheetName . "'!U" . $totalRow; 
             } else {
                 $netoTotalFormula = 0;
             }

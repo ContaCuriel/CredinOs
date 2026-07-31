@@ -9,14 +9,14 @@ use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithColumnFormatting;
-use Maatwebsite\Excel\Concerns\WithMapping; // <-- AÑADIDO
+use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
-class ResumenNetosExport implements FromCollection, WithHeadings, WithTitle, ShouldAutoSize, WithEvents, WithColumnFormatting, WithMapping // <-- AÑADIDO
+class ResumenNetosExport implements FromCollection, WithHeadings, WithTitle, ShouldAutoSize, WithEvents, WithColumnFormatting, WithMapping 
 {
     protected Collection $data;
 
@@ -43,22 +43,13 @@ class ResumenNetosExport implements FromCollection, WithHeadings, WithTitle, Sho
         ];
     }
 
-    // --- INICIO DE LA MODIFICACIÓN ---
-    /**
-     * Mapea los datos para cada fila del resumen.
-     *
-     * @param mixed $row
-     * @return array
-     */
     public function map($row): array
     {
-        // Devolvemos el nombre de la sucursal y la fórmula que preparamos en el paso anterior.
         return [
             $row['sucursal'],
             $row['neto_formula'],
         ];
     }
-    // --- FIN DE LA MODIFICACIÓN ---
     
     public function columnFormats(): array
     {
@@ -82,6 +73,7 @@ class ResumenNetosExport implements FromCollection, WithHeadings, WithTitle, Sho
 
                 if ($this->data->count() > 0) {
                     $lastRow = $this->data->count() + 1;
+                    
                     $sheet->getStyle('A1:B' . $lastRow)->applyFromArray([
                         'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
                     ]);
@@ -93,8 +85,18 @@ class ResumenNetosExport implements FromCollection, WithHeadings, WithTitle, Sho
 
                     $sheet->getStyle("A{$totalsRow}:B{$totalsRow}")->applyFromArray([
                         'font' => ['bold' => true, 'size' => 12],
-                        'borders' => ['top' => ['borderStyle' => Border::BORDER_THICK]]
+                        'borders' => [
+                            'top' => ['borderStyle' => Border::BORDER_THICK],
+                            'bottom' => ['borderStyle' => Border::BORDER_THICK]
+                        ]
                     ]);
+                    
+                    $sheet->getStyle("A{$totalsRow}")->applyFromArray([
+                        'alignment' => ['horizontal' => Alignment::HORIZONTAL_RIGHT]
+                    ]);
+
+                    // 🔥 AQUÍ FORZAMOS EL FORMATO MONEDA AL TOTAL GENERAL
+                    $sheet->getStyle("B{$totalsRow}")->getNumberFormat()->setFormatCode('$ #,##0.00;[Red]-$ #,##0.00;"$ "0.00');
                 }
             },
         ];
