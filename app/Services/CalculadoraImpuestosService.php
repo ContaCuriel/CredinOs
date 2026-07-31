@@ -5,31 +5,33 @@ namespace App\Services;
 class CalculadoraImpuestosService
 {
     /**
-     * Tabla Quincenal de ISR (Anexo 8 RMF)
+     * Tabla Quincenal de ISR VIGENTE 2026 (Anexo 8 RMF)
+     * Actualizada por inflación.
      * Estructura: [Limite Inferior, Limite Superior, Cuota Fija, Porcentaje Excedente]
      */
     protected $tablaIsrQuincenal = [
-        [0.01, 368.10, 0.00, 1.92],
-        [368.11, 3124.35, 7.05, 6.40],
-        [3124.36, 5490.75, 183.45, 10.88],
-        [5490.76, 6382.80, 441.00, 16.00],
-        [6382.81, 7641.90, 583.65, 17.92],
-        [7641.91, 15412.80, 809.25, 21.36],
-        [15412.81, 24292.65, 2469.15, 23.52],
-        [24292.66, 46378.50, 4557.90, 30.00],
-        [46378.51, 61838.10, 11183.55, 32.00],
-        [61838.11, 185514.30, 16130.70, 34.00],
-        [185514.31, 9999999.99, 58180.65, 35.00]
+        [0.01,       416.70,       0.00,      1.92],
+        [416.71,     3537.15,      7.95,      6.40],
+        [3537.16,    6216.15,      207.75,    10.88],
+        [6216.16,    7225.95,      499.20,    16.00],
+        [7225.96,    8651.40,      660.75,    17.92],
+        [8651.41,    17448.75,     916.20,    21.36],
+        [17448.76,   27501.60,     2795.25,   23.52],
+        [27501.61,   52505.25,     5159.70,   30.00],
+        [52505.26,   70006.95,     12660.75,  32.00],
+        [70006.96,   210020.70,    18261.30,  34.00],
+        [210020.71,  9999999.99,   65866.05,  35.00]
     ];
 
     /**
-     * Parámetros para el Subsidio al Empleo (Decreto Mayo 2024, aplicable en 2026)
+     * Parámetros para el Subsidio al Empleo (Vigentes para 2026)
      * - Aplica solo a sueldos mensuales menores o iguales a $9,081.00 ($4,540.50 quincenal).
      * - El subsidio mensual es el 11.82% de la UMA mensual.
-     * Nota: Actualiza el valor de la UMA Mensual vigente para 2026 según el INEGI.
      */
     protected $topeSueldoMensualSubsidio = 9081.00;
-    protected $umaMensualVigente = 3457.40; // <-- Cambiar al valor oficial de la UMA mensual 2026 cuando se publique
+    
+    // 🔥 ACTUALIZADO: UMA Mensual Oficial 2026 publicada por el INEGI ($117.31 diaria * 30.4)
+    protected $umaMensualVigente = 3566.22; 
 
     /**
      * Calcula los impuestos (ISR e IMSS) y el Subsidio partiendo del Sueldo Bruto Quincenal
