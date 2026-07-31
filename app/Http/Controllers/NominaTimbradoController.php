@@ -295,13 +295,21 @@ class NominaTimbradoController extends Controller
                 // 3. ARMADO DEL JSON PARA FACTURAMA
                 $payloadFacturama = [
                     "Serie" => "NOM",
+                    "Folio" => (string) $detalle->id_detalle_lista, // 🔥 Agregado: Folio único interno
                     "Date" => $fechaTimbrado,
+                    "CfdiType" => "N", // 🔥 Agregado: 'N' significa Nómina
                     "PaymentMethod" => "PUE", 
                     "PaymentForm" => "99",    
                     "Currency" => "MXN",
                     "Exportation" => "01",
-                    // 🔥 AQUI AGREGAMOS EL LUGAR DE EXPEDICIÓN (C.P. del Patrón)
                     "ExpeditionPlace" => $patron->codigo_postal ?? "00000", 
+                    
+                    // 🔥 AGREGADO: Datos del Patrón (Emisor)
+                    "Issuer" => [
+                        "Rfc" => strtoupper($patron->rfc ?? ''),
+                        "Name" => strtoupper($patron->razon_social ?? ''),
+                        "FiscalRegime" => $patron->regimen_fiscal ?? "601" // Si tu BD tiene otro nombre para el régimen, cámbialo aquí
+                    ],
                     
                     "Receiver" => [
                         "Rfc" => strtoupper($emp->rfc),
