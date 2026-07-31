@@ -46,12 +46,13 @@ class PatronController extends Controller
             'razon_social' => 'required|string|max:255|unique:patrones,razon_social',
             'tipo_persona' => 'required|string|in:fisica,moral',
             'rfc' => 'required|string|max:13|unique:patrones,rfc',
+            'curp' => 'nullable|required_if:tipo_persona,fisica|string|max:18', // 🔥 Nuevo campo validado
             'direccion_fiscal' => 'nullable|string|max:1000',
             'actividad_principal' => 'nullable|string|max:500',
             'representante_legal' => 'nullable|string|max:255',
             'logo_path' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             
-            // 🔥 NUEVOS CAMPOS FISCALES OBLIGATORIOS PARA CFDI 4.0
+            // CAMPOS FISCALES OBLIGATORIOS PARA CFDI 4.0
             'registro_patronal' => 'nullable|string|max:20',
             'regimen_fiscal' => 'required|string|max:5',
             'codigo_postal' => 'required|string|size:5',
@@ -96,6 +97,7 @@ class PatronController extends Controller
             'razon_social' => 'required|string|max:255|unique:patrones,razon_social,' . $patron->id_patron . ',id_patron',
             'tipo_persona' => 'required|string|in:fisica,moral',
             'rfc' => 'required|string|max:13|unique:patrones,rfc,' . $patron->id_patron . ',id_patron',
+            'curp' => 'nullable|required_if:tipo_persona,fisica|string|max:18', // 🔥 Nuevo campo validado
             'direccion_fiscal' => 'nullable|string|max:1000',
             'actividad_principal' => 'nullable|string|max:500',
             'representante_legal' => 'nullable|string|max:255',
@@ -117,6 +119,11 @@ class PatronController extends Controller
             $logoNombre = Str::slug($validatedData['razon_social']) . '_' . time() . '.' . $request->file('logo_path')->getClientOriginalExtension();
             $path = $request->file('logo_path')->storeAs('patron_logos', $logoNombre, 'public');
             $validatedData['logo_path'] = $path;
+        }
+
+        // Si cambió a moral, nos aseguramos de limpiar la CURP
+        if ($validatedData['tipo_persona'] === 'moral') {
+            $validatedData['curp'] = null;
         }
 
         // Actualizamos en base de datos
@@ -238,4 +245,3 @@ class PatronController extends Controller
                          ->with('success', '¡Certificados (CSD) sincronizados con Facturama! Caducidad: ' . ($expiresAt ? $expiresAt->format('d/m/Y') : 'Desconocida'));
     }
 }
-
