@@ -24,9 +24,6 @@ class NominaTimbradoController extends Controller
         $this->facturama = $facturama;
     }
 
-    /**
-     * Muestra la vista principal del Módulo de Nómina y Timbrado.
-     */
     public function index(Request $request)
     {
         $opcionesPeriodo = $this->getOpcionesPeriodo();
@@ -202,7 +199,7 @@ class NominaTimbradoController extends Controller
                 
                 $fiscal = $this->calculadoraImpuestos->calcularDesdeBruto($sueldoBrutoBase, $aplicaImss);
 
-                // --- MAPEO DE PERCEPCIONES (API LITE - ESPAÑOL) ---
+                // --- MAPEO DE PERCEPCIONES (ESPAÑOL PARA API LITE) ---
                 $percepcionesArr = [];
                 $totalPercepcionesGravadas = $fiscal['bruto'];
                 $totalPercepcionesExentas = 0;
@@ -227,7 +224,7 @@ class NominaTimbradoController extends Controller
                     $totalPercepcionesGravadas += $bonos;
                 }
 
-                // --- MAPEO DE DEDUCCIONES (API LITE - ESPAÑOL) ---
+                // --- MAPEO DE DEDUCCIONES (ESPAÑOL PARA API LITE) ---
                 $deduccionesArr = [];
                 $totalImpuestosRetenidos = 0;
                 $totalOtrasDeducciones = 0;
@@ -303,7 +300,7 @@ class NominaTimbradoController extends Controller
                 $fechaInicio = explode('_', $periodo->periodo_rango)[0];
                 $fechaFin = explode('_', $periodo->periodo_rango)[1];
 
-                // 🔥 PAYLOAD API LITE CORRECTO 🔥
+                // 🔥 PAYLOAD FINAL - API LITE MULTI-EMISOR 🔥
                 $payloadFacturama = [
                     "Serie" => "NOM",
                     "Folio" => (string) $detalle->id_detalle_lista,
@@ -329,7 +326,7 @@ class NominaTimbradoController extends Controller
                         "TaxZipCode" => $emp->cp_fiscal
                     ],
                     
-                    // No hay arreglo "Items", Facturama lo generará
+                    // ⚠️ SE OMITE "Items" PORQUE API LITE LO GENERA AUTOMÁTICAMENTE
                     
                     "Complemento" => [
                         "Nomina" => [
