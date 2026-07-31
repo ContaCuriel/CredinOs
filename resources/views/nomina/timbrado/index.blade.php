@@ -136,7 +136,7 @@
                         </h6>
                     </div>
 
-                    <form action="#" method="POST" id="form_timbrado">
+                    <form action="{{ route('nomina.timbrado.procesar') }}" method="POST" id="form_timbrado">
                         @csrf
                         <div class="table-responsive">
                             <table class="table table-bordered table-hover table-sm align-middle shadow-sm" style="font-size: 0.85rem;">
@@ -470,6 +470,21 @@
                         btnSubmit.innerHTML = 'Guardar y Validar';
                         btnSubmit.disabled = false;
                     });
+                });
+            }
+
+            // --- BLOQUEAR BOTÓN TIMBRAR AL ENVIAR ---
+            const formTimbrado = document.getElementById('form_timbrado');
+            const btnTimbrar = document.getElementById('btn_timbrar');
+            
+            if(formTimbrado && btnTimbrar) {
+                formTimbrado.addEventListener('submit', function() {
+                    // Verificamos que al menos un checkbox esté marcado
+                    const seleccionados = document.querySelectorAll('input[name="empleados_timbrar[]"]:checked').length;
+                    if(seleccionados > 0) {
+                        btnTimbrar.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Timbrando...';
+                        btnTimbrar.disabled = true;
+                    }
                 });
             }
         });

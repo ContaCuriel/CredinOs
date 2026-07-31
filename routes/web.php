@@ -133,6 +133,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/lista-de-raya/guardar-historico', [ListaDeRayaController::class, 'guardarHistorico'])->name('lista_raya.guardar_historico');
         Route::post('/lista-de-raya/eliminar-borrador', [ListaDeRayaController::class, 'eliminarBorrador'])->name('lista_raya.eliminar_borrador');
         Route::get('/nomina/timbrado', [NominaTimbradoController::class, 'index'])->name('nomina.timbrado.index');
+        Route::post('/nomina/timbrado/procesar', [App\Http\Controllers\NominaTimbradoController::class, 'procesarTimbrado'])->name('nomina.timbrado.procesar');
 
 
         // Finiquitos y Liquidaciones

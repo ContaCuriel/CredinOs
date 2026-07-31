@@ -1,4 +1,10 @@
 <x-app-layout>
+    <style>
+        .switch-panel { background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 0.5rem; padding: 1rem; }
+        .table td { vertical-align: middle !important; }
+        .row-disabled { background-color: #fdfdfe; opacity: 0.65; }
+    </style>
+
     <div class="container-fluid py-4">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
@@ -128,6 +134,7 @@
                             
                             $showDedFaltas = $resultados->sum('deduccion_faltas') > 0;
                             $showPrestamo = $resultados->sum('deduccion_prestamo') > 0;
+                            $showPrevision = $resultados->sum('deduccion_prevision') > 0; // 🔥 SE AGREGÓ PREVISIÓN
                             $showCajaAhorro = $resultados->sum('deduccion_caja_ahorro') > 0;
                             $showInfonavit = $resultados->sum('deduccion_infonavit') > 0;
                             $showIsr = $resultados->sum('deduccion_isr') > 0;
@@ -135,7 +142,7 @@
                             $showOtro = $resultados->sum('deduccion_otro') > 0;
                             
                             $colspanPercepciones = 1 + ($showBonoPerm ? 1 : 0) + ($showBonoCump ? 1 : 0) + ($showPrimaVac ? 1 : 0);
-                            $colspanDeducciones = ($showDedFaltas ? 1 : 0) + ($showPrestamo ? 1 : 0) + ($showCajaAhorro ? 1 : 0) + ($showInfonavit ? 1 : 0) + ($showIsr ? 1 : 0) + ($showImss ? 1 : 0) + ($showOtro ? 1 : 0);
+                            $colspanDeducciones = ($showDedFaltas ? 1 : 0) + ($showPrestamo ? 1 : 0) + ($showPrevision ? 1 : 0) + ($showCajaAhorro ? 1 : 0) + ($showInfonavit ? 1 : 0) + ($showIsr ? 1 : 0) + ($showImss ? 1 : 0) + ($showOtro ? 1 : 0);
                         @endphp
 
                         <div class="table-responsive">
@@ -165,6 +172,7 @@
                                         {{-- Deducciones --}}
                                         @if($showDedFaltas) <th>Faltas</th> @endif
                                         @if($showPrestamo) <th>Préstamo</th> @endif
+                                        @if($showPrevision) <th>Previsión</th> @endif {{-- 🔥 COLUMNA PREVISIÓN --}}
                                         @if($showCajaAhorro) <th>Caja Ahorro</th> @endif
                                         @if($showInfonavit) <th>Infonavit</th> @endif
                                         @if($showIsr) <th>ISR</th> @endif
@@ -201,6 +209,7 @@
                                                 
                                                 @if($showDedFaltas) <td class="text-end text-danger">($ {{ number_format($resultado['deduccion_faltas'], 2) }})</td> @endif
                                                 @if($showPrestamo) <td class="text-end text-danger">($ {{ number_format($resultado['deduccion_prestamo'], 2) }})</td> @endif
+                                                @if($showPrevision) <td class="text-end text-danger">($ {{ number_format($resultado['deduccion_prevision'], 2) }})</td> @endif {{-- 🔥 DATO PREVISIÓN --}}
                                                 @if($showCajaAhorro) <td class="text-end text-danger">($ {{ number_format($resultado['deduccion_caja_ahorro'], 2) }})</td> @endif
                                                 @if($showInfonavit) <td class="text-end text-danger">($ {{ number_format($resultado['deduccion_infonavit'], 2) }})</td> @endif
                                                 @if($showIsr) <td class="text-end text-danger">($ {{ number_format($resultado['deduccion_isr'], 2) }})</td> @endif
