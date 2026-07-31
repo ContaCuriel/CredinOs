@@ -301,10 +301,6 @@ class NominaTimbradoController extends Controller
                     $totalOtrosPagos += $fiscal['subsidio_empleo'];
                 }
 
-                $subtotalCfdi = $totalPercepcionesGravadas + $totalPercepcionesExentas + $totalOtrosPagos;
-                $descuentoCfdi = $totalImpuestosRetenidos + $totalOtrasDeducciones;
-                $totalCfdi = $subtotalCfdi - $descuentoCfdi;
-
                 $fechaTimbrado = Carbon::now()->format('Y-m-d\TH:i:s');
                 $fechaInicio = explode('_', $periodo->periodo_rango)[0];
                 $fechaFin = explode('_', $periodo->periodo_rango)[1];
@@ -332,20 +328,6 @@ class NominaTimbradoController extends Controller
                         "CfdiUse" => "CN01", 
                         "FiscalRegime" => $emp->regimen_fiscal ?? "605",
                         "TaxZipCode" => $emp->cp_fiscal
-                    ],
-                    "Items" => [
-                        [
-                            "ProductCode" => "84111505",
-                            "IdentificationNumber" => "NOM",
-                            "Description" => "Pago de nómina",
-                            "Unit" => "ACT",
-                            "UnitCode" => "ACT",
-                            "UnitPrice" => round($subtotalCfdi, 2),
-                            "Quantity" => 1.0,
-                            "Subtotal" => round($subtotalCfdi, 2),
-                            "Discount" => round($descuentoCfdi, 2),
-                            "Total" => round($totalCfdi, 2)
-                        ]
                     ],
                     "Complemento" => [
                         "Nomina" => [
