@@ -436,4 +436,57 @@ class NominaTimbradoController extends Controller
 
         return back()->with('success', "Se han timbrado exitosamente $timbradosCorrectos recibos de nómina.");
     }
+
+    /**
+     * Descargar PDF del Recibo de Nómina
+     */
+    public function descargarPdf($id_detalle)
+    {
+        $nomina = NominaTimbrada::where('id_detalle_lista', $id_detalle)->firstOrFail();
+
+        if (!$nomina->facturama_id) {
+            return back()->with('error', 'No se encontró el ID de Facturama para este recibo.');
+        }
+
+        // Llamamos al servicio de Facturama (Asegúrate de que tu servicio tenga un método para bajar archivos, o usa el endpoint directo)
+        // El endpoint clásico de Facturama para obtener el archivo es: GET /cfdi/{id}?type=pdf
+        $response = $this->facturama->getFile($nomina->facturama_id, 'pdf'); 
+
+        if ($response->successful()) {
+            $data = $response->json();
+            // Facturama devuelve el contenido en base64 en la llave 'Content'
+            $pdfDecoded = base64_decode($data['Content']);
+            
+            return response($pdfDecoded)
+                ->header('Content-Type', 'application/pdf')
+                ->header('Content-Disposition', 'inline; filename="Nomina_' . $nomina->uuid_cfdi . '.pdf"');
+        }
+
+        return back()->with('error', 'Error al descargar el PDF desde el PAC.');
+    }
+
+    /**
+     * Descargar XML del Recibo de Nómina
+     */
+    public function descargarXml($id_detalle)
+    {
+        $nomina = NominaTimbrada::where('id_detalle_lista', $id_detalle)->firstOrFail();
+
+        if (!$nomina->facturama_id) {
+            return back()->with('error', 'No se encontró el ID de Facturama para este recibo.');
+        }
+
+        $response = $this->facturama->getFile($nomina->facturama_id, 'xml'); 
+
+        if ($response->successful()) {
+            $data = $response->json();
+            $xmlDecoded = base64_decode($data['Content']);
+            
+            return response($xmlDecoded)
+                ->header('Content-Type', 'application/xml')
+                ->header('Content-Disposition', 'attachment; filename="Nomina_' . $nomina->uuid_cfdi . '.xml"');
+        }
+
+        return back()->with('error', 'Error al descargar el XML desde el PAC.');
+    }
 }

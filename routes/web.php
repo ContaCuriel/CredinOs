@@ -134,6 +134,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/lista-de-raya/eliminar-borrador', [ListaDeRayaController::class, 'eliminarBorrador'])->name('lista_raya.eliminar_borrador');
         Route::get('/nomina/timbrado', [NominaTimbradoController::class, 'index'])->name('nomina.timbrado.index');
         Route::post('/nomina/timbrado/procesar', [App\Http\Controllers\NominaTimbradoController::class, 'procesarTimbrado'])->name('nomina.timbrado.procesar');
+        // Descargas de CFDI de Nómina
+Route::get('/nomina/timbrado/{id_detalle}/pdf', [App\Http\Controllers\NominaTimbradoController::class, 'descargarPdf'])->name('nomina.timbrado.pdf');
+Route::get('/nomina/timbrado/{id_detalle}/xml', [App\Http\Controllers\NominaTimbradoController::class, 'descargarXml'])->name('nomina.timbrado.xml');
 
 
         // Finiquitos y Liquidaciones

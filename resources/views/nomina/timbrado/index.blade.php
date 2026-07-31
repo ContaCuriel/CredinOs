@@ -161,7 +161,7 @@
                                         <th rowspan="2" class="align-middle bg-primary text-white" style="width: 110px;">Neto a Pagar</th>
                                         
                                         @if($isFiscal)
-                                            <th rowspan="2" class="align-middle" style="width: 90px;">Comprobante</th>
+                                            <th rowspan="2" class="align-middle" style="width: 120px;">Comprobante</th>
                                         @endif
                                     </tr>
                                     <tr class="text-center">
@@ -257,13 +257,16 @@
                                                 @if($isFiscal)
                                                     <td class="text-center">
                                                         @if($alreadyTimbrado)
-                                                            <div class="btn-group btn-group-sm" role="group">
-                                                                @if(!empty($resultado['xml_path']))
-                                                                    <a href="{{ Storage::url($resultado['xml_path']) }}" class="btn btn-outline-secondary" target="_blank" title="Descargar XML"><i class="bi bi-filetype-xml"></i></a>
-                                                                @endif
-                                                                @if(!empty($resultado['pdf_path']))
-                                                                    <a href="{{ Storage::url($resultado['pdf_path']) }}" class="btn btn-outline-danger" target="_blank" title="Descargar PDF"><i class="bi bi-filetype-pdf"></i></a>
-                                                                @endif
+                                                            <div class="d-flex flex-column align-items-center gap-1">
+                                                                <div class="btn-group w-100" role="group">
+                                                                    <a href="{{ route('nomina.timbrado.pdf', $resultado['id_detalle_lista']) }}" target="_blank" class="btn btn-outline-danger btn-sm" title="Ver PDF">
+                                                                        <i class="bi bi-file-earmark-pdf-fill"></i> PDF
+                                                                    </a>
+                                                                    <a href="{{ route('nomina.timbrado.xml', $resultado['id_detalle_lista']) }}" class="btn btn-outline-secondary btn-sm" title="Descargar XML">
+                                                                        <i class="bi bi-filetype-xml"></i> XML
+                                                                    </a>
+                                                                </div>
+                                                                <span class="text-muted" style="font-size: 0.65rem;">UUID: {{ substr($resultado['uuid_cfdi'] ?? '', 0, 8) }}...</span>
                                                             </div>
                                                         @else
                                                             <span class="text-muted small">-</span>
