@@ -24,9 +24,6 @@ class NominaTimbradoController extends Controller
         $this->facturama = $facturama;
     }
 
-    /**
-     * Muestra la vista principal del Módulo de Nómina y Timbrado.
-     */
     public function index(Request $request)
     {
         $opcionesPeriodo = $this->getOpcionesPeriodo();
@@ -100,7 +97,6 @@ class NominaTimbradoController extends Controller
                     if ($modoTrabajo === 'fiscal') {
                         $aplicaImss = !in_array(strtolower($emp->tipo_contrato ?? ''), ['honorarios', 'asimilados']);
 
-                        // LÓGICA DE ESQUEMA MIXTO (SDI vs REAL)
                         if ($aplicaImss && floatval($emp->sdi) > 0) {
                             $sueldoBrutoBase = floatval($emp->sdi) * 15;
                             $calculoFiscal = $this->calculadoraImpuestos->calcularDesdeBruto($sueldoBrutoBase, $aplicaImss);
@@ -203,125 +199,106 @@ class NominaTimbradoController extends Controller
                 
                 $fiscal = $this->calculadoraImpuestos->calcularDesdeBruto($sueldoBrutoBase, $aplicaImss);
 
-                // Percepciones
-                $percepcionesArr = [];
-                $totalPercepcionesGravadas = $fiscal['bruto'];
-                $totalPercepcionesExentas = 0;
+                // --- MAPEO DE PERCEPCIONES SEGÚN DOCUMENTACIÓN FACTURAMA API WEB ---
+                $perceptionsDetails = [];
 
-                $percepcionesArr[] = [
-                    "TipoPercepcion" => "001",
-                    "Clave" => "001",
-                    "Concepto" => "Sueldo",
-                    "ImporteGravado" => round($fiscal['bruto'], 2),
-                    "ImporteExento" => 0.0
+                $perceptionsDetails[] = [
+                    "PerceptionType" => "001",
+                    "Code" => "001",
+                    "Description" => "Sueldo",
+                    "TaxedAmount" => round($fiscal['bruto'], 2),
+                    "ExemptAmount" => 0.0
                 ];
 
                 $bonos = floatval($detalle->bono_permanencia) + floatval($detalle->bono_cumpleanos);
                 if ($bonos > 0) {
-                    $percepcionesArr[] = [
-                        "TipoPercepcion" => "038",
-                        "Clave" => "038",
-                        "Concepto" => "Bonos Extra",
-                        "ImporteGravado" => round($bonos, 2),
-                        "ImporteExento" => 0.0
+                    $perceptionsDetails[] = [
+                        "PerceptionType" => "038",
+                        "Code" => "038",
+                        "Description" => "Bonos Extra",
+                        "TaxedAmount" => round($bonos, 2),
+                        "ExemptAmount" => 0.0
                     ];
-                    $totalPercepcionesGravadas += $bonos;
                 }
 
-                // Deducciones
-                $deduccionesArr = [];
-                $totalImpuestosRetenidos = 0;
-                $totalOtrasDeducciones = 0;
+                // --- MAPEO DE DEDUCCIONES SEGÚN DOCUMENTACIÓN FACTURAMA API WEB ---
+                $deductionsDetails = [];
 
                 if ($fiscal['isr_a_retener'] > 0) {
-                    $deduccionesArr[] = [
-                        "TipoDeduccion" => "002",
-                        "Clave" => "002",
-                        "Concepto" => "ISR",
-                        "Importe" => round($fiscal['isr_a_retener'], 2)
+                    $deductionsDetails[] = [
+                        "DeduccionType" => "002",
+                        "Code" => "002",
+                        "Description" => "ISR",
+                        "Amount" => round($fiscal['isr_a_retener'], 2)
                     ];
-                    $totalImpuestosRetenidos += $fiscal['isr_a_retener'];
                 }
 
                 if ($fiscal['imss'] > 0) {
-                    $deduccionesArr[] = [
-                        "TipoDeduccion" => "001",
-                        "Clave" => "001",
-                        "Concepto" => "IMSS",
-                        "Importe" => round($fiscal['imss'], 2)
+                    $deductionsDetails[] = [
+                        "DeduccionType" => "001",
+                        "Code" => "001",
+                        "Description" => "IMSS",
+                        "Amount" => round($fiscal['imss'], 2)
                     ];
-                    $totalImpuestosRetenidos += $fiscal['imss'];
                 }
 
                 $faltas = floatval($detalle->descuento_por_faltas);
                 if ($faltas > 0) {
-                    $deduccionesArr[] = [
-                        "TipoDeduccion" => "020",
-                        "Clave" => "020",
-                        "Concepto" => "Faltas y Retardos",
-                        "Importe" => round($faltas, 2)
+                    $deductionsDetails[] = [
+                        "DeduccionType" => "020",
+                        "Code" => "020",
+                        "Description" => "Faltas y Retardos",
+                        "Amount" => round($faltas, 2)
                     ];
-                    $totalOtrasDeducciones += $faltas;
                 }
 
                 $cajaAhorro = floatval($detalle->deduccion_caja_ahorro);
                 if ($cajaAhorro > 0) {
-                    $deduccionesArr[] = [
-                        "TipoDeduccion" => "004",
-                        "Clave" => "004",
-                        "Concepto" => "Caja de Ahorro",
-                        "Importe" => round($cajaAhorro, 2)
+                    $deductionsDetails[] = [
+                        "DeduccionType" => "004",
+                        "Code" => "004",
+                        "Description" => "Caja de Ahorro",
+                        "Amount" => round($cajaAhorro, 2)
                     ];
-                    $totalOtrasDeducciones += $cajaAhorro;
                 }
 
                 $infonavit = floatval($detalle->deduccion_infonavit);
                 if ($infonavit > 0) {
-                    $deduccionesArr[] = [
-                        "TipoDeduccion" => "009",
-                        "Clave" => "009",
-                        "Concepto" => "Préstamo Infonavit",
-                        "Importe" => round($infonavit, 2)
+                    $deductionsDetails[] = [
+                        "DeduccionType" => "009",
+                        "Code" => "009",
+                        "Description" => "Préstamo Infonavit",
+                        "Amount" => round($infonavit, 2)
                     ];
-                    $totalOtrasDeducciones += $infonavit;
                 }
 
-                $otrosPagosArr = [];
-                $totalOtrosPagos = 0;
+                // --- MAPEO DE OTROS PAGOS (SUBSIDIO) ---
+                $otherPayments = [];
                 if ($fiscal['subsidio_empleo'] > 0) {
-                    $otrosPagosArr[] = [
-                        "TipoOtroPago" => "002",
-                        "Clave" => "002",
-                        "Concepto" => "Subsidio al Empleo",
-                        "Importe" => round($fiscal['subsidio_empleo'], 2),
-                        "SubsidioAlEmpleo" => [
-                            "SubsidioCausado" => round($fiscal['subsidio_empleo'], 2)
+                    $otherPayments[] = [
+                        "OtherPaymentType" => "002",
+                        "Code" => "002",
+                        "Description" => "Subsidio al Empleo",
+                        "Amount" => round($fiscal['subsidio_empleo'], 2),
+                        "EmploymentSubsidy" => [
+                            "Amount" => round($fiscal['subsidio_empleo'], 2)
                         ]
                     ];
-                    $totalOtrosPagos += $fiscal['subsidio_empleo'];
                 }
 
                 $fechaTimbrado = Carbon::now()->format('Y-m-d\TH:i:s');
                 $fechaInicio = explode('_', $periodo->periodo_rango)[0];
                 $fechaFin = explode('_', $periodo->periodo_rango)[1];
+                $fechaIngresoFormat = $emp->fecha_ingreso ? Carbon::parse($emp->fecha_ingreso)->format('Y-m-d\TH:i:s') : $fechaInicio . 'T00:00:00';
 
+                // 🔥 PAYLOAD COMPLETO ACTUALIZADO 🔥
                 $payloadFacturama = [
-                    "Serie" => "NOM",
-                    "Folio" => (string) $detalle->id_detalle_lista,
-                    "Date" => $fechaTimbrado,
+                    "NameId" => "16", // 16 = Recibo de Nómina[cite: 1]
+                    "ExpeditionPlace" => $patron->codigo_postal ?? "00000",
                     "CfdiType" => "N", 
-                    "PaymentMethod" => "PUE", 
                     "PaymentForm" => "99",    
-                    "Currency" => "MXN",
-                    "Exportation" => "01",
-                    "ExpeditionPlace" => $patron->codigo_postal ?? "00000", 
-                    
-                    "Issuer" => [
-                        "Rfc" => strtoupper($patron->rfc ?? ''),
-                        "Name" => strtoupper($patron->razon_social ?? ''),
-                        "FiscalRegime" => $patron->regimen_fiscal ?? "601"
-                    ],
-                    
+                    "PaymentMethod" => "PUE",
+                    "Folio" => (string) $detalle->id_detalle_lista,
                     "Receiver" => [
                         "Rfc" => strtoupper($emp->rfc),
                         "Name" => strtoupper($emp->nombre_fiscal),
@@ -330,48 +307,47 @@ class NominaTimbradoController extends Controller
                         "TaxZipCode" => $emp->cp_fiscal
                     ],
                     "Complemento" => [
-                        "Nomina" => [
-                            "TipoNomina" => "O",
-                            "FechaPago" => $fechaFin,
-                            "FechaInicialPago" => $fechaInicio,
-                            "FechaFinalPago" => $fechaFin,
-                            "NumDiasPagados" => 15,
-                            "Emisor" => [
-                                "RegistroPatronal" => $patron->registro_patronal ?? "00000000000"
+                        "Payroll" => [
+                            "Type" => "O",
+                            "PaymentDate" => $fechaFin . 'T12:00:00',
+                            "InitialPaymentDate" => $fechaInicio . 'T00:00:00',
+                            "FinalPaymentDate" => $fechaFin . 'T23:59:59',
+                            "DaysPaid" => 15,
+                            "Issuer" => [
+                                "EmployerRegistration" => $patron->registro_patronal ?? "00000000000"
                             ],
-                            "Receptor" => [
+                            "Employee" => [
                                 "Curp" => strtoupper($emp->curp),
-                                "TipoContrato" => "01", 
-                                "TipoJornada" => "01",  
-                                "PeriodicidadPago" => "04", 
-                                "ClaveEntFed" => "MEX", 
-                                "NumEmpleado" => (string) $emp->id_empleado,
-                                "Departamento" => "GENERAL",
-                                "Puesto" => $detalle->puesto_historico ?? "EMPLEADO",
-                                "RiesgoPuesto" => "1", 
-                                "SalarioBaseCotApor" => round($sueldoBrutoBase / 15, 2),
-                                "SalarioDiarioIntegrado" => floatval($emp->sdi) > 0 ? floatval($emp->sdi) : round(($sueldoBrutoBase / 15) * 1.0452, 2)
+                                "SocialSecurityNumber" => $emp->nss ?? "00000000000",
+                                "StartDateLaborRelations" => $fechaIngresoFormat,
+                                "ContractType" => $aplicaImss ? "01" : "09", 
+                                "RegimeType" => $aplicaImss ? "02" : "09",  
+                                "Unionized" => false, 
+                                "TypeOfJourney" => "01", 
+                                "EmployeeNumber" => (string) $emp->id_empleado,
+                                "Department" => "GENERAL",
+                                "Position" => Str::limit($detalle->puesto_historico ?? "EMPLEADO", 50),
+                                "PositionRisk" => $aplicaImss ? "1" : "99", 
+                                "FrequencyPayment" => "04", // 04 = Quincenal
+                                "BaseSalary" => round($sueldoBrutoBase / 15, 2),
+                                "DailySalary" => floatval($emp->sdi) > 0 ? floatval($emp->sdi) : round(($sueldoBrutoBase / 15) * 1.0452, 2),
+                                "FederalEntityKey" => "MEX" 
                             ],
-                            "Percepciones" => [
-                                "TotalSueldos" => round($totalPercepcionesGravadas + $totalPercepcionesExentas, 2),
-                                "TotalGravado" => round($totalPercepcionesGravadas, 2),
-                                "TotalExento" => round($totalPercepcionesExentas, 2),
-                                "Percepcion" => $percepcionesArr
+                            "Perceptions" => [
+                                "Details" => $perceptionsDetails
                             ]
                         ]
                     ]
                 ];
 
-                if (count($deduccionesArr) > 0) {
-                    $payloadFacturama["Complemento"]["Nomina"]["Deducciones"] = [
-                        "TotalOtrasDeducciones" => round($totalOtrasDeducciones, 2),
-                        "TotalImpuestosRetenidos" => round($totalImpuestosRetenidos, 2),
-                        "Deduccion" => $deduccionesArr
+                if (count($deductionsDetails) > 0) {
+                    $payloadFacturama["Complemento"]["Payroll"]["Deductions"] = [
+                        "Details" => $deductionsDetails
                     ];
                 }
 
-                if (count($otrosPagosArr) > 0) {
-                    $payloadFacturama["Complemento"]["Nomina"]["OtrosPagos"] = $otrosPagosArr;
+                if (count($otherPayments) > 0) {
+                    $payloadFacturama["Complemento"]["Payroll"]["OtherPayments"] = $otherPayments;
                 }
 
                 $response = $this->facturama->createInvoice($payloadFacturama);
@@ -383,7 +359,7 @@ class NominaTimbradoController extends Controller
                         ['id_detalle_lista' => $detalle->id_detalle_lista],
                         [
                             'id_empleado' => $emp->id_empleado,
-                            'uuid_cfdi' => $facturamaData['Complement']['TaxStamp']['Uuid'],
+                            'uuid_cfdi' => $facturamaData['Complement']['TaxStamp']['Uuid'] ?? $facturamaData['Id'],
                             'facturama_id' => $facturamaData['Id'],
                             'estado_timbrado' => 'timbrado',
                             'mensaje_error_sat' => null,
