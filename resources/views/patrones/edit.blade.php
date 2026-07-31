@@ -38,9 +38,9 @@
                     </div>
 
                     <div class="row">
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             <label for="tipo_persona" class="form-label fw-bold small">Tipo de Persona <span class="text-danger">*</span></label>
-                            <select class="form-select form-select-sm @error('tipo_persona') is-invalid @enderror" id="tipo_persona" name="tipo_persona" required>
+                            <select class="form-select form-select-sm @error('tipo_persona') is-invalid @enderror" id="tipo_persona" name="tipo_persona" required onchange="toggleCurpField()">
                                 <option value="">Seleccione un tipo...</option>
                                 @foreach (['fisica' => 'Persona Física', 'moral' => 'Persona Moral'] as $valor => $texto)
                                     <option value="{{ $valor }}" {{ old('tipo_persona', $patron->tipo_persona) == $valor ? 'selected' : '' }}>{{ $texto }}</option>
@@ -48,14 +48,22 @@
                             </select>
                             @error('tipo_persona') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             <label for="rfc" class="form-label fw-bold small">RFC <span class="text-danger">*</span></label>
                             <input type="text" class="form-control form-control-sm @error('rfc') is-invalid @enderror" id="rfc" name="rfc" value="{{ old('rfc', $patron->rfc) }}" required>
                             @error('rfc') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
+
+                        {{-- 🔥 COLUMNA NUEVA: CURP (Solo visible si es Persona Física) 🔥 --}}
+                        <div class="col-md-4 mb-3" id="div_curp" style="display: {{ old('tipo_persona', $patron->tipo_persona) == 'fisica' ? 'block' : 'none' }};">
+                            <label for="curp" class="form-label fw-bold small text-primary">CURP <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control form-control-sm @error('curp') is-invalid @enderror" id="curp" name="curp" value="{{ old('curp', $patron->curp) }}" maxlength="18" placeholder="Requerido para P. Física">
+                            <small class="text-muted" style="font-size: 0.75rem;">Obligatorio para timbrar nómina como Persona Física.</small>
+                            @error('curp') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
                     </div>
 
-                    {{-- 🔥 SECCIÓN NUEVA: DATOS FISCALES CFDI 4.0 🔥 --}}
+                    {{-- 🔥 SECCIÓN ACTUALIZADA: DATOS FISCALES CFDI 4.0 🔥 --}}
                     <h6 class="fw-bold mt-4 mb-3 text-secondary border-bottom pb-2"><i class="bi bi-bank me-1"></i> Datos Fiscales (CFDI 4.0)</h6>
                     <div class="row bg-light p-3 rounded mb-3 border">
                         <div class="col-md-4 mb-3">
@@ -123,4 +131,20 @@
             </div>
         </div>
     </div>
+
+    {{-- Script para mostrar/ocultar CURP dinámicamente --}}
+    <script>
+        function toggleCurpField() {
+            const select = document.getElementById('tipo_persona');
+            const divCurp = document.getElementById('div_curp');
+            const inputCurp = document.getElementById('curp');
+
+            if (select.value === 'fisica') {
+                divCurp.style.display = 'block';
+            } else {
+                divCurp.style.display = 'none';
+                inputCurp.value = ''; // Limpiamos el valor si cambian a Moral
+            }
+        }
+    </script>
 </x-app-layout>

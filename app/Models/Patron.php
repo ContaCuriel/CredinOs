@@ -21,6 +21,7 @@ class Patron extends Model
         'actividad_principal',
         'representante_legal',
         'logo_path',
+        'curp',
         'registro_patronal', 'regimen_fiscal', 'codigo_postal',
         'csd_cer_path', 'csd_key_path', 'csd_password', 'csd_expires_at',
     ];

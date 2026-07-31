@@ -225,7 +225,7 @@ class NominaTimbradoController extends Controller
 
                 if ($fiscal['isr_a_retener'] > 0) {
                     $deductionsDetails[] = [
-                        "DeduccionType" => "002", // Escrito exactamente como la documentación de Facturama
+                        "DeduccionType" => "002",
                         "Code" => "002",
                         "Description" => "ISR",
                         "Amount" => round($fiscal['isr_a_retener'], 2)
@@ -289,13 +289,26 @@ class NominaTimbradoController extends Controller
                 $fechaFin = explode('_', $periodo->periodo_rango)[1];
                 $fechaIngresoFormat = $emp->fecha_ingreso ? Carbon::parse($emp->fecha_ingreso)->format('Y-m-d\TH:i:s') : $fechaInicio . 'T00:00:00';
 
-                // 🔥 PAYLOAD DEFINITIVO: Inglés + Issuer Raíz + NameId 16 + Sin Items 🔥
+                // --- PREPARAR EMISOR DE NÓMINA (Regla Inteligente SaaS) ---
+                $nominaIssuer = [
+                    "EmployerRegistration" => $patron->registro_patronal ?? "00000000000"
+                ];
+
+                // Regla SAT: Si el RFC del patrón tiene 13 caracteres (Persona Física), exige CURP
+                if (strlen(trim($patron->rfc ?? '')) === 13) {
+                    if (empty($patron->curp)) {
+                        throw new \Exception("El Patrón '{$patron->razon_social}' es Persona Física y el SAT exige su CURP. Por favor, agregue la CURP en el perfil de la empresa.");
+                    }
+                    $nominaIssuer["Curp"] = strtoupper(trim($patron->curp));
+                }
+
+                // 🔥 PAYLOAD DEFINITIVO 🔥
                 $payloadFacturama = [
                     "NameId" => "16", 
                     "ExpeditionPlace" => $patron->codigo_postal ?? "00000",
                     "CfdiType" => "N", 
-                    "PaymentForm" => "03",    // 🔥 CAMBIO AQUÍ: 03 = Transferencia Electrónica (El SAT prohíbe 99 con PUE)
-                    "PaymentMethod" => "PUE", // PUE es obligatorio por ley para Nómina
+                    "PaymentForm" => "03", 
+                    "PaymentMethod" => "PUE",
                     "Folio" => (string) $detalle->id_detalle_lista,
                     "Currency" => "MXN",
                     
@@ -320,9 +333,7 @@ class NominaTimbradoController extends Controller
                             "InitialPaymentDate" => $fechaInicio . 'T00:00:00',
                             "FinalPaymentDate" => $fechaFin . 'T23:59:59',
                             "DaysPaid" => 15,
-                            "Issuer" => [
-                                "EmployerRegistration" => $patron->registro_patronal ?? "00000000000"
-                            ],
+                            "Issuer" => $nominaIssuer,
                             "Employee" => [
                                 "Curp" => strtoupper($emp->curp),
                                 "SocialSecurityNumber" => $emp->nss ?? "00000000000",

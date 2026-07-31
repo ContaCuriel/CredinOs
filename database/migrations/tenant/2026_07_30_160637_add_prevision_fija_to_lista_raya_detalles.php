@@ -11,9 +11,9 @@ return new class extends Migration
         $schema = str_contains($dbName, 'credintegra') ? 'credintegra_db' : 
                  (str_contains($dbName, 'crediticia') ? 'facturame_db' : 'public');
 
-        $sql = "ALTER TABLE \"$schema\".lista_raya_detalles 
-                ADD COLUMN IF NOT EXISTS deduccion_prevision DECIMAL(10,2) DEFAULT 0.00,
-                ADD COLUMN IF NOT EXISTS deduccion_fija DECIMAL(10,2) DEFAULT 0.00";
+        // Agregamos la columna CURP (longitud 18, permitiendo nulos para las Personas Morales)
+        $sql = "ALTER TABLE \"$schema\".patrones 
+                ADD COLUMN IF NOT EXISTS curp VARCHAR(18) NULL";
         
         DB::connection('tenant')->statement($sql);
     }
@@ -24,9 +24,8 @@ return new class extends Migration
         $schema = str_contains($dbName, 'credintegra') ? 'credintegra_db' : 
                  (str_contains($dbName, 'crediticia') ? 'facturame_db' : 'public');
 
-        $sql = "ALTER TABLE \"$schema\".lista_raya_detalles 
-                DROP COLUMN IF EXISTS deduccion_prevision,
-                DROP COLUMN IF EXISTS deduccion_fija";
+        $sql = "ALTER TABLE \"$schema\".patrones 
+                DROP COLUMN IF EXISTS curp";
 
         DB::connection('tenant')->statement($sql);
     }
