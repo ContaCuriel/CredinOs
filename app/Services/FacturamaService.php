@@ -153,11 +153,11 @@ class FacturamaService
      */
     public function getFile($id, $format)
     {
-        // En base a tu documentación: /cfdi/{format}/{type}/{id}
-        // Usamos 'issuedLite' porque estás usando la API Multiemisor para tus clientes (Tenants)
+        // Usamos 'issuedLite' porque estás usando la API Multiemisor para tus clientes
         $endpoint = "{$this->apiUrl}/cfdi/{$format}/issuedLite/{$id}";
 
-        return Http::withBasicAuth($this->apiUser, $this->apiPassword)
+        return Http::withoutVerifying() // 🔥 Esta es la magia que brinca el error de SSL
+                   ->withBasicAuth($this->apiUser, $this->apiPassword)
                    ->get($endpoint);
     }
 }
