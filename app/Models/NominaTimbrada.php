@@ -20,6 +20,7 @@ class NominaTimbrada extends Model
         'imss_retenido',
         'estado_timbrado',
         'uuid_cfdi',
+        'facturama_id',
         'xml_path',
         'pdf_path',
         'mensaje_error_sat'
