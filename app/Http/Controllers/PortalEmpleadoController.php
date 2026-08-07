@@ -52,10 +52,11 @@ class PortalEmpleadoController extends Controller
         $empleadoId = session('empleado_id');
         $empleado = Empleado::findOrFail($empleadoId);
 
+        // 🔥 Se reemplaza 'fecha_timbrado' por latest() (ordena por created_at desc)
         $todasLasNominas = NominaTimbrada::with(['detalle', 'detalle.periodo'])
                             ->where('id_empleado', $empleadoId)
                             ->where('estado_timbrado', 'timbrado')
-                            ->orderBy('fecha_timbrado', 'desc')
+                            ->latest() 
                             ->get();
 
         $quincenaActual = $todasLasNominas->first();

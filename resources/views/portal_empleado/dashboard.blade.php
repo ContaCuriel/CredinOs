@@ -70,7 +70,7 @@
                             @foreach($historial as $nomina)
                                 <tr>
                                     <td class="fw-bold text-dark">{{ $nomina->detalle->periodo->periodo_rango ?? 'N/A' }}</td>
-                                    <td class="text-muted small">{{ \Carbon\Carbon::parse($nomina->fecha_timbrado)->translatedFormat('d \d\e F Y') }}</td>
+                                    <td class="text-muted small">{{ \Carbon\Carbon::parse($nomina->created_at)->translatedFormat('d \d\e F Y') }}</td>
                                     <td class="text-center">
                                         <div class="btn-group btn-group-sm">
                                             <a href="{{ route('portal.descargar.pdf', $nomina->id_detalle_lista) }}" target="_blank" class="btn btn-outline-danger"><i class="bi bi-file-earmark-pdf"></i> PDF</a>
