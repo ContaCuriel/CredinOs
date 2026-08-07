@@ -94,6 +94,12 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
+    // 🔥 AGREGA ESTAS 4 LÍNEAS QUE FALTABAN:
+    // --- MÓDULO DE PRUEBA ---
+    Route::get('/prueba', [App\Http\Controllers\PruebaController::class, 'index'])
+        ->name('prueba.index')
+        ->middleware('can:ver-modulo-prueba');
+
     // --- SECCIÓN DE CRÉDITOS ---
     Route::resource('clientes', ClienteController::class);
     Route::resource('groups', GroupController::class);
