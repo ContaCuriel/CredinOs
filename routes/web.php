@@ -39,6 +39,7 @@ use App\Models\CodigoPostal;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use App\Http\Controllers\NominaTimbradoController; 
+use App\Http\Controllers\PortalEmpleadoController;
 
 /*
 |--------------------------------------------------------------------------
@@ -73,7 +74,29 @@ Route::get('/', function () {
 Route::get('/asistencia', [AsistenciaController::class, 'index'])->name('asistencia.index');
 Route::post('/asistencia/registrar-entrada', [AsistenciaController::class, 'registrarEntrada'])->name('asistencia.registrarEntrada');
 
-// --- RUTAS QUE REQUIEREN AUTENTICACIÓN ---
+// --- PORTAL DEL EMPLEADO (Acceso Público / Cero Contraseñas) ---
+Route::prefix('mi-nomina')->group(function () {
+    // Pantalla de Login Pública
+    Route::get('/', [PortalEmpleadoController::class, 'login'])->name('portal.login');
+    Route::post('/acceder', [PortalEmpleadoController::class, 'acceder'])->name('portal.acceder');
+
+    // Zona Protegida para Trabajadores
+    Route::middleware(function ($request, $next) {
+        if (!session()->has('empleado_id')) {
+            return redirect()->route('portal.login')->with('error', 'Por favor, ingrese sus datos para continuar.');
+        }
+        return $next($request);
+    })->group(function () {
+        Route::get('/dashboard', [PortalEmpleadoController::class, 'dashboard'])->name('portal.dashboard');
+        Route::post('/salir', [PortalEmpleadoController::class, 'salir'])->name('portal.salir');
+        
+        // Descargas aisladas de PDF y XML
+        Route::get('/descargar-pdf/{id_detalle}', [PortalEmpleadoController::class, 'descargarPdf'])->name('portal.descargar.pdf');
+        Route::get('/descargar-xml/{id_detalle}', [PortalEmpleadoController::class, 'descargarXml'])->name('portal.descargar.xml');
+    });
+});
+
+// --- RUTAS QUE REQUIEREN AUTENTICACIÓN ADMINISTRATIVA ---
 Route::middleware('auth')->group(function () {
 
     // --- DASHBOARD Y PERFIL ---
@@ -101,7 +124,7 @@ Route::middleware('auth')->group(function () {
         Route::resource('empleados', EmpleadoController::class)->middleware('can:ver-empleados');
         Route::get('/empleados/{empleado}/historial-contratos', [EmpleadoController::class, 'historialContratos'])->name('empleados.contratos.historial')->middleware('can:ver-contratos');
         Route::put('/empleados/{empleado}/reactivar', [EmpleadoController::class, 'reactivar'])->name('empleados.reactivar')->middleware('can:editar-empleados');
-        Route::post('/empleados/{empleado}/datos-fiscales', [App\Http\Controllers\EmpleadoController::class, 'updateDatosFiscales'])->name('empleados.datosFiscales');
+        Route::post('/empleados/{empleado}/datos-fiscales', [EmpleadoController::class, 'updateDatosFiscales'])->name('empleados.datosFiscales');
 
         // Contratos
         Route::resource('contratos', ContratoController::class)->middleware('can:ver-contratos');
@@ -113,8 +136,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/asistencia/vista-periodo', [AsistenciaController::class, 'index'])->name('asistencia.vistaPeriodo')->middleware('can:ver-asistencias');
         Route::get('/asistencia/resumen-incidencias', [AsistenciaController::class, 'resumenIncidencias'])->name('asistencia.resumenIncidencias')->middleware('can:ver-asistencias');
         Route::get('/asistencia/exportar-pdf', [AsistenciaController::class, 'exportarResumenPDF'])->name('asistencia.exportarPDF')->middleware('can:ver-asistencias');
-        Route::get('/asistencia/pre-cierre', [App\Http\Controllers\AsistenciaController::class, 'preCierre'])->name('asistencia.pre_cierre');
-        Route::post('/asistencia/procesar-cierre', [App\Http\Controllers\AsistenciaController::class, 'procesarCierre'])->name('asistencia.procesar_cierre');
+        Route::get('/asistencia/pre-cierre', [AsistenciaController::class, 'preCierre'])->name('asistencia.pre_cierre');
+        Route::post('/asistencia/procesar-cierre', [AsistenciaController::class, 'procesarCierre'])->name('asistencia.procesar_cierre');
 
         // Vacaciones
         Route::resource('vacaciones', VacacionController::class)->only(['index', 'create', 'store'])->middleware('can:ver-vacaciones');
@@ -126,18 +149,17 @@ Route::middleware('auth')->group(function () {
             ->middleware('can:ver-deducciones');
         Route::get('/deducciones/exportar', [DeduccionController::class, 'exportarExcel'])->name('deducciones.exportar');
 
-        // Lista de Raya
+        // Lista de Raya y Timbrado
         Route::get('/lista-de-raya', [ListaDeRayaController::class, 'index'])->name('lista_de_raya.index')->middleware('can:ver-lista-raya');
         Route::get('/lista-de-raya/exportar', [ListaDeRayaController::class, 'exportarExcel'])->name('lista_de_raya.exportar')->middleware('can:exportar-lista-raya');
         Route::post('/lista-de-raya/configuracion', [ListaDeRayaController::class, 'guardarConfiguracion'])->name('lista_raya.configuracion');
         Route::post('/lista-de-raya/guardar-historico', [ListaDeRayaController::class, 'guardarHistorico'])->name('lista_raya.guardar_historico');
         Route::post('/lista-de-raya/eliminar-borrador', [ListaDeRayaController::class, 'eliminarBorrador'])->name('lista_raya.eliminar_borrador');
+        
         Route::get('/nomina/timbrado', [NominaTimbradoController::class, 'index'])->name('nomina.timbrado.index');
-        Route::post('/nomina/timbrado/procesar', [App\Http\Controllers\NominaTimbradoController::class, 'procesarTimbrado'])->name('nomina.timbrado.procesar');
-        // Descargas de CFDI de Nómina
-Route::get('/nomina/timbrado/{id_detalle}/pdf', [App\Http\Controllers\NominaTimbradoController::class, 'descargarPdf'])->name('nomina.timbrado.pdf');
-Route::get('/nomina/timbrado/{id_detalle}/xml', [App\Http\Controllers\NominaTimbradoController::class, 'descargarXml'])->name('nomina.timbrado.xml');
-
+        Route::post('/nomina/timbrado/procesar', [NominaTimbradoController::class, 'procesarTimbrado'])->name('nomina.timbrado.procesar');
+        Route::get('/nomina/timbrado/{id_detalle}/pdf', [NominaTimbradoController::class, 'descargarPdf'])->name('nomina.timbrado.pdf');
+        Route::get('/nomina/timbrado/{id_detalle}/xml', [NominaTimbradoController::class, 'descargarXml'])->name('nomina.timbrado.xml');
 
         // Finiquitos y Liquidaciones
         Route::get('/finiquitos', [FiniquitoController::class, 'index'])->name('finiquitos.index')->middleware('can:ver-finiquitos');
@@ -147,19 +169,19 @@ Route::get('/nomina/timbrado/{id_detalle}/xml', [App\Http\Controllers\NominaTimb
         Route::post('/finiquitos/exportar-renuncia-pdf', [FiniquitoController::class, 'exportarRenunciaPdf'])->name('finiquitos.export.renuncia.pdf')->middleware('can:exportar-finiquitos');
         Route::post('/finiquitos/{empleado}/upload-signed', [FiniquitoController::class, 'uploadSigned'])->name('finiquitos.uploadSigned');
         Route::get('/finiquitos/{empleado}/view-signed', [FiniquitoController::class, 'viewSigned'])->name('finiquitos.viewSigned');
-        Route::get('/finiquitos/aviso-terminacion/{id_empleado}', [App\Http\Controllers\FiniquitoController::class, 'generarAvisoTerminacion'])->name('finiquitos.avisoTerminacion');
+        Route::get('/finiquitos/aviso-terminacion/{id_empleado}', [FiniquitoController::class, 'generarAvisoTerminacion'])->name('finiquitos.avisoTerminacion');
         Route::get('/vacaciones/historial-json/{id}', [VacacionController::class, 'historialJson']);
 
         // --- Módulo de Renuncia Voluntaria ---
-        Route::get('/renuncias/crear', [App\Http\Controllers\RenunciaController::class, 'create'])
+        Route::get('/renuncias/crear', [\App\Http\Controllers\RenunciaController::class, 'create'])
              ->name('renuncias.create')
              ->middleware('can:ver-renuncias');
 
-        // Gestión IMSS
-        Route::post('/renuncias/exportar-pdf', [App\Http\Controllers\RenunciaController::class, 'exportarPdf'])
+        Route::post('/renuncias/exportar-pdf', [\App\Http\Controllers\RenunciaController::class, 'exportarPdf'])
              ->name('renuncias.exportar.pdf')
              ->middleware('can:generar-renuncias');
 
+        // Gestión IMSS
         Route::get('/imss', [ImssController::class, 'index'])->name('imss.index')->middleware('can:ver-gestion-imss');
         Route::post('/imss/{empleado}/registrar-alta', [ImssController::class, 'registrarAlta'])->name('imss.registrarAlta')->middleware('can:tramitar-imss');
         Route::post('/imss/{empleado}/registrar-baja', [ImssController::class, 'registrarBaja'])->name('imss.registrarBaja')->middleware('can:tramitar-imss');
@@ -200,13 +222,14 @@ Route::get('/nomina/timbrado/{id_detalle}/xml', [App\Http\Controllers\NominaTimb
         Route::post('/reconciliation/upload', [ReconciliationController::class, 'store'])->name('reconciliation.store');
         Route::get('/reconciliation/confirm', [ReconciliationController::class, 'confirm'])->name('reconciliation.confirm');
         Route::post('/reconciliation/process', [ReconciliationController::class, 'process'])->name('reconciliation.process');
-        // Rutas para la IA de Documentos Legales
-        Route::post('/finiquitos/redactar-ia', [\App\Http\Controllers\FiniquitoController::class, 'redactarDocumentoIA'])->name('finiquitos.redactar.ia');
-        Route::post('/finiquitos/exportar-ia-pdf', [\App\Http\Controllers\FiniquitoController::class, 'exportarDocumentoIAPdf'])->name('finiquitos.export.ia.pdf');
+        
+        // IA Documentos Legales
+        Route::post('/finiquitos/redactar-ia', [FiniquitoController::class, 'redactarDocumentoIA'])->name('finiquitos.redactar.ia');
+        Route::post('/finiquitos/exportar-ia-pdf', [FiniquitoController::class, 'exportarDocumentoIAPdf'])->name('finiquitos.export.ia.pdf');
 
         // APIs Internas
-        Route::get('/api/groups/{group}/members', [App\Http\Controllers\GroupController::class, 'getMembers'])->name('groups.members')->middleware(['auth']);
-        Route::get('/api/clientes/search', [App\Http\Controllers\ClienteController::class, 'search'])->name('clientes.search')->middleware(['auth']);
+        Route::get('/api/groups/{group}/members', [GroupController::class, 'getMembers'])->name('groups.members')->middleware(['auth']);
+        Route::get('/api/clientes/search', [ClienteController::class, 'search'])->name('clientes.search')->middleware(['auth']);
 
         Route::post('/reportes/generate-analysis', [ReporteController::class, 'generateAnalysis'])->name('reports.generate_analysis')->middleware('can:ver-reportes');
         Route::get('/reportes/balance-general', [ReporteController::class, 'balanceSheet'])->name('reportes.balance_sheet')->middleware('can:ver-reportes');
@@ -249,9 +272,8 @@ Route::get('/nomina/timbrado/{id_detalle}/xml', [App\Http\Controllers\NominaTimb
 
         Route::get('/patrones/{patron}/logo', [PatronController::class, 'editLogo'])->name('patrones.logo.edit');
         Route::post('/patrones/{patron}/logo', [PatronController::class, 'updateLogo'])->name('patrones.logo.update');
-        Route::post('patrones/{patron}/csd', [App\Http\Controllers\PatronController::class, 'storeCsd'])->name('patrones.csd.store');
+        Route::post('patrones/{patron}/csd', [PatronController::class, 'storeCsd'])->name('patrones.csd.store');
 
-        // 🔥 CORRECCIÓN AQUÍ: Agregamos parameters para evitar el problema de "patrone"
         Route::resource('patrones', PatronController::class)
             ->parameters(['patrones' => 'patron'])
             ->middleware(['can:ver-patrones']);

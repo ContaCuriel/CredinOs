@@ -51,20 +51,24 @@ class NominaTimbradoController extends Controller
             $periodosIds = $queryPeriodos->pluck('id_periodo_lista');
 
             if ($periodosIds->isNotEmpty()) {
-                $detalles = ListaRayaDetalle::with(['empleado', 'nominaTimbrada', 'periodo'])
+                // 🔥 Agregamos 'empleado.ultimoContrato' aquí para que traiga la relación
+                $detalles = ListaRayaDetalle::with(['empleado.ultimoContrato', 'empleado.puesto', 'nominaTimbrada', 'periodo'])
                     ->whereIn('id_periodo_lista', $periodosIds)
                     ->get();
 
                 $resultados = $detalles->map(function ($det) use ($modoTrabajo, $baseCalculo) {
                     $emp = $det->empleado;
                     $montoNetoInterno = floatval($det->total_neto);
+                    
+                    // 🔥 Rescatamos el tipo de contrato desde la relación correcta
+                    $tipoContratoReal = $emp->ultimoContrato->tipo_contrato ?? 'Indeterminado';
 
                     $datos = [
                         'id_detalle_lista'    => $det->id_detalle_lista,
                         'id_empleado'         => $det->id_empleado,
                         'empleado_nombre'     => $emp ? $emp->nombre_completo : 'Empleado no encontrado',
                         'puesto'              => $det->puesto_historico ?? ($emp->puesto->nombre_puesto ?? 'Sin puesto'),
-                        'tipo_contrato'       => $emp->tipo_contrato ?? 'Indeterminado',
+                        'tipo_contrato'       => $tipoContratoReal, 
                         
                         'nombre_fiscal'       => $emp->nombre_fiscal ?? null,
                         'rfc'                 => $emp->rfc ?? null,
@@ -95,7 +99,8 @@ class NominaTimbradoController extends Controller
                     ];
 
                     if ($modoTrabajo === 'fiscal') {
-                        $aplicaImss = !in_array(strtolower($emp->tipo_contrato ?? ''), ['honorarios', 'asimilados']);
+                        // 🔥 Evaluamos con el tipo de contrato real
+                        $aplicaImss = !in_array(strtolower($tipoContratoReal), ['honorarios', 'asimilados']);
 
                         if ($aplicaImss && floatval($emp->sdi) > 0) {
                             $sueldoBrutoBase = floatval($emp->sdi) * 15;
@@ -191,7 +196,10 @@ class NominaTimbradoController extends Controller
                 }
 
                 $sueldoBrutoBase = floatval($detalle->sueldo_mensual_historico) / 2;
-                $aplicaImss = !in_array(strtolower($emp->tipo_contrato ?? ''), ['honorarios', 'asimilados']);
+                
+                // 🔥 Rescatamos el tipo de contrato y evaluamos el IMSS
+                $tipoContratoReal = $emp->ultimoContrato->tipo_contrato ?? 'Indeterminado';
+                $aplicaImss = !in_array(strtolower($tipoContratoReal), ['honorarios', 'asimilados']);
                 
                 if ($aplicaImss && floatval($emp->sdi) > 0) {
                     $sueldoBrutoBase = floatval($emp->sdi) * 15;
@@ -448,13 +456,11 @@ class NominaTimbradoController extends Controller
             return back()->with('error', 'No se encontró el ID de Facturama para este recibo.');
         }
 
-        // Llamamos al servicio de Facturama (Asegúrate de que tu servicio tenga un método para bajar archivos, o usa el endpoint directo)
-        // El endpoint clásico de Facturama para obtener el archivo es: GET /cfdi/{id}?type=pdf
+        // Llamamos al servicio de Facturama
         $response = $this->facturama->getFile($nomina->facturama_id, 'pdf'); 
 
         if ($response->successful()) {
             $data = $response->json();
-            // Facturama devuelve el contenido en base64 en la llave 'Content'
             $pdfDecoded = base64_decode($data['Content']);
             
             return response($pdfDecoded)
