@@ -7,6 +7,7 @@ use App\Models\Empleado;
 use App\Models\NominaTimbrada;
 use App\Models\Patron;
 use App\Services\FacturamaService;
+use Illuminate\Support\Facades\Schema;
 
 class PortalEmpleadoController extends Controller
 {
@@ -23,8 +24,25 @@ class PortalEmpleadoController extends Controller
             return redirect()->route('portal.dashboard');
         }
 
-        // Obtener los logos registrados de los patrones
-        $logos = Patron::whereNotNull('logo')->where('logo', '!=', '')->pluck('logo');
+        // Identificación dinámica de la columna para evitar errores SQL
+        $logos = collect();
+        if (Schema::hasTable('patrones')) {
+            $columnaLogo = null;
+
+            if (Schema::hasColumn('patrones', 'logo_path')) {
+                $columnaLogo = 'logo_path';
+            } elseif (Schema::hasColumn('patrones', 'ruta_logo')) {
+                $columnaLogo = 'ruta_logo';
+            } elseif (Schema::hasColumn('patrones', 'logo')) {
+                $columnaLogo = 'logo';
+            }
+
+            if ($columnaLogo) {
+                $logos = Patron::whereNotNull($columnaLogo)
+                               ->where($columnaLogo, '!=', '')
+                               ->pluck($columnaLogo);
+            }
+        }
 
         return view('portal_empleado.login', compact('logos'));
     }
