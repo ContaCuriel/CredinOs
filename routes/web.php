@@ -38,8 +38,9 @@ use App\Http\Controllers\Api\CodigoPostalController;
 use App\Models\CodigoPostal;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
-use App\Http\Controllers\NominaTimbradoController; 
+use App\Http\Controllers\NominaTimbradoController;
 use App\Http\Controllers\PortalEmpleadoController;
+use App\Http\Controllers\PruebaController;
 
 /*
 |--------------------------------------------------------------------------
