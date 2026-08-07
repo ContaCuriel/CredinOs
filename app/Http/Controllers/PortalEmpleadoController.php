@@ -24,7 +24,6 @@ class PortalEmpleadoController extends Controller
             return redirect()->route('portal.dashboard');
         }
 
-        // Identificación dinámica de la columna para evitar errores SQL
         $logos = collect();
         if (Schema::hasTable('patrones')) {
             $columnaLogo = null;
@@ -63,7 +62,7 @@ class PortalEmpleadoController extends Controller
             return redirect()->route('portal.dashboard');
         }
 
-        return back()->with('error', 'El RFC o el Número de Empleado son incorrectos.');
+        return back()->with('error', 'El RFC o el Número de Usuario son incorrectos.');
     }
 
     public function dashboard()
@@ -117,7 +116,7 @@ class PortalEmpleadoController extends Controller
             
             return response($pdfDecoded)
                 ->header('Content-Type', 'application/pdf')
-                ->header('Content-Disposition', 'inline; filename="Nomina_' . $nomina->uuid_cfdi . '.pdf"');
+                ->header('Content-Disposition', 'inline; filename="Comprobante_' . $nomina->uuid_cfdi . '.pdf"');
         }
 
         return back()->with('error', 'Error al descargar el PDF.');
@@ -147,7 +146,7 @@ class PortalEmpleadoController extends Controller
             
             return response($xmlDecoded)
                 ->header('Content-Type', 'application/xml')
-                ->header('Content-Disposition', 'attachment; filename="Nomina_' . $nomina->uuid_cfdi . '.xml"');
+                ->header('Content-Disposition', 'attachment; filename="Comprobante_' . $nomina->uuid_cfdi . '.xml"');
         }
 
         return back()->with('error', 'Error al descargar el XML.');

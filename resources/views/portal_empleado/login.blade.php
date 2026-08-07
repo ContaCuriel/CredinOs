@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portal del Empleado | Recibos de Nómina</title>
+    <title>Portal del Colaborador | Acceso</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <style>
@@ -91,8 +91,8 @@
                     @endif
                 @endisset
 
-                <h3 class="fw-bold text-dark mb-1">Mi Nómina</h3>
-                <p class="text-muted small mb-0">Acceso al portal del trabajador</p>
+                <h3 class="fw-bold text-dark mb-1">Mi Portal</h3>
+                <p class="text-muted small mb-0">Acceso a comprobantes y recibos</p>
             </div>
             
             <div class="card-body p-4 p-md-4 pt-0">
@@ -124,7 +124,7 @@
                     </div>
 
                     <div class="mb-4">
-                        <label for="id_empleado" class="form-label fw-bold text-secondary small">Número de Empleado</label>
+                        <label for="id_empleado" class="form-label fw-bold text-secondary small">Número de Usuario / Empleado</label>
                         <div class="input-group shadow-sm rounded-3">
                             <span class="input-group-text bg-white border-end-0 text-primary">
                                 <i class="bi bi-hash"></i>
@@ -134,7 +134,7 @@
                     </div>
 
                     <button type="submit" class="btn btn-primary w-100 btn-custom shadow mt-2">
-                        Ingresar a mis recibos <i class="bi bi-arrow-right ms-1"></i>
+                        Ingresar <i class="bi bi-arrow-right ms-1"></i>
                     </button>
                 </form>
             </div>
@@ -149,7 +149,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     
-    {{-- Script para la Animación del Carrusel --}}
     <script>
     document.addEventListener('DOMContentLoaded', function () {
         const track = document.querySelector('.logo-carousel-track');
