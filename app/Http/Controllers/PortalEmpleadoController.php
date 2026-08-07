@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Empleado;
 use App\Models\NominaTimbrada;
+use App\Models\Patron;
 use App\Services\FacturamaService;
 
 class PortalEmpleadoController extends Controller
@@ -21,7 +22,11 @@ class PortalEmpleadoController extends Controller
         if (session()->has('empleado_id')) {
             return redirect()->route('portal.dashboard');
         }
-        return view('portal_empleado.login');
+
+        // Obtener los logos registrados de los patrones
+        $logos = Patron::whereNotNull('logo')->where('logo', '!=', '')->pluck('logo');
+
+        return view('portal_empleado.login', compact('logos'));
     }
 
     public function acceder(Request $request)
@@ -52,11 +57,10 @@ class PortalEmpleadoController extends Controller
         $empleadoId = session('empleado_id');
         $empleado = Empleado::findOrFail($empleadoId);
 
-        // 🔥 Se reemplaza 'fecha_timbrado' por latest() (ordena por created_at desc)
         $todasLasNominas = NominaTimbrada::with(['detalle', 'detalle.periodo'])
                             ->where('id_empleado', $empleadoId)
                             ->where('estado_timbrado', 'timbrado')
-                            ->latest() 
+                            ->latest()
                             ->get();
 
         $quincenaActual = $todasLasNominas->first();
