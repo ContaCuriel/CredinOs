@@ -10,27 +10,20 @@ class NominaTimbrada extends Model
     use HasFactory;
 
     protected $table = 'nominas_timbradas';
-    protected $primaryKey = 'id_nomina_timbrada';
 
-    protected $fillable = [
-        'id_detalle_lista',
-        'id_empleado',
-        'sueldo_bruto',
-        'isr_retenido',
-        'imss_retenido',
-        'estado_timbrado',
-        'uuid_cfdi',
-        'facturama_id',
-        'xml_path',
-        'pdf_path',
-        'mensaje_error_sat'
-    ];
+    protected $guarded = [];
 
-    public function detalleListaRaya()
+    /**
+     * Relación con el detalle de la lista de raya
+     */
+    public function detalle()
     {
         return $this->belongsTo(ListaRayaDetalle::class, 'id_detalle_lista', 'id_detalle_lista');
     }
 
+    /**
+     * Relación directa con el empleado
+     */
     public function empleado()
     {
         return $this->belongsTo(Empleado::class, 'id_empleado', 'id_empleado');
