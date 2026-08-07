@@ -41,6 +41,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\NominaTimbradoController;
 use App\Http\Controllers\PortalEmpleadoController;
 use App\Http\Controllers\PruebaController;
+use App\Http\Controllers\RenunciaController;
 
 /*
 |--------------------------------------------------------------------------
@@ -174,11 +175,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/vacaciones/historial-json/{id}', [VacacionController::class, 'historialJson']);
 
         // --- Módulo de Renuncia Voluntaria ---
-        Route::get('/renuncias/crear', [\App\Http\Controllers\RenunciaController::class, 'create'])
+        Route::get('/renuncias/crear', [RenunciaController::class, 'create'])
              ->name('renuncias.create')
              ->middleware('can:ver-renuncias');
 
-        Route::post('/renuncias/exportar-pdf', [\App\Http\Controllers\RenunciaController::class, 'exportarPdf'])
+        Route::post('/renuncias/exportar-pdf', [RenunciaController::class, 'exportarPdf'])
              ->name('renuncias.exportar.pdf')
              ->middleware('can:generar-renuncias');
 
