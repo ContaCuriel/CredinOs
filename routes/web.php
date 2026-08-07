@@ -40,7 +40,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use App\Http\Controllers\NominaTimbradoController;
 use App\Http\Controllers\PortalEmpleadoController;
-use App\Http\Controllers\PruebaController;
 use App\Http\Controllers\RenunciaController;
 
 /*
@@ -72,30 +71,18 @@ Route::get('/', function () {
     return view('auth.login');
 });
 
-// Rutas de Asistencia (parte pública - SIMPLIFICADA)
+// Rutas de Asistencia
 Route::get('/asistencia', [AsistenciaController::class, 'index'])->name('asistencia.index');
 Route::post('/asistencia/registrar-entrada', [AsistenciaController::class, 'registrarEntrada'])->name('asistencia.registrarEntrada');
 
-// --- PORTAL DEL EMPLEADO (Acceso Público / Cero Contraseñas) ---
+// --- PORTAL DEL EMPLEADO (Rutas limpias sin middleware closure) ---
 Route::prefix('mi-nomina')->group(function () {
-    // Pantalla de Login Pública
     Route::get('/', [PortalEmpleadoController::class, 'login'])->name('portal.login');
     Route::post('/acceder', [PortalEmpleadoController::class, 'acceder'])->name('portal.acceder');
-
-    // Zona Protegida para Trabajadores
-    Route::middleware(function ($request, $next) {
-        if (!session()->has('empleado_id')) {
-            return redirect()->route('portal.login')->with('error', 'Por favor, ingrese sus datos para continuar.');
-        }
-        return $next($request);
-    })->group(function () {
-        Route::get('/dashboard', [PortalEmpleadoController::class, 'dashboard'])->name('portal.dashboard');
-        Route::post('/salir', [PortalEmpleadoController::class, 'salir'])->name('portal.salir');
-        
-        // Descargas aisladas de PDF y XML
-        Route::get('/descargar-pdf/{id_detalle}', [PortalEmpleadoController::class, 'descargarPdf'])->name('portal.descargar.pdf');
-        Route::get('/descargar-xml/{id_detalle}', [PortalEmpleadoController::class, 'descargarXml'])->name('portal.descargar.xml');
-    });
+    Route::get('/dashboard', [PortalEmpleadoController::class, 'dashboard'])->name('portal.dashboard');
+    Route::post('/salir', [PortalEmpleadoController::class, 'salir'])->name('portal.salir');
+    Route::get('/descargar-pdf/{id_detalle}', [PortalEmpleadoController::class, 'descargarPdf'])->name('portal.descargar.pdf');
+    Route::get('/descargar-xml/{id_detalle}', [PortalEmpleadoController::class, 'descargarXml'])->name('portal.descargar.xml');
 });
 
 // --- RUTAS QUE REQUIEREN AUTENTICACIÓN ADMINISTRATIVA ---
@@ -106,11 +93,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-
-    // --- MÓDULO DE PRUEBA ---
-    Route::get('/prueba', [PruebaController::class, 'index'])
-        ->name('prueba.index')
-        ->middleware('can:ver-modulo-prueba');
 
     // --- SECCIÓN DE CRÉDITOS ---
     Route::resource('clientes', ClienteController::class);
@@ -134,7 +116,7 @@ Route::middleware('auth')->group(function () {
         Route::get('contratos/{id}/ver-firmado', [ContratoController::class, 'verContratoFirmado'])->name('contratos.verFirmado')->middleware('can:ver-contratos');
         Route::get('/contratos/exportar/excel', [ContratoController::class, 'exportarExcel'])->name('contratos.exportarExcel')->middleware('can:exportar-contratos');
 
-        // Asistencias (vistas de admin - CORREGIDAS)
+        // Asistencias
         Route::get('/asistencia/vista-periodo', [AsistenciaController::class, 'index'])->name('asistencia.vistaPeriodo')->middleware('can:ver-asistencias');
         Route::get('/asistencia/resumen-incidencias', [AsistenciaController::class, 'resumenIncidencias'])->name('asistencia.resumenIncidencias')->middleware('can:ver-asistencias');
         Route::get('/asistencia/exportar-pdf', [AsistenciaController::class, 'exportarResumenPDF'])->name('asistencia.exportarPDF')->middleware('can:ver-asistencias');
@@ -151,13 +133,12 @@ Route::middleware('auth')->group(function () {
             ->middleware('can:ver-deducciones');
         Route::get('/deducciones/exportar', [DeduccionController::class, 'exportarExcel'])->name('deducciones.exportar');
 
-        // Lista de Raya y Timbrado
+        // Lista de Raya
         Route::get('/lista-de-raya', [ListaDeRayaController::class, 'index'])->name('lista_de_raya.index')->middleware('can:ver-lista-raya');
         Route::get('/lista-de-raya/exportar', [ListaDeRayaController::class, 'exportarExcel'])->name('lista_de_raya.exportar')->middleware('can:exportar-lista-raya');
         Route::post('/lista-de-raya/configuracion', [ListaDeRayaController::class, 'guardarConfiguracion'])->name('lista_raya.configuracion');
         Route::post('/lista-de-raya/guardar-historico', [ListaDeRayaController::class, 'guardarHistorico'])->name('lista_raya.guardar_historico');
         Route::post('/lista-de-raya/eliminar-borrador', [ListaDeRayaController::class, 'eliminarBorrador'])->name('lista_raya.eliminar_borrador');
-        
         Route::get('/nomina/timbrado', [NominaTimbradoController::class, 'index'])->name('nomina.timbrado.index');
         Route::post('/nomina/timbrado/procesar', [NominaTimbradoController::class, 'procesarTimbrado'])->name('nomina.timbrado.procesar');
         Route::get('/nomina/timbrado/{id_detalle}/pdf', [NominaTimbradoController::class, 'descargarPdf'])->name('nomina.timbrado.pdf');
@@ -174,7 +155,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/finiquitos/aviso-terminacion/{id_empleado}', [FiniquitoController::class, 'generarAvisoTerminacion'])->name('finiquitos.avisoTerminacion');
         Route::get('/vacaciones/historial-json/{id}', [VacacionController::class, 'historialJson']);
 
-        // --- Módulo de Renuncia Voluntaria ---
+        // Módulo de Renuncia Voluntaria
         Route::get('/renuncias/crear', [RenunciaController::class, 'create'])
              ->name('renuncias.create')
              ->middleware('can:ver-renuncias');
@@ -333,5 +314,4 @@ Route::get('/super-admin/clear-everything/{secret_key}', function ($secret_key) 
     return $html;
 });
 
-// Incluir rutas de autenticación de Laravel
 require __DIR__.'/auth.php';

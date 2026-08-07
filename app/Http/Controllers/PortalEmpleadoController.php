@@ -18,7 +18,6 @@ class PortalEmpleadoController extends Controller
 
     public function login()
     {
-        // Si ya hay sesión activa, entra directo
         if (session()->has('empleado_id')) {
             return redirect()->route('portal.dashboard');
         }
@@ -32,7 +31,6 @@ class PortalEmpleadoController extends Controller
             'id_empleado' => 'required|integer',
         ]);
 
-        // Buscamos empleado por RFC (sin importar mayúsculas) y su ID
         $empleado = Empleado::where('rfc', strtoupper(trim($request->rfc)))
                             ->where('id_empleado', $request->id_empleado)
                             ->first();
@@ -42,26 +40,25 @@ class PortalEmpleadoController extends Controller
             return redirect()->route('portal.dashboard');
         }
 
-        // Mensaje genérico por seguridad
         return back()->with('error', 'El RFC o el Número de Empleado son incorrectos.');
     }
 
     public function dashboard()
     {
+        if (!session()->has('empleado_id')) {
+            return redirect()->route('portal.login')->with('error', 'Por favor, ingrese sus datos para continuar.');
+        }
+
         $empleadoId = session('empleado_id');
         $empleado = Empleado::findOrFail($empleadoId);
 
-        // Traemos las nóminas del empleado ordenadas por fecha de timbrado
         $todasLasNominas = NominaTimbrada::with(['detalle', 'detalle.periodo'])
                             ->where('id_empleado', $empleadoId)
                             ->where('estado_timbrado', 'timbrado')
                             ->orderBy('fecha_timbrado', 'desc')
                             ->get();
 
-        // "La Foto" (El recibo más nuevo)
         $quincenaActual = $todasLasNominas->first();
-
-        // El Historial (Todos los demás)
         $historial = $todasLasNominas->skip(1);
 
         return view('portal_empleado.dashboard', compact('empleado', 'quincenaActual', 'historial'));
@@ -75,9 +72,12 @@ class PortalEmpleadoController extends Controller
 
     public function descargarPdf($id_detalle)
     {
+        if (!session()->has('empleado_id')) {
+            return redirect()->route('portal.login')->with('error', 'Por favor, ingrese sus datos para continuar.');
+        }
+
         $empleadoId = session('empleado_id');
         
-        // Bloqueo de seguridad: Validamos que el recibo sea del empleado logueado
         $nomina = NominaTimbrada::where('id_detalle_lista', $id_detalle)
                                 ->where('id_empleado', $empleadoId) 
                                 ->firstOrFail();
@@ -102,6 +102,10 @@ class PortalEmpleadoController extends Controller
 
     public function descargarXml($id_detalle)
     {
+        if (!session()->has('empleado_id')) {
+            return redirect()->route('portal.login')->with('error', 'Por favor, ingrese sus datos para continuar.');
+        }
+
         $empleadoId = session('empleado_id');
         
         $nomina = NominaTimbrada::where('id_detalle_lista', $id_detalle)
