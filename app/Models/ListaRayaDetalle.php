@@ -23,11 +23,11 @@ class ListaRayaDetalle extends Model
         'retardos_acumulados',
         'faltas_por_retardos',
         'descuento_por_faltas',
-        'otras_deducciones', // Puedes dejar estas por si tienes "Otros" genéricos
+        'otras_deducciones',
         'percepciones_extra', 
         'total_neto',
 
-        // 🔥 NUEVOS CAMPOS DESGLOSADOS 🔥
+        // CAMPOS DESGLOSADOS
         'bono_permanencia',
         'bono_cumpleanos',
         'prima_vacacional',

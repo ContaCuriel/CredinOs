@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Empleado;
+use App\Models\ListaRayaDetalle;
 use App\Models\NominaTimbrada;
 use App\Models\Patron;
 use App\Services\FacturamaService;
@@ -74,16 +75,69 @@ class PortalEmpleadoController extends Controller
         $empleadoId = session('empleado_id');
         $empleado = Empleado::findOrFail($empleadoId);
 
-        $todasLasNominas = NominaTimbrada::with(['detalle', 'detalle.periodo'])
-                            ->where('id_empleado', $empleadoId)
-                            ->where('estado_timbrado', 'timbrado')
-                            ->latest()
-                            ->get();
+        // Obtenemos los detalles de lista de raya cargando su periodo y su timbrado
+        $registros = ListaRayaDetalle::with(['periodo', 'nominaTimbrada'])
+                        ->where('id_empleado', $empleadoId)
+                        ->latest('created_at')
+                        ->get();
+
+        $todasLasNominas = $registros->map(function ($det) {
+            // Formato de texto del periodo
+            $rangoOriginal = $det->periodo->periodo_rango 
+                            ?? $det->periodo->nombre 
+                            ?? $det->periodo_rango 
+                            ?? '';
+
+            $det->periodo_formateado = $this->formatearPeriodo($rangoOriginal);
+
+            // Mapeo directo contra los atributos reales de ListaRayaDetalle
+            $sueldoCalculado = ($det->sueldo_diario_historico && $det->dias_periodo) 
+                ? ($det->sueldo_diario_historico * $det->dias_periodo) 
+                : (($det->sueldo_mensual_historico) ? ($det->sueldo_mensual_historico / 2) : 0);
+
+            $det->val_sueldo = $sueldoCalculado;
+            $det->val_caja = $det->deduccion_caja_ahorro ?? 0;
+            $det->val_infonavit = $det->deduccion_infonavit ?? 0;
+            $det->val_isr = $det->deduccion_isr ?? 0;
+            $det->val_imss = $det->deduccion_imss ?? 0;
+            $det->val_neto = $det->total_neto ?? 0;
+
+            if (!$det->relationLoaded('nominaTimbrada') || !$det->nominaTimbrada) {
+                $det->setRelation('nominaTimbrada', NominaTimbrada::where('id_detalle_lista', $det->id_detalle_lista)->first());
+            }
+
+            return $det;
+        });
 
         $quincenaActual = $todasLasNominas->first();
         $historial = $todasLasNominas->skip(1);
 
         return view('portal_empleado.dashboard', compact('empleado', 'quincenaActual', 'historial'));
+    }
+
+    private function formatearPeriodo($texto)
+    {
+        if (empty($texto)) return 'Periodo Actual';
+
+        // Convierte el formato 2026-07-16_2026-07-31 a "2da Quincena julio 2026"
+        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})_(\d{4})-(\d{2})-(\d{2})$/', trim($texto), $matches)) {
+            $year = $matches[1];
+            $month = (int)$matches[2];
+            $dayStart = (int)$matches[3];
+
+            $meses = [
+                1 => 'enero', 2 => 'febrero', 3 => 'marzo', 4 => 'abril',
+                5 => 'mayo', 6 => 'junio', 7 => 'julio', 8 => 'agosto',
+                9 => 'septiembre', 10 => 'octubre', 11 => 'noviembre', 12 => 'diciembre'
+            ];
+
+            $quincena = ($dayStart > 1) ? '2da Quincena' : '1ra Quincena';
+            $nombreMes = $meses[$month] ?? '';
+
+            return "{$quincena} {$nombreMes} {$year}";
+        }
+
+        return $texto;
     }
 
     public function salir()

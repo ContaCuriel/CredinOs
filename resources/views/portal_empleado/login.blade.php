@@ -28,14 +28,14 @@
             background-color: white;
         }
 
-        /* Estilos para el Carrusel de Logos */
+        /* Estilos ajustados para el Carrusel de Logos (Más compacto) */
         .logo-carousel-container {
             width: 100%;
-            max-width: 320px;
-            margin: 0 auto 1rem auto;
+            max-width: 260px;
+            margin: 0 auto 0.75rem auto;
             overflow: hidden;
             position: relative;
-            height: 75px;
+            height: 55px;
         }
         .logo-carousel-track {
             display: flex;
@@ -50,7 +50,7 @@
             align-items: center;
         }
         .logo-slide img {
-            max-height: 65px;
+            max-height: 45px;
             width: auto;
             object-fit: contain;
         }
@@ -75,7 +75,7 @@
 <body>
     <div class="login-wrapper">
         <div class="card login-card">
-            <div class="p-4 pt-5 text-center">
+            <div class="p-4 pt-4 text-center">
                 {{-- Carrusel de Logos --}}
                 @isset($logos)
                     @if($logos->count() > 0)

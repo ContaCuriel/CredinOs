@@ -76,7 +76,7 @@ Route::get('/asistencia', [AsistenciaController::class, 'index'])->name('asisten
 Route::post('/asistencia/registrar-entrada', [AsistenciaController::class, 'registrarEntrada'])->name('asistencia.registrarEntrada');
 
 // --- PORTAL DEL EMPLEADO (Rutas limpias sin middleware closure) ---
-Route::prefix('mi-nomina')->group(function () {
+Route::prefix('mi-portal')->group(function () {
     Route::get('/', [PortalEmpleadoController::class, 'login'])->name('portal.login');
     Route::post('/acceder', [PortalEmpleadoController::class, 'acceder'])->name('portal.acceder');
     Route::get('/dashboard', [PortalEmpleadoController::class, 'dashboard'])->name('portal.dashboard');
