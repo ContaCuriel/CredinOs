@@ -48,6 +48,9 @@ class SaldosInicialesController extends Controller
                 'concept' => "Póliza de Apertura - Saldos Iniciales",
                 'sucursal_id' => $request->sucursal_id, 
                 'user_id' => Auth::id() ?? 1,
+                // --- LA MAGIA PARA SALTAR EL ERROR DE LA BASE DE DATOS ---
+                'sourceable_id' => $request->sucursal_id,
+                'sourceable_type' => \App\Models\Sucursal::class,
             ]);
 
             // 2. Cargos (ACTIVOS)
