@@ -4,9 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Placement;
 use App\Models\Sucursal;
-use App\Models\Account;
-use App\Models\Journal;
-use App\Models\JournalEntry;
+use App\Services\AccountingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +16,7 @@ class PlacementController extends Controller
 {
     public function index()
     {
-        $placements = Placement::with(['sucursal', 'user'])->latest()->paginate(20);
+        $placements = Placement::with(['sucursal', 'user', 'journal'])->latest()->paginate(20);
         return view('placements.index', compact('placements'));
     }
 
@@ -28,7 +26,7 @@ class PlacementController extends Controller
         return view('placements.create', compact('sucursales'));
     }
 
-    public function store(Request $request)
+    public function store(Request $request, AccountingService $accountingService)
     {
         try {
             $currentYear = Carbon::now()->year;
@@ -41,7 +39,7 @@ class PlacementController extends Controller
                     'integer',
                     'min:1',
                     'max:12',
-                    'Rule' => Rule::unique('placements')->where(function ($query) use ($request) {
+                    Rule::unique('placements')->where(function ($query) use ($request) {
                         return $query->where('sucursal_id', $request->sucursal_id)
                                      ->where('year', $request->year);
                     }),
@@ -50,15 +48,6 @@ class PlacementController extends Controller
                 'notes' => 'nullable|string',
             ]);
 
-            // Verificamos que las cuentas existan antes de abrir la transacción
-            $cuentaClientes = Account::where('code', '105.01')->first();
-            $cuentaBancos = Account::where('code', '102.01')->first();
-
-            if (!$cuentaClientes || !$cuentaBancos) {
-                return redirect()->back()->with('error', 'Error Contable: Las cuentas 105.01 (Clientes) o 102.01 (Bancos) no existen en el catálogo.');
-            }
-
-            // Iniciamos la transacción segura
             DB::beginTransaction();
 
             // 1. Guardar la colocación operativa
@@ -71,47 +60,92 @@ class PlacementController extends Controller
                 'notes'       => $validatedData['notes'],
             ]);
 
-            // 2. LA MAGIA CONTABLE: Crear la Póliza de Diario/Egreso
-            $fechaPoliza = Carbon::createFromDate($validatedData['year'], $validatedData['month'], 1)->endOfMonth();
+            // 2. Crear Póliza Contable usando el Servicio
+            $accountingService->createJournalFromPlacement($placement);
 
-            $journal = Journal::create([
-                'date'            => $fechaPoliza,
-                'concept'         => "Colocación mensual de cartera - Sucursal ID {$validatedData['sucursal_id']}",
-                'sucursal_id'     => $validatedData['sucursal_id'], // <-- Corregido para coincidir con el modelo
-                'user_id'         => Auth::id() ?? 1,
-                'sourceable_id'   => $placement->id,                // <-- Enlazamos con la colocación
-                'sourceable_type' => Placement::class,              // <-- Le decimos de qué modelo viene
-            ]);
-
-            // Cargo a Clientes (Activo aumenta)
-            JournalEntry::create([
-                'journal_id' => $journal->id,
-                'account_id' => $cuentaClientes->id,
-                'debit'      => $validatedData['amount'],
-                'credit'     => 0,
-            ]);
-
-            // Abono a Bancos (Activo disminuye)
-            JournalEntry::create([
-                'journal_id' => $journal->id,
-                'account_id' => $cuentaBancos->id,
-                'debit'      => 0,
-                'credit'     => $validatedData['amount'],
-            ]);
-
-            // Si llegamos hasta aquí, todo salió bien. Guardamos los cambios.
             DB::commit();
-
             return redirect()->route('placements.index')->with('success', 'Colocación guardada y póliza contable generada exitosamente.');
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return redirect()->back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {
-            // Si algo falla, deshacemos cualquier inserción a medias (Rollback)
             DB::rollBack();
-            Log::error('Error fatal al guardar colocación y póliza: ' . $e->getMessage());
-            
+            Log::error('Error fatal al guardar colocación: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Ocurrió un error en el sistema al intentar guardar. El área de soporte ha sido notificada.')->withInput();
+        }
+    }
+
+    public function edit(Placement $placement)
+    {
+        $sucursales = Sucursal::orderBy('nombre_sucursal')->get();
+        return view('placements.edit', compact('placement', 'sucursales'));
+    }
+
+    public function update(Request $request, Placement $placement, AccountingService $accountingService)
+    {
+        try {
+            $currentYear = Carbon::now()->year;
+
+            $validatedData = $request->validate([
+                'sucursal_id' => 'required|exists:sucursales,id_sucursal',
+                'year' => 'required|integer|min:2020|max:' . $currentYear,
+                'month' => [
+                    'required',
+                    'integer',
+                    'min:1',
+                    'max:12',
+                    // Ignoramos el ID actual para que permita guardar si no cambian el mes/año
+                    Rule::unique('placements')->where(function ($query) use ($request) {
+                        return $query->where('sucursal_id', $request->sucursal_id)
+                                     ->where('year', $request->year);
+                    })->ignore($placement->id),
+                ],
+                'amount' => 'required|numeric|min:0.01',
+                'notes' => 'nullable|string',
+            ]);
+
+            DB::beginTransaction();
+
+            // 1. Actualizar el registro
+            $placement->update([
+                'sucursal_id' => $validatedData['sucursal_id'],
+                'year'        => $validatedData['year'],
+                'month'       => $validatedData['month'],
+                'amount'      => $validatedData['amount'],
+                'notes'       => $validatedData['notes'],
+            ]);
+
+            // 2. Destruir póliza vieja y crear la nueva
+            $accountingService->updateJournalFromPlacement($placement);
+
+            DB::commit();
+            return redirect()->route('placements.index')->with('success', 'Colocación actualizada y póliza regenerada exitosamente.');
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->back()->withErrors($e->errors())->withInput();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error fatal al actualizar colocación: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Ocurrió un error al actualizar. El área de soporte ha sido notificada.')->withInput();
+        }
+    }
+
+    public function destroy(Placement $placement, AccountingService $accountingService)
+    {
+        DB::beginTransaction();
+        try {
+            // 1. Destruimos la póliza contable primero para evitar referencias huérfanas
+            $accountingService->deleteJournalForModel($placement);
+            
+            // 2. Destruimos el registro operativo
+            $placement->delete();
+
+            DB::commit();
+            return redirect()->route('placements.index')->with('success', 'Colocación y póliza contable eliminadas exitosamente.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error fatal al eliminar colocación: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Ocurrió un error al eliminar. El área de soporte ha sido notificada.');
         }
     }
 }

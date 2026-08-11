@@ -287,8 +287,15 @@ class ReporteController extends Controller
         $incomeAccount = Account::where('code', '400')->first();
         $expenseAccounts = Account::whereIn('code', ['600', '800'])->get();
 
-        $totalAssets = $assetAccount ? $assetAccount->getInitialBalance($endDate, $sucursalId) : 0;
-        $totalLiabilities = $liabilityAccount ? $liabilityAccount->getInitialBalance($endDate, $sucursalId) : 0;
+        // Sumamos 1 día a la fecha de corte para que la consulta estricta (<) del modelo incluya los movimientos del día seleccionado
+        $fechaCorteContable = Carbon::parse($endDate)->addDay()->toDateString();
+
+        $totalAssets = $assetAccount ? $assetAccount->getInitialBalance($fechaCorteContable, $sucursalId) : 0;
+        $totalLiabilities = $liabilityAccount ? $liabilityAccount->getInitialBalance($fechaCorteContable, $sucursalId) : 0;
+        
+        // El Capital Inicial también debe usar esta nueva fecha
+        // ... (unas líneas más abajo) ...
+        $equityBalance = $equityAccount ? $equityAccount->getInitialBalance($fechaCorteContable, $sucursalId) : 0;
         
         // --- INICIO DE LA CORRECCIÓN ---
         // Obtenemos el 1 de enero del año de la fecha final seleccionada

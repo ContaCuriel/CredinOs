@@ -152,4 +152,49 @@ class AccountingService
             return null;
         }
     }
+    // ==========================================
+    // MÉTODOS PARA ACTUALIZAR Y ELIMINAR PÓLIZAS
+    // ==========================================
+
+    /**
+     * Elimina la póliza completa (encabezado y asientos) de cualquier modelo operativo.
+     */
+    public function deleteJournalForModel($model): void
+    {
+        if ($model->journal) {
+            // Laravel eliminará los entries en cascada si tienes configurado el onDelete('cascade') en migración.
+            // Por seguridad, los eliminamos a mano primero dentro de una transacción.
+            DB::transaction(function () use ($model) {
+                $model->journal->entries()->delete();
+                $model->journal()->delete();
+            });
+        }
+    }
+
+    /**
+     * Reconstruye la póliza de un Gasto tras ser editado.
+     */
+    public function updateJournalFromExpense(Gasto $gasto): ?Journal
+    {
+        $this->deleteJournalForModel($gasto);
+        return $this->createJournalFromExpense($gasto);
+    }
+
+    /**
+     * Reconstruye la póliza de una Colocación tras ser editada.
+     */
+    public function updateJournalFromPlacement(Placement $placement): ?Journal
+    {
+        $this->deleteJournalForModel($placement);
+        return $this->createJournalFromPlacement($placement);
+    }
+
+    /**
+     * Reconstruye la póliza de una Recuperación tras ser editada.
+     */
+    public function updateJournalFromRecovery(Recovery $recovery): ?Journal
+    {
+        $this->deleteJournalForModel($recovery);
+        return $this->createJournalFromRecovery($recovery);
+    }
 }

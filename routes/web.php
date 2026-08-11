@@ -41,6 +41,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\NominaTimbradoController;
 use App\Http\Controllers\PortalEmpleadoController;
 use App\Http\Controllers\RenunciaController;
+use App\Http\Controllers\SaldosInicialesController;
 
 /*
 |--------------------------------------------------------------------------
@@ -211,6 +212,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/reconciliation/upload', [ReconciliationController::class, 'store'])->name('reconciliation.store');
         Route::get('/reconciliation/confirm', [ReconciliationController::class, 'confirm'])->name('reconciliation.confirm');
         Route::post('/reconciliation/process', [ReconciliationController::class, 'process'])->name('reconciliation.process');
+        Route::get('/saldos-iniciales', [SaldosInicialesController::class, 'create'])->name('saldos-iniciales.create');
+Route::post('/saldos-iniciales', [SaldosInicialesController::class, 'store'])->name('saldos-iniciales.store');
         
         // IA Documentos Legales
         Route::post('/finiquitos/redactar-ia', [FiniquitoController::class, 'redactarDocumentoIA'])->name('finiquitos.redactar.ia');

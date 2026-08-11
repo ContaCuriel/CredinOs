@@ -169,7 +169,7 @@ class GastoController extends Controller
     /**
      * Actualiza un gasto existente.
      */
-    public function update(Request $request, Gasto $gasto)
+    public function update(Request $request, Gasto $gasto, AccountingService $accountingService)
     {
         $validatedData = $request->validate([
             'fecha_gasto' => 'required|date',
@@ -203,6 +203,7 @@ class GastoController extends Controller
             $requiereAprobacion = $request->has('requiere_aprobacion');
             $estado = $requiereAprobacion ? 'En Aprobación' : 'Aprobado';
 
+            // 1. Actualizamos el registro operativo del gasto
             $gasto->update([
                 'fecha_gasto' => $validatedData['fecha_gasto'],
                 'sucursal_id' => $validatedData['sucursal_id'],
@@ -218,8 +219,17 @@ class GastoController extends Controller
                 'comentarios_rechazo' => null,
             ]);
 
+            // 2. LÓGICA CONTABLE: Actualizamos la póliza
+            if ($estado === 'Aprobado') {
+                // Destruye la póliza vieja y crea una nueva con los datos frescos
+                $accountingService->updateJournalFromExpense($gasto);
+            } else {
+                // Si lo regresaron a "En Aprobación", borramos la póliza que tenía
+                $accountingService->deleteJournalForModel($gasto);
+            }
+
             DB::commit();
-            return redirect()->route('gastos.index')->with('success', 'Gasto actualizado exitosamente.');
+            return redirect()->route('gastos.index')->with('success', 'Gasto actualizado y póliza regenerada exitosamente.');
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->with('error', 'Hubo un error al actualizar el gasto: ' . $e->getMessage())->withInput();
@@ -229,18 +239,22 @@ class GastoController extends Controller
     /**
      * Elimina un gasto.
      */
-    public function destroy(Gasto $gasto)
+    public function destroy(Gasto $gasto, AccountingService $accountingService)
     {
         try {
             if ($gasto->nombre_archivo_comprobante) {
                 Storage::delete('public/comprobantes/' . $gasto->nombre_archivo_comprobante);
             }
-            // Si el gasto ya tenía póliza, el AccountingService (o los observers) deberían 
-            // encargarse de cancelar la póliza o al menos marcarla como revertida (lógica futura).
+            
+            // 1. Destruimos la póliza contable primero
+            $accountingService->deleteJournalForModel($gasto);
+            
+            // 2. Destruimos el registro operativo
             $gasto->delete();
-            return redirect()->route('gastos.index')->with('success', 'Gasto eliminado exitosamente.');
+            
+            return redirect()->route('gastos.index')->with('success', 'Gasto y póliza eliminados exitosamente.');
         } catch (\Exception $e) {
-            return back()->with('error', 'Hubo un error al eliminar el gasto: ' . $e->getMessage());
+            return back()->with('error', 'Hubo un error al eliminar: ' . $e->getMessage());
         }
     }
 

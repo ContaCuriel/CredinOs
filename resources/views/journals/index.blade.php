@@ -2,6 +2,11 @@
     <div class="card shadow-sm">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Libro de Diario - Pólizas Contables</h5>
+            
+            {{-- BOTÓN PARA SALDOS INICIALES --}}
+            <a href="{{ route('saldos-iniciales.create') }}" class="btn btn-success btn-sm shadow-sm">
+                <i class="fas fa-play-circle"></i> Configurar Saldos Iniciales
+            </a>
         </div>
         <div class="card-body">
             <div class="table-responsive">
@@ -23,16 +28,16 @@
                                 <td>{{ \Carbon\Carbon::parse($journal->date)->format('d/m/Y') }}</td>
                                 <td>{{ $journal->concept }}</td>
                                 <td>
-    @if ($journal->sourceable_type === 'App\Models\Gasto')
-        <span class="badge text-bg-info">Gasto #{{ $journal->sourceable_id }}</span>
-    @elseif ($journal->sourceable_type === 'App\Models\Placement')
-        <span class="badge text-bg-primary">Colocación #{{ $journal->sourceable_id }}</span>
-    @elseif ($journal->sourceable_type === 'App\Models\Recovery')
-        <span class="badge text-bg-success">Recuperación #{{ $journal->sourceable_id }}</span>
-    @else
-        <span class="badge text-bg-secondary">Manual</span>
-    @endif
-</td>
+                                    @if ($journal->sourceable_type === 'App\Models\Gasto')
+                                        <span class="badge text-bg-info">Gasto #{{ $journal->sourceable_id }}</span>
+                                    @elseif ($journal->sourceable_type === 'App\Models\Placement')
+                                        <span class="badge text-bg-primary">Colocación #{{ $journal->sourceable_id }}</span>
+                                    @elseif ($journal->sourceable_type === 'App\Models\Recovery')
+                                        <span class="badge text-bg-success">Recuperación #{{ $journal->sourceable_id }}</span>
+                                    @else
+                                        <span class="badge text-bg-secondary">Manual / Apertura</span>
+                                    @endif
+                                </td>
                                 {{-- Calculamos el total sumando los débitos (es igual a la suma de créditos) --}}
                                 <td class="text-end">${{ number_format($journal->entries->sum('debit'), 2) }}</td>
                                 <td class="text-center">
