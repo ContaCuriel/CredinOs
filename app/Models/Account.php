@@ -47,7 +47,7 @@ class Account extends Model
             ->join('journals', 'journal_entries.journal_id', '=', 'journals.id')
             ->whereBetween('journals.date', [$startDate, $endDate]);
 
-        // FILTRO DE SUCURSAL
+        // FILTRO DE SUCURSAL (Asegúrate de que la columna se llame 'id_sucursal' en tu tabla journals)
         if ($sucursalId) {
             $queryDebits->where('journals.id_sucursal', $sucursalId);
             $queryCredits->where('journals.id_sucursal', $sucursalId);
@@ -76,9 +76,11 @@ class Account extends Model
         // Normalizamos el tipo a minúsculas para evitar errores de comparación
         $type = strtolower($this->type);
 
-        if (in_array($type, ['activo', 'asset', 'gastos', 'expense'])) {
+        // 🔥 CORRECCIÓN: Agregamos 'costos' y 'cost' a la naturaleza deudora
+        if (in_array($type, ['activo', 'asset', 'gastos', 'expense', 'costos', 'cost'])) {
             return $rawBalance['debits'] - $rawBalance['credits'];
         } else {
+            // Pasivo, Capital, Ingresos
             return $rawBalance['credits'] - $rawBalance['debits'];
         }
     }

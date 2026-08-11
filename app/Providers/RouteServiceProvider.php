@@ -14,16 +14,10 @@ class RouteServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-
-         Route::resourceParameters([
-        'sucursales' => 'sucursal', // La que ya tenías (o deberías tener)
-        'patrones'   => 'patron'    // <-- AÑADE ESTA LÍNEA
-         ]);
-        // Si necesitas personalizar nombres de parámetros de ruta para Route::resource,
-        // este es el lugar correcto, por ejemplo:
-        // Route::resourceParameters([
-        //     'sucursales' => 'sucursal_param_name' // Cambia 'sucursal_param_name' al que necesites
-        // ]);
+        Route::resourceParameters([
+            'sucursales' => 'sucursal', 
+            'patrones'   => 'patron'    
+        ]);
 
         $this->configureRateLimiting();
 

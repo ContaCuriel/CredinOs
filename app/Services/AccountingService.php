@@ -20,6 +20,7 @@ class AccountingService
         if ($gasto->journal()->exists()) return null;
 
         $bancoAccount = Account::where('code', '102.01')->first();
+        $ivaAccount = Account::where('code', '118.01')->first(); // Cuenta de IVA
         
         if (!$bancoAccount) {
             throw new \Exception("ERROR CONTABLE: No se encontró la cuenta de Bancos (102.01).");
@@ -28,24 +29,35 @@ class AccountingService
             throw new \Exception("ERROR CONTABLE: La categoría de este gasto no tiene una cuenta contable asignada.");
         }
 
-        return DB::transaction(function () use ($gasto, $bancoAccount) {
+        return DB::transaction(function () use ($gasto, $bancoAccount, $ivaAccount) {
             $journal = Journal::create([
                 'date' => $gasto->fecha_gasto,
                 'concept' => "Gasto: " . ($gasto->categoria->nombre ?? 'S/N') . " - " . ($gasto->proveedor->nombre ?? ''),
                 'sourceable_id' => $gasto->id,
                 'sourceable_type' => Gasto::class,
-                'sucursal_id' => $gasto->sucursal_id, // CORREGIDO
-                'user_id' => $gasto->usuario_registra_id, // CORREGIDO
+                'sucursal_id' => $gasto->sucursal_id, 
+                'user_id' => $gasto->usuario_registra_id, 
             ]);
 
-            // CARGO al gasto (Entra el gasto)
-            $journal->entries()->create([
-                'account_id' => $gasto->categoria->account_id, 
-                'debit' => $gasto->monto_total, 
-                'credit' => 0
-            ]);
+            // CARGO al gasto (Solo el Subtotal)
+            if ($gasto->monto_subtotal > 0) {
+                $journal->entries()->create([
+                    'account_id' => $gasto->categoria->account_id, 
+                    'debit' => $gasto->monto_subtotal, 
+                    'credit' => 0
+                ]);
+            }
             
-            // ABONO a bancos (Sale el dinero)
+            // CARGO al IVA Acreditable (Si hay IVA)
+            if ($gasto->monto_iva > 0 && $ivaAccount) {
+                $journal->entries()->create([
+                    'account_id' => $ivaAccount->id, 
+                    'debit' => $gasto->monto_iva, 
+                    'credit' => 0
+                ]);
+            }
+            
+            // ABONO a bancos (Sale el dinero Total)
             $journal->entries()->create([
                 'account_id' => $bancoAccount->id, 
                 'debit' => 0, 
@@ -64,7 +76,6 @@ class AccountingService
         $clientesAccount = Account::where('code', '105.01')->first();
         $bancoAccount = Account::where('code', '102.01')->first();
 
-        // Si faltan las cuentas, forzamos un error fatal para que te des cuenta
         if (!$clientesAccount || !$bancoAccount) {
             throw new \Exception("ERROR CONTABLE: Faltan las cuentas 105.01 o 102.01 en el catálogo de esta empresa.");
         }
@@ -88,6 +99,7 @@ class AccountingService
             return $journal;
         });
     }
+
     // --- PÓLIZA DE RECUPERACIÓN ---
     public function createJournalFromRecovery(Recovery $recovery): ?Journal
     {
@@ -109,14 +121,29 @@ class AccountingService
                     'concept' => "Recuperación Mensual: $nombreSuc ({$recovery->month}/{$recovery->year})",
                     'sourceable_id' => $recovery->id,
                     'sourceable_type' => Recovery::class,
-                    'sucursal_id' => $recovery->sucursal_id, // <--- CORREGIDO AQUÍ
+                    'sucursal_id' => $recovery->sucursal_id,
                     'user_id' => $recovery->user_id,
                 ]);
 
+                $castigo = $recovery->unrecoverable_amount ?? 0;
                 $totalCashIn = $recovery->capital_recovered + $recovery->interest_collected;
-                if ($totalCashIn > 0) $journal->entries()->create(['account_id' => $bancoAccount->id, 'debit' => $totalCashIn, 'credit' => 0]);
-                if ($recovery->interest_collected > 0) $journal->entries()->create(['account_id' => $interesesAccount->id, 'debit' => 0, 'credit' => $recovery->interest_collected]);
-                if ($recovery->capital_recovered > 0) $journal->entries()->create(['account_id' => $clientesAccount->id, 'debit' => 0, 'credit' => $recovery->capital_recovered]);
+                $bajaClientes = $recovery->capital_recovered + $castigo;
+
+                // CARGOS
+                if ($totalCashIn > 0) {
+                    $journal->entries()->create(['account_id' => $bancoAccount->id, 'debit' => $totalCashIn, 'credit' => 0]);
+                }
+                if ($castigo > 0 && $castigosAccount) {
+                    $journal->entries()->create(['account_id' => $castigosAccount->id, 'debit' => $castigo, 'credit' => 0]);
+                }
+                
+                // ABONOS
+                if ($bajaClientes > 0) {
+                    $journal->entries()->create(['account_id' => $clientesAccount->id, 'debit' => 0, 'credit' => $bajaClientes]);
+                }
+                if ($recovery->interest_collected > 0) {
+                    $journal->entries()->create(['account_id' => $interesesAccount->id, 'debit' => 0, 'credit' => $recovery->interest_collected]);
+                }
                 
                 return $journal;
             });
