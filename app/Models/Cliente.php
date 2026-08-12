@@ -14,7 +14,6 @@ class Cliente extends Model
     protected $primaryKey = 'id_cliente';
 
     protected $fillable = [
-        // Campos que ya tenías
         'nombre',
         'apellido_paterno',
         'apellido_materno',
@@ -35,8 +34,6 @@ class Cliente extends Model
         'antiguedad_negocio',
         'ingresos_mensuales',
         'gastos_mensuales',
-
-        // Nuevos campos de la migración
         'fecha_nacimiento',
         'genero',
         'vencimiento_ine',
@@ -52,35 +49,34 @@ class Cliente extends Model
         'tipo_vivienda',
     ];
 
-    /**
-     * The attributes that should be cast to native types.
-     * ESTA ES LA SECCIÓN QUE FALTA
-     * @var array
-     */
     protected $casts = [
-        // Casts para campos existentes
-        'antiguedad_negocio' => 'integer',
-        'ingresos_mensuales' => 'decimal:2',
-        'gastos_mensuales'   => 'decimal:2',
-        'id_sucursal'        => 'integer',
-
-        // Casts para los CAMPOS NUEVOS
-        'fecha_nacimiento'           => 'date',
-        'vencimiento_ine'            => 'integer',
-        'numero_hijos'               => 'integer',
-        'dependientes_economicos'    => 'integer',
-        'fecha_comprobante_domicilio' => 'date',
-        'anios_domicilio'            => 'integer',
+        'id_sucursal'             => 'integer',
+        'antiguedad_negocio'      => 'integer',
+        'numero_hijos'            => 'integer',
+        'dependientes_economicos' => 'integer',
+        'anios_domicilio'         => 'integer',
+        'vencimiento_ine'         => 'integer',
+        'ingresos_mensuales'      => 'float',
+        'gastos_mensuales'        => 'float',
+        'fecha_nacimiento'        => 'date:Y-m-d',
+        'fecha_comprobante_domicilio' => 'date:Y-m-d',
     ];
 
+    public function getNombreCompletoAttribute(): string
+    {
+        return trim("{$this->nombre} {$this->apellido_paterno} {$this->apellido_materno}");
+    }
 
-    // Relación con Sucursal
     public function sucursal()
     {
         return $this->belongsTo(Sucursal::class, 'id_sucursal')
-                    ->withDefault([
-                        'nombre_sucursal' => 'Sin Asignar'
-                    ]);
+                    ->withDefault(['nombre_sucursal' => 'Sin Asignar']);
+    }
+
+    // RELACIÓN CORREGIDA CON SUS LLAVES EXPLÍCITAS
+    public function referencias()
+    {
+        return $this->hasMany(ClienteReferencia::class, 'cliente_id', 'id_cliente');
     }
 
     public function groups()

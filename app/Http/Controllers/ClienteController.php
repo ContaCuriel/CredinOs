@@ -56,15 +56,15 @@ class ClienteController extends Controller
             // Sección 1: Datos Personales
             'nombre' => 'required|string|max:255',
             'apellido_paterno' => 'required|string|max:255',
-            'apellido_materno' => 'nullable|string|max:255', // Ya no es obligatorio
+            'apellido_materno' => 'nullable|string|max:255',
             'fecha_nacimiento' => "required|date|after_or_equal:$minDate|before_or_equal:$maxDate",
             'curp' => $curpRule,
-            'vencimiento_ine' => "required|integer|digits:4|gte:$currentYear", // Validar año
-            'estado_civil' => 'required|string|in:Soltero(a),Casado(a),Divorciado(a),Viudo(a),Unión Libre', // Lista
+            'vencimiento_ine' => "required|integer|digits:4|gte:$currentYear",
+            'estado_civil' => 'required|string|in:Soltero(a),Casado(a),Divorciado(a),Viudo(a),Unión Libre',
             'telefono_celular' => 'required|string|max:20',
-            'telefono_fijo' => 'nullable|string|max:20', // Nuevo campo
+            'telefono_fijo' => 'nullable|string|max:20',
             
-            // Dirección
+            // Dirección Particular
             'codigo_postal' => 'required|string|max:10',
             'colonia' => 'required|string|max:255',
             'fecha_comprobante_domicilio' => "required|date|between:$minProofDate,$maxProofDate",
@@ -72,21 +72,32 @@ class ClienteController extends Controller
             'estado' => 'required|string|max:255',
             'calle' => 'required|string|max:255',
             'numero' => 'required|string|max:50',
-            'anios_domicilio' => 'required|integer|min:0', // Nuevo campo
-            'tipo_vivienda' => 'required|string|in:Propia,Rentada,Familiar,Hipotecada', // Nuevo campo (lista)
+            'anios_domicilio' => 'required|integer|min:0',
+            'tipo_vivienda' => 'required|string|in:Propia,Rentada,Familiar,Hipotecada',
 
-            // Sección 2: Datos Laborales
+            // Sección 2: Datos Laborales y Financieros
             'nombre_negocio' => 'required|string|max:255',
-            'giro_negocio' => 'required|string|in:Comercio,Servicios,Industria,Agropecuario,Otro', // Lista
-            'destino_credito' => 'required|string|in:Capital de Trabajo,Activo Fijo,Inversión,Otro', // Lista
+            'giro_negocio' => 'required|string|in:Comercio,Servicios,Industria,Agropecuario,Otro',
+            'destino_credito' => 'required|string|in:Capital de Trabajo,Activo Fijo,Inversión,Otro',
             'antiguedad_negocio' => 'required|integer|min:0',
+            
+            // --- NUEVOS CAMPOS FINANCIEROS Y LABORALES ---
+            'ingresos_mensuales' => 'required|numeric|min:0',
+            'gastos_mensuales' => 'required|numeric|min:0',
+            
+            'mismo_domicilio_laboral' => 'nullable|boolean',
+            'codigo_postal_negocio' => 'nullable|string|max:10',
+            'colonia_negocio' => 'nullable|string|max:255',
+            'municipio_negocio' => 'nullable|string|max:255',
+            'estado_negocio' => 'nullable|string|max:255',
+            'calle_negocio' => 'nullable|string|max:255',
+            'numero_negocio' => 'nullable|string|max:50',
 
             // Sección 3: Referencias
             'referencias' => 'required|array|size:2',
             'referencias.*.nombre_referencia' => 'required|string|max:255',
             'referencias.*.parentesco' => 'required|string|max:100',
             'referencias.*.telefono' => 'required|string|max:20',
-            
         ];
     }
     
@@ -95,24 +106,30 @@ class ClienteController extends Controller
      */
     public function store(Request $request)
     {
-
         $validatedData = $request->validate($this->getValidationRules());
 
         try {
             DB::beginTransaction();
 
+            // 1. Extraemos las referencias y las quitamos de los datos del cliente
+            $referenciasData = $validatedData['referencias'] ?? [];
+            unset($validatedData['referencias']);
+
+            // 2. Creación del Cliente limpia
             $cliente = Cliente::create($validatedData);
-            
-            // Guardar las referencias
-            $cliente->referencias()->createMany($validatedData['referencias']);
+
+            // 3. Creación de las Referencias vinculadas al id_cliente
+            if (!empty($referenciasData)) {
+                $cliente->referencias()->createMany($referenciasData);
+            }
 
             DB::commit();
+            return redirect()->route('clientes.index')->with('success', 'Cliente registrado exitosamente.');
+
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->with('error', 'Ocurrió un error al registrar el cliente: ' . $e->getMessage())->withInput();
         }
-
-        return redirect()->route('clientes.index')->with('success', 'Cliente registrado exitosamente.');
     }
 
     /**
@@ -132,26 +149,30 @@ class ClienteController extends Controller
      */
     public function update(Request $request, Cliente $cliente)
     {
-
         $validatedData = $request->validate($this->getValidationRules($cliente->id_cliente));
-
 
         try {
             DB::beginTransaction();
 
+            $referenciasData = $validatedData['referencias'] ?? [];
+            unset($validatedData['referencias']);
+
+            // 1. Actualización del cliente
             $cliente->update($validatedData);
-            
-            // Actualizar referencias: borrarlas y crearlas de nuevo
+
+            // 2. Reemplazo de referencias
             $cliente->referencias()->delete();
-            $cliente->referencias()->createMany($validatedData['referencias']);
+            if (!empty($referenciasData)) {
+                $cliente->referencias()->createMany($referenciasData);
+            }
 
             DB::commit();
+            return redirect()->route('clientes.index')->with('success', 'Cliente actualizado exitosamente.');
+
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->with('error', 'Ocurrió un error al actualizar el cliente: ' . $e->getMessage())->withInput();
         }
-
-        return redirect()->route('clientes.index')->with('success', 'Cliente actualizado exitosamente.');
     }
 
     /**

@@ -23,6 +23,7 @@
                     
                     <div class="accordion" id="accordionCliente">
 
+                        {{-- SECCIÓN 1: DATOS PERSONALES --}}
                         <div class="accordion-item">
                             <h2 class="accordion-header">
                                 <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
@@ -61,7 +62,7 @@
                                     </div>
 
                                     <hr>
-                                    <h6 class="mt-3">Dirección</h6>
+                                    <h6 class="mt-3">Dirección Particular</h6>
                                     
                                     {{-- DIRECCIÓN CON AUTOCOMPLETADO --}}
                                     <div class="row">
@@ -107,16 +108,17 @@
                             </div>
                         </div>
 
+                        {{-- SECCIÓN 2: DATOS LABORALES Y FINANCIEROS --}}
                         <div class="accordion-item">
                             <h2 class="accordion-header">
                                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
-                                    <strong>Sección 2: Datos Laborales</strong>
+                                    <strong>Sección 2: Datos Laborales y Financieros</strong>
                                 </button>
                             </h2>
                             <div id="collapseTwo" class="accordion-collapse collapse" data-bs-parent="#accordionCliente">
                                 <div class="accordion-body">
                                     <div class="row">
-                                        <div class="col-md-6 mb-3"><label class="form-label">Nombre del Negocio <span class="text-danger">*</span></label><input type="text" class="form-control" name="nombre_negocio" value="{{ old('nombre_negocio', $cliente->nombre_negocio) }}" required></div>
+                                        <div class="col-md-6 mb-3"><label class="form-label">Nombre del Negocio / Empresa <span class="text-danger">*</span></label><input type="text" class="form-control" name="nombre_negocio" value="{{ old('nombre_negocio', $cliente->nombre_negocio) }}" required></div>
                                         <div class="col-md-6 mb-3">
                                             <label class="form-label">Giro del Negocio <span class="text-danger">*</span></label>
                                             <select class="form-select" name="giro_negocio" required>
@@ -140,10 +142,73 @@
                                         </div>
                                         <div class="col-md-6 mb-3"><label class="form-label">Antigüedad del Negocio (años) <span class="text-danger">*</span></label><input type="number" class="form-control" name="antiguedad_negocio" value="{{ old('antiguedad_negocio', $cliente->antiguedad_negocio) }}" min="0" required></div>
                                     </div>
+
+                                    <hr>
+                                    <h6 class="mt-3">Capacidad de Pago</h6>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Ingresos Mensuales ($) <span class="text-danger">*</span></label>
+                                            <div class="input-group">
+                                                <span class="input-group-text">$</span>
+                                                <input type="number" step="0.01" min="0" class="form-control" name="ingresos_mensuales" value="{{ old('ingresos_mensuales', $cliente->ingresos_mensuales ?? '0.00') }}" required>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Gastos Mensuales ($) <span class="text-danger">*</span></label>
+                                            <div class="input-group">
+                                                <span class="input-group-text">$</span>
+                                                <input type="number" step="0.01" min="0" class="form-control" name="gastos_mensuales" value="{{ old('gastos_mensuales', $cliente->gastos_mensuales ?? '0.00') }}" required>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <hr>
+                                    <h6 class="mt-3">Domicilio del Negocio / Laboral</h6>
+                                    
+                                    {{-- CHECKBOX PARA OCULTAR EL DOMICILIO LABORAL --}}
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="mismo_domicilio" name="mismo_domicilio_laboral" value="1" {{ old('mismo_domicilio_laboral', $cliente->mismo_domicilio_laboral) ? 'checked' : '' }}>
+                                        <label class="form-check-label fw-bold text-primary" for="mismo_domicilio">
+                                            El domicilio del negocio/trabajo es el mismo que el particular
+                                        </label>
+                                    </div>
+
+                                    {{-- CONTENEDOR DE DOMICILIO LABORAL --}}
+                                    <div id="seccion_domicilio_negocio">
+                                        <div class="row">
+                                            <div class="col-md-3 mb-3">
+                                                <label class="form-label">Código Postal</label>
+                                                <input type="text" class="form-control" name="codigo_postal_negocio" value="{{ old('codigo_postal_negocio', $cliente->codigo_postal_negocio) }}">
+                                            </div>
+                                            <div class="col-md-5 mb-3">
+                                                <label class="form-label">Colonia</label>
+                                                <input type="text" class="form-control" name="colonia_negocio" value="{{ old('colonia_negocio', $cliente->colonia_negocio) }}">
+                                            </div>
+                                            <div class="col-md-4 mb-3">
+                                                <label class="form-label">Municipio</label>
+                                                <input type="text" class="form-control" name="municipio_negocio" value="{{ old('municipio_negocio', $cliente->municipio_negocio) }}">
+                                            </div>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-md-4 mb-3">
+                                                <label class="form-label">Estado</label>
+                                                <input type="text" class="form-control" name="estado_negocio" value="{{ old('estado_negocio', $cliente->estado_negocio) }}">
+                                            </div>
+                                            <div class="col-md-6 mb-3">
+                                                <label class="form-label">Calle</label>
+                                                <input type="text" class="form-control" name="calle_negocio" value="{{ old('calle_negocio', $cliente->calle_negocio) }}">
+                                            </div>
+                                            <div class="col-md-2 mb-3">
+                                                <label class="form-label">Número</label>
+                                                <input type="text" class="form-control" name="numero_negocio" value="{{ old('numero_negocio', $cliente->numero_negocio) }}">
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
+                        {{-- SECCIÓN 3: REFERENCIAS --}}
                         <div class="accordion-item">
                             <h2 class="accordion-header">
                                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
@@ -178,6 +243,24 @@
     @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            // LÓGICA PARA OCULTAR/MOSTRAR DOMICILIO LABORAL
+            const checkboxMismoDomicilio = document.getElementById('mismo_domicilio');
+            const seccionDomicilioNegocio = document.getElementById('seccion_domicilio_negocio');
+
+            function toggleDomicilioNegocio() {
+                if (checkboxMismoDomicilio.checked) {
+                    seccionDomicilioNegocio.style.display = 'none';
+                } else {
+                    seccionDomicilioNegocio.style.display = 'block';
+                }
+            }
+
+            if (checkboxMismoDomicilio) {
+                checkboxMismoDomicilio.addEventListener('change', toggleDomicilioNegocio);
+                toggleDomicilioNegocio(); // Ejecutar al cargar la página para respetar la BD
+            }
+
+            // LÓGICA DE CÓDIGO POSTAL
             const cpInput = document.getElementById('codigo_postal');
             const coloniaContainer = document.getElementById('colonia_container');
             const municipioInput = document.getElementById('municipio');
@@ -188,11 +271,7 @@
                     const cp = this.value.trim();
                     if (cp.length === 5 && /^\d+$/.test(cp)) {
                         
-                        // --- ¡CAMBIO IMPORTANTE AQUÍ! ---
-                        // Apuntamos a nuestra propia API interna en lugar de a una externa.
                         fetch(`/api/cp/${cp}`)
-                        // ---------------------------------
-
                             .then(response => {
                                 if (!response.ok) throw new Error('CP no encontrado');
                                 return response.json();

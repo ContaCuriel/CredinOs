@@ -9,6 +9,8 @@ class ClienteReferencia extends Model
 {
     use HasFactory;
 
+    protected $table = 'cliente_referencias'; // O el nombre exacto de tu tabla
+
     protected $fillable = [
         'cliente_id',
         'nombre_referencia',
