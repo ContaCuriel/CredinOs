@@ -205,7 +205,7 @@
                 placeholder: 'Escribe nombre, apellido o ID...',
                 allowClear: true,
                 ajax: {
-                    url: '{{ route("clientes.search") }}', // Esta es la ruta que ya tienes en tu sistema
+                    url: '{{ route("web.clientes.search") }}', // Esta es la ruta que ya tienes en tu sistema
                     dataType: 'json',
                     delay: 250,
                     data: function (params) {

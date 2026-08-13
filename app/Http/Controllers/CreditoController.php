@@ -22,6 +22,14 @@ class CreditoController extends Controller
         return view('creditos.index', compact('creditos'));
     }
 
+    public function show($id)
+    {
+        // Traemos el crédito con todas sus relaciones para armar la vista completa
+        $credito = Credito::with(['producto', 'asesor', 'cliente', 'grupo', 'integrantes', 'cuentasDesembolso'])->findOrFail($id);
+        
+        return view('creditos.show', compact('credito'));
+    }
+
     public function create()
     {
         // Solo traemos productos activos
