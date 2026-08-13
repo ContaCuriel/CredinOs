@@ -2,20 +2,20 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class ClienteReferencia extends Model
 {
     use HasFactory;
 
-    protected $table = 'cliente_referencias'; // O el nombre exacto de tu tabla
+    protected $table = 'cliente_referencias';
 
     protected $fillable = [
         'cliente_id',
         'nombre_referencia',
         'parentesco',
-        'telefono',
+        'telefono'
     ];
 
     public function cliente()
