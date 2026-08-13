@@ -15,9 +15,9 @@ class ProductoCredito extends Model
         'nombre',
         'tipo_credito',
         'frecuencia_pago',
+        'cobro_comision_apertura', // <-- Nuevo campo agregado correctamente
         'tasa_interes',
         'tipo_tasa',
-        'cobro_comision_apertura',
         'plazo_minimo',
         'plazo_maximo',
         'monto_minimo',
@@ -34,8 +34,8 @@ class ProductoCredito extends Model
     ];
 
     protected $casts = [
+        'cobro_comision_apertura' => 'float', // <-- Nuevo cast agregado con su coma
         'tasa_interes' => 'float',
-        'cobro_comision_apertura' => 'float'
         'monto_minimo' => 'float',
         'monto_maximo' => 'float',
         'multa_valor'  => 'float',
