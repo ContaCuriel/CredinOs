@@ -271,6 +271,16 @@
                             </a>
                         </li>
                         @endcan
+                        
+                        {{-- BOTÓN DE PRODUCTOS DE CRÉDITO --}}
+                        @can('ver-productos-credito')
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('productos_credito.*') ? 'active' : '' }}" href="{{ route('productos_credito.index') }}">
+                                <i class="bi bi-box-seam"></i> Productos de Crédito
+                            </a>
+                        </li>
+                        @endcan
+                        
                     </ul>
                     @endcan
                 </div>

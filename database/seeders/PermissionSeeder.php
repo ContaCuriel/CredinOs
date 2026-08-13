@@ -75,6 +75,7 @@ class PermissionSeeder extends Seeder
                 'ver-categorias', 'crear-categorias', 'editar-categorias', 'eliminar-categorias',
                 'ver-tipos-credito', 'crear-tipos-credito', 'editar-tipos-credito', 'eliminar-tipos-credito',
                 'ver-tasas-interes', 'crear-tasas-interes', 'editar-tasas-interes', 'eliminar-tasas-interes',
+                'ver-productos-credito', 'crear-productos-credito', 'editar-productos-credito', 'eliminar-productos-credito',
             ],
             'Módulo de Prueba' => [
                 'ver-modulo-prueba',

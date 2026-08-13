@@ -42,6 +42,7 @@ use App\Http\Controllers\NominaTimbradoController;
 use App\Http\Controllers\PortalEmpleadoController;
 use App\Http\Controllers\RenunciaController;
 use App\Http\Controllers\SaldosInicialesController;
+use App\Http\Controllers\ProductoCreditoController;
 
 /*
 |--------------------------------------------------------------------------
@@ -214,6 +215,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/reconciliation/process', [ReconciliationController::class, 'process'])->name('reconciliation.process');
         Route::get('/saldos-iniciales', [SaldosInicialesController::class, 'create'])->name('saldos-iniciales.create');
 Route::post('/saldos-iniciales', [SaldosInicialesController::class, 'store'])->name('saldos-iniciales.store');
+
+// Rutas de Productos de Crédito
+Route::resource('productos_credito', ProductoCreditoController::class);
         
         // IA Documentos Legales
         Route::post('/finiquitos/redactar-ia', [FiniquitoController::class, 'redactarDocumentoIA'])->name('finiquitos.redactar.ia');
