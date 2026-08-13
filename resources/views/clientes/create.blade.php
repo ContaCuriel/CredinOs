@@ -8,6 +8,8 @@
                 </a>
             </div>
             <div class="card-body">
+                
+                {{-- 1. ALERTA DE ERRORES DE VALIDACIÓN DEL FORMULARIO --}}
                 @if ($errors->any())
                     <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm" role="alert">
                         <h6 class="alert-heading fw-bold mb-1"><i class="bi bi-exclamation-diamond-fill me-2"></i>Por favor corrige los siguientes errores:</h6>
@@ -16,12 +18,15 @@
                                 <li>{{ $error }}</li>
                             @endforeach
                         </ul>
-                        @if (session('error'))
-                    <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm mt-3" role="alert">
-                        <i class="bi bi-exclamation-triangle-fill me-2"></i> {{ session('error') }}
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 @endif
+
+                {{-- 2. ALERTA DE ERRORES DE BASE DE DATOS (SILENCIOSOS) --}}
+                @if (session('error'))
+                    <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm" role="alert">
+                        <h6 class="alert-heading fw-bold mb-1"><i class="bi bi-exclamation-triangle-fill me-2"></i>Error del Sistema:</h6>
+                        <p class="mb-0 small">{{ session('error') }}</p>
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 @endif
