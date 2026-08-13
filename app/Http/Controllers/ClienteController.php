@@ -67,7 +67,7 @@ class ClienteController extends Controller
             // Dirección Particular
             'codigo_postal' => 'required|string|max:10',
             'colonia' => 'required|string|max:255',
-            'fecha_comprobante_domicilio' => "required|date|between:$minProofDate,$maxProofDate",
+            'fecha_comprobante_domicilio' => "required|date|after_or_equal:$minProofDate|before_or_equal:$maxProofDate",
             'municipio' => 'required|string|max:255',
             'estado' => 'required|string|max:255',
             'calle' => 'required|string|max:255',
