@@ -4,167 +4,132 @@ namespace App\Http\Controllers;
 
 use App\Models\Credito;
 use App\Models\Cliente;
-use App\Models\Group;
-use App\Models\Sucursal;
-use App\Models\User;
-use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
-use App\Models\CreditType;
-use App\Models\InterestRate;
-use Illuminate\Support\Facades\DB;
+use App\Models\Grupo;
+use App\Models\ProductoCredito;
 use App\Models\Empleado;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class CreditoController extends Controller
 {
-    /**
-     * Muestra el formulario para crear un nuevo crédito.
-     * Este método prepara todos los datos necesarios para el formulario inteligente.
-     */
-   public function create()
-{
-    // ... (la carga de Clientes, Sucursales, etc., no cambia)
-    $clientes = Cliente::orderBy('nombre')->get();
-    $sucursales = Sucursal::orderBy('nombre_sucursal')->get();
-    $creditTypes = CreditType::orderBy('name')->get();
-    $interestRates = InterestRate::orderBy('rate')->get();
+    public function index()
+    {
+        // Traemos los créditos con sus relaciones para no saturar la base de datos
+        $creditos = Credito::with(['producto', 'asesor', 'cliente', 'grupo', 'integrantes'])
+                            ->orderBy('created_at', 'desc')
+                            ->paginate(15);
+                            
+        return view('creditos.index', compact('creditos'));
+    }
 
-    // --- CONSULTA CORREGIDA USANDO LA RELACIÓN 'puesto' ---
-    $asesores = Empleado::whereHas('puesto', function ($query) {
-        // Buscamos en la tabla relacionada 'puestos'
-        $query->where('nombre_puesto', 'like', 'ASESOR%')
-              ->orWhere('nombre_puesto', 'like', 'GERENTE%');
-    })
-    ->orderBy('nombre_completo')
-    ->get();
+    public function create()
+    {
+        // Solo traemos productos activos
+        $productos = ProductoCredito::where('activo', true)->orderBy('nombre')->get();
+        
+        // Traemos asesores y gerentes
+        $asesores = Empleado::whereHas('puesto', function ($query) {
+            $query->where('nombre_puesto', 'like', 'ASESOR%')
+                  ->orWhere('nombre_puesto', 'like', 'GERENTE%');
+        })->orderBy('nombre_completo')->get();
 
-    return view('creditos.create', compact(
-        'clientes',
-        'sucursales',
-        'asesores',
-        'creditTypes',
-        'interestRates'
-    ));
-}
-    /**
-     * Guarda un nuevo crédito (individual o grupal) en la base de datos.
-     */
+        return view('creditos.create', compact('productos', 'asesores'));
+    }
+
     public function store(Request $request)
     {
-        // Validación (puedes moverla a un FormRequest después)
+        // 1. VALIDACIÓN MAESTRA
         $validated = $request->validate([
-            'id_sucursal' => 'required|exists:sucursales,id_sucursal',
-            'id_asesor' => 'required|exists:users,id',
-            'fecha_solicitud' => 'required|date',
-            'credit_type_id' => 'required|exists:credit_types,id',
+            'producto_id'      => 'required|exists:productos_credito,id',
+            'asesor_id'        => 'required|exists:empleados,id_empleado',
             'monto_solicitado' => 'required|numeric|min:1',
-            'interest_rate_id' => 'required|exists:interest_rates,id',
-            'cliente_ids' => 'required|array|min:1',
-            'cliente_ids.*' => 'exists:clientes,id_cliente',
-            'montos_individuales' => 'required|array',
-            'montos_individuales.*' => 'numeric|min:0',
-            'nombre_grupo' => 'nullable|string|max:255',
-            'disbursement_bank' => 'required|string|max:100',
-            'disbursement_account_number' => 'required|string|max:50',
+            'nombre_credito'   => 'nullable|string|max:255',
+            'nombre_grupo'     => 'nullable|string|max:255', // Solo si es grupal
+            
+            // Arreglo de clientes y cuentas (Valida que venga al menos 1 de cada uno)
+            'clientes'         => 'required|array|min:1',
+            'clientes.*.id'    => 'required|exists:clientes,id_cliente',
+            'clientes.*.monto' => 'required|numeric|min:0',
+            'lider_id'         => 'nullable|exists:clientes,id_cliente', // Quién es el líder
+            
+            'cuentas'             => 'required|array|min:1',
+            'cuentas.*.banco'     => 'required|string|max:100',
+            'cuentas.*.titular'   => 'required|string|max:255',
+            'cuentas.*.cuenta'    => 'required|string|max:50',
         ]);
 
         try {
             DB::beginTransaction();
 
-            $creditType = CreditType::findOrFail($validated['credit_type_id']);
-            $interestRate = InterestRate::findOrFail($validated['interest_rate_id']);
-            $loanable = null;
+            $producto = ProductoCredito::findOrFail($validated['producto_id']);
+            
+            $grupo_id = null;
+            $cliente_id_individual = null;
 
-            // 1. Si es grupal, creamos el grupo primero
-            if ($creditType->is_group_loan) {
-                if(empty($validated['nombre_grupo'])) {
-                    throw new \Exception("El nombre del grupo es requerido para créditos grupales.");
+            // 2. ¿ES GRUPAL O INDIVIDUAL?
+            if ($producto->tipo_credito == 'grupal') {
+                if (empty($validated['nombre_grupo'])) {
+                    throw new \Exception("El nombre del grupo es obligatorio para este tipo de producto.");
                 }
-                $group = Group::create([
-                    'nombre_grupo' => $validated['nombre_grupo'],
-                    'id_sucursal' => $validated['id_sucursal'],
-                    'id_asesor' => $validated['id_asesor'],
-                ]);
-                // Adjuntamos los clientes seleccionados al nuevo grupo
-                $group->clientes()->sync($validated['cliente_ids']);
-                $loanable = $group;
+                // Creamos el Grupo
+                $grupo = Grupo::create(['nombre_grupo' => $validated['nombre_grupo']]);
+                $grupo_id = $grupo->id;
             } else {
-                // Si es individual, el acreditable es el primer y único cliente
-                $loanable = Cliente::find($validated['cliente_ids'][0]);
+                // Si es individual, el cliente principal es el primero de la lista
+                $cliente_id_individual = $validated['clientes'][0]['id'];
             }
 
-            // 2. Creamos el crédito
-            $credito = new Credito([
-                'id_sucursal' => $validated['id_sucursal'],
-                'id_asesor' => $validated['id_asesor'],
-                'credit_type_id' => $validated['credit_type_id'],
+            // 3. CREAMOS EL CRÉDITO (La Cabecera)
+            $credito = Credito::create([
+                'folio' => 'CR-' . strtoupper(uniqid()), // Folio temporal autogenerado
+                'nombre_credito' => $validated['nombre_credito'],
+                'cliente_id' => $cliente_id_individual,
+                'grupo_id' => $grupo_id,
+                'producto_id' => $producto->id,
                 'monto_solicitado' => $validated['monto_solicitado'],
-                'plazo' => $creditType->default_term,
-                'frecuencia' => $creditType->term_frequency,
-                'tasa_interes' => $interestRate->rate,
-                'tasa_interes_moratoria' => $interestRate->late_fee ?? $creditType->late_interest_rate, // Opcional
-                'fecha_solicitud' => $validated['fecha_solicitud'],
-                'status' => 'Pendiente Aprobacion',
-                'reference_number' => 'CR-' . strtoupper(uniqid()),
-                'disbursement_bank' => $validated['disbursement_bank'],
-                'disbursement_account_number' => $validated['disbursement_account_number'],
+                'plazo_solicitado' => $producto->plazo_maximo, // Toma el plazo del producto por defecto en la solicitud
+                
+                // La "fotografía" financiera actual
+                'tasa_interes_aplicada' => $producto->tasa_interes,
+                'comision_apertura_aplicada' => $producto->cobro_comision_apertura,
+                
+                'estatus' => 'solicitado',
+                'fecha_solicitud' => now(),
+                'asesor_id' => $validated['asesor_id'],
             ]);
 
-            // Asociamos el crédito con el cliente o grupo
-            $credito->loanable()->associate($loanable);
-            $credito->save();
-
-            // 3. Guardamos los montos individuales en la tabla pivote credito_cliente
-            $montosIndividuales = [];
-            foreach ($validated['montos_individuales'] as $cliente_id => $monto) {
-                if ($monto > 0) {
-                    $montosIndividuales[$cliente_id] = ['individual_amount' => $monto];
+            // 4. ATAMOS A LOS CLIENTES (Integrantes y Líder)
+            $syncData = [];
+            foreach ($validated['clientes'] as $cliente) {
+                $es_lider = ($validated['lider_id'] == $cliente['id']) ? true : false;
+                
+                // Si es individual y solo hay uno, él es el líder por defecto
+                if ($producto->tipo_credito == 'individual' && count($validated['clientes']) == 1) {
+                    $es_lider = true;
                 }
-            }
-            $credito->members()->sync($montosIndividuales);
 
+                $syncData[$cliente['id']] = [
+                    'es_lider' => $es_lider,
+                    'monto_individual' => $cliente['monto']
+                ];
+            }
+            $credito->integrantes()->sync($syncData);
+
+            // 5. GUARDAMOS LAS CUENTAS BANCARIAS
+            foreach ($validated['cuentas'] as $cuenta) {
+                $credito->cuentasDesembolso()->create([
+                    'banco' => $cuenta['banco'],
+                    'titular' => $cuenta['titular'],
+                    'numero_cuenta' => $cuenta['cuenta'],
+                ]);
+            }
 
             DB::commit();
-
-            return redirect()->route('creditos.index')->with('success', 'Solicitud de crédito registrada exitosamente.');
+            return redirect()->route('creditos.index')->with('success', '¡Solicitud de crédito creada y enviada a autorización exitosamente!');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'Error al registrar el crédito: ' . $e->getMessage())->withInput();
+            return back()->with('error', 'Ocurrió un error: ' . $e->getMessage())->withInput();
         }
     }
-    
-    // Dejaremos los otros métodos listos para implementarlos después
-    public function index()
-{
-    // Usamos with('loanable') para cargar eficientemente el dueño del crédito 
-    // (sea Cliente o Grupo) y evitar múltiples consultas a la base de datos.
-    $creditos = Credito::with('loanable', 'sucursal', 'asesor')
-                        ->latest('fecha_solicitud') // Ordena por fecha de solicitud, los más nuevos primero
-                        ->paginate(15);
-
-    return view('creditos.index', compact('creditos'));
-}
-
-    // No olvides añadir 'use App\Services\AmortizationService;' al principio del controlador
-
-public function disburse(Request $request, Credito $credito, AmortizationService $amortizationService)
-{
-    // Actualizamos el crédito a Activo y establecemos la fecha de desembolso
-    $credito->update([
-        'status' => 'Activo',
-        'monto_autorizado' => $credito->monto_solicitado, // Por ahora, autorizamos el monto solicitado
-        'fecha_desembolso' => now(),
-    ]);
-
-    // Llamamos a nuestro servicio para que genere el plan de pagos
-    $amortizationService->generateSchedule($credito);
-
-    return redirect()->route('creditos.show', $credito->id_credito)
-                     ->with('success', 'Crédito desembolsado y plan de pagos generado exitosamente.');
-}
-
-    public function show(Credito $credito) { /* Lógica para ver un crédito */ }
-    public function edit(Credito $credito) { /* Lógica para editar un crédito */ }
-    public function update(Request $request, Credito $credito) { /* Lógica para actualizar */ }
-    public function destroy(Credito $credito) { /* Lógica para eliminar */ }
 }

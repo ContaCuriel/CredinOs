@@ -215,6 +215,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/reconciliation/process', [ReconciliationController::class, 'process'])->name('reconciliation.process');
         Route::get('/saldos-iniciales', [SaldosInicialesController::class, 'create'])->name('saldos-iniciales.create');
 Route::post('/saldos-iniciales', [SaldosInicialesController::class, 'store'])->name('saldos-iniciales.store');
+Route::get('/clientes/search', [App\Http\Controllers\ClienteController::class, 'search'])->name('clientes.search');
 
 // Rutas de Productos de Crédito
 Route::resource('productos_credito', ProductoCreditoController::class);

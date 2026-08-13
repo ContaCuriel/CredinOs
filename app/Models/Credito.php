@@ -10,60 +10,75 @@ class Credito extends Model
     use HasFactory;
 
     protected $table = 'creditos';
-    protected $primaryKey = 'id_credito';
 
     protected $fillable = [
-         'reference_number',
-        'loanable_id',
-        'loanable_type',
-        'id_sucursal',
-        'id_asesor',
+        'folio',
+        'nombre_credito',
+        'cliente_id',
+        'grupo_id',
+        'producto_id',
         'monto_solicitado',
-        'monto_autorizado',
-        'plazo',
-        'frecuencia_pago',
-        'tasa_interes',
+        'plazo_solicitado',
+        'monto_aprobado',
+        'plazo_aprobado',
+        'tasa_interes_aplicada',
+        'comision_apertura_aplicada',
+        'estatus',
         'fecha_solicitud',
+        'fecha_aprobacion',
         'fecha_desembolso',
-        'status',
+        'fecha_primer_pago',
+        'fecha_vencimiento',
+        'asesor_id'
     ];
 
-    /**
-     * Relación Polimórfica: Un crédito puede pertenecer a un Cliente o a un Grupo.
-     */
-    public function loanable()
+    protected $casts = [
+        'monto_solicitado' => 'float',
+        'monto_aprobado' => 'float',
+        'tasa_interes_aplicada' => 'float',
+        'comision_apertura_aplicada' => 'float',
+        'fecha_solicitud' => 'date',
+        'fecha_aprobacion' => 'date',
+        'fecha_desembolso' => 'date',
+        'fecha_primer_pago' => 'date',
+        'fecha_vencimiento' => 'date',
+    ];
+
+    // Relación con el Cliente (Si es individual)
+    public function cliente()
     {
-        return $this->morphTo();
+        return $this->belongsTo(Cliente::class, 'cliente_id', 'id_cliente');
     }
 
-    /**
-     * Relación: Un crédito pertenece a una sucursal.
-     */
-    public function sucursal()
+    // Relación con el Grupo (Si es grupal)
+    public function grupo()
     {
-        return $this->belongsTo(Sucursal::class, 'id_sucursal', 'id_sucursal');
+        return $this->belongsTo(Grupo::class, 'grupo_id', 'id');
     }
 
-    /**
-     * Relación: Un crédito es atendido por un asesor (Usuario).
-     */
+    // Relación con el Producto de Crédito
+    public function producto()
+    {
+        return $this->belongsTo(ProductoCredito::class, 'producto_id', 'id');
+    }
+
+    // Relación con el Asesor que originó el crédito
     public function asesor()
     {
-        return $this->belongsTo(User::class, 'id_asesor', 'id');
+        return $this->belongsTo(Empleado::class, 'asesor_id', 'id_empleado');
     }
 
+    // Integrantes del crédito (Tabla pivote credito_clientes)
+    public function integrantes()
+    {
+        return $this->belongsToMany(Cliente::class, 'credito_clientes', 'credito_id', 'cliente_id')
+                    ->withPivot('es_lider', 'monto_individual')
+                    ->withTimestamps();
+    }
 
-    // Dentro de la clase Credito, añade este método
-public function paymentInstallments()
-{
-    return $this->hasMany(PaymentInstallment::class, 'credito_id', 'id_credito');
-}
-
-public function members()
-{
-    return $this->belongsToMany(Cliente::class, 'credito_cliente', 'credito_id', 'cliente_id')
-                ->withPivot('individual_amount')
-                ->withTimestamps();
-}
-
+    // Cuentas bancarias de desembolso
+    public function cuentasDesembolso()
+    {
+        return $this->hasMany(CreditoCuentaDesembolso::class, 'credito_id', 'id');
+    }
 }
