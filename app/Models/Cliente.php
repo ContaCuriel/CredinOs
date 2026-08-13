@@ -47,6 +47,15 @@ class Cliente extends Model
         'telefono_fijo',
         'anios_domicilio',
         'tipo_vivienda',
+        // --- ¡CAMPOS NUEVOS AGREGADOS AQUÍ! ---
+        'mismo_domicilio_laboral',
+        'calle_negocio',
+        'numero_negocio',
+        'colonia_negocio',
+        'codigo_postal_negocio',
+        'municipio_negocio',
+        'estado_negocio',
+        'estatus'
     ];
 
     protected $casts = [
@@ -55,6 +64,7 @@ class Cliente extends Model
         'numero_hijos'                => 'integer',
         'dependientes_economicos'     => 'integer',
         'anios_domicilio'             => 'integer',
+        'mismo_domicilio_laboral'     => 'boolean',
         
         // ¡Cambiamos decimal por float para evitar a Brick\Math!
         'ingresos_mensuales'          => 'float',
@@ -63,8 +73,6 @@ class Cliente extends Model
         // Formato estricto de fechas
         'fecha_nacimiento'            => 'date:Y-m-d',
         'fecha_comprobante_domicilio' => 'date:Y-m-d',
-        
-        // Quitamos el cast de vencimiento_ine aquí para procesarlo en el controlador
     ];
 
     public function getNombreCompletoAttribute(): string
@@ -78,7 +86,6 @@ class Cliente extends Model
                     ->withDefault(['nombre_sucursal' => 'Sin Asignar']);
     }
 
-    // RELACIÓN CORREGIDA CON SUS LLAVES EXPLÍCITAS
     public function referencias()
     {
         return $this->hasMany(ClienteReferencia::class, 'cliente_id', 'id_cliente');
