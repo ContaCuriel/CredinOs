@@ -115,11 +115,6 @@ class ClienteController extends Controller
             $referenciasData = $validatedData['referencias'] ?? [];
             unset($validatedData['referencias']);
 
-            // --- ¡MAGIA DEL INE AQUÍ! ---
-            // Si mandaron solo el año (ej. 2027), lo convertimos a fecha completa (2027-12-31)
-            if (isset($validatedData['vencimiento_ine'])) {
-                $validatedData['vencimiento_ine'] = $validatedData['vencimiento_ine'] . '-12-31';
-            }
 
             // 2. Creación del Cliente limpia
             $cliente = Cliente::create($validatedData);
