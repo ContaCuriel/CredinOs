@@ -35,11 +35,13 @@ class CreditoController extends Controller
         // Solo traemos productos activos
         $productos = ProductoCredito::where('activo', true)->orderBy('nombre')->get();
         
-        // Traemos asesores y gerentes
+       // Traemos SOLO asesores y gerentes ACTIVOS
         $asesores = Empleado::whereHas('puesto', function ($query) {
             $query->where('nombre_puesto', 'like', 'ASESOR%')
                   ->orWhere('nombre_puesto', 'like', 'GERENTE%');
-        })->orderBy('nombre_completo')->get();
+        })
+        ->where('estatus', 'Activo') // <-- AJUSTA ESTA LÍNEA según cómo se llame tu columna (ej. 'estado', 'Alta', 'activo' = 1)
+        ->orderBy('nombre_completo')->get();
 
         return view('creditos.create', compact('productos', 'asesores'));
     }
@@ -139,5 +141,31 @@ class CreditoController extends Controller
             DB::rollBack();
             return back()->with('error', 'Ocurrió un error: ' . $e->getMessage())->withInput();
         }
+    }
+
+    public function search(Request $request)
+    {
+        $term = $request->term;
+        
+        if (!$term) {
+            return response()->json([]);
+        }
+
+        // Buscamos coincidencias en nombre o apellidos
+        $clientes = Cliente::where('nombre', 'ILIKE', "%$term%")
+                    ->orWhere('apellido_paterno', 'ILIKE', "%$term%")
+                    ->orWhere('apellido_materno', 'ILIKE', "%$term%")
+                    ->take(15)
+                    ->get();
+
+        $results = [];
+        foreach ($clientes as $cliente) {
+            $results[] = [
+                'id' => $cliente->id_cliente, // Asegúrate de que sea tu llave primaria correcta
+                'text' => trim($cliente->nombre . ' ' . $cliente->apellido_paterno . ' ' . $cliente->apellido_materno)
+            ];
+        }
+
+        return response()->json($results);
     }
 }

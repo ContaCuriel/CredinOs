@@ -107,7 +107,7 @@
                                         <tr>
                                             <th width="40%">Nombre del Cliente</th>
                                             <th width="30%">Monto a Recibir ($)</th>
-                                            <th width="15%" class="text-center">¿Es la Líder?</th>
+                                            <th width="15%" class="text-center" id="columna_lider_head">¿Es la Líder?</th>
                                             <th width="15%" class="text-center">Quitar</th>
                                         </tr>
                                     </thead>
@@ -181,19 +181,32 @@
             const productoSelect = document.getElementById('producto_id');
             const divNombreGrupo = document.getElementById('div_nombre_grupo');
             const inputNombreGrupo = document.getElementById('nombre_grupo');
+            const columnaLiderHead = document.getElementById('columna_lider_head');
+            let esIndividualGlobal = false; // Variable para saber el estado
 
             function toggleGrupo() {
+                if(productoSelect.selectedIndex === 0) return; // Si no hay nada seleccionado
+                
                 const option = productoSelect.options[productoSelect.selectedIndex];
                 const tipo = option.getAttribute('data-tipo');
                 
                 if (tipo === 'grupal') {
                     divNombreGrupo.style.display = 'block';
                     inputNombreGrupo.required = true;
+                    columnaLiderHead.style.display = 'table-cell';
+                    esIndividualGlobal = false;
                 } else {
                     divNombreGrupo.style.display = 'none';
                     inputNombreGrupo.required = false;
-                    inputNombreGrupo.value = ''; // Limpiamos
+                    inputNombreGrupo.value = ''; 
+                    columnaLiderHead.style.display = 'none';
+                    esIndividualGlobal = true;
                 }
+                
+                // Actualizar filas existentes si cambian de producto a mitad de camino
+                document.querySelectorAll('.col-lider-body').forEach(td => {
+                    td.style.display = esIndividualGlobal ? 'none' : 'table-cell';
+                });
             }
 
             productoSelect.addEventListener('change', toggleGrupo);
@@ -202,16 +215,14 @@
             // --- 2. LÓGICA DEL BUSCADOR DE CLIENTES (SELECT2) ---
             $('#buscador_clientes').select2({
                 theme: 'bootstrap-5',
-                placeholder: 'Escribe nombre, apellido o ID...',
+                placeholder: 'Escribe nombre o apellido...',
                 allowClear: true,
                 ajax: {
-                    url: '{{ route("web.clientes.search") }}', // Esta es la ruta que ya tienes en tu sistema
+                    url: '{{ route("web.clientes.search") }}', 
                     dataType: 'json',
                     delay: 250,
                     data: function (params) {
-                        return {
-                            term: params.term // El texto que el usuario escribe
-                        };
+                        return { term: params.term };
                     },
                     processResults: function (data) {
                         return { results: data };
@@ -233,20 +244,24 @@
                     return;
                 }
 
-                const clienteId = select[0].id;
-                const clienteTexto = select[0].text;
-
-                // Verificar que no se agregue dos veces
-                if (document.getElementById('fila_cliente_' + clienteId)) {
-                    alert('Este cliente ya está en la lista del crédito.');
+                // Si es individual, no dejar agregar más de 1
+                if (esIndividualGlobal && tbodyClientes.querySelectorAll('tr[id^="fila_cliente_"]').length >= 1) {
+                    alert('Un crédito individual solo puede tener un cliente asignado.');
                     return;
                 }
 
-                // Ocultar mensaje de tabla vacía
+                const clienteId = select[0].id;
+                const clienteTexto = select[0].text;
+
+                if (document.getElementById('fila_cliente_' + clienteId)) {
+                    alert('Este cliente ya está en la lista.');
+                    return;
+                }
+
                 if (filaVacia) filaVacia.style.display = 'none';
 
-                // Determinar si es el primer líder
                 const checkLider = (indiceCliente === 0) ? 'checked' : '';
+                const displayLider = esIndividualGlobal ? 'none' : 'table-cell';
 
                 const tr = document.createElement('tr');
                 tr.id = 'fila_cliente_' + clienteId;
@@ -258,11 +273,11 @@
                     <td>
                         <div class="input-group input-group-sm">
                             <span class="input-group-text bg-white">$</span>
-                            <input type="number" step="0.01" min="0" class="form-control" name="clientes[${indiceCliente}][monto]" required placeholder="0.00">
+                            <input type="number" step="0.01" min="1" class="form-control" name="clientes[${indiceCliente}][monto]" required placeholder="0.00">
                         </div>
                     </td>
-                    <td class="text-center">
-                        <input class="form-check-input" type="radio" name="lider_id" value="${clienteId}" ${checkLider} required style="transform: scale(1.3);">
+                    <td class="text-center col-lider-body" style="display: ${displayLider};">
+                        <input class="form-check-input" type="radio" name="lider_id" value="${clienteId}" ${checkLider} style="transform: scale(1.3);">
                     </td>
                     <td class="text-center">
                         <button type="button" class="btn btn-outline-danger btn-sm btn-quitar-cliente" data-id="${clienteId}">
@@ -274,17 +289,13 @@
                 tbodyClientes.appendChild(tr);
                 indiceCliente++;
                 
-                // Limpiar el buscador para el siguiente
                 $('#buscador_clientes').val(null).trigger('change');
             });
 
-            // Delegación de eventos para botón Quitar Cliente
             tbodyClientes.addEventListener('click', function(e) {
                 if (e.target.closest('.btn-quitar-cliente')) {
                     const btn = e.target.closest('.btn-quitar-cliente');
-                    const fila = document.getElementById('fila_cliente_' + btn.getAttribute('data-id'));
-                    fila.remove();
-
+                    document.getElementById('fila_cliente_' + btn.getAttribute('data-id')).remove();
                     if (tbodyClientes.querySelectorAll('tr[id^="fila_cliente_"]').length === 0) {
                         if (filaVacia) filaVacia.style.display = 'table-row';
                     }
@@ -292,7 +303,7 @@
             });
 
             // --- 4. LÓGICA PARA CUENTAS BANCARIAS DINÁMICAS ---
-            let indiceCuenta = 1; // Ya hay una (la 0)
+            let indiceCuenta = 1;
             const contenedorCuentas = document.getElementById('contenedor_cuentas');
             const btnAgregarCuenta = document.getElementById('btnAgregarCuenta');
 
@@ -329,13 +340,10 @@
 
             function actualizarBotonesQuitarCuenta() {
                 const botones = contenedorCuentas.querySelectorAll('.btn-quitar-cuenta');
-                if (botones.length === 1) {
-                    botones[0].disabled = true; // No permitir borrar la única cuenta
-                } else {
-                    botones.forEach(btn => btn.disabled = false);
-                }
+                if (botones.length === 1) botones[0].disabled = true;
+                else botones.forEach(btn => btn.disabled = false);
             }
-            actualizarBotonesQuitarCuenta(); // Validar estado inicial
+            actualizarBotonesQuitarCuenta();
 
             // --- 5. VALIDAR AL ENVIAR QUE HAYA AL MENOS UN CLIENTE ---
             document.getElementById('formCredito').addEventListener('submit', function(e) {
