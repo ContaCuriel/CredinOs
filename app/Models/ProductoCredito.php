@@ -17,6 +17,7 @@ class ProductoCredito extends Model
         'frecuencia_pago',
         'tasa_interes',
         'tipo_tasa',
+        'cobro_comision_apertura',
         'plazo_minimo',
         'plazo_maximo',
         'monto_minimo',
@@ -34,6 +35,7 @@ class ProductoCredito extends Model
 
     protected $casts = [
         'tasa_interes' => 'float',
+        'cobro_comision_apertura' => 'float'
         'monto_minimo' => 'float',
         'monto_maximo' => 'float',
         'multa_valor'  => 'float',

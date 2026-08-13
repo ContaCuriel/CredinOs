@@ -3,7 +3,7 @@
         <div class="card shadow-sm border-0">
             <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
                 <h5 class="mb-0 fw-bold text-dark">
-                    <i class="bi bi-box-seam me-2 text-primary"></i>Configurar Nuevo Producto de Crédito
+                    <i class="bi bi-pencil-square me-2 text-warning"></i>Editar Producto: {{ $producto->nombre }}
                 </h5>
                 <a href="{{ route('productos_credito.index') }}" class="btn btn-outline-secondary btn-sm">
                     <i class="bi bi-arrow-left me-1"></i> Regresar
@@ -31,8 +31,9 @@
                     </div>
                 @endif
 
-                <form action="{{ route('productos_credito.store') }}" method="POST">
+                <form action="{{ route('productos_credito.update', $producto->id) }}" method="POST">
                     @csrf
+                    @method('PUT')
                     
                     <div class="accordion accordion-flush" id="accordionProducto">
 
@@ -48,44 +49,51 @@
                                     <div class="row">
                                         <div class="col-md-12 mb-3">
                                             <label class="form-label fw-bold">Nombre del Producto <span class="text-danger">*</span></label>
-                                            <input type="text" class="form-control" name="nombre" placeholder="Ej. Credi-Impulso Semanal" value="{{ old('nombre') }}" required>
+                                            <input type="text" class="form-control" name="nombre" value="{{ old('nombre', $producto->nombre) }}" required>
                                         </div>
                                     </div>
                                     <div class="row">
                                         <div class="col-md-3 mb-3">
                                             <label class="form-label fw-bold">Tipo <span class="text-danger">*</span></label>
                                             <select class="form-select" name="tipo_credito" required>
-                                                <option value="individual" @selected(old('tipo_credito') == 'individual')>Individual</option>
-                                                <option value="grupal" @selected(old('tipo_credito') == 'grupal')>Grupal</option>
+                                                <option value="individual" @selected(old('tipo_credito', $producto->tipo_credito) == 'individual')>Individual</option>
+                                                <option value="grupal" @selected(old('tipo_credito', $producto->tipo_credito) == 'grupal')>Grupal</option>
                                             </select>
                                         </div>
                                         <div class="col-md-3 mb-3">
                                             <label class="form-label fw-bold">Frecuencia de Pago <span class="text-danger">*</span></label>
                                             <select class="form-select" name="frecuencia_pago" required>
-                                                <option value="diario" @selected(old('frecuencia_pago') == 'diario')>Diario</option>
-                                                <option value="semanal" @selected(old('frecuencia_pago') == 'semanal')>Semanal</option>
-                                                <option value="catorcenal" @selected(old('frecuencia_pago') == 'catorcenal')>Catorcenal</option>
-                                                <option value="quincenal" @selected(old('frecuencia_pago') == 'quincenal')>Quincenal</option>
-                                                <option value="mensual" @selected(old('frecuencia_pago') == 'mensual')>Mensual</option>
-                                                <option value="pago_al_final" @selected(old('frecuencia_pago') == 'pago_al_final')>Pago al Final (Capital + Interés)</option>
+                                                <option value="diario" @selected(old('frecuencia_pago', $producto->frecuencia_pago) == 'diario')>Diario</option>
+                                                <option value="semanal" @selected(old('frecuencia_pago', $producto->frecuencia_pago) == 'semanal')>Semanal</option>
+                                                <option value="catorcenal" @selected(old('frecuencia_pago', $producto->frecuencia_pago) == 'catorcenal')>Catorcenal</option>
+                                                <option value="quincenal" @selected(old('frecuencia_pago', $producto->frecuencia_pago) == 'quincenal')>Quincenal</option>
+                                                <option value="mensual" @selected(old('frecuencia_pago', $producto->frecuencia_pago) == 'mensual')>Mensual</option>
+                                                <option value="pago_al_final" @selected(old('frecuencia_pago', $producto->frecuencia_pago) == 'pago_al_final')>Pago al Final (Capital + Interés)</option>
                                             </select>
                                         </div>
                                         <div class="col-md-3 mb-3">
-    <label class="form-label fw-bold">Comisión por Apertura (%) <span class="text-danger">*</span></label>
-    <div class="input-group">
-        <input type="number" step="0.01" min="0" class="form-control" name="cobro_comision_apertura" value="{{ old('cobro_comision_apertura', '10.00') }}" required>
-        <span class="input-group-text">%</span>
-    </div>
-</div>
-                                        <div class="col-md-3 mb-3">
-                                            <label class="form-label fw-bold">Tasa de Interés (%) <span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="tasa_interes" value="{{ old('tasa_interes', '0.00') }}" required>
+                                            <label class="form-label fw-bold">Comisión por Apertura (%) <span class="text-danger">*</span></label>
+                                            <div class="input-group">
+                                                <input type="number" step="0.01" min="0" class="form-control" name="cobro_comision_apertura" value="{{ old('cobro_comision_apertura', $producto->cobro_comision_apertura) }}" required>
+                                                <span class="input-group-text">%</span>
+                                            </div>
                                         </div>
                                         <div class="col-md-3 mb-3">
+                                            <label class="form-label fw-bold">Tasa de Interés (%) <span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control" name="tasa_interes" value="{{ old('tasa_interes', $producto->tasa_interes) }}" required>
+                                        </div>
+                                        <div class="col-md-3 mb-3 mt-3">
                                             <label class="form-label fw-bold">Aplicación de Tasa <span class="text-danger">*</span></label>
                                             <select class="form-select" name="tipo_tasa" required>
-                                                <option value="global" @selected(old('tipo_tasa') == 'global')>Global (Fija al Capital)</option>
-                                                <option value="saldo_insoluto" @selected(old('tipo_tasa') == 'saldo_insoluto')>Sobre Saldo Insoluto</option>
+                                                <option value="global" @selected(old('tipo_tasa', $producto->tipo_tasa) == 'global')>Global (Fija al Capital)</option>
+                                                <option value="saldo_insoluto" @selected(old('tipo_tasa', $producto->tipo_tasa) == 'saldo_insoluto')>Sobre Saldo Insoluto</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-3 mb-3 mt-3">
+                                            <label class="form-label fw-bold">Estatus <span class="text-danger">*</span></label>
+                                            <select class="form-select" name="activo" required>
+                                                <option value="1" @selected(old('activo', $producto->activo) == 1)>Activo</option>
+                                                <option value="0" @selected(old('activo', $producto->activo) == 0)>Inactivo</option>
                                             </select>
                                         </div>
                                     </div>
@@ -106,22 +114,22 @@
                                     <div class="row mb-4">
                                         <div class="col-md-6 mb-3">
                                             <label class="form-label fw-bold">Plazo Mínimo <span class="text-danger">*</span></label>
-                                            <input type="number" class="form-control" name="plazo_minimo" value="{{ old('plazo_minimo', 1) }}" required>
+                                            <input type="number" class="form-control" name="plazo_minimo" value="{{ old('plazo_minimo', $producto->plazo_minimo) }}" required>
                                         </div>
                                         <div class="col-md-6 mb-3">
                                             <label class="form-label fw-bold">Plazo Máximo <span class="text-danger">*</span></label>
-                                            <input type="number" class="form-control" name="plazo_maximo" value="{{ old('plazo_maximo', 12) }}" required>
+                                            <input type="number" class="form-control" name="plazo_maximo" value="{{ old('plazo_maximo', $producto->plazo_maximo) }}" required>
                                         </div>
                                     </div>
                                     <h6 class="fw-bold mb-3">Rango de Montos ($)</h6>
                                     <div class="row">
                                         <div class="col-md-6 mb-3">
                                             <label class="form-label fw-bold">Monto Mínimo a Prestar <span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="monto_minimo" value="{{ old('monto_minimo', '1000.00') }}" required>
+                                            <input type="number" step="0.01" class="form-control" name="monto_minimo" value="{{ old('monto_minimo', $producto->monto_minimo) }}" required>
                                         </div>
                                         <div class="col-md-6 mb-3">
                                             <label class="form-label fw-bold">Monto Máximo a Prestar <span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="monto_maximo" value="{{ old('monto_maximo', '50000.00') }}" required>
+                                            <input type="number" step="0.01" class="form-control" name="monto_maximo" value="{{ old('monto_maximo', $producto->monto_maximo) }}" required>
                                         </div>
                                     </div>
                                 </div>
@@ -141,15 +149,15 @@
                                     <div class="row mb-4 bg-light p-3 rounded border">
                                         <div class="col-md-4">
                                             <label class="form-label fw-bold">Hora Límite de Pago en su día</label>
-                                            <input type="time" class="form-control" name="hora_maxima_pago" value="{{ old('hora_maxima_pago', '10:00') }}">
+                                            <input type="time" class="form-control" name="hora_maxima_pago" value="{{ old('hora_maxima_pago', $producto->hora_maxima_pago ? \Carbon\Carbon::parse($producto->hora_maxima_pago)->format('H:i') : '') }}">
                                             <small class="text-muted">Déjalo vacío si tienen hasta las 23:59 de su día para pagar.</small>
                                         </div>
                                         <div class="col-md-8">
                                             <label class="form-label fw-bold">Si rompe Multa y Mora, ¿qué cobramos?</label>
                                             <select class="form-select text-danger fw-bold" name="politica_acumulacion">
-                                                <option value="acumular" @selected(old('politica_acumulacion') == 'acumular')>Sumar ambas (Cobrar Multa + Mora)</option>
-                                                <option value="reemplazar" @selected(old('politica_acumulacion') == 'reemplazar')>Jerarquía (Si pasa al día sig, solo cobrar Mora)</option>
-                                                <option value="solo_mayor" @selected(old('politica_acumulacion') == 'solo_mayor')>Inteligente (Cobrar solo la cantidad que resulte más alta)</option>
+                                                <option value="acumular" @selected(old('politica_acumulacion', $producto->politica_acumulacion) == 'acumular')>Sumar ambas (Cobrar Multa + Mora)</option>
+                                                <option value="reemplazar" @selected(old('politica_acumulacion', $producto->politica_acumulacion) == 'reemplazar')>Jerarquía (Si pasa al día sig, solo cobrar Mora)</option>
+                                                <option value="solo_mayor" @selected(old('politica_acumulacion', $producto->politica_acumulacion) == 'solo_mayor')>Inteligente (Cobrar solo la cantidad que resulte más alta)</option>
                                             </select>
                                         </div>
                                     </div>
@@ -159,22 +167,22 @@
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">¿Cuándo se dispara?</label>
                                             <select class="form-select" name="multa_trigger">
-                                                <option value="despues_de_hora" @selected(old('multa_trigger') == 'despues_de_hora')>Inmediato (Después de la Hora Límite)</option>
-                                                <option value="despues_de_dia" @selected(old('multa_trigger') == 'despues_de_dia')>Al día siguiente</option>
-                                                <option value="no_aplica" @selected(old('multa_trigger') == 'no_aplica')>No Aplica</option>
+                                                <option value="despues_de_hora" @selected(old('multa_trigger', $producto->multa_trigger) == 'despues_de_hora')>Inmediato (Después de la Hora Límite)</option>
+                                                <option value="despues_de_dia" @selected(old('multa_trigger', $producto->multa_trigger) == 'despues_de_dia')>Al día siguiente</option>
+                                                <option value="no_aplica" @selected(old('multa_trigger', $producto->multa_trigger) == 'no_aplica')>No Aplica</option>
                                             </select>
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Valor del Castigo</label>
-                                            <input type="number" step="0.01" class="form-control" name="multa_valor" value="{{ old('multa_valor', '500.00') }}">
+                                            <input type="number" step="0.01" class="form-control" name="multa_valor" value="{{ old('multa_valor', $producto->multa_valor) }}">
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Tipo de Cálculo</label>
                                             <select class="form-select" name="multa_calculo">
-                                                <option value="fijo" @selected(old('multa_calculo') == 'fijo')>Monto Fijo ($)</option>
-                                                <option value="porcentaje_pago" @selected(old('multa_calculo') == 'porcentaje_pago')>% del Pago Vencido</option>
-                                                <option value="porcentaje_saldo" @selected(old('multa_calculo') == 'porcentaje_saldo')>% del Saldo Restante</option>
-                                                <option value="porcentaje_credito" @selected(old('multa_calculo') == 'porcentaje_credito')>% del Crédito Original</option>
+                                                <option value="fijo" @selected(old('multa_calculo', $producto->multa_calculo) == 'fijo')>Monto Fijo ($)</option>
+                                                <option value="porcentaje_pago" @selected(old('multa_calculo', $producto->multa_calculo) == 'porcentaje_pago')>% del Pago Vencido</option>
+                                                <option value="porcentaje_saldo" @selected(old('multa_calculo', $producto->multa_calculo) == 'porcentaje_saldo')>% del Saldo Restante</option>
+                                                <option value="porcentaje_credito" @selected(old('multa_calculo', $producto->multa_calculo) == 'porcentaje_credito')>% del Crédito Original</option>
                                             </select>
                                         </div>
                                     </div>
@@ -184,22 +192,22 @@
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">¿Cuándo se dispara?</label>
                                             <select class="form-select" name="mora_trigger">
-                                                <option value="despues_de_dia" @selected(old('mora_trigger') == 'despues_de_dia')>Al día siguiente</option>
-                                                <option value="despues_de_hora" @selected(old('mora_trigger') == 'despues_de_hora')>Inmediato (Después de la Hora Límite)</option>
-                                                <option value="no_aplica" @selected(old('mora_trigger') == 'no_aplica')>No Aplica</option>
+                                                <option value="despues_de_dia" @selected(old('mora_trigger', $producto->mora_trigger) == 'despues_de_dia')>Al día siguiente</option>
+                                                <option value="despues_de_hora" @selected(old('mora_trigger', $producto->mora_trigger) == 'despues_de_hora')>Inmediato (Después de la Hora Límite)</option>
+                                                <option value="no_aplica" @selected(old('mora_trigger', $producto->mora_trigger) == 'no_aplica')>No Aplica</option>
                                             </select>
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Valor del Castigo</label>
-                                            <input type="number" step="0.01" class="form-control" name="mora_valor" value="{{ old('mora_valor', '10.00') }}">
+                                            <input type="number" step="0.01" class="form-control" name="mora_valor" value="{{ old('mora_valor', $producto->mora_valor) }}">
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Tipo de Cálculo</label>
                                             <select class="form-select" name="mora_calculo">
-                                                <option value="porcentaje_credito" @selected(old('mora_calculo') == 'porcentaje_credito')>% del Crédito Original</option>
-                                                <option value="porcentaje_pago" @selected(old('mora_calculo') == 'porcentaje_pago')>% del Pago Vencido</option>
-                                                <option value="porcentaje_saldo" @selected(old('mora_calculo') == 'porcentaje_saldo')>% del Saldo Restante</option>
-                                                <option value="fijo" @selected(old('mora_calculo') == 'fijo')>Monto Fijo ($)</option>
+                                                <option value="porcentaje_credito" @selected(old('mora_calculo', $producto->mora_calculo) == 'porcentaje_credito')>% del Crédito Original</option>
+                                                <option value="porcentaje_pago" @selected(old('mora_calculo', $producto->mora_calculo) == 'porcentaje_pago')>% del Pago Vencido</option>
+                                                <option value="porcentaje_saldo" @selected(old('mora_calculo', $producto->mora_calculo) == 'porcentaje_saldo')>% del Saldo Restante</option>
+                                                <option value="fijo" @selected(old('mora_calculo', $producto->mora_calculo) == 'fijo')>Monto Fijo ($)</option>
                                             </select>
                                         </div>
                                     </div>
@@ -211,7 +219,7 @@
                     </div>
 
                     <div class="text-end mt-4">
-                        <button type="submit" class="btn btn-primary px-4 shadow-sm"><i class="bi bi-floppy-fill me-1"></i> Guardar Parámetros del Producto</button>
+                        <button type="submit" class="btn btn-warning px-4 shadow-sm text-dark fw-bold"><i class="bi bi-arrow-clockwise me-1"></i> Actualizar Parámetros</button>
                     </div>
                 </form>
             </div>

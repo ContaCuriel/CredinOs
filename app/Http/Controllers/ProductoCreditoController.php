@@ -27,6 +27,7 @@ class ProductoCreditoController extends Controller
             'frecuencia_pago' => 'required|in:diario,semanal,catorcenal,quincenal,mensual,pago_al_final',
             'tasa_interes' => 'required|numeric|min:0',
             'tipo_tasa' => 'required|in:global,saldo_insoluto',
+            'cobro_comision_apertura' => 'required|numeric|min:0',
             'plazo_minimo' => 'required|integer|min:1',
             'plazo_maximo' => 'required|integer|gte:plazo_minimo',
             'monto_minimo' => 'required|numeric|min:1',
@@ -57,6 +58,49 @@ class ProductoCreditoController extends Controller
             return redirect()->route('productos_credito.index')->with('success', 'Producto de crédito creado exitosamente.');
         } catch (\Exception $e) {
             return back()->with('error', 'Error al guardar el producto: ' . $e->getMessage())->withInput();
+        }
+    }
+
+    public function edit(ProductoCredito $productos_credito)
+    {
+        // Pasamos la variable a la vista (le llamamos $producto para mantener consistencia)
+        return view('productos_credito.edit', ['producto' => $productos_credito]);
+    }
+
+    public function update(Request $request, ProductoCredito $productos_credito)
+    {
+        $validatedData = $request->validate([
+            'nombre' => 'required|string|max:255',
+            'tipo_credito' => 'required|in:individual,grupal',
+            'frecuencia_pago' => 'required|in:diario,semanal,catorcenal,quincenal,mensual,pago_al_final',
+            'tasa_interes' => 'required|numeric|min:0',
+            'tipo_tasa' => 'required|in:global,saldo_insoluto',
+            'plazo_minimo' => 'required|integer|min:1',
+            'plazo_maximo' => 'required|integer|gte:plazo_minimo',
+            'monto_minimo' => 'required|numeric|min:1',
+            'monto_maximo' => 'required|numeric|gte:monto_minimo',
+            'cobro_comision_apertura' => 'required|numeric|min:0', // El campo nuevo
+            
+            // Castigos
+            'hora_maxima_pago' => 'nullable|date_format:H:i',
+            'multa_trigger' => 'required|in:despues_de_hora,despues_de_dia,no_aplica',
+            'multa_valor' => 'required|numeric|min:0',
+            'multa_calculo' => 'required|in:fijo,porcentaje_pago,porcentaje_saldo,porcentaje_credito',
+            'mora_trigger' => 'required|in:despues_de_hora,despues_de_dia,no_aplica',
+            'mora_valor' => 'required|numeric|min:0',
+            'mora_calculo' => 'required|in:fijo,porcentaje_pago,porcentaje_saldo,porcentaje_credito',
+            'politica_acumulacion' => 'required|in:acumular,solo_mayor,reemplazar',
+        ]);
+
+        try {
+            if ($validatedData['multa_trigger'] == 'no_aplica') $validatedData['multa_valor'] = 0;
+            if ($validatedData['mora_trigger'] == 'no_aplica') $validatedData['mora_valor'] = 0;
+
+            $productos_credito->update($validatedData);
+
+            return redirect()->route('productos_credito.index')->with('success', 'Producto de crédito actualizado exitosamente.');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Error al actualizar el producto: ' . $e->getMessage())->withInput();
         }
     }
 }
