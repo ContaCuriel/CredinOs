@@ -50,16 +50,21 @@ class Cliente extends Model
     ];
 
     protected $casts = [
-        'id_sucursal'             => 'integer',
-        'antiguedad_negocio'      => 'integer',
-        'numero_hijos'            => 'integer',
-        'dependientes_economicos' => 'integer',
-        'anios_domicilio'         => 'integer',
-        'vencimiento_ine'         => 'integer',
-        'ingresos_mensuales'      => 'float',
-        'gastos_mensuales'        => 'float',
-        'fecha_nacimiento'        => 'date:Y-m-d',
+        'id_sucursal'                 => 'integer',
+        'antiguedad_negocio'          => 'integer',
+        'numero_hijos'                => 'integer',
+        'dependientes_economicos'     => 'integer',
+        'anios_domicilio'             => 'integer',
+        
+        // ¡Cambiamos decimal por float para evitar a Brick\Math!
+        'ingresos_mensuales'          => 'float',
+        'gastos_mensuales'            => 'float',
+        
+        // Formato estricto de fechas
+        'fecha_nacimiento'            => 'date:Y-m-d',
         'fecha_comprobante_domicilio' => 'date:Y-m-d',
+        
+        // Quitamos el cast de vencimiento_ine aquí para procesarlo en el controlador
     ];
 
     public function getNombreCompletoAttribute(): string

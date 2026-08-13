@@ -111,14 +111,20 @@ class ClienteController extends Controller
         try {
             DB::beginTransaction();
 
-            // 1. Extraemos las referencias y las quitamos de los datos del cliente
+            // 1. Extraemos las referencias
             $referenciasData = $validatedData['referencias'] ?? [];
             unset($validatedData['referencias']);
+
+            // --- ¡MAGIA DEL INE AQUÍ! ---
+            // Si mandaron solo el año (ej. 2027), lo convertimos a fecha completa (2027-12-31)
+            if (isset($validatedData['vencimiento_ine'])) {
+                $validatedData['vencimiento_ine'] = $validatedData['vencimiento_ine'] . '-12-31';
+            }
 
             // 2. Creación del Cliente limpia
             $cliente = Cliente::create($validatedData);
 
-            // 3. Creación de las Referencias vinculadas al id_cliente
+            // 3. Creación de las Referencias
             if (!empty($referenciasData)) {
                 $cliente->referencias()->createMany($referenciasData);
             }
