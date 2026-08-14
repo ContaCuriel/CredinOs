@@ -87,4 +87,6 @@ class Credito extends Model
     {
         return $this->belongsTo(Sucursal::class, 'sucursal_id', 'id_sucursal');
     }
+
+    public function garantia() { return $this->hasOne(CreditoGarantia::class, 'credito_id', 'id'); }
 }

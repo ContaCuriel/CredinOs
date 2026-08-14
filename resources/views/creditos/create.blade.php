@@ -1,4 +1,13 @@
 <x-app-layout>
+    {{-- Librerías para el Buscador Inteligente de Clientes --}}
+    @push('styles')
+        <style>
+            .select2-resultado-cliente { padding: 4px 0; }
+            .select2-resultado-cliente .titulo { font-weight: bold; color: #212529; }
+            .select2-resultado-cliente .detalles { font-size: 0.85em; color: #6c757d; display: flex; justify-content: space-between; margin-top: 2px; }
+        </style>
+    @endpush
+
     <div class="container-fluid py-4">
         <div class="card shadow-sm border-0">
             <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
@@ -38,8 +47,40 @@
                     <div class="card border-0 shadow-sm mb-4">
                         <div class="card-body p-4">
                             <h6 class="fw-bold text-primary border-bottom pb-2 mb-3">1. Parámetros del Crédito</h6>
-                            <div class="row">
-                                <div class="col-md-3 mb-3">
+                            
+                            {{-- FILA 1: Producto y Grupo --}}
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Producto de Crédito <span class="text-danger">*</span></label>
+                                    <select class="form-select" name="producto_id" id="producto_id" required>
+                                        <option value="">Seleccione...</option>
+                                        @foreach($productos as $producto)
+                                            {{-- Se asume que en el futuro agregarás 'requiere_garantia' a tu tabla de productos --}}
+                                            <option value="{{ $producto->id }}" data-tipo="{{ $producto->tipo_credito }}" data-garantia="{{ $producto->requiere_garantia ?? 0 }}" @selected(old('producto_id') == $producto->id)>
+                                                {{ $producto->nombre }} ({{ ucfirst($producto->tipo_credito) }})
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-md-6" id="div_nombre_grupo" style="display: none;">
+                                    <label class="form-label fw-bold text-purple">Nombre del Grupo Solidario <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control border-purple" name="nombre_grupo" id="nombre_grupo" value="{{ old('nombre_grupo') }}" placeholder="Ej. Ajoloapan Zum">
+                                </div>
+                            </div>
+
+                            {{-- FILA 2: Asesor, Sucursal y Monto Total --}}
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">Asesor Responsable <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="asesor_buscar" list="lista_asesores" placeholder="🔍 Buscar asesor..." required autocomplete="off" value="{{ old('asesor_texto_temporal') }}">
+                                    <datalist id="lista_asesores">
+                                        @foreach($asesores as $asesor)
+                                            <option data-id="{{ $asesor->id_empleado }}" data-sucursal="{{ $asesor->id_sucursal }}" value="{{ $asesor->nombre_completo }} ({{ $asesor->sucursal->nombre_sucursal ?? 'Sin Sucursal' }})"></option>
+                                        @endforeach
+                                    </datalist>
+                                    <input type="hidden" name="asesor_id" id="asesor_id" value="{{ old('asesor_id') }}" required>
+                                </div>
+                                <div class="col-md-4">
                                     <label class="form-label fw-bold">Sucursal <span class="text-danger">*</span></label>
                                     <select class="form-select" name="sucursal_id" id="sucursal_id" required>
                                         <option value="">Seleccione...</option>
@@ -50,46 +91,20 @@
                                         @endforeach
                                     </select>
                                 </div>
-                                <div class="col-md-3 mb-3">
-                                    <label class="form-label fw-bold">Producto <span class="text-danger">*</span></label>
-                                    <select class="form-select" name="producto_id" id="producto_id" required>
-                                        <option value="">Seleccione...</option>
-                                        @foreach($productos as $producto)
-                                            <option value="{{ $producto->id }}" data-tipo="{{ $producto->tipo_credito }}" @selected(old('producto_id') == $producto->id)>
-                                                {{ $producto->nombre }} ({{ ucfirst($producto->tipo_credito) }})
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div class="col-md-3 mb-3">
-                                    <label class="form-label fw-bold">Asesor <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="asesor_buscar" list="lista_asesores" placeholder="🔍 Buscar asesor..." required autocomplete="off" value="{{ old('asesor_texto_temporal') }}">
-                                    <datalist id="lista_asesores">
-                                        @foreach($asesores as $asesor)
-                                            <option data-id="{{ $asesor->id_empleado }}" data-sucursal="{{ $asesor->id_sucursal }}" value="{{ $asesor->nombre_completo }} ({{ $asesor->sucursal->nombre_sucursal ?? 'Sin Sucursal' }})"></option>
-                                        @endforeach
-                                    </datalist>
-                                    <input type="hidden" name="asesor_id" id="asesor_id" value="{{ old('asesor_id') }}" required>
-                                </div>
-                                <div class="col-md-3 mb-3">
-                                    <label class="form-label fw-bold">Monto ($) <span class="text-danger">*</span></label>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">Monto Total Solicitado ($) <span class="text-danger">*</span></label>
                                     <div class="input-group">
                                         <span class="input-group-text bg-white fw-bold">$</span>
-                                        <input type="number" step="0.01" min="1" class="form-control form-control-lg text-success fw-bold" name="monto_solicitado" value="{{ old('monto_solicitado') }}" required placeholder="0.00">
+                                        <input type="number" step="0.01" min="1" class="form-control form-control-lg text-success fw-bold" id="monto_solicitado_global" name="monto_solicitado" value="{{ old('monto_solicitado') }}" required placeholder="0.00">
                                     </div>
                                 </div>
                             </div>
 
-                            <div class="row mt-2">
-                                <div class="col-md-6 mb-3">
+                            {{-- FILA 3: Nombre del crédito --}}
+                            <div class="row">
+                                <div class="col-md-12">
                                     <label class="form-label fw-bold">Nombre del Crédito (Opcional)</label>
-                                    <input type="text" class="form-control" name="nombre_credito" value="{{ old('nombre_credito') }}" placeholder="Ej. Ampliación de Negocio">
-                                    <small class="text-muted">Útil para identificar proyectos específicos.</small>
-                                </div>
-                                
-                                <div class="col-md-6 mb-3" id="div_nombre_grupo" style="display: none;">
-                                    <label class="form-label fw-bold text-purple">Nombre del Grupo Solidario <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control border-purple" name="nombre_grupo" id="nombre_grupo" value="{{ old('nombre_grupo') }}" placeholder="Ej. Ajoloapan Zum">
+                                    <input type="text" class="form-control" name="nombre_credito" value="{{ old('nombre_credito') }}" placeholder="Ej. Ampliación de Negocio, Compra de Mercancía...">
                                 </div>
                             </div>
                         </div>
@@ -107,9 +122,7 @@
                                     <input type="text" class="form-control form-control-lg border-success shadow-sm" id="buscador_clientes_input" placeholder="🔍 Escribe Nombre, Apellido o CURP (Mín. 3 letras)..." autocomplete="off">
                                     
                                     {{-- Contenedor flotante para los resultados --}}
-                                    <div id="resultados_clientes" class="list-group position-absolute shadow-lg w-100 mt-1" style="z-index: 1050; display: none; max-height: 250px; overflow-y: auto;">
-                                        {{-- Aquí se inyectan los resultados con JS --}}
-                                    </div>
+                                    <div id="resultados_clientes" class="list-group position-absolute shadow-lg w-100 mt-1" style="z-index: 1050; display: none; max-height: 250px; overflow-y: auto;"></div>
                                     
                                     <small class="text-muted mt-2 d-block"><i class="bi bi-info-circle-fill me-1"></i> Haz clic en el cliente de la lista desplegable para agregarlo a la tabla de abajo.</small>
                                 </div>
@@ -169,6 +182,99 @@
                         </div>
                     </div>
 
+                    {{-- SECCIÓN 4: GARANTÍAS (Aparece condicionada) --}}
+                    <div class="card border-0 shadow-sm mb-4 bg-light border-start border-danger border-4" id="seccion_garantia" style="display: none;">
+                        <div class="card-body p-4">
+                            <h6 class="fw-bold text-danger border-bottom border-danger pb-2 mb-3">
+                                <i class="bi bi-shield-lock-fill me-2"></i>4. Garantía Prendaria o Hipotecaria
+                            </h6>
+                            <p class="text-muted small">Este producto de crédito exige el registro de una garantía formal.</p>
+                            
+                            <div class="row mb-4">
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">Tipo de Garantía</label>
+                                    <select class="form-select border-danger" name="garantia[tipo]" id="tipo_garantia">
+                                        <option value="vehiculo">Vehículo (Auto/Moto)</option>
+                                        <option value="propiedad">Terreno / Propiedad</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {{-- Formulario para Vehículo --}}
+                            <div id="form_garantia_vehiculo">
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label small fw-bold">Documento Amparador (Ej. FACTURA 18469 D)</label>
+                                        <input type="text" class="form-control" name="garantia[vehiculo_documento]" placeholder="Número de factura o documento">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label small fw-bold">Tipo de Vehículo</label>
+                                        <select class="form-select" name="garantia[vehiculo_tipo]">
+                                            <option value="AUTOMOVIL">Automóvil</option>
+                                            <option value="MOTOCICLETA">Motocicleta</option>
+                                            <option value="CAMIONETA">Camioneta</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label small fw-bold">Marca</label>
+                                        <input type="text" class="form-control" name="garantia[vehiculo_marca]" placeholder="Ej. VOLKSWAGEN, ITALIKA...">
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label small fw-bold">Modelo y Versión</label>
+                                        <input type="text" class="form-control" name="garantia[vehiculo_modelo]" placeholder="Ej. JETTA VERSION EUROPA">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label small fw-bold">Año</label>
+                                        <input type="text" class="form-control" name="garantia[vehiculo_anio]" placeholder="Ej. 2007">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small fw-bold">Motor</label>
+                                        <input type="text" class="form-control" name="garantia[vehiculo_motor]" placeholder="Ej. 2.0 LTS">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small fw-bold">Color</label>
+                                        <input type="text" class="form-control" name="garantia[vehiculo_color]" placeholder="Ej. BLANCO CAMPAN">
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold">Número de Serie (VIN)</label>
+                                        <input type="text" class="form-control font-monospace text-uppercase" name="garantia[vehiculo_serie]" placeholder="17 Caracteres">
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- Formulario para Propiedad/Terreno --}}
+                            <div id="form_garantia_propiedad" style="display: none;">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold">Documento / Descripción (Ej. PARCELA EJIDAL NUMERO 64 Z-1)</label>
+                                        <input type="text" class="form-control" name="garantia[propiedad_documento]" placeholder="Escritura, Constancia Ejidal, etc.">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold">Ubicación de la Propiedad</label>
+                                        <input type="text" class="form-control" name="garantia[propiedad_ubicacion]" placeholder="Ej. EJIDO DE TLAMINCA DE TEXCOTZINGO...">
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-12">
+                                        <label class="form-label small fw-bold">Medidas y Colindancias</label>
+                                        <textarea class="form-control" name="garantia[propiedad_medidas]" rows="3" placeholder="Ej. AL NORESTE 75.280 METROS CON PARCELA 53... AL SURESTE..."></textarea>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold">Superficie Total</label>
+                                        <input type="text" class="form-control" name="garantia[propiedad_superficie]" placeholder="Ej. 0-97-57.660 HA. (NOVENTA Y SIETE AREAS...)">
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
                     <div class="text-end mt-4 mb-5">
                         <a href="{{ route('creditos.index') }}" class="btn btn-light me-2 border">Cancelar</a>
                         <button type="submit" class="btn btn-primary px-5 shadow-sm fw-bold">
@@ -189,37 +295,62 @@
             const asesorInput = document.getElementById('asesor_buscar');
             const asesorHidden = document.getElementById('asesor_id');
             const sucursalSelect = document.getElementById('sucursal_id');
+            const montoGlobalInput = document.getElementById('monto_solicitado_global');
             
             asesorInput.addEventListener('input', function(e) {
                 const list = document.getElementById('lista_asesores').options;
-                asesorHidden.value = ''; // Limpiamos si cambia el texto
+                asesorHidden.value = ''; 
                 for (let i = 0; i < list.length; i++) {
                     if (list[i].value === e.target.value) {
                         asesorHidden.value = list[i].getAttribute('data-id');
-                        
-                        // Seleccionamos la sucursal automáticamente
                         const sucursalAsesor = list[i].getAttribute('data-sucursal');
-                        if(sucursalAsesor) {
-                            sucursalSelect.value = sucursalAsesor;
-                        }
+                        if(sucursalAsesor) sucursalSelect.value = sucursalAsesor;
                         break;
                     }
                 }
             });
 
-            // --- 2. LÓGICA DE PRODUCTO GRUPAL VS INDIVIDUAL ---
+            // Sincronización en tiempo real del Monto (Si es individual)
+            montoGlobalInput.addEventListener('input', function() {
+                if (esIndividualGlobal) {
+                    const inputsMontoIndividual = document.querySelectorAll('.monto-individual-input');
+                    inputsMontoIndividual.forEach(input => input.value = this.value);
+                }
+            });
+
+            // --- 2. LÓGICA DE PRODUCTO GRUPAL VS INDIVIDUAL Y GARANTÍA ---
             const productoSelect = document.getElementById('producto_id');
             const divNombreGrupo = document.getElementById('div_nombre_grupo');
             const inputNombreGrupo = document.getElementById('nombre_grupo');
             const columnaLiderHead = document.getElementById('columna_lider_head');
+            
+            const seccionGarantia = document.getElementById('seccion_garantia'); // NUEVO
+
             let esIndividualGlobal = false;
+            let indiceCliente = 0;
+            const tbodyClientes = document.getElementById('tbody_clientes');
 
             function toggleGrupo() {
-                if(productoSelect.selectedIndex === 0) return;
+                if(productoSelect.selectedIndex === 0) {
+                    seccionGarantia.style.display = 'none';
+                    return;
+                }
                 
                 const option = productoSelect.options[productoSelect.selectedIndex];
                 const tipo = option.getAttribute('data-tipo');
+                const requiereGarantia = option.getAttribute('data-garantia'); // Extraemos el atributo
                 
+                // Mostramos u ocultamos la sección de garantía según el producto
+                if(requiereGarantia === "1" || requiereGarantia === "true") {
+                    seccionGarantia.style.display = 'block';
+                } else {
+                    seccionGarantia.style.display = 'none';
+                }
+
+                // Reiniciamos la tabla de clientes por seguridad al cambiar de tipo de producto
+                tbodyClientes.innerHTML = '<tr id="fila_vacia_clientes"><td colspan="4" class="text-center text-muted py-4">Aún no has agregado integrantes a este crédito.</td></tr>';
+                indiceCliente = 0;
+
                 if (tipo === 'grupal') {
                     divNombreGrupo.style.display = 'block';
                     inputNombreGrupo.required = true;
@@ -232,22 +363,30 @@
                     columnaLiderHead.style.display = 'none';
                     esIndividualGlobal = true;
                 }
-                
-                document.querySelectorAll('.col-lider-body').forEach(td => {
-                    td.style.display = esIndividualGlobal ? 'none' : 'table-cell';
-                });
             }
 
             productoSelect.addEventListener('change', toggleGrupo);
             toggleGrupo();
 
+            // --- 2.5 LÓGICA INTERNA DEL FORMULARIO DE GARANTÍAS ---
+            const tipoGarantiaSelect = document.getElementById('tipo_garantia');
+            const formVehiculo = document.getElementById('form_garantia_vehiculo');
+            const formPropiedad = document.getElementById('form_garantia_propiedad');
+
+            tipoGarantiaSelect.addEventListener('change', function() {
+                if(this.value === 'vehiculo') {
+                    formVehiculo.style.display = 'block';
+                    formPropiedad.style.display = 'none';
+                } else {
+                    formVehiculo.style.display = 'none';
+                    formPropiedad.style.display = 'block';
+                }
+            });
+
             // --- 3. NUEVO BUSCADOR DE CLIENTES NATIVO TIPO GOOGLE ---
             const inputBuscador = document.getElementById('buscador_clientes_input');
             const divResultados = document.getElementById('resultados_clientes');
             let timeoutId;
-            let indiceCliente = 0;
-            const tbodyClientes = document.getElementById('tbody_clientes');
-            const filaVacia = document.getElementById('fila_vacia_clientes');
 
             inputBuscador.addEventListener('input', function() {
                 clearTimeout(timeoutId);
@@ -263,7 +402,6 @@
                         .then(response => response.json())
                         .then(data => {
                             divResultados.innerHTML = '';
-                            
                             if(data.error) {
                                 divResultados.innerHTML = `<div class="list-group-item text-danger">Error: ${data.error}</div>`;
                             } else if(data.length === 0) {
@@ -280,27 +418,22 @@
                                             <span><i class='bi bi-geo-alt-fill me-1'></i>${cliente.municipio || 'N/A'}</span>
                                         </div>
                                     `;
-                                    // Al darle clic, ejecuta la función para agregarlo a la tabla
                                     a.addEventListener('click', () => agregarClienteATabla(cliente));
                                     divResultados.appendChild(a);
                                 });
                             }
                             divResultados.style.display = 'block';
-                        })
-                        .catch(err => console.error(err));
-                }, 300); // 300ms de retraso para no saturar la base de datos
+                        }).catch(err => console.error(err));
+                }, 300);
             });
 
-            // Ocultar resultados si das clic afuera
             document.addEventListener('click', function(e) {
                 if (!inputBuscador.contains(e.target) && !divResultados.contains(e.target)) {
                     divResultados.style.display = 'none';
                 }
             });
 
-            // --- Función para agregar el cliente a la tabla al darle clic ---
             function agregarClienteATabla(cliente) {
-                // Validaciones
                 if (esIndividualGlobal && tbodyClientes.querySelectorAll('tr[id^="fila_cliente_"]').length >= 1) {
                     alert('Un crédito individual solo puede tener un cliente asignado.');
                     return;
@@ -310,10 +443,15 @@
                     return;
                 }
 
+                const filaVacia = document.getElementById('fila_vacia_clientes');
                 if (filaVacia) filaVacia.style.display = 'none';
 
                 const checkLider = (indiceCliente === 0) ? 'checked' : '';
                 const displayLider = esIndividualGlobal ? 'none' : 'table-cell';
+                
+                const montoValue = esIndividualGlobal ? montoGlobalInput.value : '';
+                const readOnlyAtr = esIndividualGlobal ? 'readonly' : '';
+                const customClass = esIndividualGlobal ? 'bg-light' : '';
 
                 const tr = document.createElement('tr');
                 tr.id = 'fila_cliente_' + cliente.id;
@@ -325,7 +463,7 @@
                     <td>
                         <div class="input-group input-group-sm">
                             <span class="input-group-text bg-white">$</span>
-                            <input type="number" step="0.01" min="1" class="form-control border-success" name="clientes[${indiceCliente}][monto]" required placeholder="0.00">
+                            <input type="number" step="0.01" min="1" class="form-control border-success monto-individual-input ${customClass}" name="clientes[${indiceCliente}][monto]" required placeholder="0.00" value="${montoValue}" ${readOnlyAtr}>
                         </div>
                     </td>
                     <td class="text-center col-lider-body" style="display: ${displayLider};">
@@ -341,17 +479,16 @@
                 tbodyClientes.appendChild(tr);
                 indiceCliente++;
                 
-                // Limpia el buscador y oculta la lista
                 inputBuscador.value = '';
                 divResultados.style.display = 'none';
             }
 
-            // Eliminar fila de la tabla
             tbodyClientes.addEventListener('click', function(e) {
                 if (e.target.closest('.btn-quitar-cliente')) {
                     const btn = e.target.closest('.btn-quitar-cliente');
                     document.getElementById('fila_cliente_' + btn.getAttribute('data-id')).remove();
                     if (tbodyClientes.querySelectorAll('tr[id^="fila_cliente_"]').length === 0) {
+                        const filaVacia = document.getElementById('fila_vacia_clientes');
                         if (filaVacia) filaVacia.style.display = 'table-row';
                     }
                 }

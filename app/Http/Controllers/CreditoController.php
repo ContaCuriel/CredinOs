@@ -52,23 +52,23 @@ class CreditoController extends Controller
     {
         // 1. VALIDACIÓN MAESTRA
         $validated = $request->validate([
+            'sucursal_id'      => 'required|exists:sucursales,id_sucursal',
             'producto_id'      => 'required|exists:productos_credito,id',
             'asesor_id'        => 'required|exists:empleados,id_empleado',
             'monto_solicitado' => 'required|numeric|min:1',
-            'sucursal_id' => 'required|exists:sucursales,id_sucursal',
             'nombre_credito'   => 'nullable|string|max:255',
-            'nombre_grupo'     => 'nullable|string|max:255', // Solo si es grupal
-            
-            // Arreglo de clientes y cuentas (Valida que venga al menos 1 de cada uno)
+            'nombre_grupo'     => 'nullable|string|max:255', 
             'clientes'         => 'required|array|min:1',
             'clientes.*.id'    => 'required|exists:clientes,id_cliente',
             'clientes.*.monto' => 'required|numeric|min:0',
-            'lider_id'         => 'nullable|exists:clientes,id_cliente', // Quién es el líder
-            
+            'lider_id'         => 'nullable|exists:clientes,id_cliente',
             'cuentas'             => 'required|array|min:1',
             'cuentas.*.banco'     => 'required|string|max:100',
             'cuentas.*.titular'   => 'required|string|max:255',
             'cuentas.*.cuenta'    => 'required|string|max:50',
+            // Validaciones de la garantía (es un array que puede o no venir)
+            'garantia'         => 'nullable|array',
+            'garantia.tipo'    => 'nullable|in:vehiculo,propiedad',
         ]);
 
         try {
@@ -79,49 +79,45 @@ class CreditoController extends Controller
             $grupo_id = null;
             $cliente_id_individual = null;
 
+            $nombre_grupo = $validated['nombre_grupo'] ?? null;
+            $nombre_credito = $validated['nombre_credito'] ?? null;
+            $lider_id_seleccionado = $validated['lider_id'] ?? null;
+
             // 2. ¿ES GRUPAL O INDIVIDUAL?
             if ($producto->tipo_credito == 'grupal') {
-                if (empty($validated['nombre_grupo'])) {
+                if (empty($nombre_grupo)) {
                     throw new \Exception("El nombre del grupo es obligatorio para este tipo de producto.");
                 }
-                // Creamos el Grupo
-                $grupo = Grupo::create(['nombre_grupo' => $validated['nombre_grupo']]);
+                $grupo = Grupo::create(['nombre_grupo' => $nombre_grupo]);
                 $grupo_id = $grupo->id;
             } else {
-                // Si es individual, el cliente principal es el primero de la lista
                 $cliente_id_individual = $validated['clientes'][0]['id'];
             }
 
-            // 3. CREAMOS EL CRÉDITO (La Cabecera)
+            // 3. CREAMOS EL CRÉDITO
             $credito = Credito::create([
-                'folio' => 'CR-' . strtoupper(uniqid()), // Folio temporal autogenerado
-                'nombre_credito' => $validated['nombre_credito'],
+                'folio' => 'CR-' . strtoupper(uniqid()), 
+                'nombre_credito' => $nombre_credito,
                 'sucursal_id' => $validated['sucursal_id'],
                 'cliente_id' => $cliente_id_individual,
                 'grupo_id' => $grupo_id,
                 'producto_id' => $producto->id,
                 'monto_solicitado' => $validated['monto_solicitado'],
-                'plazo_solicitado' => $producto->plazo_maximo, // Toma el plazo del producto por defecto en la solicitud
-                
-                // La "fotografía" financiera actual
+                'plazo_solicitado' => $producto->plazo_maximo, 
                 'tasa_interes_aplicada' => $producto->tasa_interes,
                 'comision_apertura_aplicada' => $producto->cobro_comision_apertura,
-                
                 'estatus' => 'solicitado',
                 'fecha_solicitud' => now(),
                 'asesor_id' => $validated['asesor_id'],
             ]);
 
-            // 4. ATAMOS A LOS CLIENTES (Integrantes y Líder)
+            // 4. ATAMOS A LOS CLIENTES
             $syncData = [];
             foreach ($validated['clientes'] as $cliente) {
-                $es_lider = ($validated['lider_id'] == $cliente['id']) ? true : false;
-                
-                // Si es individual y solo hay uno, él es el líder por defecto
-                if ($producto->tipo_credito == 'individual' && count($validated['clientes']) == 1) {
+                $es_lider = ($lider_id_seleccionado == $cliente['id']) ? true : false;
+                if ($producto->tipo_credito == 'individual') {
                     $es_lider = true;
                 }
-
                 $syncData[$cliente['id']] = [
                     'es_lider' => $es_lider,
                     'monto_individual' => $cliente['monto']
@@ -138,12 +134,36 @@ class CreditoController extends Controller
                 ]);
             }
 
+            // 6. GUARDAMOS LA GARANTÍA (SI APLICA)
+            // Revisamos si el producto exige garantía y si se mandaron datos
+            if ($producto->requiere_garantia && !empty($validated['garantia'])) {
+                $garantiaData = $validated['garantia'];
+                
+                $credito->garantia()->create([
+                    'tipo_garantia' => $garantiaData['tipo'],
+                    'vehiculo_documento' => $garantiaData['vehiculo_documento'] ?? null,
+                    'vehiculo_tipo' => $garantiaData['vehiculo_tipo'] ?? null,
+                    'vehiculo_marca' => $garantiaData['vehiculo_marca'] ?? null,
+                    'vehiculo_modelo' => $garantiaData['vehiculo_modelo'] ?? null,
+                    'vehiculo_anio' => $garantiaData['vehiculo_anio'] ?? null,
+                    'vehiculo_motor' => $garantiaData['vehiculo_motor'] ?? null,
+                    'vehiculo_color' => $garantiaData['vehiculo_color'] ?? null,
+                    'vehiculo_serie' => $garantiaData['vehiculo_serie'] ?? null,
+                    'propiedad_documento' => $garantiaData['propiedad_documento'] ?? null,
+                    'propiedad_ubicacion' => $garantiaData['propiedad_ubicacion'] ?? null,
+                    'propiedad_medidas' => $garantiaData['propiedad_medidas'] ?? null,
+                    'propiedad_superficie' => $garantiaData['propiedad_superficie'] ?? null,
+                    // Estos empiezan por defecto:
+                    'estatus_resguardo' => 'En Bóveda Sucursal',
+                ]);
+            }
+
             DB::commit();
             return redirect()->route('creditos.index')->with('success', '¡Solicitud de crédito creada y enviada a autorización exitosamente!');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'Ocurrió un error: ' . $e->getMessage())->withInput();
+            return back()->with('error', $e->getMessage())->withInput();
         }
     }
 
