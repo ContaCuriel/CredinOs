@@ -197,26 +197,28 @@ class ClienteController extends Controller
         }
 
         try {
-            // Usamos ILIKE para ignorar mayúsculas y minúsculas
+            // Buscamos por nombre, apellidos o CURP exacto/parcial
             $clientes = Cliente::where('nombre', 'ILIKE', "%{$term}%")
                         ->orWhere('apellido_paterno', 'ILIKE', "%{$term}%")
                         ->orWhere('apellido_materno', 'ILIKE', "%{$term}%")
+                        ->orWhere('curp', 'ILIKE', "%{$term}%")
                         ->take(15)
                         ->get();
 
             $results = [];
             foreach ($clientes as $cliente) {
+                // Preparamos todos los datos para que el frontend los dibuje bonito
                 $results[] = [
-                    // NOTA: Si tu llave primaria es 'id' normal, cambia id_cliente por id
                     'id' => $cliente->id_cliente, 
-                    'text' => trim($cliente->nombre . ' ' . $cliente->apellido_paterno . ' ' . $cliente->apellido_materno)
+                    'text' => trim($cliente->nombre . ' ' . $cliente->apellido_paterno . ' ' . $cliente->apellido_materno),
+                    'curp' => $cliente->curp ?? 'Sin CURP',
+                    'municipio' => $cliente->municipio ?? 'Sin Municipio' // Asegúrate de que esta columna exista en tu BD
                 ];
             }
 
             return response()->json($results);
 
         } catch (\Exception $e) {
-            // Si algo falla (ej. una columna no existe), Laravel nos mandará el error exacto
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }

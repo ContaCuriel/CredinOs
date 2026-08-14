@@ -212,11 +212,17 @@
             productoSelect.addEventListener('change', toggleGrupo);
             toggleGrupo(); // Ejecutar al inicio
 
-            // --- 2. LÓGICA DEL BUSCADOR DE CLIENTES (SELECT2) ---
+            // --- 2. LÓGICA DEL BUSCADOR DE CLIENTES (SELECT2) MEJORADA ---
             $('#buscador_clientes').select2({
                 theme: 'bootstrap-5',
-                placeholder: 'Escribe nombre o apellido...',
+                placeholder: 'Escribe el Nombre, Apellido o CURP...',
                 allowClear: true,
+                minimumInputLength: 3, // Obliga a escribir 3 letras para empezar a buscar (Quita el doble buscador)
+                language: {
+                    inputTooShort: function() { return "Escribe al menos 3 caracteres..."; },
+                    noResults: function() { return "No se encontró ningún cliente"; },
+                    searching: function() { return "Buscando..."; }
+                },
                 ajax: {
                     url: '{{ route("web.clientes.search") }}', 
                     dataType: 'json',
@@ -228,6 +234,24 @@
                         return { results: data };
                     },
                     cache: true
+                },
+                // Magia para dibujar el CURP y el Municipio en la lista desplegable
+                templateResult: function (repo) {
+                    if (repo.loading) return repo.text;
+                    
+                    var $container = $(
+                        "<div class='d-flex flex-column border-bottom pb-1'>" +
+                            "<div class='fw-bold text-dark'><i class='bi bi-person-fill me-1 text-primary'></i>" + repo.text + "</div>" +
+                            "<div class='small text-muted d-flex justify-content-between mt-1'>" +
+                                "<span><i class='bi bi-card-text me-1'></i>" + repo.curp + "</span>" +
+                                "<span><i class='bi bi-geo-alt-fill me-1'></i>" + repo.municipio + "</span>" +
+                            "</div>" +
+                        "</div>"
+                    );
+                    return $container;
+                },
+                templateSelection: function (repo) {
+                    return repo.text;
                 }
             });
 

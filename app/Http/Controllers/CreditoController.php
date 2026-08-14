@@ -35,12 +35,12 @@ class CreditoController extends Controller
         // Solo traemos productos activos
         $productos = ProductoCredito::where('activo', true)->orderBy('nombre')->get();
         
-       // Traemos SOLO asesores y gerentes ACTIVOS ignorando mayúsculas/minúsculas
+      // Traemos asesores y gerentes en estatus Alta
         $asesores = Empleado::whereHas('puesto', function ($query) {
             $query->where('nombre_puesto', 'ILIKE', 'ASESOR%')
                   ->orWhere('nombre_puesto', 'ILIKE', 'GERENTE%');
         })
-        ->where('status', 'ILIKE', 'Activo') 
+        ->whereIn('status', ['Alta', 'ALTA', 'alta', 'Activo', 'ACTIVO']) // Atrapamos cualquier variante
         ->orderBy('nombre_completo')->get();
 
         return view('creditos.create', compact('productos', 'asesores'));
