@@ -22,6 +22,7 @@ class ProductoCredito extends Model
         'plazo_maximo',
         'monto_minimo',
         'monto_maximo',
+        'requiere_garantia',
         'hora_maxima_pago',
         'multa_trigger',
         'multa_valor',
