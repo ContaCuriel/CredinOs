@@ -1,16 +1,4 @@
 <x-app-layout>
-    {{-- Librerías para el Buscador Inteligente de Clientes --}}
-    @push('styles')
-        <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-        <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
-        <style>
-            /* Pequeño ajuste para que los resultados de clientes se vean increíbles */
-            .select2-resultado-cliente { padding: 4px 0; }
-            .select2-resultado-cliente .titulo { font-weight: bold; color: #212529; }
-            .select2-resultado-cliente .detalles { font-size: 0.85em; color: #6c757d; display: flex; justify-content: space-between; margin-top: 2px; }
-        </style>
-    @endpush
-
     <div class="container-fluid py-4">
         <div class="card shadow-sm border-0">
             <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
@@ -56,14 +44,13 @@
                                 </div>
                                 <div class="col-md-4 mb-3">
                                     <label class="form-label fw-bold">Asesor Responsable <span class="text-danger">*</span></label>
-                                    {{-- Aquí usamos Datalist nativo: 1 sola caja de texto real --}}
-                                    <input type="text" class="form-control" id="asesor_buscar" list="lista_asesores" placeholder="🔍 Escribe para buscar asesor..." required autocomplete="off">
+                                    <input type="text" class="form-control" id="asesor_buscar" list="lista_asesores" placeholder="🔍 Escribe para buscar asesor..." required autocomplete="off" value="{{ old('asesor_texto_temporal') }}">
                                     <datalist id="lista_asesores">
                                         @foreach($asesores as $asesor)
                                             <option data-id="{{ $asesor->id_empleado }}" value="{{ $asesor->nombre_completo }} ({{ $asesor->sucursal->nombre_sucursal ?? 'Sin Sucursal' }})"></option>
                                         @endforeach
                                     </datalist>
-                                    <input type="hidden" name="asesor_id" id="asesor_id" required>
+                                    <input type="hidden" name="asesor_id" id="asesor_id" value="{{ old('asesor_id') }}" required>
                                 </div>
                                 <div class="col-md-4 mb-3">
                                     <label class="form-label fw-bold">Monto Total Solicitado ($) <span class="text-danger">*</span></label>
@@ -94,16 +81,18 @@
                         <div class="card-body p-4">
                             <h6 class="fw-bold text-success border-bottom pb-2 mb-3">2. Integrantes (Clientes)</h6>
                             
-                            <div class="row align-items-end mb-4 bg-light p-3 rounded border">
-                                <div class="col-md-9">
+                            {{-- BUSCADOR NATIVO TIPO GOOGLE --}}
+                            <div class="row mb-4 bg-light p-3 rounded border">
+                                <div class="col-md-12 position-relative">
                                     <label class="form-label fw-bold">Buscar Cliente en el Sistema</label>
-                                    {{-- Al usar multiple="multiple", el cursor queda directo en la caja principal --}}
-                                    <select class="form-select" id="buscador_clientes" multiple="multiple"></select>
-                                </div>
-                                <div class="col-md-3 text-end">
-                                    <button type="button" class="btn btn-success w-100 fw-bold" id="btnAgregarCliente">
-                                        <i class="bi bi-person-plus-fill me-1"></i> Agregar al Crédito
-                                    </button>
+                                    <input type="text" class="form-control form-control-lg border-success shadow-sm" id="buscador_clientes_input" placeholder="🔍 Escribe Nombre, Apellido o CURP (Mín. 3 letras)..." autocomplete="off">
+                                    
+                                    {{-- Contenedor flotante para los resultados --}}
+                                    <div id="resultados_clientes" class="list-group position-absolute shadow-lg w-100 mt-1" style="z-index: 1050; display: none; max-height: 250px; overflow-y: auto;">
+                                        {{-- Aquí se inyectan los resultados con JS --}}
+                                    </div>
+                                    
+                                    <small class="text-muted mt-2 d-block"><i class="bi bi-info-circle-fill me-1"></i> Haz clic en el cliente de la lista desplegable para agregarlo a la tabla de abajo.</small>
                                 </div>
                             </div>
 
@@ -174,19 +163,16 @@
     </div>
 
     @push('scripts')
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             
-            // --- 0. LÓGICA DEL BUSCADOR DE ASESORES (DATALIST NATIVO) ---
+            // --- 1. LÓGICA DEL BUSCADOR DE ASESORES (DATALIST NATIVO) ---
             const asesorInput = document.getElementById('asesor_buscar');
             const asesorHidden = document.getElementById('asesor_id');
             
             asesorInput.addEventListener('input', function(e) {
                 const list = document.getElementById('lista_asesores').options;
-                asesorHidden.value = ''; // Limpiamos el hidden
+                asesorHidden.value = ''; // Limpiamos si cambia el texto
                 for (let i = 0; i < list.length; i++) {
                     if (list[i].value === e.target.value) {
                         asesorHidden.value = list[i].getAttribute('data-id');
@@ -195,16 +181,7 @@
                 }
             });
 
-            // Validar que sí hayan seleccionado un asesor válido de la lista al enviar
-            document.getElementById('formCredito').addEventListener('submit', function(e) {
-                if (asesorHidden.value === '') {
-                    e.preventDefault();
-                    alert('Por favor, selecciona un Asesor válido de la lista desplegable.');
-                    asesorInput.focus();
-                }
-            });
-
-            // --- 1. LÓGICA DE PRODUCTO GRUPAL VS INDIVIDUAL ---
+            // --- 2. LÓGICA DE PRODUCTO GRUPAL VS INDIVIDUAL ---
             const productoSelect = document.getElementById('producto_id');
             const divNombreGrupo = document.getElementById('div_nombre_grupo');
             const inputNombreGrupo = document.getElementById('nombre_grupo');
@@ -238,74 +215,72 @@
             productoSelect.addEventListener('change', toggleGrupo);
             toggleGrupo();
 
-            // --- 2. LÓGICA DEL BUSCADOR DE CLIENTES (UNA SOLA LÍNEA) ---
-            $('#buscador_clientes').select2({
-                theme: 'bootstrap-5',
-                placeholder: '🔍 Escribe Nombre, Apellido o CURP...',
-                allowClear: true,
-                minimumInputLength: 3,
-                maximumSelectionLength: 1, // Obliga a seleccionar de uno en uno
-                language: {
-                    inputTooShort: function() { return "Escribe al menos 3 letras o números..."; },
-                    noResults: function() { return "No se encontró ningún cliente"; },
-                    searching: function() { return "Buscando..."; },
-                    maximumSelected: function() { return "Presiona el botón verde para agregar a este cliente a la tabla."; }
-                },
-                ajax: {
-                    url: '{{ route("web.clientes.search") }}', 
-                    dataType: 'json',
-                    delay: 300,
-                    data: function (params) {
-                        return { term: params.term };
-                    },
-                    processResults: function (data) {
-                        return { results: data };
-                    },
-                    cache: true
-                },
-                templateResult: function (repo) {
-                    if (repo.loading) return repo.text;
-                    
-                    var $container = $(
-                        "<div class='select2-resultado-cliente border-bottom'>" +
-                            "<div class='titulo'><i class='bi bi-person-fill me-1 text-primary'></i>" + repo.text + "</div>" +
-                            "<div class='detalles'>" +
-                                "<span><i class='bi bi-card-text me-1'></i>" + repo.curp + "</span>" +
-                                "<span><i class='bi bi-geo-alt-fill me-1'></i>" + repo.municipio + "</span>" +
-                            "</div>" +
-                        "</div>"
-                    );
-                    return $container;
-                },
-                templateSelection: function (repo) {
-                    return repo.text; // Solo muestra el nombre cuando ya está seleccionado en la caja
-                }
-            });
-
-            // --- 3. LÓGICA PARA AGREGAR/QUITAR CLIENTES A LA TABLA ---
+            // --- 3. NUEVO BUSCADOR DE CLIENTES NATIVO TIPO GOOGLE ---
+            const inputBuscador = document.getElementById('buscador_clientes_input');
+            const divResultados = document.getElementById('resultados_clientes');
+            let timeoutId;
             let indiceCliente = 0;
-            const btnAgregarCliente = document.getElementById('btnAgregarCliente');
             const tbodyClientes = document.getElementById('tbody_clientes');
             const filaVacia = document.getElementById('fila_vacia_clientes');
 
-            btnAgregarCliente.addEventListener('click', function() {
-                const select = $('#buscador_clientes').select2('data');
-                if (!select.length) {
-                    alert('Por favor, busca y selecciona un cliente primero.');
+            inputBuscador.addEventListener('input', function() {
+                clearTimeout(timeoutId);
+                const query = this.value.trim();
+
+                if (query.length < 3) {
+                    divResultados.style.display = 'none';
                     return;
                 }
 
+                timeoutId = setTimeout(() => {
+                    fetch(`{{ route('web.clientes.search') }}?term=${encodeURIComponent(query)}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            divResultados.innerHTML = '';
+                            
+                            if(data.error) {
+                                divResultados.innerHTML = `<div class="list-group-item text-danger">Error: ${data.error}</div>`;
+                            } else if(data.length === 0) {
+                                divResultados.innerHTML = '<div class="list-group-item text-muted">No se encontraron clientes</div>';
+                            } else {
+                                data.forEach(cliente => {
+                                    const a = document.createElement('a');
+                                    a.href = 'javascript:void(0)';
+                                    a.className = 'list-group-item list-group-item-action py-2';
+                                    a.innerHTML = `
+                                        <div class='fw-bold text-dark'><i class='bi bi-person-fill me-1 text-primary'></i>${cliente.text}</div>
+                                        <div class='small text-muted d-flex justify-content-between mt-1'>
+                                            <span><i class='bi bi-card-text me-1'></i>${cliente.curp || 'Sin CURP'}</span>
+                                            <span><i class='bi bi-geo-alt-fill me-1'></i>${cliente.municipio || 'N/A'}</span>
+                                        </div>
+                                    `;
+                                    // Al darle clic, ejecuta la función para agregarlo a la tabla
+                                    a.addEventListener('click', () => agregarClienteATabla(cliente));
+                                    divResultados.appendChild(a);
+                                });
+                            }
+                            divResultados.style.display = 'block';
+                        })
+                        .catch(err => console.error(err));
+                }, 300); // 300ms de retraso para no saturar la base de datos
+            });
+
+            // Ocultar resultados si das clic afuera
+            document.addEventListener('click', function(e) {
+                if (!inputBuscador.contains(e.target) && !divResultados.contains(e.target)) {
+                    divResultados.style.display = 'none';
+                }
+            });
+
+            // --- Función para agregar el cliente a la tabla al darle clic ---
+            function agregarClienteATabla(cliente) {
+                // Validaciones
                 if (esIndividualGlobal && tbodyClientes.querySelectorAll('tr[id^="fila_cliente_"]').length >= 1) {
                     alert('Un crédito individual solo puede tener un cliente asignado.');
                     return;
                 }
-
-                const clienteId = select[0].id;
-                const clienteTexto = select[0].text;
-
-                if (document.getElementById('fila_cliente_' + clienteId)) {
-                    alert('Este cliente ya está en la lista.');
-                    $('#buscador_clientes').val(null).trigger('change');
+                if (document.getElementById('fila_cliente_' + cliente.id)) {
+                    alert('Este cliente ya está en la lista de abajo.');
                     return;
                 }
 
@@ -315,24 +290,24 @@
                 const displayLider = esIndividualGlobal ? 'none' : 'table-cell';
 
                 const tr = document.createElement('tr');
-                tr.id = 'fila_cliente_' + clienteId;
+                tr.id = 'fila_cliente_' + cliente.id;
                 tr.innerHTML = `
                     <td class="fw-bold">
-                        <i class="bi bi-person-circle text-muted me-2"></i> ${clienteTexto}
-                        <input type="hidden" name="clientes[${indiceCliente}][id]" value="${clienteId}">
+                        <i class="bi bi-person-circle text-muted me-2"></i> ${cliente.text}
+                        <input type="hidden" name="clientes[${indiceCliente}][id]" value="${cliente.id}">
                     </td>
                     <td>
                         <div class="input-group input-group-sm">
                             <span class="input-group-text bg-white">$</span>
-                            <input type="number" step="0.01" min="1" class="form-control" name="clientes[${indiceCliente}][monto]" required placeholder="0.00">
+                            <input type="number" step="0.01" min="1" class="form-control border-success" name="clientes[${indiceCliente}][monto]" required placeholder="0.00">
                         </div>
                     </td>
                     <td class="text-center col-lider-body" style="display: ${displayLider};">
-                        <input class="form-check-input" type="radio" name="lider_id" value="${clienteId}" ${checkLider} style="transform: scale(1.3);">
+                        <input class="form-check-input" type="radio" name="lider_id" value="${cliente.id}" ${checkLider} style="transform: scale(1.3);">
                     </td>
                     <td class="text-center">
-                        <button type="button" class="btn btn-outline-danger btn-sm btn-quitar-cliente" data-id="${clienteId}">
-                            <i class="bi bi-x-lg"></i>
+                        <button type="button" class="btn btn-outline-danger btn-sm btn-quitar-cliente" data-id="${cliente.id}">
+                            <i class="bi bi-trash"></i>
                         </button>
                     </td>
                 `;
@@ -340,10 +315,12 @@
                 tbodyClientes.appendChild(tr);
                 indiceCliente++;
                 
-                // Limpia completamente la caja de búsqueda para el siguiente cliente
-                $('#buscador_clientes').val(null).trigger('change');
-            });
+                // Limpia el buscador y oculta la lista
+                inputBuscador.value = '';
+                divResultados.style.display = 'none';
+            }
 
+            // Eliminar fila de la tabla
             tbodyClientes.addEventListener('click', function(e) {
                 if (e.target.closest('.btn-quitar-cliente')) {
                     const btn = e.target.closest('.btn-quitar-cliente');
@@ -397,12 +374,20 @@
             }
             actualizarBotonesQuitarCuenta();
 
-            // --- 5. VALIDAR AL ENVIAR QUE HAYA AL MENOS UN CLIENTE ---
+            // --- 5. VALIDACIÓN FINAL ANTES DE ENVIAR ---
             document.getElementById('formCredito').addEventListener('submit', function(e) {
+                if (asesorHidden.value === '') {
+                    e.preventDefault();
+                    alert('Por favor, busca y selecciona un Asesor válido de la lista desplegable.');
+                    asesorInput.focus();
+                    return;
+                }
+                
                 const clientesCount = tbodyClientes.querySelectorAll('tr[id^="fila_cliente_"]').length;
                 if (clientesCount === 0) {
                     e.preventDefault();
-                    alert('Debes agregar al menos un integrante al crédito antes de enviar la solicitud.');
+                    alert('Debes buscar y agregar al menos un integrante al crédito antes de enviar la solicitud.');
+                    inputBuscador.focus();
                 }
             });
         });
