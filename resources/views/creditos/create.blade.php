@@ -3,6 +3,12 @@
     @push('styles')
         <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
         <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+        <style>
+            /* Pequeño ajuste para que los resultados de clientes se vean increíbles */
+            .select2-resultado-cliente { padding: 4px 0; }
+            .select2-resultado-cliente .titulo { font-weight: bold; color: #212529; }
+            .select2-resultado-cliente .detalles { font-size: 0.85em; color: #6c757d; display: flex; justify-content: space-between; margin-top: 2px; }
+        </style>
     @endpush
 
     <div class="container-fluid py-4">
@@ -49,16 +55,16 @@
                                     </select>
                                 </div>
                                 <div class="col-md-4 mb-3">
-    <label class="form-label fw-bold">Asesor Responsable <span class="text-danger">*</span></label>
-    <select class="form-select select2-asesores" name="asesor_id" required>
-        <option value="">Buscar asesor...</option>
-        @foreach($asesores as $asesor)
-            <option value="{{ $asesor->id_empleado }}" @selected(old('asesor_id') == $asesor->id_empleado)>
-                {{ $asesor->nombre_completo }} ({{ $asesor->sucursal->nombre_sucursal ?? 'Sin Sucursal' }})
-            </option>
-        @endforeach
-    </select>
-</div>
+                                    <label class="form-label fw-bold">Asesor Responsable <span class="text-danger">*</span></label>
+                                    {{-- Aquí usamos Datalist nativo: 1 sola caja de texto real --}}
+                                    <input type="text" class="form-control" id="asesor_buscar" list="lista_asesores" placeholder="🔍 Escribe para buscar asesor..." required autocomplete="off">
+                                    <datalist id="lista_asesores">
+                                        @foreach($asesores as $asesor)
+                                            <option data-id="{{ $asesor->id_empleado }}" value="{{ $asesor->nombre_completo }} ({{ $asesor->sucursal->nombre_sucursal ?? 'Sin Sucursal' }})"></option>
+                                        @endforeach
+                                    </datalist>
+                                    <input type="hidden" name="asesor_id" id="asesor_id" required>
+                                </div>
                                 <div class="col-md-4 mb-3">
                                     <label class="form-label fw-bold">Monto Total Solicitado ($) <span class="text-danger">*</span></label>
                                     <div class="input-group">
@@ -75,7 +81,6 @@
                                     <small class="text-muted">Útil para identificar proyectos específicos.</small>
                                 </div>
                                 
-                                {{-- SE OCULTA/MUESTRA CON JS SI EL PRODUCTO ES GRUPAL --}}
                                 <div class="col-md-6 mb-3" id="div_nombre_grupo" style="display: none;">
                                     <label class="form-label fw-bold text-purple">Nombre del Grupo Solidario <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control border-purple" name="nombre_grupo" id="nombre_grupo" value="{{ old('nombre_grupo') }}" placeholder="Ej. Ajoloapan Zum">
@@ -89,12 +94,13 @@
                         <div class="card-body p-4">
                             <h6 class="fw-bold text-success border-bottom pb-2 mb-3">2. Integrantes (Clientes)</h6>
                             
-                            <div class="row align-items-end mb-4 bg-light p-3 rounded">
-                                <div class="col-md-8">
+                            <div class="row align-items-end mb-4 bg-light p-3 rounded border">
+                                <div class="col-md-9">
                                     <label class="form-label fw-bold">Buscar Cliente en el Sistema</label>
-                                    <select class="form-select" id="buscador_clientes"></select>
+                                    {{-- Al usar multiple="multiple", el cursor queda directo en la caja principal --}}
+                                    <select class="form-select" id="buscador_clientes" multiple="multiple"></select>
                                 </div>
-                                <div class="col-md-4 text-end">
+                                <div class="col-md-3 text-end">
                                     <button type="button" class="btn btn-success w-100 fw-bold" id="btnAgregarCliente">
                                         <i class="bi bi-person-plus-fill me-1"></i> Agregar al Crédito
                                     </button>
@@ -112,7 +118,6 @@
                                         </tr>
                                     </thead>
                                     <tbody id="tbody_clientes">
-                                        {{-- Aquí se insertarán las filas dinámicamente --}}
                                         <tr id="fila_vacia_clientes">
                                             <td colspan="4" class="text-center text-muted py-4">Aún no has agregado integrantes a este crédito.</td>
                                         </tr>
@@ -133,7 +138,6 @@
                             </div>
 
                             <div id="contenedor_cuentas">
-                                {{-- Fila inicial por defecto --}}
                                 <div class="row fila-cuenta mb-3">
                                     <div class="col-md-3">
                                         <label class="form-label small fw-bold">Banco <span class="text-danger">*</span></label>
@@ -170,34 +174,34 @@
     </div>
 
     @push('scripts')
-    {{-- Dependencias de jQuery y Select2 (Necesarias para el buscador) --}}
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    
-    {{-- Estilos para forzar a Select2 a comportarse como un buscador puro --}}
-    <style>
-        /* Oculta la "flechita" desplegable del buscador de clientes */
-        #buscador_clientes + .select2-container .select2-selection__arrow {
-            display: none !important;
-        }
-        /* Hace que la caja principal de búsqueda parezca un input normal */
-        #buscador_clientes + .select2-container .select2-selection--single {
-            cursor: text;
-        }
-        /* Estilos para los resultados enriquecidos */
-        .select2-resultado-cliente { padding: 4px 0; }
-        .select2-resultado-cliente .titulo { font-weight: bold; color: #212529; }
-        .select2-resultado-cliente .detalles { font-size: 0.85em; color: #6c757d; display: flex; justify-content: space-between; margin-top: 2px; }
-    </style>
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             
-            // --- 0. INICIALIZAR SELECT2 PARA ASESORES ---
-            $('.select2-asesores').select2({
-                theme: 'bootstrap-5',
-                placeholder: 'Escribe para buscar asesor...',
-                allowClear: true
+            // --- 0. LÓGICA DEL BUSCADOR DE ASESORES (DATALIST NATIVO) ---
+            const asesorInput = document.getElementById('asesor_buscar');
+            const asesorHidden = document.getElementById('asesor_id');
+            
+            asesorInput.addEventListener('input', function(e) {
+                const list = document.getElementById('lista_asesores').options;
+                asesorHidden.value = ''; // Limpiamos el hidden
+                for (let i = 0; i < list.length; i++) {
+                    if (list[i].value === e.target.value) {
+                        asesorHidden.value = list[i].getAttribute('data-id');
+                        break;
+                    }
+                }
+            });
+
+            // Validar que sí hayan seleccionado un asesor válido de la lista al enviar
+            document.getElementById('formCredito').addEventListener('submit', function(e) {
+                if (asesorHidden.value === '') {
+                    e.preventDefault();
+                    alert('Por favor, selecciona un Asesor válido de la lista desplegable.');
+                    asesorInput.focus();
+                }
             });
 
             // --- 1. LÓGICA DE PRODUCTO GRUPAL VS INDIVIDUAL ---
@@ -234,16 +238,18 @@
             productoSelect.addEventListener('change', toggleGrupo);
             toggleGrupo();
 
-            // --- 2. LÓGICA DEL BUSCADOR DE CLIENTES (SELECT2 PURO) ---
+            // --- 2. LÓGICA DEL BUSCADOR DE CLIENTES (UNA SOLA LÍNEA) ---
             $('#buscador_clientes').select2({
                 theme: 'bootstrap-5',
                 placeholder: '🔍 Escribe Nombre, Apellido o CURP...',
                 allowClear: true,
                 minimumInputLength: 3,
+                maximumSelectionLength: 1, // Obliga a seleccionar de uno en uno
                 language: {
                     inputTooShort: function() { return "Escribe al menos 3 letras o números..."; },
                     noResults: function() { return "No se encontró ningún cliente"; },
-                    searching: function() { return "Buscando..."; }
+                    searching: function() { return "Buscando..."; },
+                    maximumSelected: function() { return "Presiona el botón verde para agregar a este cliente a la tabla."; }
                 },
                 ajax: {
                     url: '{{ route("web.clientes.search") }}', 
@@ -272,17 +278,7 @@
                     return $container;
                 },
                 templateSelection: function (repo) {
-                    return repo.text;
-                }
-            });
-
-            // Oculta el menú desplegable si se borra el texto manualmente
-            $('#buscador_clientes').on('select2:unselecting', function() {
-                $(this).data('unselecting', true);
-            }).on('select2:opening', function(e) {
-                if ($(this).data('unselecting')) {
-                    $(this).removeData('unselecting');
-                    e.preventDefault();
+                    return repo.text; // Solo muestra el nombre cuando ya está seleccionado en la caja
                 }
             });
 
@@ -309,6 +305,7 @@
 
                 if (document.getElementById('fila_cliente_' + clienteId)) {
                     alert('Este cliente ya está en la lista.');
+                    $('#buscador_clientes').val(null).trigger('change');
                     return;
                 }
 
@@ -343,6 +340,7 @@
                 tbodyClientes.appendChild(tr);
                 indiceCliente++;
                 
+                // Limpia completamente la caja de búsqueda para el siguiente cliente
                 $('#buscador_clientes').val(null).trigger('change');
             });
 
