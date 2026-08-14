@@ -9,6 +9,7 @@ use App\Models\ProductoCredito;
 use App\Models\Empleado;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Models\Sucursal;
 
 class CreditoController extends Controller
 {
