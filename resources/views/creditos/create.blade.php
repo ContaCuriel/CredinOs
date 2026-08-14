@@ -49,16 +49,16 @@
                                     </select>
                                 </div>
                                 <div class="col-md-4 mb-3">
-                                    <label class="form-label fw-bold">Asesor Responsable <span class="text-danger">*</span></label>
-                                    <select class="form-select" name="asesor_id" required>
-                                        <option value="">Seleccione al asesor...</option>
-                                        @foreach($asesores as $asesor)
-                                            <option value="{{ $asesor->id_empleado }}" @selected(old('asesor_id') == $asesor->id_empleado)>
-                                                {{ $asesor->nombre_completo }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
+    <label class="form-label fw-bold">Asesor Responsable <span class="text-danger">*</span></label>
+    <select class="form-select select2-asesores" name="asesor_id" required>
+        <option value="">Buscar asesor...</option>
+        @foreach($asesores as $asesor)
+            <option value="{{ $asesor->id_empleado }}" @selected(old('asesor_id') == $asesor->id_empleado)>
+                {{ $asesor->nombre_completo }} ({{ $asesor->sucursal->nombre_sucursal ?? 'Sin Sucursal' }})
+            </option>
+        @endforeach
+    </select>
+</div>
                                 <div class="col-md-4 mb-3">
                                     <label class="form-label fw-bold">Monto Total Solicitado ($) <span class="text-danger">*</span></label>
                                     <div class="input-group">
@@ -174,18 +174,41 @@
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     
+    {{-- Estilos para forzar a Select2 a comportarse como un buscador puro --}}
+    <style>
+        /* Oculta la "flechita" desplegable del buscador de clientes */
+        #buscador_clientes + .select2-container .select2-selection__arrow {
+            display: none !important;
+        }
+        /* Hace que la caja principal de búsqueda parezca un input normal */
+        #buscador_clientes + .select2-container .select2-selection--single {
+            cursor: text;
+        }
+        /* Estilos para los resultados enriquecidos */
+        .select2-resultado-cliente { padding: 4px 0; }
+        .select2-resultado-cliente .titulo { font-weight: bold; color: #212529; }
+        .select2-resultado-cliente .detalles { font-size: 0.85em; color: #6c757d; display: flex; justify-content: space-between; margin-top: 2px; }
+    </style>
+
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             
+            // --- 0. INICIALIZAR SELECT2 PARA ASESORES ---
+            $('.select2-asesores').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Escribe para buscar asesor...',
+                allowClear: true
+            });
+
             // --- 1. LÓGICA DE PRODUCTO GRUPAL VS INDIVIDUAL ---
             const productoSelect = document.getElementById('producto_id');
             const divNombreGrupo = document.getElementById('div_nombre_grupo');
             const inputNombreGrupo = document.getElementById('nombre_grupo');
             const columnaLiderHead = document.getElementById('columna_lider_head');
-            let esIndividualGlobal = false; // Variable para saber el estado
+            let esIndividualGlobal = false;
 
             function toggleGrupo() {
-                if(productoSelect.selectedIndex === 0) return; // Si no hay nada seleccionado
+                if(productoSelect.selectedIndex === 0) return;
                 
                 const option = productoSelect.options[productoSelect.selectedIndex];
                 const tipo = option.getAttribute('data-tipo');
@@ -203,30 +226,29 @@
                     esIndividualGlobal = true;
                 }
                 
-                // Actualizar filas existentes si cambian de producto a mitad de camino
                 document.querySelectorAll('.col-lider-body').forEach(td => {
                     td.style.display = esIndividualGlobal ? 'none' : 'table-cell';
                 });
             }
 
             productoSelect.addEventListener('change', toggleGrupo);
-            toggleGrupo(); // Ejecutar al inicio
+            toggleGrupo();
 
-            // --- 2. LÓGICA DEL BUSCADOR DE CLIENTES (SELECT2) MEJORADA ---
+            // --- 2. LÓGICA DEL BUSCADOR DE CLIENTES (SELECT2 PURO) ---
             $('#buscador_clientes').select2({
                 theme: 'bootstrap-5',
-                placeholder: 'Escribe el Nombre, Apellido o CURP...',
+                placeholder: '🔍 Escribe Nombre, Apellido o CURP...',
                 allowClear: true,
-                minimumInputLength: 3, // Obliga a escribir 3 letras para empezar a buscar (Quita el doble buscador)
+                minimumInputLength: 3,
                 language: {
-                    inputTooShort: function() { return "Escribe al menos 3 caracteres..."; },
+                    inputTooShort: function() { return "Escribe al menos 3 letras o números..."; },
                     noResults: function() { return "No se encontró ningún cliente"; },
                     searching: function() { return "Buscando..."; }
                 },
                 ajax: {
                     url: '{{ route("web.clientes.search") }}', 
                     dataType: 'json',
-                    delay: 250,
+                    delay: 300,
                     data: function (params) {
                         return { term: params.term };
                     },
@@ -235,14 +257,13 @@
                     },
                     cache: true
                 },
-                // Magia para dibujar el CURP y el Municipio en la lista desplegable
                 templateResult: function (repo) {
                     if (repo.loading) return repo.text;
                     
                     var $container = $(
-                        "<div class='d-flex flex-column border-bottom pb-1'>" +
-                            "<div class='fw-bold text-dark'><i class='bi bi-person-fill me-1 text-primary'></i>" + repo.text + "</div>" +
-                            "<div class='small text-muted d-flex justify-content-between mt-1'>" +
+                        "<div class='select2-resultado-cliente border-bottom'>" +
+                            "<div class='titulo'><i class='bi bi-person-fill me-1 text-primary'></i>" + repo.text + "</div>" +
+                            "<div class='detalles'>" +
                                 "<span><i class='bi bi-card-text me-1'></i>" + repo.curp + "</span>" +
                                 "<span><i class='bi bi-geo-alt-fill me-1'></i>" + repo.municipio + "</span>" +
                             "</div>" +
@@ -252,6 +273,16 @@
                 },
                 templateSelection: function (repo) {
                     return repo.text;
+                }
+            });
+
+            // Oculta el menú desplegable si se borra el texto manualmente
+            $('#buscador_clientes').on('select2:unselecting', function() {
+                $(this).data('unselecting', true);
+            }).on('select2:opening', function(e) {
+                if ($(this).data('unselecting')) {
+                    $(this).removeData('unselecting');
+                    e.preventDefault();
                 }
             });
 
@@ -268,7 +299,6 @@
                     return;
                 }
 
-                // Si es individual, no dejar agregar más de 1
                 if (esIndividualGlobal && tbodyClientes.querySelectorAll('tr[id^="fila_cliente_"]').length >= 1) {
                     alert('Un crédito individual solo puede tener un cliente asignado.');
                     return;

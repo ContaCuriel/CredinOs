@@ -35,12 +35,13 @@ class CreditoController extends Controller
         // Solo traemos productos activos
         $productos = ProductoCredito::where('activo', true)->orderBy('nombre')->get();
         
-      // Traemos asesores y gerentes en estatus Alta
-        $asesores = Empleado::whereHas('puesto', function ($query) {
+      // Traemos asesores y gerentes en estatus Alta (CON SU SUCURSAL)
+        $asesores = Empleado::with('sucursal') // <-- Agregamos with('sucursal')
+        ->whereHas('puesto', function ($query) {
             $query->where('nombre_puesto', 'ILIKE', 'ASESOR%')
                   ->orWhere('nombre_puesto', 'ILIKE', 'GERENTE%');
         })
-        ->whereIn('status', ['Alta', 'ALTA', 'alta', 'Activo', 'ACTIVO']) // Atrapamos cualquier variante
+        ->whereIn('status', ['Alta', 'ALTA', 'alta', 'Activo', 'ACTIVO'])
         ->orderBy('nombre_completo')->get();
 
         return view('creditos.create', compact('productos', 'asesores'));
