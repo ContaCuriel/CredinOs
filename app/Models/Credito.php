@@ -13,6 +13,7 @@ class Credito extends Model
 
     protected $fillable = [
         'folio',
+        'sucursal_id',
         'nombre_credito',
         'cliente_id',
         'grupo_id',
@@ -80,5 +81,10 @@ class Credito extends Model
     public function cuentasDesembolso()
     {
         return $this->hasMany(CreditoCuentaDesembolso::class, 'credito_id', 'id');
+    }
+
+    public function sucursal()
+    {
+        return $this->belongsTo(Sucursal::class, 'sucursal_id', 'id_sucursal');
     }
 }

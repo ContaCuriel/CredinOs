@@ -32,19 +32,19 @@ class CreditoController extends Controller
 
     public function create()
     {
-        // Solo traemos productos activos
         $productos = ProductoCredito::where('activo', true)->orderBy('nombre')->get();
+        $sucursales = Sucursal::orderBy('nombre_sucursal')->get(); // <-- NUEVO
         
-      // Traemos asesores y gerentes en estatus Alta (CON SU SUCURSAL)
-        $asesores = Empleado::with('sucursal') // <-- Agregamos with('sucursal')
-        ->whereHas('puesto', function ($query) {
-            $query->where('nombre_puesto', 'ILIKE', 'ASESOR%')
-                  ->orWhere('nombre_puesto', 'ILIKE', 'GERENTE%');
-        })
-        ->whereIn('status', ['Alta', 'ALTA', 'alta', 'Activo', 'ACTIVO'])
-        ->orderBy('nombre_completo')->get();
+        $asesores = Empleado::with('sucursal')
+            ->whereHas('puesto', function ($query) {
+                $query->where('nombre_puesto', 'ILIKE', 'ASESOR%')
+                      ->orWhere('nombre_puesto', 'ILIKE', 'GERENTE%');
+            })
+            ->whereIn('status', ['Alta', 'ALTA', 'alta', 'Activo', 'ACTIVO'])
+            ->orderBy('nombre_completo')->get();
 
-        return view('creditos.create', compact('productos', 'asesores'));
+        // Manda las sucursales en el compact
+        return view('creditos.create', compact('productos', 'asesores', 'sucursales')); 
     }
 
     public function store(Request $request)
@@ -54,6 +54,7 @@ class CreditoController extends Controller
             'producto_id'      => 'required|exists:productos_credito,id',
             'asesor_id'        => 'required|exists:empleados,id_empleado',
             'monto_solicitado' => 'required|numeric|min:1',
+            'sucursal_id' => 'required|exists:sucursales,id_sucursal',
             'nombre_credito'   => 'nullable|string|max:255',
             'nombre_grupo'     => 'nullable|string|max:255', // Solo si es grupal
             
@@ -94,6 +95,7 @@ class CreditoController extends Controller
             $credito = Credito::create([
                 'folio' => 'CR-' . strtoupper(uniqid()), // Folio temporal autogenerado
                 'nombre_credito' => $validated['nombre_credito'],
+                'sucursal_id' => $validated['sucursal_id'],
                 'cliente_id' => $cliente_id_individual,
                 'grupo_id' => $grupo_id,
                 'producto_id' => $producto->id,

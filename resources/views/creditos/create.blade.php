@@ -23,6 +23,14 @@
                     </div>
                 @endif
 
+                @if (session('error'))
+                    <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm" role="alert">
+                        <h6 class="alert-heading fw-bold mb-1"><i class="bi bi-x-circle-fill me-2"></i>Error del Sistema:</h6>
+                        <p class="mb-0 small">{{ session('error') }}</p>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                @endif
+
                 <form action="{{ route('creditos.store') }}" method="POST" id="formCredito">
                     @csrf
                     
@@ -31,10 +39,21 @@
                         <div class="card-body p-4">
                             <h6 class="fw-bold text-primary border-bottom pb-2 mb-3">1. Parámetros del Crédito</h6>
                             <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    <label class="form-label fw-bold">Producto de Crédito <span class="text-danger">*</span></label>
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label fw-bold">Sucursal <span class="text-danger">*</span></label>
+                                    <select class="form-select" name="sucursal_id" id="sucursal_id" required>
+                                        <option value="">Seleccione...</option>
+                                        @foreach($sucursales as $sucursal)
+                                            <option value="{{ $sucursal->id_sucursal }}" @selected(old('sucursal_id') == $sucursal->id_sucursal)>
+                                                {{ $sucursal->nombre_sucursal }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label fw-bold">Producto <span class="text-danger">*</span></label>
                                     <select class="form-select" name="producto_id" id="producto_id" required>
-                                        <option value="">Seleccione un producto...</option>
+                                        <option value="">Seleccione...</option>
                                         @foreach($productos as $producto)
                                             <option value="{{ $producto->id }}" data-tipo="{{ $producto->tipo_credito }}" @selected(old('producto_id') == $producto->id)>
                                                 {{ $producto->nombre }} ({{ ucfirst($producto->tipo_credito) }})
@@ -42,18 +61,18 @@
                                         @endforeach
                                     </select>
                                 </div>
-                                <div class="col-md-4 mb-3">
-                                    <label class="form-label fw-bold">Asesor Responsable <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="asesor_buscar" list="lista_asesores" placeholder="🔍 Escribe para buscar asesor..." required autocomplete="off" value="{{ old('asesor_texto_temporal') }}">
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label fw-bold">Asesor <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="asesor_buscar" list="lista_asesores" placeholder="🔍 Buscar asesor..." required autocomplete="off" value="{{ old('asesor_texto_temporal') }}">
                                     <datalist id="lista_asesores">
                                         @foreach($asesores as $asesor)
-                                            <option data-id="{{ $asesor->id_empleado }}" value="{{ $asesor->nombre_completo }} ({{ $asesor->sucursal->nombre_sucursal ?? 'Sin Sucursal' }})"></option>
+                                            <option data-id="{{ $asesor->id_empleado }}" data-sucursal="{{ $asesor->id_sucursal }}" value="{{ $asesor->nombre_completo }} ({{ $asesor->sucursal->nombre_sucursal ?? 'Sin Sucursal' }})"></option>
                                         @endforeach
                                     </datalist>
                                     <input type="hidden" name="asesor_id" id="asesor_id" value="{{ old('asesor_id') }}" required>
                                 </div>
-                                <div class="col-md-4 mb-3">
-                                    <label class="form-label fw-bold">Monto Total Solicitado ($) <span class="text-danger">*</span></label>
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label fw-bold">Monto ($) <span class="text-danger">*</span></label>
                                     <div class="input-group">
                                         <span class="input-group-text bg-white fw-bold">$</span>
                                         <input type="number" step="0.01" min="1" class="form-control form-control-lg text-success fw-bold" name="monto_solicitado" value="{{ old('monto_solicitado') }}" required placeholder="0.00">
@@ -166,9 +185,10 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             
-            // --- 1. LÓGICA DEL BUSCADOR DE ASESORES (DATALIST NATIVO) ---
+            // --- 1. LÓGICA DEL BUSCADOR DE ASESORES Y SUCURSAL AUTO ---
             const asesorInput = document.getElementById('asesor_buscar');
             const asesorHidden = document.getElementById('asesor_id');
+            const sucursalSelect = document.getElementById('sucursal_id');
             
             asesorInput.addEventListener('input', function(e) {
                 const list = document.getElementById('lista_asesores').options;
@@ -176,6 +196,12 @@
                 for (let i = 0; i < list.length; i++) {
                     if (list[i].value === e.target.value) {
                         asesorHidden.value = list[i].getAttribute('data-id');
+                        
+                        // Seleccionamos la sucursal automáticamente
+                        const sucursalAsesor = list[i].getAttribute('data-sucursal');
+                        if(sucursalAsesor) {
+                            sucursalSelect.value = sucursalAsesor;
+                        }
                         break;
                     }
                 }
