@@ -32,6 +32,7 @@ class ProductoCreditoController extends Controller
             'plazo_maximo' => 'required|integer|gte:plazo_minimo',
             'monto_minimo' => 'required|numeric|min:1',
             'monto_maximo' => 'required|numeric|gte:monto_minimo',
+            'requiere_garantia' => 'required|boolean',
             
             // Castigos
             'hora_maxima_pago' => 'nullable|date_format:H:i',
@@ -79,7 +80,8 @@ class ProductoCreditoController extends Controller
             'plazo_maximo' => 'required|integer|gte:plazo_minimo',
             'monto_minimo' => 'required|numeric|min:1',
             'monto_maximo' => 'required|numeric|gte:monto_minimo',
-            'cobro_comision_apertura' => 'required|numeric|min:0', // El campo nuevo
+            'cobro_comision_apertura' => 'required|numeric|min:0',
+            'requiere_garantia' => 'required|boolean', // <-- CAMBIO AÑADIDO AQUÍ
             
             // Castigos
             'hora_maxima_pago' => 'nullable|date_format:H:i',

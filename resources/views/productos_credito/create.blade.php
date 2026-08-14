@@ -46,9 +46,17 @@
                             <div id="collapseOne" class="accordion-collapse collapse show" data-bs-parent="#accordionProducto">
                                 <div class="accordion-body p-4">
                                     <div class="row">
-                                        <div class="col-md-12 mb-3">
+                                        <div class="col-md-8 mb-3">
                                             <label class="form-label fw-bold">Nombre del Producto <span class="text-danger">*</span></label>
                                             <input type="text" class="form-control" name="nombre" placeholder="Ej. Credi-Impulso Semanal" value="{{ old('nombre') }}" required>
+                                        </div>
+                                        {{-- NUEVO CAMPO DE GARANTÍA --}}
+                                        <div class="col-md-4 mb-3">
+                                            <label class="form-label fw-bold text-danger"><i class="bi bi-shield-lock-fill me-1"></i>¿Requiere Garantía? <span class="text-danger">*</span></label>
+                                            <select class="form-select border-danger" name="requiere_garantia" required>
+                                                <option value="0" @selected(old('requiere_garantia') == '0')>No</option>
+                                                <option value="1" @selected(old('requiere_garantia') == '1')>Sí (Vehículo o Terreno)</option>
+                                            </select>
                                         </div>
                                     </div>
                                     <div class="row">
@@ -71,17 +79,17 @@
                                             </select>
                                         </div>
                                         <div class="col-md-3 mb-3">
-    <label class="form-label fw-bold">Comisión por Apertura (%) <span class="text-danger">*</span></label>
-    <div class="input-group">
-        <input type="number" step="0.01" min="0" class="form-control" name="cobro_comision_apertura" value="{{ old('cobro_comision_apertura', '10.00') }}" required>
-        <span class="input-group-text">%</span>
-    </div>
-</div>
+                                            <label class="form-label fw-bold">Comisión por Apertura (%) <span class="text-danger">*</span></label>
+                                            <div class="input-group">
+                                                <input type="number" step="0.01" min="0" class="form-control" name="cobro_comision_apertura" value="{{ old('cobro_comision_apertura', '10.00') }}" required>
+                                                <span class="input-group-text">%</span>
+                                            </div>
+                                        </div>
                                         <div class="col-md-3 mb-3">
                                             <label class="form-label fw-bold">Tasa de Interés (%) <span class="text-danger">*</span></label>
                                             <input type="number" step="0.01" class="form-control" name="tasa_interes" value="{{ old('tasa_interes', '0.00') }}" required>
                                         </div>
-                                        <div class="col-md-3 mb-3">
+                                        <div class="col-md-4 mb-3">
                                             <label class="form-label fw-bold">Aplicación de Tasa <span class="text-danger">*</span></label>
                                             <select class="form-select" name="tipo_tasa" required>
                                                 <option value="global" @selected(old('tipo_tasa') == 'global')>Global (Fija al Capital)</option>

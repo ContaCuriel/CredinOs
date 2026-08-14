@@ -47,9 +47,17 @@
                             <div id="collapseOne" class="accordion-collapse collapse show" data-bs-parent="#accordionProducto">
                                 <div class="accordion-body p-4">
                                     <div class="row">
-                                        <div class="col-md-12 mb-3">
+                                        <div class="col-md-8 mb-3">
                                             <label class="form-label fw-bold">Nombre del Producto <span class="text-danger">*</span></label>
                                             <input type="text" class="form-control" name="nombre" value="{{ old('nombre', $producto->nombre) }}" required>
+                                        </div>
+                                        {{-- NUEVO CAMPO DE GARANTÍA --}}
+                                        <div class="col-md-4 mb-3">
+                                            <label class="form-label fw-bold text-danger"><i class="bi bi-shield-lock-fill me-1"></i>¿Requiere Garantía? <span class="text-danger">*</span></label>
+                                            <select class="form-select border-danger" name="requiere_garantia" required>
+                                                <option value="0" @selected(old('requiere_garantia', $producto->requiere_garantia) == '0')>No</option>
+                                                <option value="1" @selected(old('requiere_garantia', $producto->requiere_garantia) == '1')>Sí (Vehículo o Terreno)</option>
+                                            </select>
                                         </div>
                                     </div>
                                     <div class="row">
@@ -82,18 +90,11 @@
                                             <label class="form-label fw-bold">Tasa de Interés (%) <span class="text-danger">*</span></label>
                                             <input type="number" step="0.01" class="form-control" name="tasa_interes" value="{{ old('tasa_interes', $producto->tasa_interes) }}" required>
                                         </div>
-                                        <div class="col-md-3 mb-3 mt-3">
+                                        <div class="col-md-4 mb-3">
                                             <label class="form-label fw-bold">Aplicación de Tasa <span class="text-danger">*</span></label>
                                             <select class="form-select" name="tipo_tasa" required>
                                                 <option value="global" @selected(old('tipo_tasa', $producto->tipo_tasa) == 'global')>Global (Fija al Capital)</option>
                                                 <option value="saldo_insoluto" @selected(old('tipo_tasa', $producto->tipo_tasa) == 'saldo_insoluto')>Sobre Saldo Insoluto</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-3 mb-3 mt-3">
-                                            <label class="form-label fw-bold">Estatus <span class="text-danger">*</span></label>
-                                            <select class="form-select" name="activo" required>
-                                                <option value="1" @selected(old('activo', $producto->activo) == 1)>Activo</option>
-                                                <option value="0" @selected(old('activo', $producto->activo) == 0)>Inactivo</option>
                                             </select>
                                         </div>
                                     </div>
