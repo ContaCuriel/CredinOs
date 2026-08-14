@@ -190,21 +190,34 @@ class ClienteController extends Controller
      */
     public function search(Request $request)
     {
-        $term = $request->input('term', '');
-        $clientes = Cliente::where('nombre', 'LIKE', '%' . $term . '%')
-            ->orWhere('apellido_paterno', 'LIKE', '%' . $term . '%')
-            ->orWhere('apellido_materno', 'LIKE', '%' . $term . '%')
-            ->orWhere('id_cliente', $term)
-            ->limit(10)
-            ->get();
+        $term = $request->term;
+        
+        if (!$term) {
+            return response()->json([]);
+        }
 
-        $results = $clientes->map(function ($cliente) {
-            return [
-                'id' => $cliente->id_cliente,
-                'text' => $cliente->nombre_completo . ' (ID: ' . $cliente->id_cliente . ')'
-            ];
-        });
+        try {
+            // Usamos ILIKE para ignorar mayúsculas y minúsculas
+            $clientes = Cliente::where('nombre', 'ILIKE', "%{$term}%")
+                        ->orWhere('apellido_paterno', 'ILIKE', "%{$term}%")
+                        ->orWhere('apellido_materno', 'ILIKE', "%{$term}%")
+                        ->take(15)
+                        ->get();
 
-        return response()->json($results);
+            $results = [];
+            foreach ($clientes as $cliente) {
+                $results[] = [
+                    // NOTA: Si tu llave primaria es 'id' normal, cambia id_cliente por id
+                    'id' => $cliente->id_cliente, 
+                    'text' => trim($cliente->nombre . ' ' . $cliente->apellido_paterno . ' ' . $cliente->apellido_materno)
+                ];
+            }
+
+            return response()->json($results);
+
+        } catch (\Exception $e) {
+            // Si algo falla (ej. una columna no existe), Laravel nos mandará el error exacto
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
     }
 }
