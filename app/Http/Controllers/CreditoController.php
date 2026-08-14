@@ -40,7 +40,7 @@ class CreditoController extends Controller
             $query->where('nombre_puesto', 'like', 'ASESOR%')
                   ->orWhere('nombre_puesto', 'like', 'GERENTE%');
         })
-        ->where('estatus', 'Activo') // <-- AJUSTA ESTA LÍNEA según cómo se llame tu columna (ej. 'estado', 'Alta', 'activo' = 1)
+        ->where('status', 'Activo') // <-- Aquí está el arreglo mágico
         ->orderBy('nombre_completo')->get();
 
         return view('creditos.create', compact('productos', 'asesores'));
