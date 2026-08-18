@@ -11,6 +11,9 @@ class Credito extends Model
 
     protected $table = 'creditos';
 
+    // ¡AQUÍ ESTÁ LA MAGIA! Le decimos a Laravel el nombre real
+    protected $primaryKey = 'id_credito';
+
     protected $fillable = [
         'folio',
         'sucursal_id',

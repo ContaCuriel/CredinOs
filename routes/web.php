@@ -289,7 +289,7 @@ Route::get('/fix-bd-urgente', function () {
         // 1. Forzamos la columna requiere_garantia
         DB::connection('tenant')->statement("ALTER TABLE \"$schema\".productos_credito ADD COLUMN IF NOT EXISTS requiere_garantia BOOLEAN DEFAULT FALSE");
 
-        // 2. Forzamos la creación de la tabla de garantías
+        // 2. Forzamos la creación de la tabla SIN el Constraint que nos está bloqueando
         DB::connection('tenant')->statement("CREATE TABLE IF NOT EXISTS \"$schema\".credito_garantias (
             id SERIAL PRIMARY KEY,
             credito_id BIGINT NOT NULL,
@@ -311,11 +311,10 @@ Route::get('/fix-bd-urgente', function () {
             fecha_devolucion DATE NULL,
             notas_resguardo TEXT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            CONSTRAINT fk_garantia_credito FOREIGN KEY (credito_id) REFERENCES \"$schema\".creditos (id) ON DELETE CASCADE
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )");
 
-        return "<h1>¡ÉXITO TOTAL!</h1><p>Se ha parcheado exitosamente la BD para las Garantías (Esquema: <b>$schema</b>).</p>";
+        return "<h1>¡ÉXITO TOTAL!</h1><p>Se ha parcheado exitosamente la BD para las Garantías sin bloqueos (Esquema: <b>$schema</b>).</p>";
     } catch (\Exception $e) {
         return "<h1>ERROR AL PARCHAR:</h1><p>" . $e->getMessage() . "</p>";
     }
