@@ -96,7 +96,6 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // 🔥 AGREGA ESTAS 4 LÍNEAS QUE FALTABAN:
     // --- MÓDULO DE PRUEBA ---
     Route::get('/prueba', [App\Http\Controllers\PruebaController::class, 'index'])
         ->name('prueba.index')
@@ -214,11 +213,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/reconciliation/confirm', [ReconciliationController::class, 'confirm'])->name('reconciliation.confirm');
         Route::post('/reconciliation/process', [ReconciliationController::class, 'process'])->name('reconciliation.process');
         Route::get('/saldos-iniciales', [SaldosInicialesController::class, 'create'])->name('saldos-iniciales.create');
-Route::post('/saldos-iniciales', [SaldosInicialesController::class, 'store'])->name('saldos-iniciales.store');
-Route::get('/clientes/buscar/select', [App\Http\Controllers\ClienteController::class, 'search'])->name('web.clientes.search');
+        Route::post('/saldos-iniciales', [SaldosInicialesController::class, 'store'])->name('saldos-iniciales.store');
+        Route::get('/clientes/buscar/select', [App\Http\Controllers\ClienteController::class, 'search'])->name('web.clientes.search');
 
-// Rutas de Productos de Crédito
-Route::resource('productos_credito', ProductoCreditoController::class);
+        // Rutas de Productos de Crédito
+        Route::resource('productos_credito', ProductoCreditoController::class);
         
         // IA Documentos Legales
         Route::post('/finiquitos/redactar-ia', [FiniquitoController::class, 'redactarDocumentoIA'])->name('finiquitos.redactar.ia');
@@ -278,6 +277,22 @@ Route::resource('productos_credito', ProductoCreditoController::class);
         Route::resource('horarios', HorarioController::class)->middleware('can:ver-horarios');
         Route::resource('categorias', CategoriaController::class)->except(['show']);
     });
+});
+
+// --- RUTA MÁGICA PARA PARCHAR LA BD EN RENDER ---
+Route::get('/fix-bd-urgente', function () {
+    try {
+        $dbName = DB::connection('tenant')->getDatabaseName();
+        $schema = str_contains($dbName, 'credintegra') ? 'credintegra_db' : 
+                 (str_contains($dbName, 'crediticia') ? 'facturame_db' : 'public');
+
+        // 1. Parche para la columna fecha_timbrado en nominas_timbradas
+        DB::connection('tenant')->statement("ALTER TABLE \"$schema\".nominas_timbradas ADD COLUMN IF NOT EXISTS fecha_timbrado TIMESTAMP NULL");
+
+        return "<h1>¡ÉXITO TOTAL!</h1><p>Se ha creado exitosamente la columna <b>fecha_timbrado</b> en la base de datos (Esquema: <b>$schema</b>).</p>";
+    } catch (\Exception $e) {
+        return "<h1>ERROR AL PARCHAR:</h1><p>" . $e->getMessage() . "</p>";
+    }
 });
 
 // --- RUTA DE LIMPIEZA TOTAL ---
