@@ -286,35 +286,31 @@ Route::get('/fix-bd-urgente', function () {
         $schema = str_contains($dbName, 'credintegra') ? 'credintegra_db' : 
                  (str_contains($dbName, 'crediticia') ? 'facturame_db' : 'public');
 
-        // 1. Forzamos la columna requiere_garantia
-        DB::connection('tenant')->statement("ALTER TABLE \"$schema\".productos_credito ADD COLUMN IF NOT EXISTS requiere_garantia BOOLEAN DEFAULT FALSE");
+        // Agregamos todas las columnas que el nuevo código espera en la tabla creditos
+        $columnas = [
+            "folio VARCHAR(255)",
+            "nombre_credito VARCHAR(255)",
+            "sucursal_id BIGINT",
+            "cliente_id BIGINT",
+            "grupo_id BIGINT",
+            "producto_id BIGINT",
+            "plazo_solicitado INT",
+            "tasa_interes_aplicada NUMERIC(10,2)",
+            "comision_apertura_aplicada NUMERIC(10,2)",
+            "estatus VARCHAR(50) DEFAULT 'solicitado'",
+            "fecha_solicitud TIMESTAMP",
+            "fecha_aprobacion TIMESTAMP",
+            "fecha_desembolso TIMESTAMP",
+            "fecha_primer_pago TIMESTAMP",
+            "fecha_vencimiento TIMESTAMP",
+            "asesor_id BIGINT"
+        ];
 
-        // 2. Forzamos la creación de la tabla SIN el Constraint que nos está bloqueando
-        DB::connection('tenant')->statement("CREATE TABLE IF NOT EXISTS \"$schema\".credito_garantias (
-            id SERIAL PRIMARY KEY,
-            credito_id BIGINT NOT NULL,
-            tipo_garantia VARCHAR(50) NOT NULL,
-            vehiculo_documento VARCHAR(255) NULL,
-            vehiculo_tipo VARCHAR(100) NULL,
-            vehiculo_marca VARCHAR(100) NULL,
-            vehiculo_modelo VARCHAR(150) NULL,
-            vehiculo_anio VARCHAR(10) NULL,
-            vehiculo_motor VARCHAR(100) NULL,
-            vehiculo_color VARCHAR(100) NULL,
-            vehiculo_serie VARCHAR(100) NULL,
-            propiedad_documento VARCHAR(255) NULL,
-            propiedad_ubicacion VARCHAR(255) NULL,
-            propiedad_medidas TEXT NULL,
-            propiedad_superficie VARCHAR(150) NULL,
-            estatus_resguardo VARCHAR(50) DEFAULT 'En Bóveda Sucursal',
-            ubicacion_fisica VARCHAR(255) NULL, 
-            fecha_devolucion DATE NULL,
-            notas_resguardo TEXT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )");
+        foreach ($columnas as $col) {
+            DB::connection('tenant')->statement("ALTER TABLE \"$schema\".creditos ADD COLUMN IF NOT EXISTS $col");
+        }
 
-        return "<h1>¡ÉXITO TOTAL!</h1><p>Se ha parcheado exitosamente la BD para las Garantías sin bloqueos (Esquema: <b>$schema</b>).</p>";
+        return "<h1>¡ÉXITO TOTAL!</h1><p>La tabla de créditos ha sido actualizada con las nuevas columnas en el esquema: <b>$schema</b>.</p>";
     } catch (\Exception $e) {
         return "<h1>ERROR AL PARCHAR:</h1><p>" . $e->getMessage() . "</p>";
     }
