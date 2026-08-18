@@ -11,6 +11,9 @@ class NominaTimbrada extends Model
 
     protected $table = 'nominas_timbradas';
 
+    // ¡AQUÍ ESTÁ LA SOLUCIÓN! Le decimos a Laravel cómo se llama tu ID real
+    protected $primaryKey = 'id_nomina_timbrada';
+
     protected $guarded = [];
 
     /**
