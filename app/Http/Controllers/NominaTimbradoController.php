@@ -51,7 +51,6 @@ class NominaTimbradoController extends Controller
             $periodosIds = $queryPeriodos->pluck('id_periodo_lista');
 
             if ($periodosIds->isNotEmpty()) {
-                // 🔥 Agregamos 'empleado.ultimoContrato' aquí para que traiga la relación
                 $detalles = ListaRayaDetalle::with(['empleado.ultimoContrato', 'empleado.puesto', 'nominaTimbrada', 'periodo'])
                     ->whereIn('id_periodo_lista', $periodosIds)
                     ->get();
@@ -60,7 +59,6 @@ class NominaTimbradoController extends Controller
                     $emp = $det->empleado;
                     $montoNetoInterno = floatval($det->total_neto);
                     
-                    // 🔥 Rescatamos el tipo de contrato desde la relación correcta
                     $tipoContratoReal = $emp->ultimoContrato->tipo_contrato ?? 'Indeterminado';
 
                     $datos = [
@@ -99,7 +97,6 @@ class NominaTimbradoController extends Controller
                     ];
 
                     if ($modoTrabajo === 'fiscal') {
-                        // 🔥 Evaluamos con el tipo de contrato real
                         $aplicaImss = !in_array(strtolower($tipoContratoReal), ['honorarios', 'asimilados']);
 
                         if ($aplicaImss && floatval($emp->sdi) > 0) {
@@ -197,7 +194,6 @@ class NominaTimbradoController extends Controller
 
                 $sueldoBrutoBase = floatval($detalle->sueldo_mensual_historico) / 2;
                 
-                // 🔥 Rescatamos el tipo de contrato y evaluamos el IMSS
                 $tipoContratoReal = $emp->ultimoContrato->tipo_contrato ?? 'Indeterminado';
                 $aplicaImss = !in_array(strtolower($tipoContratoReal), ['honorarios', 'asimilados']);
                 
@@ -207,7 +203,6 @@ class NominaTimbradoController extends Controller
                 
                 $fiscal = $this->calculadoraImpuestos->calcularDesdeBruto($sueldoBrutoBase, $aplicaImss);
 
-                // --- MAPEO CON FORMATEO ESTRICTO DE 2 DECIMALES (Anti-Error de PHP) ---
                 $perceptionsDetails = [];
 
                 $perceptionsDetails[] = [
@@ -294,11 +289,9 @@ class NominaTimbradoController extends Controller
                     ];
                 }
 
-                $fechaTimbrado = Carbon::now()->format('Y-m-d\TH:i:s');
                 $fechaInicio = explode('_', $periodo->periodo_rango)[0];
                 $fechaFin = explode('_', $periodo->periodo_rango)[1];
                 
-                // --- REGLA SAT/IMSS PARA FECHA INICIO RELACIÓN LABORAL ---
                 if ($aplicaImss && !empty($emp->fecha_alta_imss)) {
                     $fechaBaseLaboral = $emp->fecha_alta_imss;
                 } else {
@@ -307,7 +300,6 @@ class NominaTimbradoController extends Controller
                 
                 $fechaIngresoFormat = $fechaBaseLaboral ? Carbon::parse($fechaBaseLaboral)->format('Y-m-d\TH:i:s') : $fechaInicio . 'T00:00:00';
 
-                // --- PREPARAR EMISOR DE NÓMINA ---
                 $nominaIssuer = [
                     "EmployerRegistration" => $patron->registro_patronal ?? "00000000000"
                 ];
@@ -319,12 +311,10 @@ class NominaTimbradoController extends Controller
                     $nominaIssuer["Curp"] = strtoupper(trim($patron->curp));
                 }
 
-                // Cálculo estricto de salario base y diario para 2 decimales
                 $baseSalaryFormatted = number_format($sueldoBrutoBase / 15, 2, '.', '');
                 $dailySalaryCalculated = floatval($emp->sdi) > 0 ? floatval($emp->sdi) : ($sueldoBrutoBase / 15) * 1.0452;
                 $dailySalaryFormatted = number_format($dailySalaryCalculated, 2, '.', '');
 
-                // 🔥 PAYLOAD DEFINITIVO CFDI 4.0 🔥
                 $payloadFacturama = [
                     "NameId" => "16", 
                     "ExpeditionPlace" => $patron->codigo_postal ?? "00000",
@@ -403,10 +393,10 @@ class NominaTimbradoController extends Controller
                             'facturama_id' => $facturamaData['Id'],
                             'estado_timbrado' => 'timbrado',
                             'mensaje_error_sat' => null,
-                            'fecha_timbrado' => Carbon::now(),
+                            // ¡ELIMINADO fecha_timbrado!
                             'sueldo_bruto' => $fiscal['bruto'] ?? 0,
-                            'isr_retenido' => $fiscal['isr_a_retener'] ?? 0,   // <--- AJUSTADO AQUI
-                            'imss_retenido' => $fiscal['imss'] ?? 0,           // <--- AJUSTADO AQUI
+                            'isr_retenido' => $fiscal['isr_a_retener'] ?? 0,
+                            'imss_retenido' => $fiscal['imss'] ?? 0,
                         ]
                     );
 
@@ -429,8 +419,8 @@ class NominaTimbradoController extends Controller
                         'estado_timbrado' => 'error',
                         'mensaje_error_sat' => Str::limit($e->getMessage(), 250),
                         'sueldo_bruto' => $fiscal['bruto'] ?? 0,
-                        'isr_retenido' => $fiscal['isr_a_retener'] ?? 0,       // <--- AJUSTADO AQUI
-                        'imss_retenido' => $fiscal['imss'] ?? 0,               // <--- AJUSTADO AQUI
+                        'isr_retenido' => $fiscal['isr_a_retener'] ?? 0,
+                        'imss_retenido' => $fiscal['imss'] ?? 0,
                     ]
                 );
                 $errores[] = "Error con " . $detalle->empleado->nombre_completo . ": " . $e->getMessage();
@@ -445,9 +435,6 @@ class NominaTimbradoController extends Controller
         return back()->with('success', "Se han timbrado exitosamente $timbradosCorrectos recibos de nómina.");
     }
 
-    /**
-     * Descargar PDF del Recibo de Nómina
-     */
     public function descargarPdf($id_detalle)
     {
         $nomina = NominaTimbrada::where('id_detalle_lista', $id_detalle)->firstOrFail();
@@ -456,7 +443,6 @@ class NominaTimbradoController extends Controller
             return back()->with('error', 'No se encontró el ID de Facturama para este recibo.');
         }
 
-        // Llamamos al servicio de Facturama
         $response = $this->facturama->getFile($nomina->facturama_id, 'pdf'); 
 
         if ($response->successful()) {
@@ -471,9 +457,6 @@ class NominaTimbradoController extends Controller
         return back()->with('error', 'Error al descargar el PDF desde el PAC.');
     }
 
-    /**
-     * Descargar XML del Recibo de Nómina
-     */
     public function descargarXml($id_detalle)
     {
         $nomina = NominaTimbrada::where('id_detalle_lista', $id_detalle)->firstOrFail();
