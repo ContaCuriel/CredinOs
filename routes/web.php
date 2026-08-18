@@ -286,31 +286,15 @@ Route::get('/fix-bd-urgente', function () {
         $schema = str_contains($dbName, 'credintegra') ? 'credintegra_db' : 
                  (str_contains($dbName, 'crediticia') ? 'facturame_db' : 'public');
 
-        // Agregamos todas las columnas que el nuevo código espera en la tabla creditos
-        $columnas = [
-            "folio VARCHAR(255)",
-            "nombre_credito VARCHAR(255)",
-            "sucursal_id BIGINT",
-            "cliente_id BIGINT",
-            "grupo_id BIGINT",
-            "producto_id BIGINT",
-            "plazo_solicitado INT",
-            "tasa_interes_aplicada NUMERIC(10,2)",
-            "comision_apertura_aplicada NUMERIC(10,2)",
-            "estatus VARCHAR(50) DEFAULT 'solicitado'",
-            "fecha_solicitud TIMESTAMP",
-            "fecha_aprobacion TIMESTAMP",
-            "fecha_desembolso TIMESTAMP",
-            "fecha_primer_pago TIMESTAMP",
-            "fecha_vencimiento TIMESTAMP",
-            "asesor_id BIGINT"
-        ];
+        // 1. Quitamos la restricción NOT NULL de las columnas viejas para que no estorben
+        DB::connection('tenant')->statement("ALTER TABLE \"$schema\".creditos ALTER COLUMN loanable_id DROP NOT NULL");
+        DB::connection('tenant')->statement("ALTER TABLE \"$schema\".creditos ALTER COLUMN loanable_type DROP NOT NULL");
 
-        foreach ($columnas as $col) {
-            DB::connection('tenant')->statement("ALTER TABLE \"$schema\".creditos ADD COLUMN IF NOT EXISTS $col");
-        }
+        // (Opcional, por si acaso también molestan estas)
+        DB::connection('tenant')->statement("ALTER TABLE \"$schema\".creditos ALTER COLUMN id_sucursal DROP NOT NULL");
+        DB::connection('tenant')->statement("ALTER TABLE \"$schema\".creditos ALTER COLUMN id_asesor DROP NOT NULL");
 
-        return "<h1>¡ÉXITO TOTAL!</h1><p>La tabla de créditos ha sido actualizada con las nuevas columnas en el esquema: <b>$schema</b>.</p>";
+        return "<h1>¡ÉXITO TOTAL!</h1><p>Se eliminó la restricción de las columnas viejas (loanable_id) en: <b>$schema</b>.</p>";
     } catch (\Exception $e) {
         return "<h1>ERROR AL PARCHAR:</h1><p>" . $e->getMessage() . "</p>";
     }
