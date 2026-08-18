@@ -286,10 +286,36 @@ Route::get('/fix-bd-urgente', function () {
         $schema = str_contains($dbName, 'credintegra') ? 'credintegra_db' : 
                  (str_contains($dbName, 'crediticia') ? 'facturame_db' : 'public');
 
-        // 1. Parche para la columna fecha_timbrado en nominas_timbradas
-        DB::connection('tenant')->statement("ALTER TABLE \"$schema\".nominas_timbradas ADD COLUMN IF NOT EXISTS fecha_timbrado TIMESTAMP NULL");
+        // 1. Forzamos la columna requiere_garantia
+        DB::connection('tenant')->statement("ALTER TABLE \"$schema\".productos_credito ADD COLUMN IF NOT EXISTS requiere_garantia BOOLEAN DEFAULT FALSE");
 
-        return "<h1>¡ÉXITO TOTAL!</h1><p>Se ha creado exitosamente la columna <b>fecha_timbrado</b> en la base de datos (Esquema: <b>$schema</b>).</p>";
+        // 2. Forzamos la creación de la tabla de garantías
+        DB::connection('tenant')->statement("CREATE TABLE IF NOT EXISTS \"$schema\".credito_garantias (
+            id SERIAL PRIMARY KEY,
+            credito_id BIGINT NOT NULL,
+            tipo_garantia VARCHAR(50) NOT NULL,
+            vehiculo_documento VARCHAR(255) NULL,
+            vehiculo_tipo VARCHAR(100) NULL,
+            vehiculo_marca VARCHAR(100) NULL,
+            vehiculo_modelo VARCHAR(150) NULL,
+            vehiculo_anio VARCHAR(10) NULL,
+            vehiculo_motor VARCHAR(100) NULL,
+            vehiculo_color VARCHAR(100) NULL,
+            vehiculo_serie VARCHAR(100) NULL,
+            propiedad_documento VARCHAR(255) NULL,
+            propiedad_ubicacion VARCHAR(255) NULL,
+            propiedad_medidas TEXT NULL,
+            propiedad_superficie VARCHAR(150) NULL,
+            estatus_resguardo VARCHAR(50) DEFAULT 'En Bóveda Sucursal',
+            ubicacion_fisica VARCHAR(255) NULL, 
+            fecha_devolucion DATE NULL,
+            notas_resguardo TEXT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT fk_garantia_credito FOREIGN KEY (credito_id) REFERENCES \"$schema\".creditos (id) ON DELETE CASCADE
+        )");
+
+        return "<h1>¡ÉXITO TOTAL!</h1><p>Se ha parcheado exitosamente la BD para las Garantías (Esquema: <b>$schema</b>).</p>";
     } catch (\Exception $e) {
         return "<h1>ERROR AL PARCHAR:</h1><p>" . $e->getMessage() . "</p>";
     }
