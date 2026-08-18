@@ -48,7 +48,7 @@
                         <div class="card-body p-4">
                             <h6 class="fw-bold text-primary border-bottom pb-2 mb-3">1. Parámetros del Crédito</h6>
                             
-                            {{-- FILA 1: Producto y Grupo --}}
+                            {{-- FILA 1: Producto y Nombre del Crédito (Fusionado) --}}
                             <div class="row mb-3">
                                 <div class="col-md-6">
                                     <label class="form-label fw-bold">Producto de Crédito <span class="text-danger">*</span></label>
@@ -61,9 +61,11 @@
                                         @endforeach
                                     </select>
                                 </div>
-                                <div class="col-md-6" id="div_nombre_grupo" style="display: none;">
-                                    <label class="form-label fw-bold text-purple">Nombre del Grupo Solidario <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control border-purple" name="nombre_grupo" id="nombre_grupo" value="{{ old('nombre_grupo') }}" placeholder="Ej. Ajoloapan Zum">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold text-purple">Nombre del Crédito (Identificador) <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control border-purple" name="nombre_credito" id="nombre_credito" value="{{ old('nombre_credito') }}" required placeholder="Ej. Nitzhe Neza o Norma Perez Ind">
+                                    {{-- Campo oculto por si el backend necesita forzosamente la variable "nombre_grupo" --}}
+                                    <input type="hidden" name="nombre_grupo" id="nombre_grupo">
                                 </div>
                             </div>
 
@@ -98,14 +100,6 @@
                                     </div>
                                 </div>
                             </div>
-
-                            {{-- FILA 3: Nombre del crédito --}}
-                            <div class="row">
-                                <div class="col-md-12">
-                                    <label class="form-label fw-bold">Nombre del Crédito</label>
-                                    <input type="text" class="form-control" name="nombre_credito" value="{{ old('nombre_credito') }}" placeholder="Ej. Ampliación de Negocio, Compra de Mercancía...">
-                                </div>
-                            </div>
                         </div>
                     </div>
 
@@ -120,7 +114,6 @@
                                     <label class="form-label fw-bold">Buscar Cliente en el Sistema</label>
                                     <input type="text" class="form-control form-control-lg border-success shadow-sm" id="buscador_clientes_input" placeholder="🔍 Escribe Nombre, Apellido o CURP (Mín. 3 letras)..." autocomplete="off">
                                     
-                                    {{-- Contenedor flotante para los resultados --}}
                                     <div id="resultados_clientes" class="list-group position-absolute shadow-lg w-100 mt-1" style="z-index: 1050; display: none; max-height: 250px; overflow-y: auto;"></div>
                                     
                                     <small class="text-muted mt-2 d-block"><i class="bi bi-info-circle-fill me-1"></i> Haz clic en el cliente de la lista desplegable para agregarlo a la tabla de abajo.</small>
@@ -299,28 +292,16 @@
             // --- 0. FORMATEO DE MONEDA CON COMAS ---
             function formatNumberWithCommas(value) {
                 if (!value) return '';
-                // Quitamos letras y mantenemos solo un punto decimal
                 let parts = value.toString().replace(/[^0-9.]/g, '').split('.');
-                // Le ponemos comas a la parte entera
                 parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
                 return parts.join('.');
             }
 
-            // Aplicar formato dinámico al teclear
             document.addEventListener('input', function(e) {
                 if (e.target.classList.contains('monto-formateado')) {
-                    // Quitamos las comas previas y reformateamos
                     let rawVal = e.target.value.replace(/,/g, '');
                     e.target.value = formatNumberWithCommas(rawVal);
                 }
-            });
-
-            // Limpiar comas antes de guardar en Base de Datos
-            document.getElementById('formCredito').addEventListener('submit', function() {
-                const montos = document.querySelectorAll('.monto-formateado');
-                montos.forEach(input => {
-                    input.value = input.value.replace(/,/g, '');
-                });
             });
 
             // --- 1. LÓGICA DEL BUSCADOR DE ASESORES Y SUCURSAL AUTO ---
@@ -342,23 +323,20 @@
                 }
             });
 
-            // Sincronización en tiempo real del Monto (Si es individual)
             montoGlobalInput.addEventListener('input', function() {
                 if (esIndividualGlobal) {
                     const inputsMontoIndividual = document.querySelectorAll('.monto-individual-input');
                     inputsMontoIndividual.forEach(input => {
-                        input.value = this.value; // Ya va formateado
+                        input.value = this.value;
                     });
                 }
             });
 
             // --- 2. LÓGICA DE PRODUCTO GRUPAL VS INDIVIDUAL Y GARANTÍA ---
             const productoSelect = document.getElementById('producto_id');
-            const divNombreGrupo = document.getElementById('div_nombre_grupo');
-            const inputNombreGrupo = document.getElementById('nombre_grupo');
+            
             const columnaLiderHead = document.getElementById('columna_lider_head');
             const tituloSeccionClientes = document.getElementById('titulo_seccion_clientes');
-            
             const seccionGarantia = document.getElementById('seccion_garantia');
 
             let esIndividualGlobal = false;
@@ -375,27 +353,20 @@
                 const tipo = option.getAttribute('data-tipo');
                 const requiereGarantia = option.getAttribute('data-garantia');
                 
-                // Garantía
                 if(requiereGarantia === "1" || requiereGarantia === "true") {
                     seccionGarantia.style.display = 'block';
                 } else {
                     seccionGarantia.style.display = 'none';
                 }
 
-                // Reiniciamos la tabla
                 tbodyClientes.innerHTML = '<tr id="fila_vacia_clientes"><td colspan="4" class="text-center text-muted py-4">Aún no has agregado integrantes a este crédito.</td></tr>';
                 indiceCliente = 0;
 
                 if (tipo === 'grupal') {
-                    divNombreGrupo.style.display = 'block';
-                    inputNombreGrupo.required = true;
                     columnaLiderHead.style.display = 'table-cell';
                     tituloSeccionClientes.innerHTML = '2. Integrantes del Grupo';
                     esIndividualGlobal = false;
                 } else {
-                    divNombreGrupo.style.display = 'none';
-                    inputNombreGrupo.required = false;
-                    inputNombreGrupo.value = ''; 
                     columnaLiderHead.style.display = 'none';
                     tituloSeccionClientes.innerHTML = '2. Datos del Cliente';
                     esIndividualGlobal = true;
@@ -536,14 +507,12 @@
             const contenedorCuentas = document.getElementById('contenedor_cuentas');
             const btnAgregarCuenta = document.getElementById('btnAgregarCuenta');
 
-            // Escuchador dinámico para el switch de "Usar cliente"
             contenedorCuentas.addEventListener('change', function(e) {
                 if (e.target.classList.contains('check-usar-titular')) {
                     const fila = e.target.closest('.fila-cuenta');
                     const inputTitular = fila.querySelector('.input-titular-cuenta');
 
                     if (e.target.checked) {
-                        // Buscar cliente en la tabla
                         const primerTr = document.querySelector('#tbody_clientes tr[id^="fila_cliente_"] .nombre-cliente-fila span');
                         if (primerTr) {
                             inputTitular.value = primerTr.innerText.trim();
@@ -610,6 +579,15 @@
 
             // --- 5. VALIDACIÓN FINAL ANTES DE ENVIAR ---
             document.getElementById('formCredito').addEventListener('submit', function(e) {
+                // Clonar el nombre del crédito al campo oculto de grupo por si el backend lo necesita
+                document.getElementById('nombre_grupo').value = document.getElementById('nombre_credito').value;
+
+                // Limpiar comas de todos los montos formateaados antes de enviarlos a la BD
+                const montos = document.querySelectorAll('.monto-formateado');
+                montos.forEach(input => {
+                    input.value = input.value.replace(/,/g, '');
+                });
+
                 if (asesorHidden.value === '') {
                     e.preventDefault();
                     alert('Por favor, busca y selecciona un Asesor válido de la lista desplegable.');
