@@ -405,8 +405,8 @@ class NominaTimbradoController extends Controller
                             'mensaje_error_sat' => null,
                             'fecha_timbrado' => Carbon::now(),
                             'sueldo_bruto' => $fiscal['bruto'] ?? 0,
-                            'deduccion_isr' => $fiscal['isr_a_retener'] ?? 0,
-                            'deduccion_imss' => $fiscal['imss'] ?? 0,
+                            'isr_retenido' => $fiscal['isr_a_retener'] ?? 0,   // <--- AJUSTADO AQUI
+                            'imss_retenido' => $fiscal['imss'] ?? 0,           // <--- AJUSTADO AQUI
                         ]
                     );
 
@@ -429,8 +429,8 @@ class NominaTimbradoController extends Controller
                         'estado_timbrado' => 'error',
                         'mensaje_error_sat' => Str::limit($e->getMessage(), 250),
                         'sueldo_bruto' => $fiscal['bruto'] ?? 0,
-                        'deduccion_isr' => $fiscal['isr_a_retener'] ?? 0,
-                        'deduccion_imss' => $fiscal['imss'] ?? 0,
+                        'isr_retenido' => $fiscal['isr_a_retener'] ?? 0,       // <--- AJUSTADO AQUI
+                        'imss_retenido' => $fiscal['imss'] ?? 0,               // <--- AJUSTADO AQUI
                     ]
                 );
                 $errores[] = "Error con " . $detalle->empleado->nombre_completo . ": " . $e->getMessage();
