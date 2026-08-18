@@ -286,15 +286,10 @@ Route::get('/fix-bd-urgente', function () {
         $schema = str_contains($dbName, 'credintegra') ? 'credintegra_db' : 
                  (str_contains($dbName, 'crediticia') ? 'facturame_db' : 'public');
 
-        // 1. Quitamos la restricción NOT NULL de las columnas viejas para que no estorben
-        DB::connection('tenant')->statement("ALTER TABLE \"$schema\".creditos ALTER COLUMN loanable_id DROP NOT NULL");
-        DB::connection('tenant')->statement("ALTER TABLE \"$schema\".creditos ALTER COLUMN loanable_type DROP NOT NULL");
+        // Jubilamos la columna vieja "plazo" quitándole el NOT NULL
+        DB::connection('tenant')->statement("ALTER TABLE \"$schema\".creditos ALTER COLUMN plazo DROP NOT NULL");
 
-        // (Opcional, por si acaso también molestan estas)
-        DB::connection('tenant')->statement("ALTER TABLE \"$schema\".creditos ALTER COLUMN id_sucursal DROP NOT NULL");
-        DB::connection('tenant')->statement("ALTER TABLE \"$schema\".creditos ALTER COLUMN id_asesor DROP NOT NULL");
-
-        return "<h1>¡ÉXITO TOTAL!</h1><p>Se eliminó la restricción de las columnas viejas (loanable_id) en: <b>$schema</b>.</p>";
+        return "<h1>¡ÉXITO TOTAL!</h1><p>Se eliminó la restricción de la columna vieja (plazo) en: <b>$schema</b>.</p>";
     } catch (\Exception $e) {
         return "<h1>ERROR AL PARCHAR:</h1><p>" . $e->getMessage() . "</p>";
     }
