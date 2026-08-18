@@ -55,7 +55,6 @@
                                     <select class="form-select" name="producto_id" id="producto_id" required>
                                         <option value="">Seleccione...</option>
                                         @foreach($productos as $producto)
-                                            {{-- Se asume que en el futuro agregarás 'requiere_garantia' a tu tabla de productos --}}
                                             <option value="{{ $producto->id }}" data-tipo="{{ $producto->tipo_credito }}" data-garantia="{{ $producto->requiere_garantia ?? 0 }}" @selected(old('producto_id') == $producto->id)>
                                                 {{ $producto->nombre }} ({{ ucfirst($producto->tipo_credito) }})
                                             </option>
@@ -95,7 +94,7 @@
                                     <label class="form-label fw-bold">Monto Total Solicitado ($) <span class="text-danger">*</span></label>
                                     <div class="input-group">
                                         <span class="input-group-text bg-white fw-bold">$</span>
-                                        <input type="number" step="0.01" min="1" class="form-control form-control-lg text-success fw-bold" id="monto_solicitado_global" name="monto_solicitado" value="{{ old('monto_solicitado') }}" required placeholder="0.00">
+                                        <input type="text" class="form-control form-control-lg text-success fw-bold monto-formateado" id="monto_solicitado_global" name="monto_solicitado" value="{{ old('monto_solicitado') }}" required placeholder="0.00">
                                     </div>
                                 </div>
                             </div>
@@ -103,7 +102,7 @@
                             {{-- FILA 3: Nombre del crédito --}}
                             <div class="row">
                                 <div class="col-md-12">
-                                    <label class="form-label fw-bold">Nombre del Crédito (Opcional)</label>
+                                    <label class="form-label fw-bold">Nombre del Crédito</label>
                                     <input type="text" class="form-control" name="nombre_credito" value="{{ old('nombre_credito') }}" placeholder="Ej. Ampliación de Negocio, Compra de Mercancía...">
                                 </div>
                             </div>
@@ -113,7 +112,7 @@
                     {{-- SECCIÓN 2: INTEGRANTES DEL CRÉDITO --}}
                     <div class="card border-0 shadow-sm mb-4">
                         <div class="card-body p-4">
-                            <h6 class="fw-bold text-success border-bottom pb-2 mb-3">2. Integrantes (Clientes)</h6>
+                            <h6 class="fw-bold text-success border-bottom pb-2 mb-3" id="titulo_seccion_clientes">2. Datos del Cliente</h6>
                             
                             {{-- BUSCADOR NATIVO TIPO GOOGLE --}}
                             <div class="row mb-4 bg-light p-3 rounded border">
@@ -159,14 +158,20 @@
                             </div>
 
                             <div id="contenedor_cuentas">
-                                <div class="row fila-cuenta mb-3">
+                                <div class="row fila-cuenta mb-3 bg-light p-2 rounded border">
                                     <div class="col-md-3">
                                         <label class="form-label small fw-bold">Banco <span class="text-danger">*</span></label>
                                         <input type="text" class="form-control" name="cuentas[0][banco]" required placeholder="Ej. Azteca, Inbursa...">
                                     </div>
                                     <div class="col-md-4">
-                                        <label class="form-label small fw-bold">Nombre del Titular <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" name="cuentas[0][titular]" required placeholder="Nombre completo">
+                                        <label class="form-label small fw-bold d-flex justify-content-between align-items-center">
+                                            <span>Nombre del Titular <span class="text-danger">*</span></span>
+                                            <div class="form-check form-switch mb-0" style="font-size: 0.85em;">
+                                                <input class="form-check-input check-usar-titular" type="checkbox" role="switch">
+                                                <label class="form-check-label text-muted ms-1">Usar cliente</label>
+                                            </div>
+                                        </label>
+                                        <input type="text" class="form-control input-titular-cuenta" name="cuentas[0][titular]" required placeholder="Nombre completo">
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label small fw-bold">Número de Cuenta / CLABE <span class="text-danger">*</span></label>
@@ -182,7 +187,7 @@
                         </div>
                     </div>
 
-                    {{-- SECCIÓN 4: GARANTÍAS (Aparece condicionada) --}}
+                    {{-- SECCIÓN 4: GARANTÍAS --}}
                     <div class="card border-0 shadow-sm mb-4 bg-light border-start border-danger border-4" id="seccion_garantia" style="display: none;">
                         <div class="card-body p-4">
                             <h6 class="fw-bold text-danger border-bottom border-danger pb-2 mb-3">
@@ -291,6 +296,33 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             
+            // --- 0. FORMATEO DE MONEDA CON COMAS ---
+            function formatNumberWithCommas(value) {
+                if (!value) return '';
+                // Quitamos letras y mantenemos solo un punto decimal
+                let parts = value.toString().replace(/[^0-9.]/g, '').split('.');
+                // Le ponemos comas a la parte entera
+                parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                return parts.join('.');
+            }
+
+            // Aplicar formato dinámico al teclear
+            document.addEventListener('input', function(e) {
+                if (e.target.classList.contains('monto-formateado')) {
+                    // Quitamos las comas previas y reformateamos
+                    let rawVal = e.target.value.replace(/,/g, '');
+                    e.target.value = formatNumberWithCommas(rawVal);
+                }
+            });
+
+            // Limpiar comas antes de guardar en Base de Datos
+            document.getElementById('formCredito').addEventListener('submit', function() {
+                const montos = document.querySelectorAll('.monto-formateado');
+                montos.forEach(input => {
+                    input.value = input.value.replace(/,/g, '');
+                });
+            });
+
             // --- 1. LÓGICA DEL BUSCADOR DE ASESORES Y SUCURSAL AUTO ---
             const asesorInput = document.getElementById('asesor_buscar');
             const asesorHidden = document.getElementById('asesor_id');
@@ -314,7 +346,9 @@
             montoGlobalInput.addEventListener('input', function() {
                 if (esIndividualGlobal) {
                     const inputsMontoIndividual = document.querySelectorAll('.monto-individual-input');
-                    inputsMontoIndividual.forEach(input => input.value = this.value);
+                    inputsMontoIndividual.forEach(input => {
+                        input.value = this.value; // Ya va formateado
+                    });
                 }
             });
 
@@ -323,8 +357,9 @@
             const divNombreGrupo = document.getElementById('div_nombre_grupo');
             const inputNombreGrupo = document.getElementById('nombre_grupo');
             const columnaLiderHead = document.getElementById('columna_lider_head');
+            const tituloSeccionClientes = document.getElementById('titulo_seccion_clientes');
             
-            const seccionGarantia = document.getElementById('seccion_garantia'); // NUEVO
+            const seccionGarantia = document.getElementById('seccion_garantia');
 
             let esIndividualGlobal = false;
             let indiceCliente = 0;
@@ -338,16 +373,16 @@
                 
                 const option = productoSelect.options[productoSelect.selectedIndex];
                 const tipo = option.getAttribute('data-tipo');
-                const requiereGarantia = option.getAttribute('data-garantia'); // Extraemos el atributo
+                const requiereGarantia = option.getAttribute('data-garantia');
                 
-                // Mostramos u ocultamos la sección de garantía según el producto
+                // Garantía
                 if(requiereGarantia === "1" || requiereGarantia === "true") {
                     seccionGarantia.style.display = 'block';
                 } else {
                     seccionGarantia.style.display = 'none';
                 }
 
-                // Reiniciamos la tabla de clientes por seguridad al cambiar de tipo de producto
+                // Reiniciamos la tabla
                 tbodyClientes.innerHTML = '<tr id="fila_vacia_clientes"><td colspan="4" class="text-center text-muted py-4">Aún no has agregado integrantes a este crédito.</td></tr>';
                 indiceCliente = 0;
 
@@ -355,12 +390,14 @@
                     divNombreGrupo.style.display = 'block';
                     inputNombreGrupo.required = true;
                     columnaLiderHead.style.display = 'table-cell';
+                    tituloSeccionClientes.innerHTML = '2. Integrantes del Grupo';
                     esIndividualGlobal = false;
                 } else {
                     divNombreGrupo.style.display = 'none';
                     inputNombreGrupo.required = false;
                     inputNombreGrupo.value = ''; 
                     columnaLiderHead.style.display = 'none';
+                    tituloSeccionClientes.innerHTML = '2. Datos del Cliente';
                     esIndividualGlobal = true;
                 }
             }
@@ -456,14 +493,14 @@
                 const tr = document.createElement('tr');
                 tr.id = 'fila_cliente_' + cliente.id;
                 tr.innerHTML = `
-                    <td class="fw-bold">
-                        <i class="bi bi-person-circle text-muted me-2"></i> ${cliente.text}
+                    <td class="fw-bold nombre-cliente-fila">
+                        <i class="bi bi-person-circle text-muted me-2"></i> <span>${cliente.text}</span>
                         <input type="hidden" name="clientes[${indiceCliente}][id]" value="${cliente.id}">
                     </td>
                     <td>
                         <div class="input-group input-group-sm">
                             <span class="input-group-text bg-white">$</span>
-                            <input type="number" step="0.01" min="1" class="form-control border-success monto-individual-input ${customClass}" name="clientes[${indiceCliente}][monto]" required placeholder="0.00" value="${montoValue}" ${readOnlyAtr}>
+                            <input type="text" class="form-control border-success monto-individual-input monto-formateado ${customClass}" name="clientes[${indiceCliente}][monto]" required placeholder="0.00" value="${montoValue}" ${readOnlyAtr}>
                         </div>
                     </td>
                     <td class="text-center col-lider-body" style="display: ${displayLider};">
@@ -494,22 +531,56 @@
                 }
             });
 
-            // --- 4. LÓGICA PARA CUENTAS BANCARIAS DINÁMICAS ---
+            // --- 4. LÓGICA PARA CUENTAS BANCARIAS Y AUTOCOMPLETADO ---
             let indiceCuenta = 1;
             const contenedorCuentas = document.getElementById('contenedor_cuentas');
             const btnAgregarCuenta = document.getElementById('btnAgregarCuenta');
 
+            // Escuchador dinámico para el switch de "Usar cliente"
+            contenedorCuentas.addEventListener('change', function(e) {
+                if (e.target.classList.contains('check-usar-titular')) {
+                    const fila = e.target.closest('.fila-cuenta');
+                    const inputTitular = fila.querySelector('.input-titular-cuenta');
+
+                    if (e.target.checked) {
+                        // Buscar cliente en la tabla
+                        const primerTr = document.querySelector('#tbody_clientes tr[id^="fila_cliente_"] .nombre-cliente-fila span');
+                        if (primerTr) {
+                            inputTitular.value = primerTr.innerText.trim();
+                            inputTitular.setAttribute('readonly', true);
+                            inputTitular.classList.add('bg-light', 'text-muted');
+                        } else {
+                            alert("Por favor, busca y selecciona a un cliente primero en el Paso 2.");
+                            e.target.checked = false;
+                        }
+                    } else {
+                        inputTitular.value = "";
+                        inputTitular.removeAttribute('readonly');
+                        inputTitular.classList.remove('bg-light', 'text-muted');
+                    }
+                }
+            });
+
             btnAgregarCuenta.addEventListener('click', function() {
                 const divRow = document.createElement('div');
-                divRow.className = 'row fila-cuenta mb-3';
+                divRow.className = 'row fila-cuenta mb-3 bg-light p-2 rounded border mt-3';
                 divRow.innerHTML = `
                     <div class="col-md-3">
+                        <label class="form-label small fw-bold">Banco <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" name="cuentas[${indiceCuenta}][banco]" required placeholder="Ej. Azteca, Inbursa...">
                     </div>
                     <div class="col-md-4">
-                        <input type="text" class="form-control" name="cuentas[${indiceCuenta}][titular]" required placeholder="Nombre completo">
+                        <label class="form-label small fw-bold d-flex justify-content-between align-items-center">
+                            <span>Nombre del Titular <span class="text-danger">*</span></span>
+                            <div class="form-check form-switch mb-0" style="font-size: 0.85em;">
+                                <input class="form-check-input check-usar-titular" type="checkbox" role="switch">
+                                <label class="form-check-label text-muted ms-1">Usar cliente</label>
+                            </div>
+                        </label>
+                        <input type="text" class="form-control input-titular-cuenta" name="cuentas[${indiceCuenta}][titular]" required placeholder="Nombre completo">
                     </div>
                     <div class="col-md-4">
+                        <label class="form-label small fw-bold">Número de Cuenta / CLABE <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" name="cuentas[${indiceCuenta}][cuenta]" required placeholder="18 dígitos o cuenta">
                     </div>
                     <div class="col-md-1 d-flex align-items-end">
