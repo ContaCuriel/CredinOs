@@ -255,8 +255,8 @@
                     <h5 class="modal-title fw-bold" id="modalAprobarLabel"><i class="bi bi-ui-checks me-2"></i>Dictamen de Aprobación</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                {{-- Enviaremos esto a la ruta de aprobación que programaremos --}}
-                <form action="#" method="POST" id="formAprobarCredito">
+                {{-- AQUÍ ESTÁ EL CAMBIO: Ya apunta a tu nueva ruta creditos.aprobar --}}
+                <form action="{{ route('creditos.aprobar', $credito->id) }}" method="POST" id="formAprobarCredito">
                     @csrf
                     <div class="modal-body bg-light p-4">
                         
@@ -298,7 +298,6 @@
                                 <label class="form-label small fw-bold">Comisión (%)</label>
                                 <input type="number" step="0.01" class="form-control" name="comision_apertura" id="modal_comision" value="{{ $credito->comision_apertura_aplicada }}" required>
                             </div>
-                            {{-- AQUÍ ESTÁ EL NUEVO CAMPO EDITABLE DE RETENCIÓN --}}
                             <div class="col-md-3">
                                 <label class="form-label small fw-bold">Retención Seguro ($)</label>
                                 <input type="number" step="0.01" class="form-control text-danger" name="retencion_seguro" id="modal_retencion_seguro" value="{{ $penalizacionSugerida }}" required>
@@ -337,7 +336,8 @@
                         <button type="button" class="btn btn-outline-danger fw-bold"><i class="bi bi-x-circle me-1"></i> Rechazar Crédito</button>
                         <div>
                             <button type="button" class="btn btn-light border me-2" data-bs-dismiss="modal">Cancelar</button>
-                            <button type="button" class="btn btn-success fw-bold px-4"><i class="bi bi-check-lg me-1"></i> Confirmar Aprobación</button>
+                            {{-- AQUÍ ESTÁ EL OTRO CAMBIO: El type ahora es 'submit' --}}
+                            <button type="submit" class="btn btn-success fw-bold px-4"><i class="bi bi-check-lg me-1"></i> Confirmar Aprobación</button>
                         </div>
                     </div>
                 </form>

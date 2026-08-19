@@ -229,4 +229,45 @@ class CreditoController extends Controller
             return back()->with('error', 'Error al eliminar: ' . $e->getMessage());
         }
     }
+
+    public function aprobar(Request $request, $id)
+    {
+        $request->validate([
+            'monto_aprobado' => 'required|numeric|min:1',
+            'comision_apertura' => 'required|numeric|min:0',
+            'retencion_seguro' => 'required|numeric|min:0',
+            'patron_id' => 'required|exists:patrones,id_patron',
+            'fecha_primer_pago' => 'required|date',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $credito = Credito::findOrFail($id);
+
+            // Validamos que no intenten aprobar algo que ya fue aprobado
+            if ($credito->estatus != 'solicitado') {
+                return back()->with('error', 'El crédito ya no se encuentra en estatus de solicitud.');
+            }
+
+            // Actualizamos los datos financieros y cambiamos el estatus
+            $credito->update([
+                'monto_aprobado' => $request->monto_aprobado,
+                'plazo_aprobado' => $credito->plazo_solicitado, // El plazo dijimos que era intocable
+                'comision_apertura_aplicada' => $request->comision_apertura,
+                'retencion_seguro_aplicada' => $request->retencion_seguro,
+                'patron_id' => $request->patron_id,
+                'fecha_primer_pago' => $request->fecha_primer_pago,
+                'fecha_aprobacion' => now(),
+                'estatus' => 'aprobado',
+            ]);
+
+            DB::commit();
+            return redirect()->route('creditos.show', $credito->id)->with('success', '¡Crédito dictaminado y APROBADO exitosamente! Se han liberado los documentos.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Error al aprobar el crédito: ' . $e->getMessage());
+        }
+    }
 }

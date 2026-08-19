@@ -106,7 +106,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('groups', GroupController::class);
     Route::post('/groups/{group}/add-member', [GroupController::class, 'addMember'])->name('groups.members.add');
     Route::post('/groups/{group}/remove-member/{client}', [GroupController::class, 'removeMember'])->name('groups.members.remove');
-
+    Route::post('/creditos/{id}/aprobar', [App\Http\Controllers\CreditoController::class, 'aprobar'])->name('creditos.aprobar');
     Route::resource('creditos', CreditoController::class);
 
     // --- RECURSOS HUMANOS ---
@@ -286,17 +286,12 @@ Route::get('/fix-bd-urgente', function () {
         $schema = str_contains($dbName, 'credintegra') ? 'credintegra_db' : 
                  (str_contains($dbName, 'crediticia') ? 'facturame_db' : 'public');
 
-        // Columnas para el Producto
-        DB::connection('tenant')->statement("ALTER TABLE \"$schema\".productos_credito ADD COLUMN IF NOT EXISTS requiere_seguro BOOLEAN DEFAULT FALSE");
-        DB::connection('tenant')->statement("ALTER TABLE \"$schema\".productos_credito ADD COLUMN IF NOT EXISTS penalizacion_seguro NUMERIC(10,2) DEFAULT 0");
+        // Agregamos la columna para guardar la retención en el crédito
+        DB::connection('tenant')->statement("ALTER TABLE \"$schema\".creditos ADD COLUMN IF NOT EXISTS retencion_seguro_aplicada NUMERIC(10,2) DEFAULT 0");
 
-        // Columnas para la Garantía (Vehículo)
-        DB::connection('tenant')->statement("ALTER TABLE \"$schema\".credito_garantias ADD COLUMN IF NOT EXISTS tiene_seguro BOOLEAN DEFAULT FALSE");
-        DB::connection('tenant')->statement("ALTER TABLE \"$schema\".credito_garantias ADD COLUMN IF NOT EXISTS vigencia_seguro DATE NULL");
-
-        return "<h1>¡ÉXITO TOTAL!</h1><p>Columnas de seguro agregadas correctamente en: <b>$schema</b>.</p>";
+        return "<h1>¡ÉXITO!</h1><p>Columna retencion_seguro_aplicada agregada en: <b>$schema</b>.</p>";
     } catch (\Exception $e) {
-        return "<h1>ERROR AL PARCHAR:</h1><p>" . $e->getMessage() . "</p>";
+        return "<h1>ERROR:</h1><p>" . $e->getMessage() . "</p>";
     }
 });
 

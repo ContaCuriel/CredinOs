@@ -26,13 +26,15 @@ class Credito extends Model
         'plazo_aprobado',
         'tasa_interes_aplicada',
         'comision_apertura_aplicada',
+        'retencion_seguro_aplicada', // <-- Agregado para guardar el cobro del seguro
         'estatus',
         'fecha_solicitud',
         'fecha_aprobacion',
         'fecha_desembolso',
         'fecha_primer_pago',
         'fecha_vencimiento',
-        'asesor_id'
+        'asesor_id',
+        'patron_id' // <-- Agregado para guardar a la empresa emisora
     ];
 
     protected $casts = [
@@ -40,6 +42,7 @@ class Credito extends Model
         'monto_aprobado' => 'float',
         'tasa_interes_aplicada' => 'float',
         'comision_apertura_aplicada' => 'float',
+        'retencion_seguro_aplicada' => 'float', // <-- Cast a decimal
         'fecha_solicitud' => 'date',
         'fecha_aprobacion' => 'date',
         'fecha_desembolso' => 'date',
