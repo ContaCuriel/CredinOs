@@ -286,10 +286,31 @@ Route::get('/fix-bd-urgente', function () {
         $schema = str_contains($dbName, 'credintegra') ? 'credintegra_db' : 
                  (str_contains($dbName, 'crediticia') ? 'facturame_db' : 'public');
 
-        // Jubilamos la columna vieja "plazo" quitándole el NOT NULL
-        DB::connection('tenant')->statement("ALTER TABLE \"$schema\".creditos ALTER COLUMN plazo DROP NOT NULL");
+        // Lista de columnas viejas que vamos a jubilar (quitarles el NOT NULL)
+        $columnasViejas = [
+            'tasa_interes',
+            'monto',
+            'comision_apertura',
+            'frecuencia_pago',
+            'estado_credito',
+            'fecha_pago'
+        ];
 
-        return "<h1>¡ÉXITO TOTAL!</h1><p>Se eliminó la restricción de la columna vieja (plazo) en: <b>$schema</b>.</p>";
+        $mensajes = [];
+        foreach ($columnasViejas as $col) {
+            try {
+                DB::connection('tenant')->statement("ALTER TABLE \"$schema\".creditos ALTER COLUMN $col DROP NOT NULL");
+                $mensajes[] = "✔️ $col jubilada.";
+            } catch (\Exception $e) {
+                $mensajes[] = "⚪ $col no encontrada o ya estaba bien.";
+            }
+        }
+
+        $htmlMensajes = implode("<br>", $mensajes);
+
+        return "<h1>¡ÉXITO TOTAL!</h1>
+                <p>Se eliminaron las restricciones viejas en: <b>$schema</b>.</p>
+                <p>$htmlMensajes</p>";
     } catch (\Exception $e) {
         return "<h1>ERROR AL PARCHAR:</h1><p>" . $e->getMessage() . "</p>";
     }
