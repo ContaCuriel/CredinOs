@@ -30,6 +30,8 @@ class ProductoCredito extends Model
         'mora_trigger',
         'mora_valor',
         'mora_calculo',
+        'requiere_seguro',
+        'penalizacion_seguro',
         'politica_acumulacion',
         'activo'
     ];

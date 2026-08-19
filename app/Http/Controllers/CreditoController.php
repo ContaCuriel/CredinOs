@@ -138,7 +138,6 @@ class CreditoController extends Controller
 
             // 6. GUARDAMOS LA GARANTÍA (SI APLICA)
             if ($producto->requiere_garantia && !empty($request->input('garantia'))) {
-                // Aquí tomamos los datos directos del request para que Laravel no los borre
                 $garantiaData = $request->input('garantia');
                 
                 $credito->garantia()->create([
@@ -151,11 +150,16 @@ class CreditoController extends Controller
                     'vehiculo_motor' => $garantiaData['vehiculo_motor'] ?? null,
                     'vehiculo_color' => $garantiaData['vehiculo_color'] ?? null,
                     'vehiculo_serie' => $garantiaData['vehiculo_serie'] ?? null,
+                    
+                    // --- AQUÍ ENTRA LO NUEVO DEL SEGURO ---
+                    'tiene_seguro' => $garantiaData['tiene_seguro'] ?? false,
+                    'vigencia_seguro' => $garantiaData['vigencia_seguro'] ?? null,
+                    // --------------------------------------
+
                     'propiedad_documento' => $garantiaData['propiedad_documento'] ?? null,
                     'propiedad_ubicacion' => $garantiaData['propiedad_ubicacion'] ?? null,
                     'propiedad_medidas' => $garantiaData['propiedad_medidas'] ?? null,
                     'propiedad_superficie' => $garantiaData['propiedad_superficie'] ?? null,
-                    // Estos empiezan por defecto:
                     'estatus_resguardo' => 'En Bóveda Sucursal',
                 ]);
             }

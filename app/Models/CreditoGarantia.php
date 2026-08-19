@@ -27,6 +27,8 @@ class CreditoGarantia extends Model
         'estatus_resguardo',
         'ubicacion_fisica',
         'fecha_devolucion',
+        'tiene_seguro',
+        'vigencia_seguro',
         'notas_resguardo'
     ];
 

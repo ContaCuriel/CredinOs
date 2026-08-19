@@ -242,6 +242,23 @@
                                         <input type="text" class="form-control font-monospace text-uppercase" name="garantia[vehiculo_serie]" placeholder="17 Caracteres">
                                     </div>
                                 </div>
+
+                                {{-- NUEVO: SECCIÓN DE SEGURO --}}
+                                <hr class="text-danger mt-4 mb-3">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold">¿Cuenta con Seguro Activo?</label>
+                                        <select class="form-select border-danger" name="garantia[tiene_seguro]" id="tiene_seguro_vehiculo">
+                                            <option value="0">No (Aplica retención si el producto lo requiere)</option>
+                                            <option value="1">Sí, seguro vigente</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6" id="div_vigencia_seguro" style="display: none;">
+                                        <label class="form-label small fw-bold">Vigencia del Seguro (Fecha de Vencimiento)</label>
+                                        <input type="date" class="form-control" name="garantia[vigencia_seguro]" id="vigencia_seguro_input">
+                                    </div>
+                                </div>
+
                             </div>
 
                             {{-- Formulario para Propiedad/Terreno --}}
@@ -390,6 +407,24 @@
                     formPropiedad.style.display = 'block';
                 }
             });
+
+            // --- 2.6 LÓGICA DE SEGURO DE VEHÍCULO ---
+            const selectSeguro = document.getElementById('tiene_seguro_vehiculo');
+            const divVigencia = document.getElementById('div_vigencia_seguro');
+            const inputVigencia = document.getElementById('vigencia_seguro_input');
+
+            if(selectSeguro) {
+                selectSeguro.addEventListener('change', function() {
+                    if(this.value === '1') {
+                        divVigencia.style.display = 'block';
+                        inputVigencia.required = true;
+                    } else {
+                        divVigencia.style.display = 'none';
+                        inputVigencia.required = false;
+                        inputVigencia.value = '';
+                    }
+                });
+            }
 
             // --- 3. NUEVO BUSCADOR DE CLIENTES NATIVO TIPO GOOGLE ---
             const inputBuscador = document.getElementById('buscador_clientes_input');

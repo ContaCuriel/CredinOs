@@ -286,10 +286,15 @@ Route::get('/fix-bd-urgente', function () {
         $schema = str_contains($dbName, 'credintegra') ? 'credintegra_db' : 
                  (str_contains($dbName, 'crediticia') ? 'facturame_db' : 'public');
 
-        // Agregamos la columna para atar el crédito a un Patrón (Empresa)
-        DB::connection('tenant')->statement("ALTER TABLE \"$schema\".creditos ADD COLUMN IF NOT EXISTS patron_id BIGINT NULL");
+        // Columnas para el Producto
+        DB::connection('tenant')->statement("ALTER TABLE \"$schema\".productos_credito ADD COLUMN IF NOT EXISTS requiere_seguro BOOLEAN DEFAULT FALSE");
+        DB::connection('tenant')->statement("ALTER TABLE \"$schema\".productos_credito ADD COLUMN IF NOT EXISTS penalizacion_seguro NUMERIC(10,2) DEFAULT 0");
 
-        return "<h1>¡ÉXITO TOTAL!</h1><p>Columna 'patron_id' agregada en: <b>$schema</b>.</p>";
+        // Columnas para la Garantía (Vehículo)
+        DB::connection('tenant')->statement("ALTER TABLE \"$schema\".credito_garantias ADD COLUMN IF NOT EXISTS tiene_seguro BOOLEAN DEFAULT FALSE");
+        DB::connection('tenant')->statement("ALTER TABLE \"$schema\".credito_garantias ADD COLUMN IF NOT EXISTS vigencia_seguro DATE NULL");
+
+        return "<h1>¡ÉXITO TOTAL!</h1><p>Columnas de seguro agregadas correctamente en: <b>$schema</b>.</p>";
     } catch (\Exception $e) {
         return "<h1>ERROR AL PARCHAR:</h1><p>" . $e->getMessage() . "</p>";
     }
