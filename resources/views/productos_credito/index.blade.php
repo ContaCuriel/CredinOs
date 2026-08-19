@@ -89,7 +89,8 @@
                                         </span>
                                     </td>
                                     <td>
-                                        <span class="badge {{ $producto->tipo_credito == 'grupal' ? 'bg-purple bg-opacity-10 text-purple border border-purple' : 'bg-info bg-opacity-10 text-info border border-info' }} rounded-pill px-3">
+                                        {{-- CORRECCIÓN DEL COLOR DEL BADGE --}}
+                                        <span class="badge {{ $producto->tipo_credito == 'grupal' ? 'bg-purple bg-opacity-10 text-purple border border-purple' : 'bg-info bg-opacity-10 text-dark border border-info' }} rounded-pill px-3">
                                             {{ ucfirst($producto->tipo_credito) }}
                                         </span>
                                         <div class="small text-muted mt-1">

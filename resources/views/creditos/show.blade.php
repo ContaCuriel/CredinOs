@@ -189,6 +189,25 @@
                                     <span class="fw-bold">{{ $credito->garantia->vehiculo_documento }}</span>
                                 </div>
                             </div>
+                            
+                            {{-- AQUÍ ENTRAMOS CON LA PARTE DEL SEGURO --}}
+                            @if($credito->producto->requiere_seguro)
+                                <div class="row mt-3 pt-3 border-top">
+                                    <div class="col-md-12">
+                                        <span class="small text-muted d-block fw-bold mb-2"><i class="bi bi-shield-check me-1"></i>Estatus de Seguro (Requerido)</span>
+                                        @if($credito->garantia->tiene_seguro)
+                                            <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 border border-success">
+                                                <i class="bi bi-check-circle-fill me-1"></i> Seguro Vigente hasta {{ \Carbon\Carbon::parse($credito->garantia->vigencia_seguro)->format('d/m/Y') }}
+                                            </span>
+                                        @else
+                                            <span class="badge bg-danger bg-opacity-10 text-danger px-3 py-2 border border-danger">
+                                                <i class="bi bi-x-circle-fill me-1"></i> Sin Seguro (Se sugiere aplicar penalización)
+                                            </span>
+                                        @endif
+                                    </div>
+                                </div>
+                            @endif
+
                         @else
                             <div class="row">
                                 <div class="col-md-12 mb-2">
@@ -241,6 +260,20 @@
                     @csrf
                     <div class="modal-body bg-light p-4">
                         
+                        {{-- Alerta Automática de Seguro en el Modal --}}
+                        @php
+                            $penalizacionSugerida = 0;
+                            if($credito->producto->requiere_seguro && $credito->garantia && !$credito->garantia->tiene_seguro) {
+                                $penalizacionSugerida = $credito->producto->penalizacion_seguro;
+                            }
+                        @endphp
+
+                        @if($penalizacionSugerida > 0)
+                            <div class="alert alert-danger py-2 small mb-3 border-danger">
+                                <i class="bi bi-exclamation-triangle-fill me-1"></i> El vehículo no cuenta con seguro. Se agregó una retención de <b>${{ number_format($penalizacionSugerida, 2) }}</b> por defecto (puedes perdonarla cambiando el valor a 0 en la casilla de abajo).
+                            </div>
+                        @endif
+
                         {{-- Parámetros Bloqueados --}}
                         <h6 class="fw-bold text-muted border-bottom pb-2 mb-3">Parámetros Intocables</h6>
                         <div class="row mb-4">
@@ -257,16 +290,21 @@
                         {{-- Parámetros Editables --}}
                         <h6 class="fw-bold text-success border-bottom pb-2 mb-3">Parámetros Financieros (Editables)</h6>
                         <div class="row mb-3">
-                            <div class="col-md-4">
-                                <label class="form-label small fw-bold">Monto a Autorizar ($)</label>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold">Monto Autorizar ($)</label>
                                 <input type="number" step="0.01" class="form-control fw-bold text-primary" name="monto_aprobado" id="modal_monto" value="{{ $credito->monto_solicitado }}" required>
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label small fw-bold">Comisión Apertura (%)</label>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold">Comisión (%)</label>
                                 <input type="number" step="0.01" class="form-control" name="comision_apertura" id="modal_comision" value="{{ $credito->comision_apertura_aplicada }}" required>
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label small fw-bold text-success">Total a Fondear (A depositar)</label>
+                            {{-- AQUÍ ESTÁ EL NUEVO CAMPO EDITABLE DE RETENCIÓN --}}
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold">Retención Seguro ($)</label>
+                                <input type="number" step="0.01" class="form-control text-danger" name="retencion_seguro" id="modal_retencion_seguro" value="{{ $penalizacionSugerida }}" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-success">Total a Fondear</label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-success text-white fw-bold">$</span>
                                     <input type="text" class="form-control fw-bold bg-white text-success" id="modal_fondeo" readonly>
@@ -313,21 +351,27 @@
         document.addEventListener('DOMContentLoaded', function () {
             const inputMonto = document.getElementById('modal_monto');
             const inputComision = document.getElementById('modal_comision');
+            const inputRetencionSeguro = document.getElementById('modal_retencion_seguro');
             const inputFondeo = document.getElementById('modal_fondeo');
 
-            if (inputMonto && inputComision && inputFondeo) {
+            if (inputMonto && inputComision && inputFondeo && inputRetencionSeguro) {
                 function calcularFondeo() {
                     let monto = parseFloat(inputMonto.value) || 0;
                     let comisionPct = parseFloat(inputComision.value) || 0;
+                    let retencionSeg = parseFloat(inputRetencionSeguro.value) || 0;
                     
                     let comisionEfectiva = monto * (comisionPct / 100);
-                    let aFondear = monto - comisionEfectiva;
+                    
+                    // Restamos la comisión y lo que el gerente haya decidido dejar en la casilla de retención de seguro
+                    let aFondear = monto - comisionEfectiva - retencionSeg;
                     
                     inputFondeo.value = aFondear.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 }
 
+                // Escuchamos los cambios en los 3 campos
                 inputMonto.addEventListener('input', calcularFondeo);
                 inputComision.addEventListener('input', calcularFondeo);
+                inputRetencionSeguro.addEventListener('input', calcularFondeo);
                 
                 calcularFondeo();
             }
