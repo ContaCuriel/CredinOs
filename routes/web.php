@@ -286,21 +286,10 @@ Route::get('/fix-bd-urgente', function () {
         $schema = str_contains($dbName, 'credintegra') ? 'credintegra_db' : 
                  (str_contains($dbName, 'crediticia') ? 'facturame_db' : 'public');
 
-        // 1. Borramos la tabla que creamos mal en el paso anterior (para no dejar basura)
-        DB::connection('tenant')->statement("DROP TABLE IF EXISTS \"$schema\".credito_cuenta_desembolsos");
+        // Agregamos la columna para atar el crédito a un Patrón (Empresa)
+        DB::connection('tenant')->statement("ALTER TABLE \"$schema\".creditos ADD COLUMN IF NOT EXISTS patron_id BIGINT NULL");
 
-        // 2. Creamos la tabla EXACTAMENTE con los nombres que pide tu error
-        DB::connection('tenant')->statement("CREATE TABLE IF NOT EXISTS \"$schema\".credito_cuentas_desembolso (
-            id SERIAL PRIMARY KEY,
-            credito_id BIGINT NOT NULL,
-            banco VARCHAR(255) NOT NULL,
-            titular VARCHAR(255) NOT NULL,
-            numero_cuenta VARCHAR(255) NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )");
-
-        return "<h1>¡ÉXITO TOTAL!</h1><p>Se creó la tabla de cuentas bancarias exactamente como la pide el sistema en: <b>$schema</b>.</p>";
+        return "<h1>¡ÉXITO TOTAL!</h1><p>Columna 'patron_id' agregada en: <b>$schema</b>.</p>";
     } catch (\Exception $e) {
         return "<h1>ERROR AL PARCHAR:</h1><p>" . $e->getMessage() . "</p>";
     }

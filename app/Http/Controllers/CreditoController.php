@@ -25,10 +25,13 @@ class CreditoController extends Controller
 
     public function show($id)
     {
-        // Traemos el crédito con todas sus relaciones para armar la vista completa
+        // Traemos el crédito con todas sus relaciones
         $credito = Credito::with(['producto', 'asesor', 'cliente', 'grupo', 'integrantes', 'cuentasDesembolso'])->findOrFail($id);
         
-        return view('creditos.show', compact('credito'));
+        // Traemos a los patrones para el selector del Modal
+        $patrones = \App\Models\Patron::orderBy('nombre_comercial')->get();
+        
+        return view('creditos.show', compact('credito', 'patrones'));
     }
 
     public function create()

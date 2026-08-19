@@ -7,9 +7,7 @@
                 <h4 class="fw-bold mb-1 text-dark">
                     <i class="bi bi-file-earmark-text me-2 text-primary"></i>Solicitud: {{ $credito->folio }}
                 </h4>
-                <p class="text-muted mb-0">
-                    Capturado por: {{ $credito->asesor->nombre_completo ?? 'N/A' }} el {{ $credito->fecha_solicitud->format('d/m/Y') }}
-                </p>
+                <p class="text-muted"><i class="bi bi-person-badge"></i> Asesor Responsable: <b>{{ $credito->asesor->nombre_completo ?? 'Sin asignar' }}</b> | Fecha de solicitud: {{ \Carbon\Carbon::parse($credito->fecha_solicitud)->format('d/m/Y') }}</p>
             </div>
             <div class="text-end">
                 @if($credito->estatus == 'solicitado')
@@ -150,6 +148,56 @@
                     </div>
                 </div>
 
+                {{-- NUEVA SECCIÓN DE GARANTÍA --}}
+                @if($credito->garantia)
+                <div class="card border-0 shadow-sm mb-4 border-start border-danger border-4">
+                    <div class="card-header bg-white py-3">
+                        <h6 class="fw-bold text-dark mb-0"><i class="bi bi-shield-lock-fill me-2 text-danger"></i>Garantía Asociada al Crédito</h6>
+                    </div>
+                    <div class="card-body bg-light">
+                        @if($credito->garantia->tipo_garantia == 'vehiculo')
+                            <div class="row">
+                                <div class="col-md-4 mb-2">
+                                    <span class="small text-muted d-block fw-bold">Tipo de Vehículo</span>
+                                    <span class="fw-bold">{{ $credito->garantia->vehiculo_tipo }}</span>
+                                </div>
+                                <div class="col-md-4 mb-2">
+                                    <span class="small text-muted d-block fw-bold">Marca y Modelo</span>
+                                    <span class="fw-bold">{{ $credito->garantia->vehiculo_marca }} {{ $credito->garantia->vehiculo_modelo }} ({{ $credito->garantia->vehiculo_anio }})</span>
+                                </div>
+                                <div class="col-md-4 mb-2">
+                                    <span class="small text-muted d-block fw-bold">Color y Motor</span>
+                                    <span class="fw-bold">{{ $credito->garantia->vehiculo_color }} / {{ $credito->garantia->vehiculo_motor }}</span>
+                                </div>
+                                <div class="col-md-6 mt-2">
+                                    <span class="small text-muted d-block fw-bold">Número de Serie (VIN)</span>
+                                    <span class="fw-bold font-monospace text-primary">{{ $credito->garantia->vehiculo_serie }}</span>
+                                </div>
+                                <div class="col-md-6 mt-2">
+                                    <span class="small text-muted d-block fw-bold">Documento Amparador</span>
+                                    <span class="fw-bold">{{ $credito->garantia->vehiculo_documento }}</span>
+                                </div>
+                            </div>
+                        @else
+                            <div class="row">
+                                <div class="col-md-12 mb-2">
+                                    <span class="small text-muted d-block fw-bold">Ubicación de la Propiedad</span>
+                                    <span class="fw-bold">{{ $credito->garantia->propiedad_ubicacion }}</span>
+                                </div>
+                                <div class="col-md-6 mt-2">
+                                    <span class="small text-muted d-block fw-bold">Superficie Total</span>
+                                    <span class="fw-bold">{{ $credito->garantia->propiedad_superficie }}</span>
+                                </div>
+                                <div class="col-md-6 mt-2">
+                                    <span class="small text-muted d-block fw-bold">Documento Amparador</span>
+                                    <span class="fw-bold">{{ $credito->garantia->propiedad_documento }}</span>
+                                </div>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+                @endif
+
                 {{-- ZONA DE AUTORIZACIÓN (FASE 2 PREPARACIÓN) --}}
                 @if($credito->estatus == 'solicitado')
                 <div class="card border-0 shadow-sm border-start border-warning border-4 bg-light">
@@ -157,8 +205,8 @@
                         <h5 class="fw-bold text-dark mb-3">Zona de Autorización de Crédito</h5>
                         <p class="text-muted">Como jefe de administración, revisa los datos capturados. Si todo está correcto, procede a dictaminar el crédito.</p>
                         
-                        <button class="btn btn-warning fw-bold text-dark px-4 shadow-sm" disabled>
-                            <i class="bi bi-shield-check me-2"></i> Aprobar Crédito (Módulo en Construcción)
+                        <button type="button" class="btn btn-warning fw-bold text-dark px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalAprobarCredito">
+                            <i class="bi bi-check-circle-fill me-2"></i> Dictaminar / Aprobar Crédito
                         </button>
                     </div>
                 </div>
@@ -167,4 +215,112 @@
             </div>
         </div>
     </div>
+
+    {{-- MODAL DE APROBACIÓN DE CRÉDITO --}}
+    @if($credito->estatus == 'solicitado')
+    <div class="modal fade" id="modalAprobarCredito" tabindex="-1" aria-labelledby="modalAprobarLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title fw-bold" id="modalAprobarLabel"><i class="bi bi-ui-checks me-2"></i>Dictamen de Aprobación</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                {{-- Enviaremos esto a la ruta de aprobación que programaremos --}}
+                <form action="#" method="POST" id="formAprobarCredito">
+                    @csrf
+                    <div class="modal-body bg-light p-4">
+                        
+                        {{-- Parámetros Bloqueados --}}
+                        <h6 class="fw-bold text-muted border-bottom pb-2 mb-3">Parámetros Intocables</h6>
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Plazo Autorizado</label>
+                                <input type="text" class="form-control bg-light text-muted" value="{{ $credito->plazo_solicitado }} Cuotas" readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Tasa de Interés Aplicada</label>
+                                <input type="text" class="form-control bg-light text-muted" value="{{ $credito->tasa_interes_aplicada }}%" readonly>
+                            </div>
+                        </div>
+
+                        {{-- Parámetros Editables --}}
+                        <h6 class="fw-bold text-success border-bottom pb-2 mb-3">Parámetros Financieros (Editables)</h6>
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold">Monto a Autorizar ($)</label>
+                                <input type="number" step="0.01" class="form-control fw-bold text-primary" name="monto_aprobado" id="modal_monto" value="{{ $credito->monto_solicitado }}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold">Comisión Apertura (%)</label>
+                                <input type="number" step="0.01" class="form-control" name="comision_apertura" id="modal_comision" value="{{ $credito->comision_apertura_aplicada }}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold text-success">Total a Fondear (A depositar)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-success text-white fw-bold">$</span>
+                                    <input type="text" class="form-control fw-bold bg-white text-success" id="modal_fondeo" readonly>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Documentación y Fechas --}}
+                        <h6 class="fw-bold text-primary border-bottom pb-2 mb-3 mt-4">Emisión y Cobranza</h6>
+                        <div class="row mb-3">
+                            <div class="col-md-7">
+                                <label class="form-label small fw-bold">Empresa Emisora (Contrato a nombre de:) <span class="text-danger">*</span></label>
+                                <select class="form-select" name="patron_id" required>
+                                    <option value="">Seleccione un Patrón...</option>
+                                    @if(isset($patrones))
+                                        @foreach($patrones as $patron)
+                                            <option value="{{ $patron->id_patron }}">{{ $patron->nombre_comercial }} - {{ $patron->razon_social }}</option>
+                                        @endforeach
+                                    @endif
+                                </select>
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label small fw-bold">Fecha de Primer Pago <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" name="fecha_primer_pago" required>
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="modal-footer d-flex justify-content-between bg-white">
+                        <button type="button" class="btn btn-outline-danger fw-bold"><i class="bi bi-x-circle me-1"></i> Rechazar Crédito</button>
+                        <div>
+                            <button type="button" class="btn btn-light border me-2" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="button" class="btn btn-success fw-bold px-4"><i class="bi bi-check-lg me-1"></i> Confirmar Aprobación</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    @push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const inputMonto = document.getElementById('modal_monto');
+            const inputComision = document.getElementById('modal_comision');
+            const inputFondeo = document.getElementById('modal_fondeo');
+
+            if (inputMonto && inputComision && inputFondeo) {
+                function calcularFondeo() {
+                    let monto = parseFloat(inputMonto.value) || 0;
+                    let comisionPct = parseFloat(inputComision.value) || 0;
+                    
+                    let comisionEfectiva = monto * (comisionPct / 100);
+                    let aFondear = monto - comisionEfectiva;
+                    
+                    inputFondeo.value = aFondear.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                }
+
+                inputMonto.addEventListener('input', calcularFondeo);
+                inputComision.addEventListener('input', calcularFondeo);
+                
+                calcularFondeo();
+            }
+        });
+    </script>
+    @endpush
 </x-app-layout>

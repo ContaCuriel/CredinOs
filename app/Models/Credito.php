@@ -91,4 +91,10 @@ class Credito extends Model
     { 
         return $this->hasOne(CreditoGarantia::class, 'credito_id', 'id'); 
     }
+
+    // Relación con la Empresa Emisora (Patrón)
+    public function patron()
+    {
+        return $this->belongsTo(Patron::class, 'patron_id', 'id_patron');
+    }
 }
