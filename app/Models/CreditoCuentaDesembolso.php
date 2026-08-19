@@ -20,7 +20,7 @@ class CreditoCuentaDesembolso extends Model
 
     public function credito()
     {
-        // AQUÍ ESTÁ LA SOLUCIÓN: Cambiamos 'id' por 'id_credito'
-        return $this->belongsTo(Credito::class, 'credito_id', 'id_credito');
+        // Regresado a 'id'
+        return $this->belongsTo(Credito::class, 'credito_id', 'id');
     }
 }

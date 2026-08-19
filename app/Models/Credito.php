@@ -11,8 +11,7 @@ class Credito extends Model
 
     protected $table = 'creditos';
 
-    // ¡La llave primaria real para que Laravel no se pierda!
-    protected $primaryKey = 'id_credito';
+    // ¡ELIMINADO el override de primaryKey porque la base de datos SÍ usa 'id'!
 
     protected $fillable = [
         'folio',
@@ -48,42 +47,38 @@ class Credito extends Model
         'fecha_vencimiento' => 'date',
     ];
 
-    // Relación con el Cliente (Si es individual)
     public function cliente()
     {
         return $this->belongsTo(Cliente::class, 'cliente_id', 'id_cliente');
     }
 
-    // Relación con el Grupo (Si es grupal)
     public function grupo()
     {
         return $this->belongsTo(Grupo::class, 'grupo_id', 'id');
     }
 
-    // Relación con el Producto de Crédito
     public function producto()
     {
         return $this->belongsTo(ProductoCredito::class, 'producto_id', 'id');
     }
 
-    // Relación con el Asesor que originó el crédito
     public function asesor()
     {
         return $this->belongsTo(Empleado::class, 'asesor_id', 'id_empleado');
     }
 
-    // Integrantes del crédito (Tabla pivote credito_clientes)
+    // Integrantes del crédito (Regresado a su estado original limpio)
     public function integrantes()
     {
-        return $this->belongsToMany(Cliente::class, 'credito_clientes', 'credito_id', 'cliente_id', 'id_credito', 'id_cliente')
+        return $this->belongsToMany(Cliente::class, 'credito_clientes', 'credito_id', 'cliente_id')
                     ->withPivot('es_lider', 'monto_individual')
                     ->withTimestamps();
     }
 
-    // Cuentas bancarias de desembolso
+    // Cuentas bancarias de desembolso (Regresado a 'id')
     public function cuentasDesembolso()
     {
-        return $this->hasMany(CreditoCuentaDesembolso::class, 'credito_id', 'id_credito');
+        return $this->hasMany(CreditoCuentaDesembolso::class, 'credito_id', 'id');
     }
 
     public function sucursal()
@@ -91,8 +86,9 @@ class Credito extends Model
         return $this->belongsTo(Sucursal::class, 'sucursal_id', 'id_sucursal');
     }
 
+    // Garantía (Regresado a 'id')
     public function garantia() 
     { 
-        return $this->hasOne(CreditoGarantia::class, 'credito_id', 'id_credito'); 
+        return $this->hasOne(CreditoGarantia::class, 'credito_id', 'id'); 
     }
 }
