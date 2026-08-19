@@ -286,31 +286,31 @@ Route::get('/fix-bd-urgente', function () {
         $schema = str_contains($dbName, 'credintegra') ? 'credintegra_db' : 
                  (str_contains($dbName, 'crediticia') ? 'facturame_db' : 'public');
 
-        // Lista de columnas viejas que vamos a jubilar (quitarles el NOT NULL)
-        $columnasViejas = [
-            'tasa_interes',
-            'monto',
-            'comision_apertura',
-            'frecuencia_pago',
-            'estado_credito',
-            'fecha_pago'
-        ];
+        // 1. Renombramos la tabla a plural
+        DB::connection('tenant')->statement("ALTER TABLE IF EXISTS \"$schema\".credito_cliente RENAME TO credito_clientes");
 
-        $mensajes = [];
-        foreach ($columnasViejas as $col) {
-            try {
-                DB::connection('tenant')->statement("ALTER TABLE \"$schema\".creditos ALTER COLUMN $col DROP NOT NULL");
-                $mensajes[] = "✔️ $col jubilada.";
-            } catch (\Exception $e) {
-                $mensajes[] = "⚪ $col no encontrada o ya estaba bien.";
-            }
+        // 2. Renombramos la columna al español como la espera el sistema
+        try {
+            DB::connection('tenant')->statement("ALTER TABLE \"$schema\".credito_clientes RENAME COLUMN individual_amount TO monto_individual");
+        } catch (\Exception $e) {
+            // Lo ignoramos si ya se llamaba así
         }
 
-        $htmlMensajes = implode("<br>", $mensajes);
+        // 3. Agregamos la columna para saber quién es el líder
+        DB::connection('tenant')->statement("ALTER TABLE \"$schema\".credito_clientes ADD COLUMN IF NOT EXISTS es_lider BOOLEAN DEFAULT FALSE");
 
-        return "<h1>¡ÉXITO TOTAL!</h1>
-                <p>Se eliminaron las restricciones viejas en: <b>$schema</b>.</p>
-                <p>$htmlMensajes</p>";
+        // 4. Creamos la tabla de cuentas bancarias (esa sí es seguro que no existe)
+        DB::connection('tenant')->statement("CREATE TABLE IF NOT EXISTS \"$schema\".credito_cuenta_desembolsos (
+            id SERIAL PRIMARY KEY,
+            credito_id BIGINT NOT NULL,
+            banco VARCHAR(255) NOT NULL,
+            titular VARCHAR(255) NOT NULL,
+            cuenta VARCHAR(255) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )");
+
+        return "<h1>¡ÉXITO TOTAL!</h1><p>Se sincronizó la tabla 'credito_clientes' y se preparó la de cuentas en: <b>$schema</b>.</p>";
     } catch (\Exception $e) {
         return "<h1>ERROR AL PARCHAR:</h1><p>" . $e->getMessage() . "</p>";
     }
