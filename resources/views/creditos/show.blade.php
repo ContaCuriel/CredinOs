@@ -17,9 +17,20 @@
                 @elseif($credito->estatus == 'desembolsado')
                     <span class="badge bg-success fs-6 px-3 py-2"><i class="bi bi-cash me-1"></i> Crédito Activo</span>
                 @endif
-                <a href="{{ route('creditos.index') }}" class="btn btn-outline-secondary ms-3">
-                    <i class="bi bi-arrow-left me-1"></i> Regresar
-                </a>
+                <div class="d-flex align-items-center ms-3">
+                    @if($credito->estatus == 'solicitado')
+                    <form action="{{ route('creditos.destroy', $credito->id_credito) }}" method="POST" onsubmit="return confirm('¿Estás seguro de eliminar completamente esta solicitud? Esta acción no se puede deshacer.');">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-outline-danger me-2 shadow-sm">
+                            <i class="bi bi-trash3-fill me-1"></i> Eliminar Solicitud
+                        </button>
+                    </form>
+                    @endif
+                    <a href="{{ route('creditos.index') }}" class="btn btn-outline-secondary shadow-sm">
+                        <i class="bi bi-arrow-left me-1"></i> Regresar
+                    </a>
+                </div>
             </div>
         </div>
 

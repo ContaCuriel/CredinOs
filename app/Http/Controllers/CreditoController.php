@@ -25,12 +25,10 @@ class CreditoController extends Controller
 
     public function show($id)
     {
-        // Traemos el crédito con todas sus relaciones
-        $credito = Credito::with(['producto', 'asesor', 'cliente', 'grupo', 'integrantes', 'cuentasDesembolso'])->findOrFail($id);
+        // Agregamos 'garantia' al final de esta lista
+        $credito = Credito::with(['producto', 'asesor', 'cliente', 'grupo', 'integrantes', 'cuentasDesembolso', 'garantia'])->findOrFail($id);
         
-        // Traemos a los patrones para el selector del Modal
         $patrones = \App\Models\Patron::orderBy('nombre_comercial')->get();
-        
         return view('creditos.show', compact('credito', 'patrones'));
     }
 
@@ -137,10 +135,11 @@ class CreditoController extends Controller
                 ]);
             }
 
+
             // 6. GUARDAMOS LA GARANTÍA (SI APLICA)
-            // Revisamos si el producto exige garantía y si se mandaron datos
-            if ($producto->requiere_garantia && !empty($validated['garantia'])) {
-                $garantiaData = $validated['garantia'];
+            if ($producto->requiere_garantia && !empty($request->input('garantia'))) {
+                // Aquí tomamos los datos directos del request para que Laravel no los borre
+                $garantiaData = $request->input('garantia');
                 
                 $credito->garantia()->create([
                     'tipo_garantia' => $garantiaData['tipo'],
@@ -194,5 +193,36 @@ class CreditoController extends Controller
         }
 
         return response()->json($results);
+    }
+
+    public function destroy($id)
+    {
+        try {
+            $credito = Credito::findOrFail($id);
+            
+            // Solo se pueden borrar si no han sido aprobados ni desembolsados
+            if ($credito->estatus != 'solicitado') {
+                return back()->with('error', 'No puedes eliminar un crédito que ya fue procesado.');
+            }
+
+            DB::beginTransaction();
+            
+            // Limpiamos las tablas relacionadas
+            $credito->integrantes()->detach(); // Quita a los clientes de la tabla pivote
+            $credito->cuentasDesembolso()->delete(); // Borra las cuentas
+            if($credito->garantia) {
+                $credito->garantia()->delete(); // Borra la garantía
+            }
+            
+            // Borramos el crédito
+            $credito->delete();
+            
+            DB::commit();
+            return redirect()->route('creditos.index')->with('success', '¡Solicitud eliminada y limpiada correctamente!');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Error al eliminar: ' . $e->getMessage());
+        }
     }
 }
