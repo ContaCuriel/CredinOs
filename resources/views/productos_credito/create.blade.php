@@ -50,7 +50,6 @@
                                             <label class="form-label fw-bold">Nombre del Producto <span class="text-danger">*</span></label>
                                             <input type="text" class="form-control" name="nombre" placeholder="Ej. Credi-Impulso Semanal" value="{{ old('nombre') }}" required>
                                         </div>
-                                        {{-- NUEVO CAMPO DE GARANTÍA --}}
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label fw-bold text-danger"><i class="bi bi-shield-lock-fill me-1"></i>¿Requiere Garantía? <span class="text-danger">*</span></label>
                                             <select class="form-select border-danger" name="requiere_garantia" required>
@@ -75,11 +74,11 @@
                                                 <option value="catorcenal" @selected(old('frecuencia_pago') == 'catorcenal')>Catorcenal</option>
                                                 <option value="quincenal" @selected(old('frecuencia_pago') == 'quincenal')>Quincenal</option>
                                                 <option value="mensual" @selected(old('frecuencia_pago') == 'mensual')>Mensual</option>
-                                                <option value="pago_al_final" @selected(old('frecuencia_pago') == 'pago_al_final')>Pago al Final (Capital + Interés)</option>
+                                                <option value="pago_al_final" @selected(old('frecuencia_pago') == 'pago_al_final')>Pago al Final</option>
                                             </select>
                                         </div>
                                         <div class="col-md-3 mb-3">
-                                            <label class="form-label fw-bold">Comisión por Apertura (%) <span class="text-danger">*</span></label>
+                                            <label class="form-label fw-bold">Comisión Apertura (%) <span class="text-danger">*</span></label>
                                             <div class="input-group">
                                                 <input type="number" step="0.01" min="0" class="form-control" name="cobro_comision_apertura" value="{{ old('cobro_comision_apertura', '10.00') }}" required>
                                                 <span class="input-group-text">%</span>
@@ -87,13 +86,26 @@
                                         </div>
                                         <div class="col-md-3 mb-3">
                                             <label class="form-label fw-bold">Tasa de Interés (%) <span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="tasa_interes" value="{{ old('tasa_interes', '0.00') }}" required>
+                                            <div class="input-group">
+                                                <input type="number" step="0.01" class="form-control" name="tasa_interes" value="{{ old('tasa_interes', '0.00') }}" required>
+                                                <span class="input-group-text">%</span>
+                                            </div>
                                         </div>
-                                        <div class="col-md-4 mb-3">
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
                                             <label class="form-label fw-bold">Aplicación de Tasa <span class="text-danger">*</span></label>
                                             <select class="form-select" name="tipo_tasa" required>
                                                 <option value="global" @selected(old('tipo_tasa') == 'global')>Global (Fija al Capital)</option>
                                                 <option value="saldo_insoluto" @selected(old('tipo_tasa') == 'saldo_insoluto')>Sobre Saldo Insoluto</option>
+                                            </select>
+                                        </div>
+                                        {{-- NUEVO CAMPO: REQUIERE SEGURO --}}
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label fw-bold text-info"><i class="bi bi-car-front-fill me-1"></i>¿Requiere Seguro? <span class="text-danger">*</span></label>
+                                            <select class="form-select border-info" name="requiere_seguro" required>
+                                                <option value="0" @selected(old('requiere_seguro') == '0')>No</option>
+                                                <option value="1" @selected(old('requiere_seguro') == '1')>Sí (Aplica a Vehículos)</option>
                                             </select>
                                         </div>
                                     </div>
@@ -148,26 +160,26 @@
                                     
                                     <div class="row mb-4 bg-light p-3 rounded border">
                                         <div class="col-md-4">
-                                            <label class="form-label fw-bold">Hora Límite de Pago en su día</label>
+                                            <label class="form-label fw-bold">Hora Límite de Pago</label>
                                             <input type="time" class="form-control" name="hora_maxima_pago" value="{{ old('hora_maxima_pago', '10:00') }}">
-                                            <small class="text-muted">Déjalo vacío si tienen hasta las 23:59 de su día para pagar.</small>
+                                            <small class="text-muted">Déjalo vacío si tienen hasta las 23:59.</small>
                                         </div>
                                         <div class="col-md-8">
                                             <label class="form-label fw-bold">Si rompe Multa y Mora, ¿qué cobramos?</label>
                                             <select class="form-select text-danger fw-bold" name="politica_acumulacion">
                                                 <option value="acumular" @selected(old('politica_acumulacion') == 'acumular')>Sumar ambas (Cobrar Multa + Mora)</option>
-                                                <option value="reemplazar" @selected(old('politica_acumulacion') == 'reemplazar')>Jerarquía (Si pasa al día sig, solo cobrar Mora)</option>
-                                                <option value="solo_mayor" @selected(old('politica_acumulacion') == 'solo_mayor')>Inteligente (Cobrar solo la cantidad que resulte más alta)</option>
+                                                <option value="reemplazar" @selected(old('politica_acumulacion') == 'reemplazar')>Jerarquía (Día sig, solo cobrar Mora)</option>
+                                                <option value="solo_mayor" @selected(old('politica_acumulacion') == 'solo_mayor')>Inteligente (Cobrar solo la más alta)</option>
                                             </select>
                                         </div>
                                     </div>
 
-                                    <h6 class="fw-bold mb-3 text-dark"><i class="bi bi-clock-history me-1"></i> Configuración de MULTA (Cargo Inmediato)</h6>
+                                    <h6 class="fw-bold mb-3 text-dark"><i class="bi bi-clock-history me-1"></i> Configuración de MULTA</h6>
                                     <div class="row mb-4">
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">¿Cuándo se dispara?</label>
                                             <select class="form-select" name="multa_trigger">
-                                                <option value="despues_de_hora" @selected(old('multa_trigger') == 'despues_de_hora')>Inmediato (Después de la Hora Límite)</option>
+                                                <option value="despues_de_hora" @selected(old('multa_trigger') == 'despues_de_hora')>Inmediato (Hora Límite)</option>
                                                 <option value="despues_de_dia" @selected(old('multa_trigger') == 'despues_de_dia')>Al día siguiente</option>
                                                 <option value="no_aplica" @selected(old('multa_trigger') == 'no_aplica')>No Aplica</option>
                                             </select>
@@ -187,13 +199,13 @@
                                         </div>
                                     </div>
 
-                                    <h6 class="fw-bold mb-3 text-dark"><i class="bi bi-calendar-x me-1"></i> Configuración de MORA (Interés por Atraso)</h6>
-                                    <div class="row">
+                                    <h6 class="fw-bold mb-3 text-dark"><i class="bi bi-calendar-x me-1"></i> Configuración de MORA</h6>
+                                    <div class="row mb-4">
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">¿Cuándo se dispara?</label>
                                             <select class="form-select" name="mora_trigger">
                                                 <option value="despues_de_dia" @selected(old('mora_trigger') == 'despues_de_dia')>Al día siguiente</option>
-                                                <option value="despues_de_hora" @selected(old('mora_trigger') == 'despues_de_hora')>Inmediato (Después de la Hora Límite)</option>
+                                                <option value="despues_de_hora" @selected(old('mora_trigger') == 'despues_de_hora')>Inmediato (Hora Límite)</option>
                                                 <option value="no_aplica" @selected(old('mora_trigger') == 'no_aplica')>No Aplica</option>
                                             </select>
                                         </div>
@@ -209,6 +221,19 @@
                                                 <option value="porcentaje_saldo" @selected(old('mora_calculo') == 'porcentaje_saldo')>% del Saldo Restante</option>
                                                 <option value="fijo" @selected(old('mora_calculo') == 'fijo')>Monto Fijo ($)</option>
                                             </select>
+                                        </div>
+                                    </div>
+
+                                    {{-- NUEVO BLOQUE: MULTA DE SEGURO --}}
+                                    <h6 class="fw-bold mb-3 text-info mt-4"><i class="bi bi-shield-x me-1"></i> Configuración de SEGURO (Prendarios)</h6>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Penalización / Retención por falta de seguro</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text">$</span>
+                                                <input type="number" step="0.01" class="form-control" name="penalizacion_seguro" value="{{ old('penalizacion_seguro', '0.00') }}">
+                                            </div>
+                                            <small class="text-muted">Si no tiene seguro, este monto se le descontará automáticamente de su fondeo para cubrir la póliza.</small>
                                         </div>
                                     </div>
 
