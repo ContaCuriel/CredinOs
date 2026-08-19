@@ -255,7 +255,6 @@
                     <h5 class="modal-title fw-bold" id="modalAprobarLabel"><i class="bi bi-ui-checks me-2"></i>Dictamen de Aprobación</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                {{-- AQUÍ ESTÁ EL CAMBIO: Ya apunta a tu nueva ruta creditos.aprobar --}}
                 <form action="{{ route('creditos.aprobar', $credito->id) }}" method="POST" id="formAprobarCredito">
                     @csrf
                     <div class="modal-body bg-light p-4">
@@ -331,12 +330,47 @@
                             </div>
                         </div>
 
+                        {{-- AQUÍ EMPIEZA LO NUEVO: LUGARES DE PAGO AUTORIZADOS --}}
+                        <h6 class="fw-bold text-info border-bottom pb-2 mb-3 mt-4"><i class="bi bi-wallet2 me-1"></i> Lugares de Pago Autorizados (Para el Pagaré)</h6>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Cuentas Bancarias Permitidas</label>
+                                <div class="border rounded p-2 bg-white shadow-sm" style="max-height: 140px; overflow-y: auto;">
+                                    @forelse($cuentasEmpresa ?? [] as $cuenta)
+                                        <div class="form-check mb-2 border-bottom pb-2">
+                                            <input class="form-check-input" type="checkbox" name="cuentas_pago[]" value="{{ $cuenta->id }}" id="chk_cuenta_{{ $cuenta->id }}" checked>
+                                            <label class="form-check-label small" for="chk_cuenta_{{ $cuenta->id }}">
+                                                <b>{{ $cuenta->banco }}</b> - {{ $cuenta->titular }}<br>
+                                                <span class="text-muted" style="font-size: 0.8em;">Cta: {{ $cuenta->numero_cuenta }}</span>
+                                            </label>
+                                        </div>
+                                    @empty
+                                        <span class="small text-muted">No hay cuentas bancarias registradas.</span>
+                                    @endforelse
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Cajas físicas (Sucursales) Permitidas</label>
+                                <div class="border rounded p-2 bg-white shadow-sm" style="max-height: 140px; overflow-y: auto;">
+                                    @forelse($sucursales ?? [] as $sucursal)
+                                        <div class="form-check mb-1">
+                                            <input class="form-check-input" type="checkbox" name="sucursales_pago[]" value="{{ $sucursal->id_sucursal }}" id="chk_sucursal_{{ $sucursal->id_sucursal }}" checked>
+                                            <label class="form-check-label small" for="chk_sucursal_{{ $sucursal->id_sucursal }}">
+                                                Caja Sucursal <b>{{ $sucursal->nombre_sucursal }}</b>
+                                            </label>
+                                        </div>
+                                    @empty
+                                        <span class="small text-muted">No hay sucursales registradas.</span>
+                                    @endforelse
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                     <div class="modal-footer d-flex justify-content-between bg-white">
                         <button type="button" class="btn btn-outline-danger fw-bold"><i class="bi bi-x-circle me-1"></i> Rechazar Crédito</button>
                         <div>
                             <button type="button" class="btn btn-light border me-2" data-bs-dismiss="modal">Cancelar</button>
-                            {{-- AQUÍ ESTÁ EL OTRO CAMBIO: El type ahora es 'submit' --}}
                             <button type="submit" class="btn btn-success fw-bold px-4"><i class="bi bi-check-lg me-1"></i> Confirmar Aprobación</button>
                         </div>
                     </div>

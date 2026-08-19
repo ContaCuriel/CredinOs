@@ -139,13 +139,13 @@
                         @can('ver-deducciones')<li class="nav-item"><a class="nav-link {{ request()->routeIs('deducciones.*') ? 'active' : '' }}" href="{{ route('deducciones.index') }}"><i class="bi bi-wallet2"></i> Deducciones</a></li>@endcan
                         @can('ver-lista-raya')<li class="nav-item"><a class="nav-link {{ request()->routeIs('lista_de_raya.*') ? 'active' : '' }}" href="{{ route('lista_de_raya.index') }}"><i class="bi bi-file-spreadsheet"></i> Lista de Raya</a></li>@endcan
                         {{-- 🔥 MÓDULO: TIMBRADO DE NÓMINA 🔥 --}}
-@can('ver-timbrado')
-<li class="nav-item">
-    <a class="nav-link {{ request()->routeIs('nomina.timbrado.*') ? 'active' : '' }}" href="{{ route('nomina.timbrado.index') }}">
-        <i class="bi bi-receipt-cutoff"></i> Timbrado CFDI
-    </a>
-</li>
-@endcan
+                        @can('ver-timbrado')
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('nomina.timbrado.*') ? 'active' : '' }}" href="{{ route('nomina.timbrado.index') }}">
+                                <i class="bi bi-receipt-cutoff"></i> Timbrado CFDI
+                            </a>
+                        </li>
+                        @endcan
                         @can('ver-finiquitos')<li class="nav-item"><a class="nav-link {{ request()->routeIs('finiquitos.*') ? 'active' : '' }}" href="{{ route('finiquitos.index') }}"><i class="bi bi-person-x"></i> Finiquitos y Liquidaciones</a></li>@endcan
                         @can('ver-gestion-imss')<li class="nav-item"><a class="nav-link {{ request()->routeIs('imss.*') ? 'active' : '' }}" href="{{ route('imss.index') }}"><i class="bi bi-shield-check"></i> Gestión IMSS</a></li>@endcan
                         @can('ver-renuncias')
@@ -277,6 +277,15 @@
                         <li class="nav-item">
                             <a class="nav-link {{ request()->routeIs('productos_credito.*') ? 'active' : '' }}" href="{{ route('productos_credito.index') }}">
                                 <i class="bi bi-box-seam"></i> Productos de Crédito
+                            </a>
+                        </li>
+                        @endcan
+
+                        {{-- 🔥 NUEVO BOTÓN: CUENTAS BANCARIAS 🔥 --}}
+                        @can('ver-cuentas-bancarias')
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('cuentas_bancarias.*') ? 'active' : '' }}" href="{{ route('cuentas_bancarias.index') }}">
+                                <i class="bi bi-bank"></i> Cuentas Receptores
                             </a>
                         </li>
                         @endcan

@@ -25,11 +25,15 @@ class CreditoController extends Controller
 
     public function show($id)
     {
-        // Agregamos 'garantia' al final de esta lista
+        // Traemos el crédito con todas sus relaciones
         $credito = Credito::with(['producto', 'asesor', 'cliente', 'grupo', 'integrantes', 'cuentasDesembolso', 'garantia'])->findOrFail($id);
         
+        // Traemos los catálogos para el Modal de Aprobación
         $patrones = \App\Models\Patron::orderBy('nombre_comercial')->get();
-        return view('creditos.show', compact('credito', 'patrones'));
+        $cuentasEmpresa = \App\Models\CuentaBancaria::where('activa', true)->get();
+        $sucursales = \App\Models\Sucursal::orderBy('nombre_sucursal')->get(); // O como se llame la columna en tu BD
+        
+        return view('creditos.show', compact('credito', 'patrones', 'cuentasEmpresa', 'sucursales'));
     }
 
     public function create()
@@ -238,6 +242,8 @@ class CreditoController extends Controller
             'retencion_seguro' => 'required|numeric|min:0',
             'patron_id' => 'required|exists:patrones,id_patron',
             'fecha_primer_pago' => 'required|date',
+            'cuentas_pago' => 'nullable|array',
+            'sucursales_pago' => 'nullable|array',
         ]);
 
         try {
@@ -253,7 +259,7 @@ class CreditoController extends Controller
             // Actualizamos los datos financieros y cambiamos el estatus
             $credito->update([
                 'monto_aprobado' => $request->monto_aprobado,
-                'plazo_aprobado' => $credito->plazo_solicitado, // El plazo dijimos que era intocable
+                'plazo_aprobado' => $credito->plazo_solicitado, // El plazo es intocable
                 'comision_apertura_aplicada' => $request->comision_apertura,
                 'retencion_seguro_aplicada' => $request->retencion_seguro,
                 'patron_id' => $request->patron_id,
@@ -261,6 +267,14 @@ class CreditoController extends Controller
                 'fecha_aprobacion' => now(),
                 'estatus' => 'aprobado',
             ]);
+
+            // Guardamos en la base de datos DÓNDE nos pueden pagar este crédito
+            if ($request->has('cuentas_pago')) {
+                $credito->cuentasParaPago()->sync($request->cuentas_pago);
+            }
+            if ($request->has('sucursales_pago')) {
+                $credito->sucursalesParaPago()->sync($request->sucursales_pago);
+            }
 
             DB::commit();
             return redirect()->route('creditos.show', $credito->id)->with('success', '¡Crédito dictaminado y APROBADO exitosamente! Se han liberado los documentos.');

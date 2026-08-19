@@ -76,6 +76,8 @@ class PermissionSeeder extends Seeder
                 'ver-tipos-credito', 'crear-tipos-credito', 'editar-tipos-credito', 'eliminar-tipos-credito',
                 'ver-tasas-interes', 'crear-tasas-interes', 'editar-tasas-interes', 'eliminar-tasas-interes',
                 'ver-productos-credito', 'crear-productos-credito', 'editar-productos-credito', 'eliminar-productos-credito',
+                // 🔥 NUEVOS PERMISOS PARA CUENTAS DE LA EMPRESA 🔥
+                'ver-cuentas-bancarias', 'crear-cuentas-bancarias', 'editar-cuentas-bancarias', 'eliminar-cuentas-bancarias',
             ],
             'Módulo de Prueba' => [
                 'ver-modulo-prueba',

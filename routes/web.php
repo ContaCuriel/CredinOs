@@ -276,6 +276,7 @@ Route::middleware('auth')->group(function () {
         
         Route::resource('horarios', HorarioController::class)->middleware('can:ver-horarios');
         Route::resource('categorias', CategoriaController::class)->except(['show']);
+        Route::resource('cuentas_bancarias', \App\Http\Controllers\CuentaBancariaController::class);
     });
 });
 
