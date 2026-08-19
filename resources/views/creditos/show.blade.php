@@ -19,7 +19,7 @@
                 @endif
                 <div class="d-flex align-items-center ms-3">
                     @if($credito->estatus == 'solicitado')
-                    <form action="{{ route('creditos.destroy', $credito->id_credito) }}" method="POST" onsubmit="return confirm('¿Estás seguro de eliminar completamente esta solicitud? Esta acción no se puede deshacer.');">
+                    <form action="{{ route('creditos.destroy', $credito->id) }}" method="POST" onsubmit="return confirm('¿Estás seguro de eliminar completamente esta solicitud? Esta acción no se puede deshacer.');">
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="btn btn-outline-danger me-2 shadow-sm">
