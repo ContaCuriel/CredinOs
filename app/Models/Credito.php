@@ -100,4 +100,16 @@ class Credito extends Model
     {
         return $this->belongsTo(Patron::class, 'patron_id', 'id_patron');
     }
+
+    // Dónde puede pagar el cliente (Cuentas de banco de la empresa)
+    public function cuentasParaPago()
+    {
+        return $this->belongsToMany(CuentaBancaria::class, 'credito_cuentas_pago', 'credito_id', 'cuenta_bancaria_id');
+    }
+
+    // Dónde puede pagar el cliente (Sucursales físicas / Cajas)
+    public function sucursalesParaPago()
+    {
+        return $this->belongsToMany(Sucursal::class, 'credito_sucursales_pago', 'credito_id', 'sucursal_id');
+    }
 }
