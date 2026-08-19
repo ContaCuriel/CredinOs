@@ -15,7 +15,7 @@ class ProductoCredito extends Model
         'nombre',
         'tipo_credito',
         'frecuencia_pago',
-        'cobro_comision_apertura', // <-- Nuevo campo agregado correctamente
+        'cobro_comision_apertura',
         'tasa_interes',
         'tipo_tasa',
         'plazo_minimo',
@@ -37,14 +37,16 @@ class ProductoCredito extends Model
     ];
 
     protected $casts = [
-        'cobro_comision_apertura' => 'float', // <-- Nuevo cast agregado con su coma
-        'tasa_interes' => 'float',
-        'monto_minimo' => 'float',
-        'monto_maximo' => 'float',
-        'multa_valor'  => 'float',
-        'mora_valor'   => 'float',
-        'activo'       => 'boolean',
-        'plazo_minimo' => 'integer',
-        'plazo_maximo' => 'integer',
+        'cobro_comision_apertura' => 'float',
+        'tasa_interes'            => 'float',
+        'monto_minimo'            => 'float',
+        'monto_maximo'            => 'float',
+        'multa_valor'             => 'float',
+        'mora_valor'              => 'float',
+        'penalizacion_seguro'     => 'float',   // <-- Agregado para que lo lea como moneda
+        'activo'                  => 'boolean',
+        'requiere_seguro'         => 'boolean', // <-- Agregado para que lo lea como Sí/No
+        'plazo_minimo'            => 'integer',
+        'plazo_maximo'            => 'integer',
     ];
 }

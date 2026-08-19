@@ -33,6 +33,8 @@ class ProductoCreditoController extends Controller
             'monto_minimo' => 'required|numeric|min:1',
             'monto_maximo' => 'required|numeric|gte:monto_minimo',
             'requiere_garantia' => 'required|boolean',
+            'requiere_seguro' => 'required|boolean', // <-- Nuevo campo seguro
+            'penalizacion_seguro' => 'nullable|numeric|min:0', // <-- Nuevo campo multa seguro
             
             // Castigos
             'hora_maxima_pago' => 'nullable|date_format:H:i',
@@ -52,6 +54,9 @@ class ProductoCreditoController extends Controller
             // Aseguramos que si no aplica, el valor sea 0
             if ($validatedData['multa_trigger'] == 'no_aplica') $validatedData['multa_valor'] = 0;
             if ($validatedData['mora_trigger'] == 'no_aplica') $validatedData['mora_valor'] = 0;
+            
+            // Aseguramos que la penalización no se guarde como null
+            if (empty($validatedData['penalizacion_seguro'])) $validatedData['penalizacion_seguro'] = 0;
 
             ProductoCredito::create($validatedData);
 
@@ -81,7 +86,9 @@ class ProductoCreditoController extends Controller
             'monto_minimo' => 'required|numeric|min:1',
             'monto_maximo' => 'required|numeric|gte:monto_minimo',
             'cobro_comision_apertura' => 'required|numeric|min:0',
-            'requiere_garantia' => 'required|boolean', // <-- CAMBIO AÑADIDO AQUÍ
+            'requiere_garantia' => 'required|boolean', 
+            'requiere_seguro' => 'required|boolean', // <-- Nuevo campo seguro
+            'penalizacion_seguro' => 'nullable|numeric|min:0', // <-- Nuevo campo multa seguro
             
             // Castigos
             'hora_maxima_pago' => 'nullable|date_format:H:i',
@@ -97,6 +104,9 @@ class ProductoCreditoController extends Controller
         try {
             if ($validatedData['multa_trigger'] == 'no_aplica') $validatedData['multa_valor'] = 0;
             if ($validatedData['mora_trigger'] == 'no_aplica') $validatedData['mora_valor'] = 0;
+            
+            // Aseguramos que la penalización no se guarde como null
+            if (empty($validatedData['penalizacion_seguro'])) $validatedData['penalizacion_seguro'] = 0;
 
             $productos_credito->update($validatedData);
 
