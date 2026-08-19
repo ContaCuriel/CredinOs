@@ -286,31 +286,21 @@ Route::get('/fix-bd-urgente', function () {
         $schema = str_contains($dbName, 'credintegra') ? 'credintegra_db' : 
                  (str_contains($dbName, 'crediticia') ? 'facturame_db' : 'public');
 
-        // 1. Renombramos la tabla a plural
-        DB::connection('tenant')->statement("ALTER TABLE IF EXISTS \"$schema\".credito_cliente RENAME TO credito_clientes");
+        // 1. Borramos la tabla que creamos mal en el paso anterior (para no dejar basura)
+        DB::connection('tenant')->statement("DROP TABLE IF EXISTS \"$schema\".credito_cuenta_desembolsos");
 
-        // 2. Renombramos la columna al español como la espera el sistema
-        try {
-            DB::connection('tenant')->statement("ALTER TABLE \"$schema\".credito_clientes RENAME COLUMN individual_amount TO monto_individual");
-        } catch (\Exception $e) {
-            // Lo ignoramos si ya se llamaba así
-        }
-
-        // 3. Agregamos la columna para saber quién es el líder
-        DB::connection('tenant')->statement("ALTER TABLE \"$schema\".credito_clientes ADD COLUMN IF NOT EXISTS es_lider BOOLEAN DEFAULT FALSE");
-
-        // 4. Creamos la tabla de cuentas bancarias (esa sí es seguro que no existe)
-        DB::connection('tenant')->statement("CREATE TABLE IF NOT EXISTS \"$schema\".credito_cuenta_desembolsos (
+        // 2. Creamos la tabla EXACTAMENTE con los nombres que pide tu error
+        DB::connection('tenant')->statement("CREATE TABLE IF NOT EXISTS \"$schema\".credito_cuentas_desembolso (
             id SERIAL PRIMARY KEY,
             credito_id BIGINT NOT NULL,
             banco VARCHAR(255) NOT NULL,
             titular VARCHAR(255) NOT NULL,
-            cuenta VARCHAR(255) NOT NULL,
+            numero_cuenta VARCHAR(255) NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )");
 
-        return "<h1>¡ÉXITO TOTAL!</h1><p>Se sincronizó la tabla 'credito_clientes' y se preparó la de cuentas en: <b>$schema</b>.</p>";
+        return "<h1>¡ÉXITO TOTAL!</h1><p>Se creó la tabla de cuentas bancarias exactamente como la pide el sistema en: <b>$schema</b>.</p>";
     } catch (\Exception $e) {
         return "<h1>ERROR AL PARCHAR:</h1><p>" . $e->getMessage() . "</p>";
     }
