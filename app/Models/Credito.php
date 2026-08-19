@@ -11,7 +11,7 @@ class Credito extends Model
 
     protected $table = 'creditos';
 
-    // ¡AQUÍ ESTÁ LA MAGIA! Le decimos a Laravel el nombre real
+    // ¡La llave primaria real para que Laravel no se pierda!
     protected $primaryKey = 'id_credito';
 
     protected $fillable = [
@@ -72,10 +72,9 @@ class Credito extends Model
         return $this->belongsTo(Empleado::class, 'asesor_id', 'id_empleado');
     }
 
-    // Integrantes del crédito (Tabla pivote)
+    // Integrantes del crédito (Tabla pivote credito_clientes)
     public function integrantes()
     {
-        // Se le especifica 'id_credito' y 'id_cliente' para que no mande nulls
         return $this->belongsToMany(Cliente::class, 'credito_clientes', 'credito_id', 'cliente_id', 'id_credito', 'id_cliente')
                     ->withPivot('es_lider', 'monto_individual')
                     ->withTimestamps();
@@ -84,7 +83,6 @@ class Credito extends Model
     // Cuentas bancarias de desembolso
     public function cuentasDesembolso()
     {
-        // AQUÍ ESTÁ LA SOLUCIÓN: Cambiamos 'id' por 'id_credito'
         return $this->hasMany(CreditoCuentaDesembolso::class, 'credito_id', 'id_credito');
     }
 
@@ -95,6 +93,6 @@ class Credito extends Model
 
     public function garantia() 
     { 
-        // AQUÍ ESTÁ LA SOLUCIÓN: Cambiamos 'id' por 'id_credito'
         return $this->hasOne(CreditoGarantia::class, 'credito_id', 'id_credito'); 
     }
+}
