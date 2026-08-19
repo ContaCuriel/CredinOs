@@ -72,10 +72,11 @@ class Credito extends Model
         return $this->belongsTo(Empleado::class, 'asesor_id', 'id_empleado');
     }
 
-    // Integrantes del crédito (Tabla pivote credito_clientes)
+    // Integrantes del crédito (Tabla pivote)
     public function integrantes()
     {
-        return $this->belongsToMany(Cliente::class, 'credito_clientes', 'credito_id', 'cliente_id')
+        // Se le especifica 'id_credito' y 'id_cliente' para que no mande nulls
+        return $this->belongsToMany(Cliente::class, 'credito_clientes', 'credito_id', 'cliente_id', 'id_credito', 'id_cliente')
                     ->withPivot('es_lider', 'monto_individual')
                     ->withTimestamps();
     }
@@ -83,7 +84,8 @@ class Credito extends Model
     // Cuentas bancarias de desembolso
     public function cuentasDesembolso()
     {
-        return $this->hasMany(CreditoCuentaDesembolso::class, 'credito_id', 'id');
+        // AQUÍ ESTÁ LA SOLUCIÓN: Cambiamos 'id' por 'id_credito'
+        return $this->hasMany(CreditoCuentaDesembolso::class, 'credito_id', 'id_credito');
     }
 
     public function sucursal()
@@ -91,5 +93,8 @@ class Credito extends Model
         return $this->belongsTo(Sucursal::class, 'sucursal_id', 'id_sucursal');
     }
 
-    public function garantia() { return $this->hasOne(CreditoGarantia::class, 'credito_id', 'id'); }
-}
+    public function garantia() 
+    { 
+        // AQUÍ ESTÁ LA SOLUCIÓN: Cambiamos 'id' por 'id_credito'
+        return $this->hasOne(CreditoGarantia::class, 'credito_id', 'id_credito'); 
+    }
