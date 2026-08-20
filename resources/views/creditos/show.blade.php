@@ -228,16 +228,57 @@
                 </div>
                 @endif
 
-                {{-- ZONA DE AUTORIZACIÓN (FASE 2 PREPARACIÓN) --}}
-                @if($credito->estatus == 'solicitado')
-                <div class="card border-0 shadow-sm border-start border-warning border-4 bg-light">
-                    <div class="card-body p-4 text-center">
-                        <h5 class="fw-bold text-dark mb-3">Zona de Autorización de Crédito</h5>
-                        <p class="text-muted">Como jefe de administración, revisa los datos capturados. Si todo está correcto, procede a dictaminar el crédito.</p>
+                {{-- NUEVA ZONA: TABLA DE AMORTIZACIÓN Y DOCUMENTOS (Solo visible si está aprobado o desembolsado) --}}
+                @if($credito->estatus == 'aprobado' || $credito->estatus == 'desembolsado')
+                <div class="card border-0 shadow-sm mb-4 border-start border-success border-4">
+                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                        <h6 class="fw-bold text-dark mb-0"><i class="bi bi-calculator-fill me-2 text-success"></i>Tabla de Amortización Generada</h6>
                         
-                        <button type="button" class="btn btn-warning fw-bold text-dark px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalAprobarCredito">
-                            <i class="bi bi-check-circle-fill me-2"></i> Dictaminar / Aprobar Crédito
-                        </button>
+                        {{-- BOTONES DE DOCUMENTACIÓN LEGAL (FASE 3) --}}
+                        <a href="{{ route('creditos.contrato', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm me-1" title="Imprimir Contrato">
+    <i class="bi bi-file-earmark-pdf-fill"></i> Contrato
+</a>
+                            <button class="btn btn-sm btn-outline-danger shadow-sm me-1" title="Imprimir Pagaré">
+                                <i class="bi bi-file-earmark-pdf-fill"></i> Pagaré
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger shadow-sm" title="Imprimir Tabla">
+                                <i class="bi bi-table"></i> Imprimir Tabla
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                            <table class="table table-hover table-striped align-middle mb-0 text-center small">
+                                <thead class="bg-light sticky-top">
+                                    <tr>
+                                        <th># Cuota</th>
+                                        <th>Fecha de Pago</th>
+                                        <th>Capital</th>
+                                        <th>Interés</th>
+                                        <th>IVA</th>
+                                        <th class="text-success fw-bold">Total a Pagar</th>
+                                        <th>Saldo Restante</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse($credito->amortizaciones as $cuota)
+                                    <tr>
+                                        <td class="fw-bold text-muted">{{ $cuota->numero_cuota }}</td>
+                                        <td class="fw-bold text-dark">{{ \Carbon\Carbon::parse($cuota->fecha_pago)->format('d/m/Y') }}</td>
+                                        <td>${{ number_format($cuota->capital, 2) }}</td>
+                                        <td>${{ number_format($cuota->interes, 2) }}</td>
+                                        <td>${{ number_format($cuota->iva, 2) }}</td>
+                                        <td class="text-success fw-bold bg-success bg-opacity-10">${{ number_format($cuota->total_cuota, 2) }}</td>
+                                        <td class="text-danger">${{ number_format($cuota->saldo_final, 2) }}</td>
+                                    </tr>
+                                    @empty
+                                    <tr>
+                                        <td colspan="7" class="text-center py-4 text-muted">Aún no se ha generado la tabla de amortización.</td>
+                                    </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
                 @endif

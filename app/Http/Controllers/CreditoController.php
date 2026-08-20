@@ -10,6 +10,8 @@ use App\Models\Empleado;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\Sucursal;
+use Barryvdh\DomPDF\Facade\Pdf;
+use NumberFormatter;
 
 class CreditoController extends Controller
 {
@@ -373,5 +375,46 @@ class CreditoController extends Controller
             \Illuminate\Support\Facades\DB::rollBack();
             return back()->with('error', 'Error al aprobar el crédito: ' . $e->getMessage());
         }
+    }
+
+    public function imprimirContrato($id)
+    {
+        $credito = \App\Models\Credito::with(['cliente', 'garantia', 'producto', 'patron', 'amortizaciones'])->findOrFail($id);
+
+        if (!$credito->garantia) {
+            return back()->with('error', 'El crédito no tiene una garantía registrada para generar el contrato.');
+        }
+
+        // Obtener la cuota regular (usamos la primera como referencia)
+        $primeraCuota = $credito->amortizaciones->first();
+        $cuota_monto = $primeraCuota ? $primeraCuota->total_cuota : 0;
+
+        // Obtener el día de la semana de pago (Ej. "Lunes")
+        $dia_pago = \Carbon\Carbon::parse($credito->fecha_primer_pago)->locale('es')->isoFormat('dddd');
+        
+        // Obtener el nombre de la sucursal autorizada (tomamos la primera o ponemos una por defecto)
+        $sucursal_nombre = $credito->sucursalesParaPago->first()->nombre_sucursal ?? 'TEXCOCO';
+
+        // Convertidor de números a letras (Requiere la extensión 'intl' de PHP activada)
+        $formatter = new NumberFormatter("es", NumberFormatter::SPELLOUT);
+
+        $data = [
+            'credito' => $credito,
+            'cuota_monto' => $cuota_monto,
+            'dia_pago' => ucfirst($dia_pago),
+            'sucursal_nombre' => strtoupper($sucursal_nombre),
+            
+            // Textos en letras
+            'letras_monto_aprobado' => strtoupper($formatter->format($credito->monto_aprobado)),
+            'letras_comision' => strtoupper($formatter->format($credito->comision_apertura_aplicada)),
+            'letras_cuota' => strtoupper($formatter->format($cuota_monto)),
+            'letras_multa' => strtoupper($formatter->format($credito->producto->multa_valor ?? 500)),
+            'letras_mora' => strtoupper($formatter->format($credito->producto->mora_valor ?? 1000)),
+        ];
+
+        $pdf = Pdf::loadView('creditos.pdf.contrato', $data);
+        
+        // return $pdf->download(...) para descargar directo, o stream(...) para previsualizar en el navegador
+        return $pdf->stream('Contrato_' . $credito->folio . '.pdf');
     }
 }

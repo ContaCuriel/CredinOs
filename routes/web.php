@@ -108,6 +108,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/groups/{group}/remove-member/{client}', [GroupController::class, 'removeMember'])->name('groups.members.remove');
     Route::post('/creditos/{id}/aprobar', [App\Http\Controllers\CreditoController::class, 'aprobar'])->name('creditos.aprobar');
     Route::resource('creditos', CreditoController::class);
+    Route::get('/creditos/{id}/contrato', [\App\Http\Controllers\CreditoController::class, 'imprimirContrato'])->name('creditos.contrato');
 
     // --- RECURSOS HUMANOS ---
     Route::middleware('can:ver-menu-rh')->group(function () {
