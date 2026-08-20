@@ -281,46 +281,30 @@ Route::middleware('auth')->group(function () {
 });
 
 // --- RUTA MÁGICA PARA PARCHAR LA BD EN RENDER ---
-Route::get('/fix-bd-urgente', function () {
+Route::get('/fix-bd-amortizacion', function () {
     try {
         $dbName = DB::connection('tenant')->getDatabaseName();
         $schema = str_contains($dbName, 'credintegra') ? 'credintegra_db' : 
                  (str_contains($dbName, 'crediticia') ? 'facturame_db' : 'public');
 
-        // 1. Tabla de Cuentas Bancarias de la Empresa
-        DB::connection('tenant')->statement("CREATE TABLE IF NOT EXISTS \"$schema\".cuentas_bancarias (
+        // Creamos la tabla de amortizaciones (las cuotas)
+        DB::connection('tenant')->statement("CREATE TABLE IF NOT EXISTS \"$schema\".credito_amortizaciones (
             id BIGSERIAL PRIMARY KEY,
-            banco VARCHAR(255) NOT NULL,
-            titular VARCHAR(255) NOT NULL,
-            numero_cuenta VARCHAR(255) NULL,
-            clabe VARCHAR(255) NULL,
-            activa BOOLEAN DEFAULT TRUE,
+            credito_id BIGINT NOT NULL,
+            numero_cuota INT NOT NULL,
+            fecha_pago DATE NOT NULL,
+            saldo_inicial NUMERIC(12,2) DEFAULT 0,
+            capital NUMERIC(12,2) DEFAULT 0,
+            interes NUMERIC(12,2) DEFAULT 0,
+            iva NUMERIC(12,2) DEFAULT 0,
+            total_cuota NUMERIC(12,2) DEFAULT 0,
+            saldo_final NUMERIC(12,2) DEFAULT 0,
+            estatus VARCHAR(50) DEFAULT 'pendiente', -- pendiente, pagado, atrasado, parcial
             created_at TIMESTAMP NULL,
             updated_at TIMESTAMP NULL
         )");
 
-        // 2. Tabla pivote: Crédito -> Cuentas Bancarias Permitidas
-        DB::connection('tenant')->statement("CREATE TABLE IF NOT EXISTS \"$schema\".credito_cuentas_pago (
-            credito_id BIGINT,
-            cuenta_bancaria_id BIGINT
-        )");
-
-        // 3. Tabla pivote: Crédito -> Sucursales Permitidas (Cajas físicas)
-        DB::connection('tenant')->statement("CREATE TABLE IF NOT EXISTS \"$schema\".credito_sucursales_pago (
-            credito_id BIGINT,
-            sucursal_id BIGINT
-        )");
-
-        // De paso, le metemos una cuenta de prueba para que puedas jugar ahorita mismo
-        $existe = DB::connection('tenant')->table('cuentas_bancarias')->count();
-        if($existe == 0) {
-            DB::connection('tenant')->table('cuentas_bancarias')->insert([
-                ['banco' => 'BBVA', 'titular' => 'Angeles S.A.', 'numero_cuenta' => '0123456789', 'clabe' => '012180001234567890', 'created_at' => now()],
-                ['banco' => 'BANORTE', 'titular' => 'PORALV', 'numero_cuenta' => '9876543210', 'clabe' => '072180009876543210', 'created_at' => now()]
-            ]);
-        }
-
-        return "<h1>¡ÉXITO TOTAL!</h1><p>Módulo de Cuentas Receptores creado en: <b>$schema</b>.</p>";
+        return "<h1>¡ÉXITO MATEMÁTICO!</h1><p>Tabla credito_amortizaciones creada en: <b>$schema</b>.</p>";
     } catch (\Exception $e) {
         return "<h1>ERROR:</h1><p>" . $e->getMessage() . "</p>";
     }

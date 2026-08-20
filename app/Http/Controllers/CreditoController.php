@@ -247,19 +247,19 @@ class CreditoController extends Controller
         ]);
 
         try {
-            DB::beginTransaction();
+            \Illuminate\Support\Facades\DB::beginTransaction();
 
-            $credito = Credito::findOrFail($id);
+            // Nos traemos el crédito y su producto para leer las reglas financieras
+            $credito = \App\Models\Credito::with('producto')->findOrFail($id);
 
-            // Validamos que no intenten aprobar algo que ya fue aprobado
             if ($credito->estatus != 'solicitado') {
                 return back()->with('error', 'El crédito ya no se encuentra en estatus de solicitud.');
             }
 
-            // Actualizamos los datos financieros y cambiamos el estatus
+            // 1. Actualizamos el Crédito
             $credito->update([
                 'monto_aprobado' => $request->monto_aprobado,
-                'plazo_aprobado' => $credito->plazo_solicitado, // El plazo es intocable
+                'plazo_aprobado' => $credito->plazo_solicitado, 
                 'comision_apertura_aplicada' => $request->comision_apertura,
                 'retencion_seguro_aplicada' => $request->retencion_seguro,
                 'patron_id' => $request->patron_id,
@@ -268,7 +268,7 @@ class CreditoController extends Controller
                 'estatus' => 'aprobado',
             ]);
 
-            // Guardamos en la base de datos DÓNDE nos pueden pagar este crédito
+            // 2. Guardamos Lugares de Pago autorizados
             if ($request->has('cuentas_pago')) {
                 $credito->cuentasParaPago()->sync($request->cuentas_pago);
             }
@@ -276,11 +276,101 @@ class CreditoController extends Controller
                 $credito->sucursalesParaPago()->sync($request->sucursales_pago);
             }
 
-            DB::commit();
-            return redirect()->route('creditos.show', $credito->id)->with('success', '¡Crédito dictaminado y APROBADO exitosamente! Se han liberado los documentos.');
+            // =========================================================
+            // 3. 🔥 MOTOR MATEMÁTICO INTELIGENTE DE AMORTIZACIÓN 🔥
+            // =========================================================
+            $monto = $credito->monto_aprobado;
+            $plazo = $credito->plazo_aprobado;
+            $tasaPeriodo = $credito->tasa_interes_aplicada / 100; // Ej: 5% se vuelve 0.05
+            
+            // Leemos cómo quiere el producto que le cobremos
+            $tipoTasa = strtolower($credito->producto->tipo_tasa); // 'global', 'saldos_insolutos', 'francesa'
+            $frecuencia = strtolower($credito->producto->frecuencia_pago);
+            
+            $saldoRestante = $monto;
+            $fechaPago = \Carbon\Carbon::parse($request->fecha_primer_pago);
+
+            // Si es sistema Francés (Pagos fijos iguales), calculamos la cuota maestra
+            $cuotaFrancesa = 0;
+            if ($tipoTasa == 'francesa' || $tipoTasa == 'pagos_fijos') {
+                if ($tasaPeriodo > 0) {
+                    $cuotaFrancesa = $monto * ($tasaPeriodo * pow(1 + $tasaPeriodo, $plazo)) / (pow(1 + $tasaPeriodo, $plazo) - 1);
+                } else {
+                    $cuotaFrancesa = $monto / $plazo;
+                }
+            }
+
+            // Iterador para crear cada fila de la tabla
+            for ($i = 1; $i <= $plazo; $i++) {
+                
+                $capitalCuota = 0;
+                $interesCuota = 0;
+
+                // 🧮 APLICAMOS LA FÓRMULA SEGÚN EL TIPO DE TASA
+                switch ($tipoTasa) {
+                    case 'saldos_insolutos': // Capital Fijo, Interés va bajando
+                        $capitalCuota = $monto / $plazo;
+                        $interesCuota = $saldoRestante * $tasaPeriodo;
+                        break;
+                        
+                    case 'francesa':
+                    case 'pagos_fijos': // Interés va bajando, Capital va subiendo (Pago Total siempre es igual)
+                        $interesCuota = $saldoRestante * $tasaPeriodo;
+                        $capitalCuota = $cuotaFrancesa - $interesCuota;
+                        break;
+
+                    case 'global':
+                    default: // Interés Fijo sobre el monto original inicial (El más común en microfinancieras)
+                        $capitalCuota = $monto / $plazo;
+                        $interesCuota = $monto * $tasaPeriodo;
+                        break;
+                }
+
+                // Ajuste exacto de centavos en la última cuota para evitar saldos de $0.01
+                if ($i == $plazo) {
+                    $capitalCuota = $saldoRestante; 
+                }
+
+                // Redondeos y cálculos finales de la cuota
+                $capitalCuota = round($capitalCuota, 2);
+                $interesCuota = round($interesCuota, 2);
+                $ivaCuota = round($interesCuota * 0.16, 2); // 16% de IVA sobre el interés (Ajusta si ustedes no cobran IVA)
+                $totalCuota = $capitalCuota + $interesCuota + $ivaCuota;
+
+                // Guardamos en la base de datos
+                \App\Models\CreditoAmortizacion::create([
+                    'credito_id' => $credito->id,
+                    'numero_cuota' => $i,
+                    'fecha_pago' => $fechaPago->format('Y-m-d'),
+                    'saldo_inicial' => $saldoRestante,
+                    'capital' => $capitalCuota,
+                    'interes' => $interesCuota,
+                    'iva' => $ivaCuota,
+                    'total_cuota' => $totalCuota,
+                    'saldo_final' => round($saldoRestante - $capitalCuota, 2),
+                    'estatus' => 'pendiente'
+                ]);
+
+                // Actualizamos el saldo restante para la siguiente iteración
+                $saldoRestante = round($saldoRestante - $capitalCuota, 2);
+
+                // 🗓️ AVANZAMOS LA FECHA DE PAGO
+                if ($frecuencia == 'semanal') {
+                    $fechaPago->addWeek();
+                } elseif ($frecuencia == 'catorcenal') {
+                    $fechaPago->addWeeks(2);
+                } elseif ($frecuencia == 'quincenal') {
+                    $fechaPago->addDays(15); // Avanza 15 días exactos
+                } elseif ($frecuencia == 'mensual') {
+                    $fechaPago->addMonth();
+                }
+            }
+
+            \Illuminate\Support\Facades\DB::commit();
+            return redirect()->route('creditos.show', $credito->id)->with('success', '¡Crédito dictaminado y APROBADO exitosamente! Se han generado las cuotas según el producto seleccionado.');
 
         } catch (\Exception $e) {
-            DB::rollBack();
+            \Illuminate\Support\Facades\DB::rollBack();
             return back()->with('error', 'Error al aprobar el crédito: ' . $e->getMessage());
         }
     }

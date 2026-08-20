@@ -112,4 +112,10 @@ class Credito extends Model
     {
         return $this->belongsToMany(Sucursal::class, 'credito_sucursales_pago', 'credito_id', 'sucursal_id');
     }
+
+    // Las cuotas / tabla de amortización del crédito
+    public function amortizaciones()
+    {
+        return $this->hasMany(CreditoAmortizacion::class, 'credito_id', 'id')->orderBy('numero_cuota', 'asc');
+    }
 }
