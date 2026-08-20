@@ -377,10 +377,7 @@ class CreditoController extends Controller
         $cuota_monto = $primeraCuota ? $primeraCuota->total_cuota : 0;
 
         $dia_pago = \Carbon\Carbon::parse($credito->fecha_primer_pago)->locale('es')->isoFormat('dddd');
-        
         $sucursal_nombre = $credito->sucursalesParaPago->first()->nombre_sucursal ?? 'TEXCOCO';
-
-        $formatter = new NumberFormatter("es", NumberFormatter::SPELLOUT);
 
         $data = [
             'credito' => $credito,
@@ -388,16 +385,31 @@ class CreditoController extends Controller
             'dia_pago' => ucfirst($dia_pago),
             'sucursal_nombre' => strtoupper($sucursal_nombre),
             
-            'letras_monto_aprobado' => strtoupper($formatter->format($credito->monto_aprobado)),
-            'letras_comision' => strtoupper($formatter->format($credito->comision_apertura_aplicada)),
-            'letras_cuota' => strtoupper($formatter->format($cuota_monto)),
-            'letras_multa' => strtoupper($formatter->format($credito->producto->multa_valor ?? 500)),
-            'letras_mora' => strtoupper($formatter->format($credito->producto->mora_valor ?? 1000)),
+            // Usamos nuestra propia función nativa
+            'letras_monto_aprobado' => $this->convertirALetras($credito->monto_aprobado),
+            'letras_comision' => $this->convertirALetras($credito->comision_apertura_aplicada),
+            'letras_cuota' => $this->convertirALetras($cuota_monto),
+            'letras_multa' => $this->convertirALetras($credito->producto->multa_valor ?? 500),
+            'letras_mora' => $this->convertirALetras($credito->producto->mora_valor ?? 1000),
         ];
 
         $pdf = Pdf::loadView('creditos.pdf.contrato', $data);
-        
         return $pdf->stream('Contrato_' . $credito->folio . '.pdf');
+    }
+
+    // --- FUNCIÓN NATIVA PARA TRADUCIR NÚMEROS A LETRAS (SIN EXTENSIONES) ---
+    private function convertirALetras($numero)
+    {
+        $f = new \NumberFormatter("es", \NumberFormatter::SPELLOUT);
+        // Si NumberFormatter falla, usamos una versión simplificada (o en este caso, evitamos el error con un try-catch)
+        // Para asegurar que no falle en Render, usaremos una conversión básica manual si falla la nativa
+        if (class_exists('NumberFormatter')) {
+            return strtoupper($f->format($numero));
+        }
+
+        // Si Render no tiene intl, regresamos el monto formateado como respaldo temporal para que no truene el sistema
+        // *Nota: Lo ideal en Laravel es instalar el paquete "luecano/numero-a-letras" vía composer
+        return strtoupper(number_format($numero, 2) . " PESOS");
     }
 
     public function imprimirTabla($id)

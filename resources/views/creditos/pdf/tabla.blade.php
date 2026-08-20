@@ -4,117 +4,122 @@
     <meta charset="UTF-8">
     <title>Control de Pagos</title>
     <style>
-        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 11px; color: #333; margin: 0; padding: 0; }
-        .header-table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
-        .header-table td { vertical-align: middle; }
-        .logo-placeholder { font-size: 18px; font-weight: bold; color: #2c3e50; letter-spacing: 1px; }
-        .doc-title { text-align: right; font-size: 18px; font-weight: 300; letter-spacing: 2px; color: #555; text-transform: uppercase; }
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 10pt; color: #2d3748; margin: 0; }
         
-        .info-box { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        .info-box td { padding: 4px 8px; vertical-align: top; font-size: 10px; }
-        .info-label { color: #888; text-transform: uppercase; font-size: 9px; letter-spacing: 0.5px; }
-        .info-value { font-weight: bold; font-size: 11px; color: #222; margin-top: 2px; }
+        /* Cabecera */
+        .header { border-bottom: 3px solid #003a70; padding-bottom: 10px; margin-bottom: 20px; width: 100%; display: table; }
+        .logo-box { display: table-cell; width: 50%; vertical-align: middle; font-size: 22px; font-weight: 800; color: #003a70; letter-spacing: 1px; }
+        .title-box { display: table-cell; width: 50%; text-align: right; vertical-align: middle; }
+        .doc-title { font-size: 18px; font-weight: 700; color: #4a5568; text-transform: uppercase; letter-spacing: 1px; }
+        .date-text { font-size: 9pt; color: #718096; margin-top: 5px; }
+
+        /* Cajas de Resumen */
+        .summary-wrapper { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
+        .summary-box { background-color: #f7fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; vertical-align: top; width: 50%; }
+        .box-title { font-size: 8.5pt; font-weight: bold; color: #003a70; text-transform: uppercase; border-bottom: 1px solid #cbd5e0; padding-bottom: 4px; margin-bottom: 8px; }
+        .info-table { width: 100%; border-collapse: collapse; }
+        .info-table td { padding: 4px 0; font-size: 9pt; }
+        .lbl { font-weight: 600; color: #718096; width: 45%; }
+        .val { font-weight: 700; color: #1a202c; text-align: right; }
+        .val-highlight { color: #003a70; font-size: 11pt; }
+
+        /* Tabla Principal */
+        .data-table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
+        .data-table th { background-color: #003a70; color: #ffffff; padding: 10px; font-size: 8.5pt; text-transform: uppercase; letter-spacing: 0.5px; border: 1px solid #003a70; }
+        .data-table td { padding: 8px 10px; font-size: 9.5pt; border: 1px solid #e2e8f0; color: #2d3748; text-align: center; }
+        .data-table tr:nth-child(even) { background-color: #f8fafc; }
+        .text-left { text-align: left !important; }
+        .text-right { text-align: right !important; }
+        .fw-bold { font-weight: 700; }
         
-        .cuotas-table { width: 100%; border-collapse: collapse; text-align: center; margin-bottom: 30px; }
-        .cuotas-table th { background-color: #f8f9fa; color: #555; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; padding: 8px 4px; border-bottom: 1px solid #dee2e6; }
-        .cuotas-table td { padding: 6px 4px; border-bottom: 1px solid #f1f3f5; color: #444; }
-        .cuotas-table tr:last-child td { border-bottom: 2px solid #dee2e6; }
-        
-        .fw-bold { font-weight: bold; }
-        .text-left { text-align: left; }
-        .text-right { text-align: right; }
-        
-        .footer { position: fixed; bottom: 30px; width: 100%; text-align: center; }
-        .linea-firma { width: 250px; border-top: 1px solid #333; margin: 0 auto 8px auto; }
-        .firma-text { font-size: 10px; color: #555; letter-spacing: 1px; }
-        .slogan { font-size: 9px; color: #999; margin-top: 4px; }
+        /* Footer */
+        .footer { width: 100%; text-align: center; margin-top: 40px; page-break-inside: avoid; }
+        .linea-firma { width: 250px; border-top: 1px solid #4a5568; margin: 0 auto 8px auto; }
+        .firma-text { font-size: 9pt; font-weight: bold; color: #4a5568; text-transform: uppercase; }
+        .slogan { font-size: 8.5pt; color: #a0aec0; margin-top: 4px; font-style: italic; }
     </style>
 </head>
 <body>
 
-    <table class="header-table">
+    <div class="header">
+        <div class="logo-box">
+            @if($credito->patron && $credito->patron->logo)
+                <img src="{{ public_path('storage/' . $credito->patron->logo) }}" height="40" alt="Logo">
+            @else
+                {{ strtoupper($credito->patron->nombre_comercial ?? 'EMPRESA EMISORA') }}
+            @endif
+        </div>
+        <div class="title-box">
+            <div class="doc-title">Control de Pagos</div>
+            <div class="date-text">{{ strtoupper($credito->sucursal->nombre_sucursal ?? 'TEXCOCO') }} a {{ now()->format('d/m/Y') }}</div>
+        </div>
+    </div>
+
+    <table class="summary-wrapper">
         <tr>
-            <td width="50%">
-                <div class="logo-placeholder">
-                    @if($credito->patron && $credito->patron->logo)
-                        <img src="{{ public_path('storage/' . $credito->patron->logo) }}" height="45" alt="Logo">
-                    @else
-                        {{ $credito->patron->nombre_comercial ?? 'EMPRESA EMISORA' }}
-                    @endif
-                </div>
+            <td class="summary-box" style="border-right: 8px solid #fff;">
+                <div class="box-title">Datos del Cliente</div>
+                <table class="info-table">
+                    <tr>
+                        <td class="lbl">Titular:</td>
+                        <td class="val">{{ $credito->cliente->nombre_completo ?? $credito->cliente->nombre }}</td>
+                    </tr>
+                    <tr>
+                        <td class="lbl">Crédito / Grupo:</td>
+                        <td class="val">{{ $credito->nombre_credito ?? ($credito->grupo->nombre_grupo ?? 'Individual') }}</td>
+                    </tr>
+                    <tr>
+                        <td class="lbl">Folio:</td>
+                        <td class="val">{{ $credito->folio }}</td>
+                    </tr>
+                    <tr>
+                        <td class="lbl">Asesor:</td>
+                        <td class="val">{{ $credito->asesor->nombre_completo ?? 'N/A' }}</td>
+                    </tr>
+                </table>
             </td>
-            <td width="50%" class="doc-title">
-                Control de Pagos
-                <div style="font-size: 10px; font-weight: normal; color: #888; margin-top: 4px; letter-spacing: 0;">
-                    {{ strtoupper($credito->sucursal->nombre_sucursal ?? 'TEXCOCO') }} a {{ now()->format('d/m/Y') }}
-                </div>
+            <td class="summary-box">
+                <div class="box-title">Resumen Financiero</div>
+                <table class="info-table">
+                    <tr>
+                        <td class="lbl">Monto Desembolsado:</td>
+                        <td class="val">${{ number_format($credito->monto_aprobado, 2) }}</td>
+                    </tr>
+                    <tr>
+                        <td class="lbl">Plazo y Frecuencia:</td>
+                        <td class="val">{{ $credito->plazo_aprobado }} pagos {{ ucfirst($credito->producto->frecuencia_pago) }}s</td>
+                    </tr>
+                    <tr>
+                        <td class="lbl">Periodo:</td>
+                        <td class="val">{{ \Carbon\Carbon::parse($credito->fecha_primer_pago)->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($fecha_fin)->format('d/m/Y') }}</td>
+                    </tr>
+                    <tr>
+                        <td class="lbl">Cuota Fija a Pagar:</td>
+                        <td class="val val-highlight">${{ number_format($monto_pago, 2) }}</td>
+                    </tr>
+                </table>
             </td>
         </tr>
     </table>
 
-    <table class="info-box">
-        <tr>
-            <td width="33%">
-                <div class="info-label">Nombre del Crédito / Grupo</div>
-                <div class="info-value">{{ $credito->nombre_credito ?? ($credito->grupo->nombre_grupo ?? 'Crédito Individual') }}</div>
-            </td>
-            <td width="33%">
-                <div class="info-label">Cliente</div>
-                <div class="info-value">{{ $credito->cliente->nombre_completo ?? $credito->cliente->nombre }}</div>
-            </td>
-            <td width="33%" class="text-right">
-                <div class="info-label">Folio de Crédito</div>
-                <div class="info-value text-primary">{{ $credito->folio }}</div>
-            </td>
-        </tr>
-        <tr>
-            <td>
-                <div class="info-label">Monto Aprobado</div>
-                <div class="info-value">${{ number_format($credito->monto_aprobado, 2) }}</div>
-            </td>
-            <td>
-                <div class="info-label">Monto de Pago Fijo</div>
-                <div class="info-value text-success">${{ number_format($monto_pago, 2) }}</div>
-            </td>
-            <td class="text-right">
-                <div class="info-label">Frecuencia</div>
-                <div class="info-value">{{ ucfirst($credito->producto->frecuencia_pago) }}</div>
-            </td>
-        </tr>
-        <tr>
-            <td>
-                <div class="info-label">Fecha Desembolso</div>
-                <div class="info-value">{{ \Carbon\Carbon::parse($credito->fecha_desembolso)->format('d/m/Y') }}</div>
-            </td>
-            <td>
-                <div class="info-label">Fecha Fin Programada</div>
-                <div class="info-value">{{ \Carbon\Carbon::parse($fecha_fin)->format('d/m/Y') }}</div>
-            </td>
-            <td class="text-right">
-                <div class="info-label">Asesor Responsable</div>
-                <div class="info-value">{{ $credito->asesor->nombre_completo ?? 'N/A' }}</div>
-            </td>
-        </tr>
-    </table>
-
-    <table class="cuotas-table">
+    <table class="data-table">
         <thead>
             <tr>
-                <th width="10%">Pago</th>
-                <th width="35%" class="text-left">Fecha Programada</th>
-                <th width="18%">Capital</th>
-                <th width="18%">Interés</th>
-                <th width="19%" class="text-right">Total a Pagar</th>
+                <th width="8%">Pago</th>
+                <th width="32%" class="text-left">Fecha Programada</th>
+                <th width="20%">Capital</th>
+                <th width="20%">Interés</th>
+                <th width="20%" class="text-right">Total a Pagar</th>
             </tr>
         </thead>
         <tbody>
             @foreach($credito->amortizaciones as $cuota)
             <tr>
-                <td>{{ $cuota->numero_cuota }}</td>
+                <td class="fw-bold text-muted">{{ $cuota->numero_cuota }}</td>
                 <td class="text-left fw-bold">{{ ucwords(\Carbon\Carbon::parse($cuota->fecha_pago)->locale('es')->isoFormat('DD MMMM YYYY')) }}</td>
                 <td>${{ number_format($cuota->capital, 2) }}</td>
                 <td>${{ number_format($cuota->interes + $cuota->iva, 2) }}</td>
-                <td class="text-right fw-bold">${{ number_format($cuota->total_cuota, 2) }}</td>
+                <td class="text-right fw-bold" style="color: #003a70;">${{ number_format($cuota->total_cuota, 2) }}</td>
             </tr>
             @endforeach
         </tbody>
@@ -122,7 +127,7 @@
 
     <div class="footer">
         <div class="linea-firma"></div>
-        <div class="firma-text">FIRMA DEL CLIENTE / DE CONFORMIDAD</div>
+        <div class="firma-text">Firma del Cliente de Conformidad</div>
         <div class="slogan">Tu crédito de la mano</div>
     </div>
 
