@@ -272,7 +272,7 @@ class CreditoController extends Controller
                 $credito->sucursalesParaPago()->sync($request->sucursales_pago);
             }
 
-            // =========================================================
+           // =========================================================
             // 3. 🔥 MOTOR MATEMÁTICO INTELIGENTE DE AMORTIZACIÓN 🔥
             // =========================================================
             $monto = $credito->monto_aprobado;
@@ -314,7 +314,9 @@ class CreditoController extends Controller
                     case 'global':
                     default: 
                         $capitalCuota = $monto / $plazo;
-                        $interesCuota = $monto * $tasaPeriodo;
+                        // CORRECCIÓN: Dividimos el interés total entre los pagos
+                        $interesTotal = $monto * $tasaPeriodo;
+                        $interesCuota = $interesTotal / $plazo;
                         break;
                 }
 
@@ -324,7 +326,9 @@ class CreditoController extends Controller
 
                 $capitalCuota = round($capitalCuota, 2);
                 $interesCuota = round($interesCuota, 2);
-                $ivaCuota = round($interesCuota * 0.16, 2); 
+                
+                // Ponemos IVA en 0 asumiendo que la tasa global ya lo incluye, para dar montos cerrados
+                $ivaCuota = 0; 
                 $totalCuota = $capitalCuota + $interesCuota + $ivaCuota;
 
                 \App\Models\CreditoAmortizacion::create([
@@ -352,15 +356,6 @@ class CreditoController extends Controller
                     $fechaPago->addMonth();
                 }
             }
-
-            \Illuminate\Support\Facades\DB::commit();
-            return redirect()->route('creditos.show', $credito->id)->with('success', '¡Crédito dictaminado y APROBADO exitosamente! Se han generado las cuotas según el producto seleccionado.');
-
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
-            return back()->with('error', 'Error al aprobar el crédito: ' . $e->getMessage());
-        }
-    }
 
     public function imprimirContrato($id)
     {
