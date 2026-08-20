@@ -281,7 +281,7 @@ Route::middleware('auth')->group(function () {
     });
 });
 
-// --- RUTA MÁGICA PARA PARCHAR LA BD EN RENDER ---
+// --- RUTA MÁGICA 1: CREAR TABLA DE AMORTIZACIONES ---
 Route::get('/fix-bd-amortizacion', function () {
     try {
         $dbName = DB::connection('tenant')->getDatabaseName();
@@ -306,6 +306,22 @@ Route::get('/fix-bd-amortizacion', function () {
         )");
 
         return "<h1>¡ÉXITO MATEMÁTICO!</h1><p>Tabla credito_amortizaciones creada en: <b>$schema</b>.</p>";
+    } catch (\Exception $e) {
+        return "<h1>ERROR:</h1><p>" . $e->getMessage() . "</p>";
+    }
+});
+
+// --- RUTA MÁGICA 2: AGREGAR FECHA DE DESEMBOLSO ---
+Route::get('/fix-bd-desembolso', function () {
+    try {
+        $dbName = DB::connection('tenant')->getDatabaseName();
+        $schema = str_contains($dbName, 'credintegra') ? 'credintegra_db' : 
+                 (str_contains($dbName, 'crediticia') ? 'facturame_db' : 'public');
+
+        // Agregamos la nueva columna
+        DB::connection('tenant')->statement("ALTER TABLE \"$schema\".creditos ADD COLUMN IF NOT EXISTS fecha_desembolso DATE NULL");
+
+        return "<h1>¡LISTO!</h1><p>Columna fecha_desembolso agregada a la tabla creditos en: <b>$schema</b>.</p>";
     } catch (\Exception $e) {
         return "<h1>ERROR:</h1><p>" . $e->getMessage() . "</p>";
     }
