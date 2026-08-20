@@ -1,8 +1,37 @@
 <x-app-layout>
     <div class="container-fluid py-4">
         
+        {{-- ALERTAS DE ERROR Y ÉXITO (AQUÍ VEREMOS POR QUÉ SE DETIENE LA APROBACIÓN) --}}
+        @if ($errors->any())
+            <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm" role="alert">
+                <h6 class="alert-heading fw-bold mb-1"><i class="bi bi-exclamation-diamond-fill me-2"></i>Faltan datos o son incorrectos:</h6>
+                <ul class="mb-0 small">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        @endif
+
+        @if (session('error'))
+            <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm" role="alert">
+                <h6 class="alert-heading fw-bold mb-1"><i class="bi bi-x-circle-fill me-2"></i>Error del Sistema:</h6>
+                <p class="mb-0 small">{{ session('error') }}</p>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        @endif
+
+        @if (session('success'))
+            <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm" role="alert">
+                <h6 class="alert-heading fw-bold mb-1"><i class="bi bi-check-circle-fill me-2"></i>¡Excelente!</h6>
+                <p class="mb-0 small">{{ session('success') }}</p>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        @endif
+
         {{-- ENCABEZADO Y ESTATUS --}}
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-4 mt-2">
             <div>
                 <h4 class="fw-bold mb-1 text-dark">
                     <i class="bi bi-file-earmark-text me-2 text-primary"></i>Solicitud: {{ $credito->folio }}
@@ -197,7 +226,6 @@
                                 </div>
                             </div>
                             
-                            {{-- AQUÍ ENTRAMOS CON LA PARTE DEL SEGURO --}}
                             @if($credito->producto->requiere_seguro)
                                 <div class="row mt-3 pt-3 border-top">
                                     <div class="col-md-12">
@@ -235,7 +263,7 @@
                 </div>
                 @endif
 
-                {{-- ZONA DE AUTORIZACIÓN (El botón que faltaba) --}}
+                {{-- ZONA DE AUTORIZACIÓN --}}
                 @if($credito->estatus == 'solicitado')
                 <div class="card border-0 shadow-sm border-start border-warning border-4 bg-light mb-4">
                     <div class="card-body p-4 text-center">
@@ -249,13 +277,12 @@
                 </div>
                 @endif
 
-                {{-- NUEVA ZONA: TABLA DE AMORTIZACIÓN Y DOCUMENTOS (Solo visible si está aprobado o desembolsado) --}}
+                {{-- TABLA DE AMORTIZACIÓN Y DOCUMENTOS --}}
                 @if($credito->estatus == 'aprobado' || $credito->estatus == 'desembolsado')
                 <div class="card border-0 shadow-sm mb-4 border-start border-success border-4">
                     <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
                         <h6 class="fw-bold text-dark mb-0"><i class="bi bi-calculator-fill me-2 text-success"></i>Tabla de Amortización Generada</h6>
                         
-                        {{-- BOTONES DE DOCUMENTACIÓN LEGAL (FASE 3) --}}
                         <div>
                             <a href="{{ route('creditos.contrato', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm me-1" title="Imprimir Contrato">
                                 <i class="bi bi-file-earmark-pdf-fill"></i> Contrato
@@ -322,7 +349,6 @@
                     @csrf
                     <div class="modal-body bg-light p-4">
                         
-                        {{-- Alerta Automática de Seguro en el Modal --}}
                         @php
                             $penalizacionSugerida = 0;
                             if($credito->producto->requiere_seguro && $credito->garantia && !$credito->garantia->tiene_seguro) {
@@ -332,22 +358,9 @@
 
                         @if($penalizacionSugerida > 0)
                             <div class="alert alert-danger py-2 small mb-3 border-danger">
-                                <i class="bi bi-exclamation-triangle-fill me-1"></i> El vehículo no cuenta con seguro. Se agregó una retención de <b>${{ number_format($penalizacionSugerida, 2) }}</b> por defecto (puedes perdonarla cambiando el valor a 0 en la casilla de abajo).
+                                <i class="bi bi-exclamation-triangle-fill me-1"></i> El vehículo no cuenta con seguro. Se agregó una retención de <b>${{ number_format($penalizacionSugerida, 2) }}</b> por defecto.
                             </div>
                         @endif
-
-                        {{-- Parámetros Bloqueados --}}
-                        <h6 class="fw-bold text-muted border-bottom pb-2 mb-3">Parámetros Intocables</h6>
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <label class="form-label small fw-bold">Plazo Autorizado</label>
-                                <input type="text" class="form-control bg-light text-muted" value="{{ $credito->plazo_solicitado }} Cuotas" readonly>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label small fw-bold">Tasa de Interés Aplicada</label>
-                                <input type="text" class="form-control bg-light text-muted" value="{{ $credito->tasa_interes_aplicada }}%" readonly>
-                            </div>
-                        </div>
 
                         {{-- Parámetros Editables --}}
                         <h6 class="fw-bold text-success border-bottom pb-2 mb-3">Parámetros Financieros (Editables)</h6>
@@ -397,7 +410,7 @@
                             </div>
                         </div>
 
-                        {{-- AQUÍ EMPIEZA LO NUEVO: LUGARES DE PAGO AUTORIZADOS --}}
+                        {{-- LUGARES DE PAGO AUTORIZADOS --}}
                         <h6 class="fw-bold text-info border-bottom pb-2 mb-3 mt-4"><i class="bi bi-wallet2 me-1"></i> Lugares de Pago Autorizados (Para el Pagaré)</h6>
                         <div class="row mb-3">
                             <div class="col-md-6">
@@ -405,7 +418,8 @@
                                 <div class="border rounded p-2 bg-white shadow-sm" style="max-height: 140px; overflow-y: auto;">
                                     @forelse($cuentasEmpresa ?? [] as $cuenta)
                                         <div class="form-check mb-2 border-bottom pb-2">
-                                            <input class="form-check-input" type="checkbox" name="cuentas_pago[]" value="{{ $cuenta->id }}" id="chk_cuenta_{{ $cuenta->id }}" checked>
+                                            {{-- QUITÉ EL ATRIBUTO "checked" AQUÍ --}}
+                                            <input class="form-check-input" type="checkbox" name="cuentas_pago[]" value="{{ $cuenta->id }}" id="chk_cuenta_{{ $cuenta->id }}">
                                             <label class="form-check-label small" for="chk_cuenta_{{ $cuenta->id }}">
                                                 <b>{{ $cuenta->banco }}</b> - {{ $cuenta->titular }}<br>
                                                 <span class="text-muted" style="font-size: 0.8em;">Cta: {{ $cuenta->numero_cuenta }}</span>
@@ -421,7 +435,8 @@
                                 <div class="border rounded p-2 bg-white shadow-sm" style="max-height: 140px; overflow-y: auto;">
                                     @forelse($sucursales ?? [] as $sucursal)
                                         <div class="form-check mb-1">
-                                            <input class="form-check-input" type="checkbox" name="sucursales_pago[]" value="{{ $sucursal->id_sucursal }}" id="chk_sucursal_{{ $sucursal->id_sucursal }}" checked>
+                                            {{-- QUITÉ EL ATRIBUTO "checked" AQUÍ --}}
+                                            <input class="form-check-input" type="checkbox" name="sucursales_pago[]" value="{{ $sucursal->id_sucursal }}" id="chk_sucursal_{{ $sucursal->id_sucursal }}">
                                             <label class="form-check-label small" for="chk_sucursal_{{ $sucursal->id_sucursal }}">
                                                 Caja Sucursal <b>{{ $sucursal->nombre_sucursal }}</b>
                                             </label>
