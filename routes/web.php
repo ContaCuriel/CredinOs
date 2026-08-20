@@ -282,27 +282,21 @@ Route::middleware('auth')->group(function () {
     });
 });
 
-// --- RUTA MÁGICA 3: COLUMNAS DE APROBACIÓN ---
-Route::get('/fix-bd-columnas', function () {
+// --- RUTA MÁGICA 4: REINICIAR CRÉDITO PARA RE-CALCULAR ---
+Route::get('/reiniciar-credito/{id}', function ($id) {
     try {
-        $dbName = DB::connection('tenant')->getDatabaseName();
-        $schema = str_contains($dbName, 'credintegra') ? 'credintegra_db' : 
-                 (str_contains($dbName, 'crediticia') ? 'facturame_db' : 'public');
-
-        // Agregamos todas las columnas financieras que nacen al aprobar el crédito
-        DB::connection('tenant')->statement("ALTER TABLE \"$schema\".creditos 
-            ADD COLUMN IF NOT EXISTS monto_aprobado NUMERIC(12,2) DEFAULT 0,
-            ADD COLUMN IF NOT EXISTS plazo_aprobado INT DEFAULT 0,
-            ADD COLUMN IF NOT EXISTS comision_apertura_aplicada NUMERIC(12,2) DEFAULT 0,
-            ADD COLUMN IF NOT EXISTS retencion_seguro_aplicada NUMERIC(12,2) DEFAULT 0,
-            ADD COLUMN IF NOT EXISTS fecha_aprobacion TIMESTAMP NULL,
-            ADD COLUMN IF NOT EXISTS fecha_primer_pago DATE NULL,
-            ADD COLUMN IF NOT EXISTS patron_id BIGINT NULL
-        ");
-
-        return "<h1>¡COLUMNAS LISTAS!</h1><p>Las columnas financieras fueron agregadas a la tabla creditos.</p>";
+        $credito = \App\Models\Credito::find($id);
+        if ($credito) {
+            // Borramos la tabla matemática vieja
+            $credito->amortizaciones()->delete();
+            // Lo regresamos a estatus de solicitud
+            $credito->update(['estatus' => 'solicitado']);
+            
+            return "<h1>¡CRÉDITO $id REINICIADO!</h1><p>Regresa a tu sistema. Ahora podrás volver a autorizarlo para que corra la nueva fórmula.</p>";
+        }
+        return "Crédito no encontrado.";
     } catch (\Exception $e) {
-        return "<h1>ERROR:</h1><p>" . $e->getMessage() . "</p>";
+        return "ERROR: " . $e->getMessage();
     }
 });
 
