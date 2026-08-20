@@ -229,7 +229,7 @@ class CreditoController extends Controller
         }
     }
 
-    public function aprobar(Request $request, $id)
+   public function aprobar(Request $request, $id)
     {
         $request->validate([
             'monto_aprobado' => 'required|numeric|min:1',
@@ -237,7 +237,7 @@ class CreditoController extends Controller
             'retencion_seguro' => 'required|numeric|min:0',
             'patron_id' => 'required|exists:patrones,id_patron',
             'fecha_desembolso' => 'required|date',
-            'fecha_primer_pago' => 'required|date|after_or_equal:fecha_desembolso', // Evita que paguen antes de prestarles
+            'fecha_primer_pago' => 'required|date|after_or_equal:fecha_desembolso',
             'cuentas_pago' => 'nullable|array',
             'sucursales_pago' => 'nullable|array',
         ]);
@@ -272,7 +272,7 @@ class CreditoController extends Controller
                 $credito->sucursalesParaPago()->sync($request->sucursales_pago);
             }
 
-           // =========================================================
+            // =========================================================
             // 3. 🔥 MOTOR MATEMÁTICO INTELIGENTE DE AMORTIZACIÓN 🔥
             // =========================================================
             $monto = $credito->monto_aprobado;
@@ -326,8 +326,6 @@ class CreditoController extends Controller
 
                 $capitalCuota = round($capitalCuota, 2);
                 $interesCuota = round($interesCuota, 2);
-                
-                // Ponemos IVA en 0 asumiendo que la tasa global ya lo incluye, para dar montos cerrados
                 $ivaCuota = 0; 
                 $totalCuota = $capitalCuota + $interesCuota + $ivaCuota;
 
@@ -356,6 +354,16 @@ class CreditoController extends Controller
                     $fechaPago->addMonth();
                 }
             }
+
+            // --- ESTO FUE LO QUE ME FALTÓ EN EL MENSAJE ANTERIOR ---
+            \Illuminate\Support\Facades\DB::commit();
+            return redirect()->route('creditos.show', $credito->id)->with('success', '¡Crédito dictaminado y APROBADO exitosamente! Se han generado las cuotas según el producto seleccionado.');
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            return back()->with('error', 'Error al aprobar el crédito: ' . $e->getMessage());
+        }
+    }
 
     public function imprimirContrato($id)
     {
