@@ -290,9 +290,9 @@
                             <button class="btn btn-sm btn-outline-danger shadow-sm me-1" title="Imprimir Pagaré">
                                 <i class="bi bi-file-earmark-pdf-fill"></i> Pagaré
                             </button>
-                            <button class="btn btn-sm btn-outline-danger shadow-sm" title="Imprimir Tabla">
-                                <i class="bi bi-table"></i> Imprimir Tabla
-                            </button>
+                            <a href="{{ route('creditos.tabla', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm" title="Imprimir Tabla">
+    <i class="bi bi-table"></i> Imprimir Control de Pagos
+</a>
                         </div>
                     </div>
                     <div class="card-body p-0">

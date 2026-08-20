@@ -396,4 +396,27 @@ class CreditoController extends Controller
         
         return $pdf->stream('Contrato_' . $credito->folio . '.pdf');
     }
+
+    public function imprimirTabla($id)
+    {
+        $credito = \App\Models\Credito::with(['cliente', 'grupo', 'producto', 'asesor', 'sucursal', 'amortizaciones'])->findOrFail($id);
+
+        if ($credito->amortizaciones->isEmpty()) {
+            return back()->with('error', 'El crédito no tiene una tabla de amortización generada.');
+        }
+
+        // Obtenemos referencias clave
+        $primeraCuota = $credito->amortizaciones->first();
+        $ultimaCuota = $credito->amortizaciones->last();
+
+        $data = [
+            'credito' => $credito,
+            'monto_pago' => $primeraCuota->total_cuota,
+            'fecha_fin' => $ultimaCuota->fecha_pago,
+        ];
+
+        $pdf = Pdf::loadView('creditos.pdf.tabla', $data);
+        
+        return $pdf->stream('Control_Pagos_' . $credito->folio . '.pdf');
+    }
 }

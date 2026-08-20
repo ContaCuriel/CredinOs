@@ -109,6 +109,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/creditos/{id}/aprobar', [App\Http\Controllers\CreditoController::class, 'aprobar'])->name('creditos.aprobar');
     Route::resource('creditos', CreditoController::class);
     Route::get('/creditos/{id}/contrato', [\App\Http\Controllers\CreditoController::class, 'imprimirContrato'])->name('creditos.contrato');
+    Route::get('/creditos/{id}/tabla', [\App\Http\Controllers\CreditoController::class, 'imprimirTabla'])->name('creditos.tabla');
 
     // --- RECURSOS HUMANOS ---
     Route::middleware('can:ver-menu-rh')->group(function () {
