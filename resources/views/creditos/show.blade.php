@@ -80,6 +80,13 @@
                             <span class="fs-5 fw-bold text-dark">{{ $credito->plazo_solicitado }} Cuotas ({{ ucfirst($credito->producto->frecuencia_pago) }}s)</span>
                         </div>
 
+                        @if($credito->fecha_desembolso)
+                        <div class="mb-3 mt-3 pt-3 border-top">
+                            <span class="text-muted d-block small fw-bold text-uppercase text-info"><i class="bi bi-calendar-event me-1"></i>Fecha de Desembolso Programada</span>
+                            <span class="fs-6 fw-bold text-dark">{{ \Carbon\Carbon::parse($credito->fecha_desembolso)->isoFormat('LL') }}</span>
+                        </div>
+                        @endif
+
                     </div>
                 </div>
             </div>
@@ -367,9 +374,9 @@
                         </div>
 
                         {{-- Documentación y Fechas --}}
-                        <h6 class="fw-bold text-primary border-bottom pb-2 mb-3 mt-4">Emisión y Cobranza</h6>
+                        <h6 class="fw-bold text-primary border-bottom pb-2 mb-3 mt-4">Emisión y Fechas Clave</h6>
                         <div class="row mb-3">
-                            <div class="col-md-7">
+                            <div class="col-md-12 mb-3">
                                 <label class="form-label small fw-bold">Empresa Emisora (Contrato a nombre de:) <span class="text-danger">*</span></label>
                                 <select class="form-select" name="patron_id" required>
                                     <option value="">Seleccione un Patrón...</option>
@@ -380,9 +387,13 @@
                                     @endif
                                 </select>
                             </div>
-                            <div class="col-md-5">
-                                <label class="form-label small fw-bold">Fecha de Primer Pago <span class="text-danger">*</span></label>
-                                <input type="date" class="form-control" name="fecha_primer_pago" required>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-info">Fecha de Desembolso <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control border-info" name="fecha_desembolso" value="{{ $credito->fecha_desembolso ? \Carbon\Carbon::parse($credito->fecha_desembolso)->format('Y-m-d') : date('Y-m-d') }}" required title="¿Cuándo se le entregará el dinero al cliente?">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-success">Fecha de Primer Pago <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control border-success" name="fecha_primer_pago" required title="¿Cuándo pagará su primera cuota?">
                             </div>
                         </div>
 

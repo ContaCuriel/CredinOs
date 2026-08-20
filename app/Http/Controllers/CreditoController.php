@@ -33,7 +33,7 @@ class CreditoController extends Controller
         // Traemos los catálogos para el Modal de Aprobación
         $patrones = \App\Models\Patron::orderBy('nombre_comercial')->get();
         $cuentasEmpresa = \App\Models\CuentaBancaria::where('activa', true)->get();
-        $sucursales = \App\Models\Sucursal::orderBy('nombre_sucursal')->get(); // O como se llame la columna en tu BD
+        $sucursales = \App\Models\Sucursal::orderBy('nombre_sucursal')->get();
         
         return view('creditos.show', compact('credito', 'patrones', 'cuentasEmpresa', 'sucursales'));
     }
@@ -41,7 +41,7 @@ class CreditoController extends Controller
     public function create()
     {
         $productos = ProductoCredito::where('activo', true)->orderBy('nombre')->get();
-        $sucursales = Sucursal::orderBy('nombre_sucursal')->get(); // <-- NUEVO
+        $sucursales = Sucursal::orderBy('nombre_sucursal')->get();
         
         $asesores = Empleado::with('sucursal')
             ->whereHas('puesto', function ($query) {
@@ -51,7 +51,6 @@ class CreditoController extends Controller
             ->whereIn('status', ['Alta', 'ALTA', 'alta', 'Activo', 'ACTIVO'])
             ->orderBy('nombre_completo')->get();
 
-        // Manda las sucursales en el compact
         return view('creditos.create', compact('productos', 'asesores', 'sucursales')); 
     }
 
@@ -63,6 +62,7 @@ class CreditoController extends Controller
             'producto_id'      => 'required|exists:productos_credito,id',
             'asesor_id'        => 'required|exists:empleados,id_empleado',
             'monto_solicitado' => 'required|numeric|min:1',
+            'fecha_desembolso' => 'required|date',
             'nombre_credito'   => 'nullable|string|max:255',
             'nombre_grupo'     => 'nullable|string|max:255', 
             'clientes'         => 'required|array|min:1',
@@ -73,7 +73,6 @@ class CreditoController extends Controller
             'cuentas.*.banco'     => 'required|string|max:100',
             'cuentas.*.titular'   => 'required|string|max:255',
             'cuentas.*.cuenta'    => 'required|string|max:50',
-            // Validaciones de la garantía (es un array que puede o no venir)
             'garantia'         => 'nullable|array',
             'garantia.tipo'    => 'nullable|in:vehiculo,propiedad',
         ]);
@@ -115,6 +114,7 @@ class CreditoController extends Controller
                 'comision_apertura_aplicada' => $producto->cobro_comision_apertura,
                 'estatus' => 'solicitado',
                 'fecha_solicitud' => now(),
+                'fecha_desembolso' => $validated['fecha_desembolso'],
                 'asesor_id' => $validated['asesor_id'],
             ]);
 
@@ -141,7 +141,6 @@ class CreditoController extends Controller
                 ]);
             }
 
-
             // 6. GUARDAMOS LA GARANTÍA (SI APLICA)
             if ($producto->requiere_garantia && !empty($request->input('garantia'))) {
                 $garantiaData = $request->input('garantia');
@@ -157,10 +156,8 @@ class CreditoController extends Controller
                     'vehiculo_color' => $garantiaData['vehiculo_color'] ?? null,
                     'vehiculo_serie' => $garantiaData['vehiculo_serie'] ?? null,
                     
-                    // --- AQUÍ ENTRA LO NUEVO DEL SEGURO ---
                     'tiene_seguro' => $garantiaData['tiene_seguro'] ?? false,
                     'vigencia_seguro' => $garantiaData['vigencia_seguro'] ?? null,
-                    // --------------------------------------
 
                     'propiedad_documento' => $garantiaData['propiedad_documento'] ?? null,
                     'propiedad_ubicacion' => $garantiaData['propiedad_ubicacion'] ?? null,
@@ -187,7 +184,6 @@ class CreditoController extends Controller
             return response()->json([]);
         }
 
-        // Buscamos coincidencias en nombre o apellidos
         $clientes = Cliente::where('nombre', 'ILIKE', "%$term%")
                     ->orWhere('apellido_paterno', 'ILIKE', "%$term%")
                     ->orWhere('apellido_materno', 'ILIKE', "%$term%")
@@ -197,7 +193,7 @@ class CreditoController extends Controller
         $results = [];
         foreach ($clientes as $cliente) {
             $results[] = [
-                'id' => $cliente->id_cliente, // Asegúrate de que sea tu llave primaria correcta
+                'id' => $cliente->id_cliente, 
                 'text' => trim($cliente->nombre . ' ' . $cliente->apellido_paterno . ' ' . $cliente->apellido_materno)
             ];
         }
@@ -210,21 +206,18 @@ class CreditoController extends Controller
         try {
             $credito = Credito::findOrFail($id);
             
-            // Solo se pueden borrar si no han sido aprobados ni desembolsados
             if ($credito->estatus != 'solicitado') {
                 return back()->with('error', 'No puedes eliminar un crédito que ya fue procesado.');
             }
 
             DB::beginTransaction();
             
-            // Limpiamos las tablas relacionadas
-            $credito->integrantes()->detach(); // Quita a los clientes de la tabla pivote
-            $credito->cuentasDesembolso()->delete(); // Borra las cuentas
+            $credito->integrantes()->detach(); 
+            $credito->cuentasDesembolso()->delete(); 
             if($credito->garantia) {
-                $credito->garantia()->delete(); // Borra la garantía
+                $credito->garantia()->delete(); 
             }
             
-            // Borramos el crédito
             $credito->delete();
             
             DB::commit();
@@ -243,7 +236,8 @@ class CreditoController extends Controller
             'comision_apertura' => 'required|numeric|min:0',
             'retencion_seguro' => 'required|numeric|min:0',
             'patron_id' => 'required|exists:patrones,id_patron',
-            'fecha_primer_pago' => 'required|date',
+            'fecha_desembolso' => 'required|date',
+            'fecha_primer_pago' => 'required|date|after_or_equal:fecha_desembolso', // Evita que paguen antes de prestarles
             'cuentas_pago' => 'nullable|array',
             'sucursales_pago' => 'nullable|array',
         ]);
@@ -251,7 +245,6 @@ class CreditoController extends Controller
         try {
             \Illuminate\Support\Facades\DB::beginTransaction();
 
-            // Nos traemos el crédito y su producto para leer las reglas financieras
             $credito = \App\Models\Credito::with('producto')->findOrFail($id);
 
             if ($credito->estatus != 'solicitado') {
@@ -265,6 +258,7 @@ class CreditoController extends Controller
                 'comision_apertura_aplicada' => $request->comision_apertura,
                 'retencion_seguro_aplicada' => $request->retencion_seguro,
                 'patron_id' => $request->patron_id,
+                'fecha_desembolso' => $request->fecha_desembolso,
                 'fecha_primer_pago' => $request->fecha_primer_pago,
                 'fecha_aprobacion' => now(),
                 'estatus' => 'aprobado',
@@ -283,16 +277,14 @@ class CreditoController extends Controller
             // =========================================================
             $monto = $credito->monto_aprobado;
             $plazo = $credito->plazo_aprobado;
-            $tasaPeriodo = $credito->tasa_interes_aplicada / 100; // Ej: 5% se vuelve 0.05
+            $tasaPeriodo = $credito->tasa_interes_aplicada / 100; 
             
-            // Leemos cómo quiere el producto que le cobremos
-            $tipoTasa = strtolower($credito->producto->tipo_tasa); // 'global', 'saldos_insolutos', 'francesa'
+            $tipoTasa = strtolower($credito->producto->tipo_tasa); 
             $frecuencia = strtolower($credito->producto->frecuencia_pago);
             
             $saldoRestante = $monto;
             $fechaPago = \Carbon\Carbon::parse($request->fecha_primer_pago);
 
-            // Si es sistema Francés (Pagos fijos iguales), calculamos la cuota maestra
             $cuotaFrancesa = 0;
             if ($tipoTasa == 'francesa' || $tipoTasa == 'pagos_fijos') {
                 if ($tasaPeriodo > 0) {
@@ -302,44 +294,39 @@ class CreditoController extends Controller
                 }
             }
 
-            // Iterador para crear cada fila de la tabla
             for ($i = 1; $i <= $plazo; $i++) {
                 
                 $capitalCuota = 0;
                 $interesCuota = 0;
 
-                // 🧮 APLICAMOS LA FÓRMULA SEGÚN EL TIPO DE TASA
                 switch ($tipoTasa) {
-                    case 'saldos_insolutos': // Capital Fijo, Interés va bajando
+                    case 'saldos_insolutos':
                         $capitalCuota = $monto / $plazo;
                         $interesCuota = $saldoRestante * $tasaPeriodo;
                         break;
                         
                     case 'francesa':
-                    case 'pagos_fijos': // Interés va bajando, Capital va subiendo (Pago Total siempre es igual)
+                    case 'pagos_fijos': 
                         $interesCuota = $saldoRestante * $tasaPeriodo;
                         $capitalCuota = $cuotaFrancesa - $interesCuota;
                         break;
 
                     case 'global':
-                    default: // Interés Fijo sobre el monto original inicial (El más común en microfinancieras)
+                    default: 
                         $capitalCuota = $monto / $plazo;
                         $interesCuota = $monto * $tasaPeriodo;
                         break;
                 }
 
-                // Ajuste exacto de centavos en la última cuota para evitar saldos de $0.01
                 if ($i == $plazo) {
                     $capitalCuota = $saldoRestante; 
                 }
 
-                // Redondeos y cálculos finales de la cuota
                 $capitalCuota = round($capitalCuota, 2);
                 $interesCuota = round($interesCuota, 2);
-                $ivaCuota = round($interesCuota * 0.16, 2); // 16% de IVA sobre el interés (Ajusta si ustedes no cobran IVA)
+                $ivaCuota = round($interesCuota * 0.16, 2); 
                 $totalCuota = $capitalCuota + $interesCuota + $ivaCuota;
 
-                // Guardamos en la base de datos
                 \App\Models\CreditoAmortizacion::create([
                     'credito_id' => $credito->id,
                     'numero_cuota' => $i,
@@ -353,16 +340,14 @@ class CreditoController extends Controller
                     'estatus' => 'pendiente'
                 ]);
 
-                // Actualizamos el saldo restante para la siguiente iteración
                 $saldoRestante = round($saldoRestante - $capitalCuota, 2);
 
-                // 🗓️ AVANZAMOS LA FECHA DE PAGO
                 if ($frecuencia == 'semanal') {
                     $fechaPago->addWeek();
                 } elseif ($frecuencia == 'catorcenal') {
                     $fechaPago->addWeeks(2);
                 } elseif ($frecuencia == 'quincenal') {
-                    $fechaPago->addDays(15); // Avanza 15 días exactos
+                    $fechaPago->addDays(15); 
                 } elseif ($frecuencia == 'mensual') {
                     $fechaPago->addMonth();
                 }
@@ -385,17 +370,13 @@ class CreditoController extends Controller
             return back()->with('error', 'El crédito no tiene una garantía registrada para generar el contrato.');
         }
 
-        // Obtener la cuota regular (usamos la primera como referencia)
         $primeraCuota = $credito->amortizaciones->first();
         $cuota_monto = $primeraCuota ? $primeraCuota->total_cuota : 0;
 
-        // Obtener el día de la semana de pago (Ej. "Lunes")
         $dia_pago = \Carbon\Carbon::parse($credito->fecha_primer_pago)->locale('es')->isoFormat('dddd');
         
-        // Obtener el nombre de la sucursal autorizada (tomamos la primera o ponemos una por defecto)
         $sucursal_nombre = $credito->sucursalesParaPago->first()->nombre_sucursal ?? 'TEXCOCO';
 
-        // Convertidor de números a letras (Requiere la extensión 'intl' de PHP activada)
         $formatter = new NumberFormatter("es", NumberFormatter::SPELLOUT);
 
         $data = [
@@ -404,7 +385,6 @@ class CreditoController extends Controller
             'dia_pago' => ucfirst($dia_pago),
             'sucursal_nombre' => strtoupper($sucursal_nombre),
             
-            // Textos en letras
             'letras_monto_aprobado' => strtoupper($formatter->format($credito->monto_aprobado)),
             'letras_comision' => strtoupper($formatter->format($credito->comision_apertura_aplicada)),
             'letras_cuota' => strtoupper($formatter->format($cuota_monto)),
@@ -414,7 +394,6 @@ class CreditoController extends Controller
 
         $pdf = Pdf::loadView('creditos.pdf.contrato', $data);
         
-        // return $pdf->download(...) para descargar directo, o stream(...) para previsualizar en el navegador
         return $pdf->stream('Contrato_' . $credito->folio . '.pdf');
     }
 }

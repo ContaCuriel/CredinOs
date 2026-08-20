@@ -100,6 +100,15 @@
                                     </div>
                                 </div>
                             </div>
+                            
+                            {{-- FILA 3: Fechas (NUEVO) --}}
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold text-info">Fecha de Desembolso Solicitada <span class="text-danger">*</span></label>
+                                    <input type="date" class="form-control border-info" name="fecha_desembolso" value="{{ old('fecha_desembolso', date('Y-m-d')) }}" required>
+                                    <div class="form-text small">Día en que el cliente espera recibir el dinero.</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
