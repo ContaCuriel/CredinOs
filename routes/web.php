@@ -281,47 +281,25 @@ Route::middleware('auth')->group(function () {
     });
 });
 
-// --- RUTA MÁGICA 1: CREAR TABLA DE AMORTIZACIONES ---
-Route::get('/fix-bd-amortizacion', function () {
+// --- RUTA MÁGICA 3: COLUMNAS DE APROBACIÓN ---
+Route::get('/fix-bd-columnas', function () {
     try {
         $dbName = DB::connection('tenant')->getDatabaseName();
         $schema = str_contains($dbName, 'credintegra') ? 'credintegra_db' : 
                  (str_contains($dbName, 'crediticia') ? 'facturame_db' : 'public');
 
-        // Creamos la tabla de amortizaciones (las cuotas)
-        DB::connection('tenant')->statement("CREATE TABLE IF NOT EXISTS \"$schema\".credito_amortizaciones (
-            id BIGSERIAL PRIMARY KEY,
-            credito_id BIGINT NOT NULL,
-            numero_cuota INT NOT NULL,
-            fecha_pago DATE NOT NULL,
-            saldo_inicial NUMERIC(12,2) DEFAULT 0,
-            capital NUMERIC(12,2) DEFAULT 0,
-            interes NUMERIC(12,2) DEFAULT 0,
-            iva NUMERIC(12,2) DEFAULT 0,
-            total_cuota NUMERIC(12,2) DEFAULT 0,
-            saldo_final NUMERIC(12,2) DEFAULT 0,
-            estatus VARCHAR(50) DEFAULT 'pendiente', -- pendiente, pagado, atrasado, parcial
-            created_at TIMESTAMP NULL,
-            updated_at TIMESTAMP NULL
-        )");
+        // Agregamos todas las columnas financieras que nacen al aprobar el crédito
+        DB::connection('tenant')->statement("ALTER TABLE \"$schema\".creditos 
+            ADD COLUMN IF NOT EXISTS monto_aprobado NUMERIC(12,2) DEFAULT 0,
+            ADD COLUMN IF NOT EXISTS plazo_aprobado INT DEFAULT 0,
+            ADD COLUMN IF NOT EXISTS comision_apertura_aplicada NUMERIC(12,2) DEFAULT 0,
+            ADD COLUMN IF NOT EXISTS retencion_seguro_aplicada NUMERIC(12,2) DEFAULT 0,
+            ADD COLUMN IF NOT EXISTS fecha_aprobacion TIMESTAMP NULL,
+            ADD COLUMN IF NOT EXISTS fecha_primer_pago DATE NULL,
+            ADD COLUMN IF NOT EXISTS patron_id BIGINT NULL
+        ");
 
-        return "<h1>¡ÉXITO MATEMÁTICO!</h1><p>Tabla credito_amortizaciones creada en: <b>$schema</b>.</p>";
-    } catch (\Exception $e) {
-        return "<h1>ERROR:</h1><p>" . $e->getMessage() . "</p>";
-    }
-});
-
-// --- RUTA MÁGICA 2: AGREGAR FECHA DE DESEMBOLSO ---
-Route::get('/fix-bd-desembolso', function () {
-    try {
-        $dbName = DB::connection('tenant')->getDatabaseName();
-        $schema = str_contains($dbName, 'credintegra') ? 'credintegra_db' : 
-                 (str_contains($dbName, 'crediticia') ? 'facturame_db' : 'public');
-
-        // Agregamos la nueva columna
-        DB::connection('tenant')->statement("ALTER TABLE \"$schema\".creditos ADD COLUMN IF NOT EXISTS fecha_desembolso DATE NULL");
-
-        return "<h1>¡LISTO!</h1><p>Columna fecha_desembolso agregada a la tabla creditos en: <b>$schema</b>.</p>";
+        return "<h1>¡COLUMNAS LISTAS!</h1><p>Las columnas financieras fueron agregadas a la tabla creditos.</p>";
     } catch (\Exception $e) {
         return "<h1>ERROR:</h1><p>" . $e->getMessage() . "</p>";
     }
