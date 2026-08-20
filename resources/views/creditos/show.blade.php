@@ -228,6 +228,20 @@
                 </div>
                 @endif
 
+                {{-- ZONA DE AUTORIZACIÓN (El botón que faltaba) --}}
+                @if($credito->estatus == 'solicitado')
+                <div class="card border-0 shadow-sm border-start border-warning border-4 bg-light mb-4">
+                    <div class="card-body p-4 text-center">
+                        <h5 class="fw-bold text-dark mb-3">Zona de Autorización de Crédito</h5>
+                        <p class="text-muted">Como jefe de administración, revisa los datos capturados. Si todo está correcto, procede a dictaminar el crédito.</p>
+                        
+                        <button type="button" class="btn btn-warning fw-bold text-dark px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalAprobarCredito">
+                            <i class="bi bi-check-circle-fill me-2"></i> Dictaminar / Aprobar Crédito
+                        </button>
+                    </div>
+                </div>
+                @endif
+
                 {{-- NUEVA ZONA: TABLA DE AMORTIZACIÓN Y DOCUMENTOS (Solo visible si está aprobado o desembolsado) --}}
                 @if($credito->estatus == 'aprobado' || $credito->estatus == 'desembolsado')
                 <div class="card border-0 shadow-sm mb-4 border-start border-success border-4">
@@ -235,9 +249,10 @@
                         <h6 class="fw-bold text-dark mb-0"><i class="bi bi-calculator-fill me-2 text-success"></i>Tabla de Amortización Generada</h6>
                         
                         {{-- BOTONES DE DOCUMENTACIÓN LEGAL (FASE 3) --}}
-                        <a href="{{ route('creditos.contrato', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm me-1" title="Imprimir Contrato">
-    <i class="bi bi-file-earmark-pdf-fill"></i> Contrato
-</a>
+                        <div>
+                            <a href="{{ route('creditos.contrato', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm me-1" title="Imprimir Contrato">
+                                <i class="bi bi-file-earmark-pdf-fill"></i> Contrato
+                            </a>
                             <button class="btn btn-sm btn-outline-danger shadow-sm me-1" title="Imprimir Pagaré">
                                 <i class="bi bi-file-earmark-pdf-fill"></i> Pagaré
                             </button>
