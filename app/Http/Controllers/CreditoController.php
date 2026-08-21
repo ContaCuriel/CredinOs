@@ -385,7 +385,7 @@ class CreditoController extends Controller
             'dia_pago' => ucfirst($dia_pago),
             'sucursal_nombre' => strtoupper($sucursal_nombre),
             
-            // Usamos nuestra propia función nativa
+            // Usamos la función interna segura
             'letras_monto_aprobado' => $this->convertirALetras($credito->monto_aprobado),
             'letras_comision' => $this->convertirALetras($credito->comision_apertura_aplicada),
             'letras_cuota' => $this->convertirALetras($cuota_monto),
@@ -400,38 +400,48 @@ class CreditoController extends Controller
     // --- FUNCIÓN NATIVA PARA TRADUCIR NÚMEROS A LETRAS (SIN EXTENSIONES) ---
     private function convertirALetras($numero)
     {
-        $f = new \NumberFormatter("es", \NumberFormatter::SPELLOUT);
-        // Si NumberFormatter falla, usamos una versión simplificada (o en este caso, evitamos el error con un try-catch)
-        // Para asegurar que no falle en Render, usaremos una conversión básica manual si falla la nativa
         if (class_exists('NumberFormatter')) {
-            return strtoupper($f->format($numero));
+            try {
+                $f = new \NumberFormatter("es", \NumberFormatter::SPELLOUT);
+                return strtoupper($f->format($numero));
+            } catch (\Exception $e) {
+                // Si falla, pasamos al return de respaldo
+            }
         }
-
-        // Si Render no tiene intl, regresamos el monto formateado como respaldo temporal para que no truene el sistema
-        // *Nota: Lo ideal en Laravel es instalar el paquete "luecano/numero-a-letras" vía composer
+        // Respaldo de emergencia si el servidor no tiene 'intl' activado
         return strtoupper(number_format($numero, 2) . " PESOS");
     }
 
     public function imprimirTabla($id)
     {
-        $credito = \App\Models\Credito::with(['cliente', 'grupo', 'producto', 'asesor', 'sucursal', 'amortizaciones'])->findOrFail($id);
+        $credito = \App\Models\Credito::with(['cliente', 'grupo', 'producto', 'asesor', 'sucursal', 'patron', 'amortizaciones'])->findOrFail($id);
 
         if ($credito->amortizaciones->isEmpty()) {
             return back()->with('error', 'El crédito no tiene una tabla de amortización generada.');
         }
 
-        // Obtenemos referencias clave
         $primeraCuota = $credito->amortizaciones->first();
         $ultimaCuota = $credito->amortizaciones->last();
+
+        // 🖼️ Convertir Logo a Base64 para que DomPDF lo lea sin errores
+        $logo_base64 = null;
+        if ($credito->patron && $credito->patron->logo) {
+            $path = public_path('storage/' . $credito->patron->logo);
+            if (file_exists($path)) {
+                $type = pathinfo($path, PATHINFO_EXTENSION);
+                $data = file_get_contents($path);
+                $logo_base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+            }
+        }
 
         $data = [
             'credito' => $credito,
             'monto_pago' => $primeraCuota->total_cuota,
             'fecha_fin' => $ultimaCuota->fecha_pago,
+            'logo_base64' => $logo_base64,
         ];
 
         $pdf = Pdf::loadView('creditos.pdf.tabla', $data);
-        
         return $pdf->stream('Control_Pagos_' . $credito->folio . '.pdf');
     }
 }

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "dffb8fc92543102700231e7e03caad5f",
+    "content-hash": "9685e320dd52ead4d084434d29dd2210",
     "packages": [
         {
             "name": "barryvdh/laravel-dompdf",
@@ -2679,16 +2679,16 @@
         },
         {
             "name": "luecano/numero-a-letras",
-            "version": "v4.0.1",
+            "version": "v4.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/lecano/php-numero-a-letras.git",
-                "reference": "7de9fae684bd8da14ec295ee618b2893410587fb"
+                "reference": "676e3f02ebd40d650579e9e1930eeec651f80bfd"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/lecano/php-numero-a-letras/zipball/7de9fae684bd8da14ec295ee618b2893410587fb",
-                "reference": "7de9fae684bd8da14ec295ee618b2893410587fb",
+                "url": "https://api.github.com/repos/lecano/php-numero-a-letras/zipball/676e3f02ebd40d650579e9e1930eeec651f80bfd",
+                "reference": "676e3f02ebd40d650579e9e1930eeec651f80bfd",
                 "shasum": ""
             },
             "require": {
@@ -2724,7 +2724,7 @@
             ],
             "support": {
                 "issues": "https://github.com/lecano/php-numero-a-letras/issues",
-                "source": "https://github.com/lecano/php-numero-a-letras/tree/v4.0.1"
+                "source": "https://github.com/lecano/php-numero-a-letras/tree/v4.1.0"
             },
             "funding": [
                 {
@@ -2732,7 +2732,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-01-29T15:23:56+00:00"
+            "time": "2026-05-24T02:18:56+00:00"
         },
         {
             "name": "maatwebsite/excel",
