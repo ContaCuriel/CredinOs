@@ -312,7 +312,7 @@
                 </div>
                 @endif
 
-    {{-- MODAL DE APROBACIÓN DE CRÉDITO --}}
+   {{-- MODAL DE APROBACIÓN DE CRÉDITO --}}
     @if($credito->estatus == 'solicitado')
     <div class="modal fade" id="modalAprobarCredito" tabindex="-1" aria-labelledby="modalAprobarLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -340,6 +340,7 @@
 
                         {{-- Parámetros Editables --}}
                         <h6 class="fw-bold text-success border-bottom pb-2 mb-3">Parámetros Financieros (Editables)</h6>
+                        
                         <div class="row mb-3">
                             <div class="col-md-3">
                                 <label class="form-label small fw-bold">Monto Autorizar ($)</label>
@@ -362,8 +363,21 @@
                             </div>
                         </div>
 
+                        {{-- 🔥 NUEVO CHECKBOX: Descontar 1er Pago --}}
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="form-check form-switch p-3 bg-white border rounded shadow-sm">
+                                    <input class="form-check-input ms-1 me-2" type="checkbox" role="switch" name="descuenta_primer_pago" id="chk_descuenta_primer_pago" value="1" style="transform: scale(1.3);">
+                                    <label class="form-check-label fw-bold ms-2" for="chk_descuenta_primer_pago">
+                                        Retener Primera Cuota (Pago Adelantado)
+                                    </label>
+                                    <small class="d-block text-muted ms-2 mt-1">Si se marca, se le descontará automáticamente el importe del pago #1 al momento de entregar el dinero.</small>
+                                </div>
+                            </div>
+                        </div>
+
                         {{-- Documentación y Fechas --}}
-                        <h6 class="fw-bold text-primary border-bottom pb-2 mb-3 mt-4">Emisión y Fechas Clave</h6>
+                        <h6 class="fw-bold text-primary border-bottom pb-2 mb-3 mt-2">Emisión y Fechas Clave</h6>
                         <div class="row mb-3">
                             <div class="col-md-12 mb-3">
                                 <label class="form-label small fw-bold">Empresa Emisora (Contrato a nombre de:) <span class="text-danger">*</span></label>
@@ -394,7 +408,6 @@
                                 <div class="border rounded p-2 bg-white shadow-sm" style="max-height: 140px; overflow-y: auto;">
                                     @forelse($cuentasEmpresa ?? [] as $cuenta)
                                         <div class="form-check mb-2 border-bottom pb-2">
-                                            {{-- QUITÉ EL ATRIBUTO "checked" AQUÍ --}}
                                             <input class="form-check-input" type="checkbox" name="cuentas_pago[]" value="{{ $cuenta->id }}" id="chk_cuenta_{{ $cuenta->id }}">
                                             <label class="form-check-label small" for="chk_cuenta_{{ $cuenta->id }}">
                                                 <b>{{ $cuenta->banco }}</b> - {{ $cuenta->titular }}<br>
@@ -411,7 +424,6 @@
                                 <div class="border rounded p-2 bg-white shadow-sm" style="max-height: 140px; overflow-y: auto;">
                                     @forelse($sucursales ?? [] as $sucursal)
                                         <div class="form-check mb-1">
-                                            {{-- QUITÉ EL ATRIBUTO "checked" AQUÍ --}}
                                             <input class="form-check-input" type="checkbox" name="sucursales_pago[]" value="{{ $sucursal->id_sucursal }}" id="chk_sucursal_{{ $sucursal->id_sucursal }}">
                                             <label class="form-check-label small" for="chk_sucursal_{{ $sucursal->id_sucursal }}">
                                                 Caja Sucursal <b>{{ $sucursal->nombre_sucursal }}</b>
@@ -445,25 +457,54 @@
             const inputComision = document.getElementById('modal_comision');
             const inputRetencionSeguro = document.getElementById('modal_retencion_seguro');
             const inputFondeo = document.getElementById('modal_fondeo');
+            const chkPrimerPago = document.getElementById('chk_descuenta_primer_pago');
 
-            if (inputMonto && inputComision && inputFondeo && inputRetencionSeguro) {
+            // Variables matemáticas inyectadas desde Laravel
+            const plazo = {{ $credito->plazo_solicitado ?? 1 }};
+            const tasaInteresStr = '{{ $credito->tasa_interes_aplicada ?? 0 }}';
+            const tasaPeriodo = parseFloat(tasaInteresStr) / 100;
+            const tipoTasa = '{{ strtolower($credito->producto->tipo_tasa ?? 'global') }}';
+
+            if (inputMonto && inputComision && inputFondeo && inputRetencionSeguro && chkPrimerPago) {
+                
                 function calcularFondeo() {
                     let monto = parseFloat(inputMonto.value) || 0;
                     let comisionPct = parseFloat(inputComision.value) || 0;
                     let retencionSeg = parseFloat(inputRetencionSeguro.value) || 0;
                     
                     let comisionEfectiva = monto * (comisionPct / 100);
+                    let deduccionesTotales = comisionEfectiva + retencionSeg;
+
+                    // Cálculo matemático JS para saber cuánto descontar si se marca el Checkbox
+                    if (chkPrimerPago.checked) {
+                        let cuotaBase = 0;
+                        if (tipoTasa === 'francesa' || tipoTasa === 'pagos_fijos') {
+                            if (tasaPeriodo > 0) {
+                                cuotaBase = monto * (tasaPeriodo * Math.pow(1 + tasaPeriodo, plazo)) / (Math.pow(1 + tasaPeriodo, plazo) - 1);
+                            } else {
+                                cuotaBase = monto / plazo;
+                            }
+                        } else {
+                            // Asumiendo Global por defecto (El más común en este sistema)
+                            let interesTotal = monto * tasaPeriodo;
+                            let interesFijo = interesTotal / plazo;
+                            cuotaBase = (monto / plazo) + interesFijo;
+                        }
+                        
+                        // Redondeamos la cuota teórica como lo hace el Backend
+                        let cuotaRedondeada = Math.round(cuotaBase);
+                        deduccionesTotales += cuotaRedondeada;
+                    }
                     
-                    // Restamos la comisión y lo que el gerente haya decidido dejar en la casilla de retención de seguro
-                    let aFondear = monto - comisionEfectiva - retencionSeg;
-                    
+                    let aFondear = monto - deduccionesTotales;
                     inputFondeo.value = aFondear.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 }
 
-                // Escuchamos los cambios en los 3 campos
+                // Escuchamos los cambios en los campos y en el Checkbox
                 inputMonto.addEventListener('input', calcularFondeo);
                 inputComision.addEventListener('input', calcularFondeo);
                 inputRetencionSeguro.addEventListener('input', calcularFondeo);
+                chkPrimerPago.addEventListener('change', calcularFondeo);
                 
                 calcularFondeo();
             }
