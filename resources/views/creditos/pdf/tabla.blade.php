@@ -205,7 +205,6 @@
         <div class="signature-section">
             <div class="signature-line"></div>
             <div class="firma-name">AUTORIZADO</div>
-            <div>Sello de la Empresa</div>
         </div>
     </div>
 

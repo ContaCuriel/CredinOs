@@ -273,7 +273,7 @@ class CreditoController extends Controller
             }
 
             // =========================================================
-            // 3. 🔥 MOTOR MATEMÁTICO INTELIGENTE DE AMORTIZACIÓN 🔥
+            // 3. 🔥 MOTOR MATEMÁTICO INTELIGENTE (SIN CENTAVOS) 🔥
             // =========================================================
             $monto = $credito->monto_aprobado;
             $plazo = $credito->plazo_aprobado;
@@ -285,50 +285,70 @@ class CreditoController extends Controller
             $saldoRestante = $monto;
             $fechaPago = \Carbon\Carbon::parse($request->fecha_primer_pago);
 
-            $cuotaFrancesa = 0;
+            // A. Calcular cuota base teórica (con decimales)
+            $cuotaBaseTeorica = 0;
+            $interesPeriodoFijo = 0;
+
             if ($tipoTasa == 'francesa' || $tipoTasa == 'pagos_fijos') {
                 if ($tasaPeriodo > 0) {
-                    $cuotaFrancesa = $monto * ($tasaPeriodo * pow(1 + $tasaPeriodo, $plazo)) / (pow(1 + $tasaPeriodo, $plazo) - 1);
+                    $cuotaBaseTeorica = $monto * ($tasaPeriodo * pow(1 + $tasaPeriodo, $plazo)) / (pow(1 + $tasaPeriodo, $plazo) - 1);
                 } else {
-                    $cuotaFrancesa = $monto / $plazo;
+                    $cuotaBaseTeorica = $monto / $plazo;
                 }
+            } elseif ($tipoTasa == 'global' || empty($tipoTasa)) {
+                $interesTotal = $monto * $tasaPeriodo;
+                $interesPeriodoFijo = $interesTotal / $plazo;
+                $cuotaBaseTeorica = ($monto / $plazo) + $interesPeriodoFijo;
             }
+
+            // B. 🔥 REDONDEO MAESTRO A PESO CERRADO (ej. 1620.31 se vuelve 1620.00)
+            $cuotaRedondeada = round($cuotaBaseTeorica, 0);
 
             for ($i = 1; $i <= $plazo; $i++) {
                 
                 $capitalCuota = 0;
                 $interesCuota = 0;
+                $ivaCuota = 0; 
+                $totalCuota = 0;
 
-                switch ($tipoTasa) {
-                    case 'saldos_insolutos':
-                        $capitalCuota = $monto / $plazo;
-                        $interesCuota = $saldoRestante * $tasaPeriodo;
-                        break;
-                        
-                    case 'francesa':
-                    case 'pagos_fijos': 
-                        $interesCuota = $saldoRestante * $tasaPeriodo;
-                        $capitalCuota = $cuotaFrancesa - $interesCuota;
-                        break;
-
-                    case 'global':
-                    default: 
-                        $capitalCuota = $monto / $plazo;
-                        // CORRECCIÓN: Dividimos el interés total entre los pagos
-                        $interesTotal = $monto * $tasaPeriodo;
-                        $interesCuota = $interesTotal / $plazo;
-                        break;
+                // C. Distribuir el cobro en las cuotas regulares
+                if ($tipoTasa == 'saldos_insolutos') {
+                    $capitalBase = $monto / $plazo;
+                    $interesBase = $saldoRestante * $tasaPeriodo;
+                    $totalTeorico = $capitalBase + $interesBase;
+                    
+                    $totalCuota = round($totalTeorico, 0); 
+                    $interesCuota = $interesBase; 
+                    $capitalCuota = $totalCuota - $interesCuota; 
+                } 
+                elseif ($tipoTasa == 'francesa' || $tipoTasa == 'pagos_fijos') {
+                    $interesBase = $saldoRestante * $tasaPeriodo;
+                    $totalCuota = $cuotaRedondeada; 
+                    $interesCuota = $interesBase;
+                    $capitalCuota = $totalCuota - $interesCuota;
+                } 
+                else {
+                    // Global (El más común en microfinanzas)
+                    $totalCuota = $cuotaRedondeada;
+                    $interesCuota = $interesPeriodoFijo;
+                    $capitalCuota = $totalCuota - $interesCuota;
                 }
 
+                // D. 🔥 AJUSTE PERFECTO EN LA ÚLTIMA CUOTA
                 if ($i == $plazo) {
+                    // Se cobra exactamente el capital restante para que cuadre a cero
                     $capitalCuota = $saldoRestante; 
+                    
+                    // El total a pagar se fuerza a peso cerrado
+                    $totalCuota = round($capitalCuota + $interesCuota + $ivaCuota, 0);
+                    
+                    // El interés absorbe esos "centavitos perdidos" 
+                    $interesCuota = $totalCuota - $capitalCuota - $ivaCuota;
                 }
 
                 $capitalCuota = round($capitalCuota, 2);
                 $interesCuota = round($interesCuota, 2);
-                $ivaCuota = 0; 
-                $totalCuota = $capitalCuota + $interesCuota + $ivaCuota;
-
+                
                 \App\Models\CreditoAmortizacion::create([
                     'credito_id' => $credito->id,
                     'numero_cuota' => $i,
@@ -344,6 +364,7 @@ class CreditoController extends Controller
 
                 $saldoRestante = round($saldoRestante - $capitalCuota, 2);
 
+                // Incremento de fechas
                 if ($frecuencia == 'semanal') {
                     $fechaPago->addWeek();
                 } elseif ($frecuencia == 'catorcenal') {
@@ -355,9 +376,8 @@ class CreditoController extends Controller
                 }
             }
 
-            // --- ESTO FUE LO QUE ME FALTÓ EN EL MENSAJE ANTERIOR ---
             \Illuminate\Support\Facades\DB::commit();
-            return redirect()->route('creditos.show', $credito->id)->with('success', '¡Crédito dictaminado y APROBADO exitosamente! Se han generado las cuotas según el producto seleccionado.');
+            return redirect()->route('creditos.show', $credito->id)->with('success', '¡Crédito dictaminado y APROBADO exitosamente! Se han generado las cuotas en pesos cerrados.');
 
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\DB::rollBack();
