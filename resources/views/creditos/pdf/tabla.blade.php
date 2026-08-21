@@ -28,12 +28,11 @@
         .text-right { text-align: right; }
         .val-highlight { font-weight: bold; color: #003a70; }
 
-        /* Tabla de Cuotas (Solo Total a Pagar) */
-        .cuotas-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+        /* Tabla de Cuotas (Centrada, más compacta) */
+        .cuotas-table { width: 75%; margin: 0 auto 30px auto; border-collapse: collapse; }
         .cuotas-table th { background-color: #f9f9f9; color: #333; font-size: 10px; text-transform: uppercase; padding: 8px; border: 1px solid #ddd; text-align: center; }
         .cuotas-table td { padding: 7px; border: 1px solid #ddd; text-align: center; font-size: 11px; }
         .cuotas-table tr:nth-child(even) { background-color: #fafafa; }
-        .text-left { text-align: left !important; }
 
         /* Firma */
         .signature-section { margin-top: 50px; text-align: center; page-break-inside: avoid; }
@@ -48,10 +47,11 @@
         {{-- ENCABEZADO --}}
         <div class="header">
             <div class="logo-cell">
+                {{-- Si hay logo en Base64, lo pinta. Si no, usa el Nombre Comercial. --}}
                 @if(isset($logo_base64) && $logo_base64)
                     <img src="{{ $logo_base64 }}" alt="Logo">
-                @elseif(isset($credito->patron->razon_social))
-                    <h3>{{ $credito->patron->razon_social }}</h3>
+                @elseif(isset($credito->patron->nombre_comercial))
+                    <h3>{{ $credito->patron->nombre_comercial }}</h3>
                 @else
                     <h3>EMPRESA EMISORA</h3>
                 @endif
@@ -98,8 +98,8 @@
         <table class="cuotas-table">
             <thead>
                 <tr>
-                    <th width="15%">NO. PAGO</th>
-                    <th width="50%" class="text-left">FECHA PROGRAMADA</th>
+                    <th width="20%">NO. PAGO</th>
+                    <th width="45%">FECHA PROGRAMADA</th>
                     <th width="35%">MONTO A PAGAR</th>
                 </tr>
             </thead>
@@ -107,8 +107,8 @@
                 @foreach($credito->amortizaciones as $cuota)
                 <tr>
                     <td class="fw-bold">{{ $cuota->numero_cuota }}</td>
-                    {{-- Formato: 23 de Junio de 2025 --}}
-                    <td class="text-left">{{ ucwords(\Carbon\Carbon::parse($cuota->fecha_pago)->locale('es')->isoFormat('DD \d\e MMMM \d\e YYYY')) }}</td>
+                    {{-- Fechas centradas --}}
+                    <td>{{ ucwords(\Carbon\Carbon::parse($cuota->fecha_pago)->locale('es')->isoFormat('DD \d\e MMMM \d\e YYYY')) }}</td>
                     <td class="val-highlight">${{ number_format($cuota->total_cuota, 2) }}</td>
                 </tr>
                 @endforeach

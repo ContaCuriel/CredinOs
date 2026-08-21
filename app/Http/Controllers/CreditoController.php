@@ -423,10 +423,12 @@ class CreditoController extends Controller
         $primeraCuota = $credito->amortizaciones->first();
         $ultimaCuota = $credito->amortizaciones->last();
 
-        // 🖼️ Convertir Logo a Base64 para que DomPDF lo lea sin errores
+        // 🖼️ Convertir Logo a Base64 para que DomPDF lo lea sin errores (USANDO logo_path)
         $logo_base64 = null;
-        if ($credito->patron && $credito->patron->logo) {
-            $path = public_path('storage/' . $credito->patron->logo);
+        if ($credito->patron && $credito->patron->logo_path) {
+            // Buscamos la ruta correcta de la imagen
+            $path = public_path('storage/' . $credito->patron->logo_path);
+            
             if (file_exists($path)) {
                 $type = pathinfo($path, PATHINFO_EXTENSION);
                 $data = file_get_contents($path);
