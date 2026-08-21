@@ -21,7 +21,7 @@
         .top-table td { vertical-align: top; }
         
         /* Títulos refinados */
-        .main-title { font-size: 16pt; font-weight: bold; color: #003a70; text-align: center; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 2px; }
+        .main-title { font-size: 16pt; font-weight: bold; color: #003a70; text-align: center; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 2px; }
         .sub-title { font-size: 10.5pt; font-weight: bold; background-color: #003a70; color: #fff; text-align: center; padding: 5px 0; text-transform: uppercase; margin-bottom: 35px; border-radius: 3px; letter-spacing: 1px; }
         
         /* Información del Cliente Individual */
@@ -64,14 +64,14 @@
         .g-val { color: #1a202c; font-weight: bold; width: 38%; }
 
         .table-integrantes { width: 100%; border-collapse: collapse; margin-top: 15px; border: 1px solid #cbd5e0; }
-        .table-integrantes th { background-color: #003a70; color: #fff; padding: 6px 4px; font-size: 8pt; text-align: center; border: 1px solid #003a70; text-transform: uppercase; }
-        .table-integrantes td { border: 1px solid #cbd5e0; padding: 6px 4px; font-size: 8pt; text-align: center; vertical-align: middle; height: 28px; }
+        .table-integrantes th { background-color: #003a70; color: #fff; padding: 8px 4px; font-size: 8.5pt; text-align: center; border: 1px solid #003a70; text-transform: uppercase; }
+        .table-integrantes td { border: 1px solid #cbd5e0; padding: 8px 4px; font-size: 8.5pt; text-align: center; vertical-align: middle; height: 32px; }
         .table-integrantes .text-left { text-align: left; padding-left: 8px; }
         
-        .row-totales-grupal td { background-color: #edf2f7; font-weight: bold; font-size: 8.5pt; border-top: 2px solid #cbd5e0; }
+        .row-totales-grupal td { background-color: #edf2f7; font-weight: bold; font-size: 9pt; border-top: 2px solid #cbd5e0; }
         
         /* Firmas Grupal */
-        .signatures-grupal { width: 100%; margin-top: 40px; border-collapse: collapse; }
+        .signatures-grupal { width: 100%; margin-top: 30px; border-collapse: collapse; }
         .signatures-grupal td { text-align: center; vertical-align: bottom; height: 50px; width: 33.33%; }
         .sig-line-g { border-top: 1px solid #000; width: 70%; margin: 0 auto; padding-top: 5px; font-weight: bold; font-size: 9pt; text-transform: uppercase; }
     </style>
@@ -103,6 +103,9 @@
         {{-- FORMATO GRUPAL (HOJA 1: INTEGRANTES) --}}
         {{-- ========================================================================= --}}
         
+        {{-- TÍTULO HASTA ARRIBA --}}
+        <div class="main-title">ACTA DE INSTALACIÓN</div>
+        
         <table style="width: 100%; margin-bottom: 10px;">
             <tr>
                 <td width="70%">
@@ -127,47 +130,39 @@
                 </td>
                 <td width="30%" class="logo-box" valign="top">
                     @if(isset($logo_base64) && $logo_base64)
-                        <img src="{{ $logo_base64 }}" alt="Logo" style="max-height: 50px;">
+                        <img src="{{ $logo_base64 }}" alt="Logo" style="max-height: 55px;">
                     @else
                         <h3>{{ $credito->patron->nombre_comercial ?? 'EMPRESA EMISORA' }}</h3>
                     @endif
-                    <div class="main-title" style="font-size: 14pt; margin-top: 5px;">ACTA DE INSTALACIÓN</div>
                 </td>
             </tr>
         </table>
 
-        <table class="header-grupal" style="margin-top: -10px;">
+        <table class="header-grupal" style="margin-top: -5px;">
             <tr>
-                <td class="g-lbl" style="width: 10%;">SUCURSAL:</td>
-                <td class="g-val" style="width: 23%;">{{ strtoupper($credito->sucursal->nombre_sucursal ?? 'TEXCOCO') }}</td>
-                <td class="g-lbl" style="width: 10%;">FECHA:</td>
-                <td class="g-val" style="width: 23%;">{{ \Carbon\Carbon::parse($credito->fecha_desembolso)->format('d/m/Y') }}</td>
-                <td class="g-lbl" style="width: 10%;">TELÉFONO:</td>
-                <td class="g-val" style="width: 24%;">{{ $telefonoLider }}</td>
+                <td class="g-lbl" style="width: 12%;">SUCURSAL:</td>
+                <td class="g-val" style="width: 21%;">{{ strtoupper($credito->sucursal->nombre_sucursal ?? 'TEXCOCO') }}</td>
+                <td class="g-lbl" style="width: 12%;">FECHA:</td>
+                <td class="g-val" style="width: 21%;">{{ \Carbon\Carbon::parse($credito->fecha_desembolso)->format('d/m/Y') }}</td>
+                <td class="g-lbl" style="width: 12%;">TELÉFONO:</td>
+                <td class="g-val" style="width: 22%;">{{ $telefonoLider }}</td>
             </tr>
             <tr>
-                <td class="g-lbl">HORARIO:</td>
-                <td class="g-val"></td>
-                <td class="g-lbl">NO. RENOVACIONES:</td>
-                <td class="g-val">0</td>
                 <td class="g-lbl">NO. CUENTA:</td>
-                <td class="g-val">{{ $credito->cuentasDesembolso->first()->numero_cuenta ?? 'EFECTIVO' }}</td>
+                <td class="g-val" colspan="5">{{ $credito->cuentasDesembolso->first()->numero_cuenta ?? 'EFECTIVO' }}</td>
             </tr>
         </table>
 
-        {{-- Tabla de Integrantes --}}
+        {{-- Tabla de Integrantes Limpia --}}
         <table class="table-integrantes">
             <thead>
                 <tr>
-                    <th width="3%">NO</th>
-                    <th width="26%">NOMBRE CLIENTE</th>
-                    <th width="6%">RENOV</th>
-                    <th width="11%">MONTO ANTERIOR</th>
-                    <th width="12%">MONTO SOLICITADO</th>
-                    <th width="11%">PAGO FALTAS DE</th>
-                    <th width="10%">TELÉFONO</th>
-                    <th width="12%">MONTO AUTORIZADO</th>
-                    <th width="9%">FIRMA</th>
+                    <th width="5%">NO</th>
+                    <th width="40%">NOMBRE CLIENTE</th>
+                    <th width="15%">MONTO SOLICITADO</th>
+                    <th width="15%">TELÉFONO</th>
+                    <th width="15%">MONTO AUTORIZADO</th>
+                    <th width="10%">FIRMA</th>
                 </tr>
             </thead>
             <tbody>
@@ -175,10 +170,7 @@
                 <tr>
                     <td class="fw-bold">{{ $index + 1 }}</td>
                     <td class="text-left fw-bold">{{ mb_strtoupper($integrante->nombre_completo ?? $integrante->nombre . ' ' . $integrante->apellido_paterno) }}</td>
-                    <td>0.00</td>
-                    <td>0.00</td>
-                    <td>{{ number_format($integrante->pivot->monto_individual, 2) }}</td>
-                    <td>0.00</td>
+                    <td>${{ number_format($integrante->pivot->monto_individual, 2) }}</td>
                     <td>{{ $integrante->telefono_celular ?? 'N/A' }}</td>
                     <td class="fw-bold">${{ number_format($integrante->pivot->monto_individual, 2) }}</td>
                     <td></td>
@@ -187,10 +179,8 @@
                 
                 {{-- Fila de Totales --}}
                 <tr class="row-totales-grupal">
-                    <td colspan="3" class="text-right" style="padding-right: 10px;">MONTO TOTAL DEL CRÉDITO</td>
-                    <td>$0.00</td>
+                    <td colspan="2" class="text-right" style="padding-right: 15px;">MONTO TOTAL DEL CRÉDITO</td>
                     <td>${{ number_format($credito->monto_aprobado, 2) }}</td>
-                    <td></td>
                     <td></td>
                     <td>${{ number_format($credito->monto_aprobado, 2) }}</td>
                     <td></td>
@@ -226,37 +216,37 @@
             <tr>
                 <td width="48%" valign="top">
                     <table class="math-table">
-                        <tr>
-                            <td>Pagos Pendientes por Realizar</td>
-                            <td class="text-right fw-bold text-danger">$0.00</td>
-                        </tr>
+                        
                         @if(isset($pago_adelantado) && $pago_adelantado > 0)
                         <tr>
                             <td>Pago Adelantado 1</td>
                             <td class="text-right fw-bold text-danger">${{ number_format($pago_adelantado, 2) }}</td>
                         </tr>
-                        @else
-                        <tr>
-                            <td>Pago Adelantado 1</td>
-                            <td class="text-right fw-bold text-danger">$0.00</td>
-                        </tr>
                         @endif
-                        <tr>
-                            <td>Multas y/o Moratorios Generados</td>
-                            <td class="text-right fw-bold text-danger">$0.00</td>
-                        </tr>
+                        
+                        @if($comision > 0)
                         <tr>
                             <td>Comisión del Nuevo Crédito</td>
                             <td class="text-right fw-bold text-danger">${{ number_format($comision, 2) }}</td>
                         </tr>
+                        @endif
+                        
                         @if($retencion_seguro > 0)
                         <tr>
                             <td>Retención de Seguro</td>
                             <td class="text-right fw-bold text-danger">${{ number_format($retencion_seguro, 2) }}</td>
                         </tr>
                         @endif
+                        
+                        @if($comision == 0 && $retencion_seguro == 0 && (!isset($pago_adelantado) || $pago_adelantado == 0))
+                        <tr>
+                            <td class="text-muted" style="font-style: italic; color: #a0aec0;">Sin deducciones aplicadas</td>
+                            <td class="text-right fw-bold">$0.00</td>
+                        </tr>
+                        @endif
+
                         <tr class="row-total">
-                            <td>TOTAL:</td>
+                            <td>TOTAL DEDUCCIONES:</td>
                             <td class="text-right text-danger">${{ number_format($total_deducciones, 2) }}</td>
                         </tr>
                     </table>
@@ -268,14 +258,14 @@
                             <td>Monto del Crédito</td>
                             <td class="text-right fw-bold">${{ number_format($monto_credito, 2) }}</td>
                         </tr>
+                        
+                        @if($total_deducciones > 0)
                         <tr>
-                            <td>Deducciones</td>
-                            <td class="text-right fw-bold text-danger">${{ number_format($total_deducciones, 2) }}</td>
+                            <td>Menos Deducciones</td>
+                            <td class="text-right fw-bold text-danger">-${{ number_format($total_deducciones, 2) }}</td>
                         </tr>
-                        <tr>
-                            <td>Devolución Comisión</td>
-                            <td class="text-right fw-bold">$0.00</td>
-                        </tr>
+                        @endif
+                        
                         <tr class="row-total">
                             <td class="highlight-total fw-bold">Total a Fondear</td>
                             <td class="text-right highlight-total fw-bold">${{ number_format($total_fondear, 2) }}</td>
