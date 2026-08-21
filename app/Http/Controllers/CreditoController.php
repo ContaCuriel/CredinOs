@@ -398,18 +398,29 @@ class CreditoController extends Controller
     }
 
     // --- FUNCIÓN NATIVA PARA TRADUCIR NÚMEROS A LETRAS (SIN EXTENSIONES) ---
+    // --- FUNCIÓN NATIVA Y SEGURA PARA NÚMEROS A LETRAS ---
     private function convertirALetras($numero)
     {
-        if (class_exists('NumberFormatter')) {
-            try {
-                $f = new \NumberFormatter("es", \NumberFormatter::SPELLOUT);
-                return strtoupper($f->format($numero));
-            } catch (\Exception $e) {
-                // Si falla, pasamos al return de respaldo
-            }
-        }
-        // Respaldo de emergencia si el servidor no tiene 'intl' activado
-        return strtoupper(number_format($numero, 2) . " PESOS");
+        $numero = floor($numero);
+        if ($numero == 0) return 'CERO';
+        
+        $unidades = ['', 'UN ', 'DOS ', 'TRES ', 'CUATRO ', 'CINCO ', 'SEIS ', 'SIETE ', 'OCHO ', 'NUEVE ', 'DIEZ ', 'ONCE ', 'DOCE ', 'TRECE ', 'CATORCE ', 'QUINCE ', 'DIECISEIS ', 'DIECISIETE ', 'DIECIOCHO ', 'DIECINUEVE ', 'VEINTE '];
+        $decenas = ['', 'DIEZ ', 'VEINTI', 'TREINTA ', 'CUARENTA ', 'CINCUENTA ', 'SESENTA ', 'SETENTA ', 'OCHENTA ', 'NOVENTA '];
+        $centenas = ['', 'CIENTO ', 'DOSCIENTOS ', 'TRESCIENTOS ', 'CUATROCIENTOS ', 'QUINIENTOS ', 'SEISCIENTOS ', 'SETECIENTOS ', 'OCHOCIENTOS ', 'NOVECIENTOS '];
+
+        $convertir = function ($n) use (&$convertir, $unidades, $decenas, $centenas) {
+            if ($n <= 20) return $unidades[$n];
+            if ($n < 100) return $decenas[floor($n / 10)] . ($n % 10 != 0 ? ($n < 30 ? '' : 'Y ') . $unidades[$n % 10] : '');
+            if ($n == 100) return 'CIEN ';
+            if ($n < 1000) return $centenas[floor($n / 100)] . $convertir($n % 100);
+            if ($n < 2000) return 'MIL ' . $convertir($n % 1000);
+            if ($n < 1000000) return $convertir(floor($n / 1000)) . 'MIL ' . $convertir($n % 1000);
+            if ($n == 1000000) return 'UN MILLON ' . $convertir($n % 1000000);
+            if ($n < 1000000000) return $convertir(floor($n / 1000000)) . 'MILLONES ' . $convertir($n % 1000000);
+            return '';
+        };
+
+        return trim($convertir($numero)) . ' PESOS';
     }
 
     public function imprimirTabla($id)

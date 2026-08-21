@@ -120,7 +120,6 @@
             <div class="signature-line"></div>
             <div class="firma-name">{{ $credito->cliente->nombre_completo ?? $credito->cliente->nombre }}</div>
             <div>Firma del Cliente / De Conformidad</div>
-            <div class="slogan">Tu crédito de la mano</div>
         </div>
 
     </div>
