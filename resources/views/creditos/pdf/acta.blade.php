@@ -73,11 +73,12 @@
                     <h3>EMPRESA EMISORA</h3>
                 @endif
                 
-                <div class="date-text">FECHA: {{ \Carbon\Carbon::parse($credito->fecha_aprobacion)->format('d/m/Y') }}</div>
+                <!-- 🔥 AQUÍ SE CAMBIÓ fecha_aprobacion POR fecha_desembolso -->
+                <div class="date-text">FECHA: {{ \Carbon\Carbon::parse($credito->fecha_desembolso)->format('d/m/Y') }}</div>
             </td>
         </tr>
     </table>
-
+    
     <!-- TÍTULOS CENTRALES -->
     <div class="main-title">ACTA DE INSTALACIÓN</div>
     <div class="sub-title">CONTABILIDAD DEL CRÉDITO</div>

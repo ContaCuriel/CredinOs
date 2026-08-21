@@ -48,10 +48,12 @@
                 <h3>{{ $empresa }}</h3>
             @endif
         </div>
-        <div class="title-cell">
+       <div class="title-cell">
             <div class="doc-title">Carta Compromiso</div>
             <div class="doc-folio">FOLIO: {{ $credito->folio }}</div>
-            <div class="doc-date">{{ $credito->sucursal->nombre_sucursal ?? 'TEXCOCO DE MORA' }} a {{ \Carbon\Carbon::parse($credito->fecha_aprobacion)->format('d/m/Y') }}</div>
+            
+            <!-- 🔥 AQUÍ SE CAMBIÓ fecha_aprobacion POR fecha_desembolso -->
+            <div class="doc-date">{{ $credito->sucursal->nombre_sucursal ?? 'TEXCOCO DE MORA' }} a {{ \Carbon\Carbon::parse($credito->fecha_desembolso)->format('d/m/Y') }}</div>
         </div>
     </div>
 

@@ -304,9 +304,9 @@
                             <a href="{{ route('creditos.referencias', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm me-1" title="Imprimir Referencias">
                                 <i class="bi bi-receipt-cutoff"></i> Referencias
                             </a>
-                            <a href="{{ route('creditos.solicitud', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm me-1" title="Imprimir Solicitud">
+                            <!-- <a href="{{ route('creditos.solicitud', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm me-1" title="Imprimir Solicitud">
                                 <i class="bi bi-person-vcard"></i> Solicitud
-                            </a>
+                            </a> -->
                         </div>
                     </div>
                 </div>

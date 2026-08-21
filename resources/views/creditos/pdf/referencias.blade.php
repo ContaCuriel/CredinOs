@@ -43,7 +43,7 @@
 
         .data-table { width: 100%; border-collapse: collapse; }
         .data-table td { padding: 8px 5px; font-size: 11pt; border-bottom: 1px solid #edf2f7; }
-        .lbl { font-weight: bold; color: #718096; width: 30%; text-transform: uppercase; font-size: 10pt; }
+        .lbl { font-weight: bold; color: #718096; width: 32%; text-transform: uppercase; font-size: 10pt; }
         .val { font-weight: bold; color: #1a202c; }
         
         .monto-box { 
@@ -64,8 +64,8 @@
 
     @php
         $empresa = $credito->patron->nombre_comercial ?? 'LA EMPRESA';
+        // Buscamos si es un crédito grupal o individual para poner el nombre en la referencia
         $nombreCliente = $credito->nombre_credito ?? ($credito->grupo->nombre_grupo ?? ($credito->cliente->nombre_completo ?? $credito->cliente->nombre));
-        $asesor = $credito->asesor->nombre_completo ?? 'SIN ASIGNAR';
         
         $hayOpciones = $credito->sucursalesParaPago->count() > 0 || $credito->cuentasParaPago->count() > 0;
     @endphp
@@ -74,7 +74,7 @@
         <div class="no-data">No se asignaron referencias de pago para este crédito.</div>
     @else
 
-        <!-- 1. ITERAR SOBRE LAS SUCURSALES FÍSICAS -->
+        <!-- 1. FICHAS PARA PAGO EN SUCURSALES FÍSICAS -->
         @foreach($credito->sucursalesParaPago as $sucursal)
         <div class="ticket-wrapper">
             <div class="ticket-box">
@@ -87,7 +87,7 @@
                                 <h3>{{ $empresa }}</h3>
                             @endif
                         </td>
-                        <td class="title-cell">Referencia de Pago</td>
+                        <td class="title-cell">Ficha de Pago</td>
                     </tr>
                 </table>
 
@@ -97,16 +97,12 @@
                         <td class="val">SUCURSAL</td>
                     </tr>
                     <tr>
-                        <td class="lbl">Cuenta / Sucursal:</td>
+                        <td class="lbl">Nombre Sucursal:</td>
                         <td class="val">{{ strtoupper($sucursal->nombre_sucursal) }}</td>
                     </tr>
                     <tr>
                         <td class="lbl">Cliente / Grupo:</td>
                         <td class="val">{{ strtoupper($nombreCliente) }}</td>
-                    </tr>
-                    <tr>
-                        <td class="lbl">Asesor:</td>
-                        <td class="val">{{ strtoupper($asesor) }}</td>
                     </tr>
                 </table>
 
@@ -119,7 +115,7 @@
         </div>
         @endforeach
 
-        <!-- 2. ITERAR SOBRE LAS CUENTAS BANCARIAS DE LA EMPRESA -->
+        <!-- 2. FICHAS PARA PAGO EN CUENTAS BANCARIAS -->
         @foreach($credito->cuentasParaPago as $cuenta)
         <div class="ticket-wrapper">
             <div class="ticket-box">
@@ -132,26 +128,32 @@
                                 <h3>{{ $empresa }}</h3>
                             @endif
                         </td>
-                        <td class="title-cell">Referencia de Pago</td>
+                        <td class="title-cell">Ficha de Pago</td>
                     </tr>
                 </table>
 
                 <table class="data-table">
                     <tr>
-                        <td class="lbl">Depósito en:</td>
+                        <td class="lbl">Banco:</td>
                         <td class="val">{{ strtoupper($cuenta->banco) }}</td>
                     </tr>
                     <tr>
-                        <td class="lbl">Cuenta / CLABE:</td>
-                        <td class="val">CTA: {{ $cuenta->numero_cuenta }} @if($cuenta->clabe) | CLABE: {{ $cuenta->clabe }} @endif</td>
+                        <td class="lbl">Beneficiario:</td>
+                        <td class="val">{{ strtoupper($cuenta->titular) }}</td>
                     </tr>
                     <tr>
-                        <td class="lbl">Cliente / Grupo:</td>
+                        <td class="lbl">No. Cuenta / Tarjeta:</td>
+                        <td class="val">{{ $cuenta->numero_cuenta }}</td>
+                    </tr>
+                    @if($cuenta->clabe)
+                    <tr>
+                        <td class="lbl">CLABE Interbancaria:</td>
+                        <td class="val">{{ $cuenta->clabe }}</td>
+                    </tr>
+                    @endif
+                    <tr>
+                        <td class="lbl">Referencia / Cliente:</td>
                         <td class="val">{{ strtoupper($nombreCliente) }}</td>
-                    </tr>
-                    <tr>
-                        <td class="lbl">Asesor:</td>
-                        <td class="val">{{ strtoupper($asesor) }}</td>
                     </tr>
                 </table>
 

@@ -57,7 +57,7 @@
                 @endif
             </td>
             <td class="date-cell">
-                {{ $credito->sucursal->nombre_sucursal ?? 'TEXCOCO DE MORA' }} a {{ \Carbon\Carbon::parse($credito->fecha_aprobacion)->format('d/m/Y') }}
+                {{ $credito->sucursal->nombre_sucursal ?? 'TEXCOCO DE MORA' }} a {{ \Carbon\Carbon::parse($credito->fecha_desembolso)->format('d/m/Y') }}
             </td>
         </tr>
     </table>
