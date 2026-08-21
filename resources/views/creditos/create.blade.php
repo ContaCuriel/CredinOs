@@ -572,13 +572,19 @@
                     const inputTitular = fila.querySelector('.input-titular-cuenta');
 
                     if (e.target.checked) {
-                        const primerTr = document.querySelector('#tbody_clientes tr[id^="fila_cliente_"] .nombre-cliente-fila span');
-                        if (primerTr) {
-                            inputTitular.value = primerTr.innerText.trim();
+                        // 🔥 MAGIA: Buscamos específicamente el radio button que esté marcado como líder
+                        const radioLider = document.querySelector('input[name="lider_id"]:checked');
+                        
+                        if (radioLider) {
+                            // Subimos a la fila (tr) de ese radio button y obtenemos el nombre
+                            const filaLider = radioLider.closest('tr');
+                            const nombreLider = filaLider.querySelector('.nombre-cliente-fila span').innerText.trim();
+                            
+                            inputTitular.value = nombreLider;
                             inputTitular.setAttribute('readonly', true);
                             inputTitular.classList.add('bg-light', 'text-muted');
                         } else {
-                            alert("Por favor, busca y selecciona a un cliente primero en el Paso 2.");
+                            alert("Por favor, agrega al menos un cliente y asegúrate de marcar quién es la Líder en el Paso 2.");
                             e.target.checked = false;
                         }
                     } else {
@@ -602,7 +608,7 @@
                             <span>Nombre del Titular <span class="text-danger">*</span></span>
                             <div class="form-check form-switch mb-0" style="font-size: 0.85em;">
                                 <input class="form-check-input check-usar-titular" type="checkbox" role="switch">
-                                <label class="form-check-label text-muted ms-1">Usar cliente</label>
+                                <label class="form-check-label text-muted ms-1">Usar cliente/líder</label>
                             </div>
                         </label>
                         <input type="text" class="form-control input-titular-cuenta" name="cuentas[${indiceCuenta}][titular]" required placeholder="Nombre completo">
