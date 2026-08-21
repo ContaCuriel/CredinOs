@@ -577,4 +577,68 @@ class CreditoController extends Controller
         $pdf = Pdf::loadView('creditos.pdf.carta', $data);
         return $pdf->stream('Carta_Compromiso_' . $credito->folio . '.pdf');
     }
+
+    public function imprimirReferencias($id)
+    {
+        $credito = \App\Models\Credito::with([
+            'cliente', 'grupo', 'asesor', 'patron', 
+            'amortizaciones', 'cuentasParaPago', 'sucursalesParaPago'
+        ])->findOrFail($id);
+
+        if ($credito->amortizaciones->isEmpty()) {
+            return back()->with('error', 'El crédito no tiene una tabla de amortización generada.');
+        }
+
+        // 🖼️ Convertir Logo a Base64
+        $logo_base64 = null;
+        if ($credito->patron && $credito->patron->logo_path) {
+            $path = public_path('storage/' . $credito->patron->logo_path);
+            if (file_exists($path)) {
+                $type = pathinfo($path, PATHINFO_EXTENSION);
+                $data = file_get_contents($path);
+                $logo_base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+            }
+        }
+
+        // Obtenemos el monto de la cuota fija
+        $primeraCuota = $credito->amortizaciones->first();
+        $cuota_monto = $primeraCuota ? $primeraCuota->total_cuota : 0;
+
+        $data = [
+            'credito' => $credito,
+            'logo_base64' => $logo_base64,
+            'cuota_monto' => $cuota_monto,
+        ];
+
+        $pdf = Pdf::loadView('creditos.pdf.referencias', $data);
+        return $pdf->stream('Referencias_Pago_' . $credito->folio . '.pdf');
+    }
+
+    public function imprimirSolicitud($id)
+    {
+        $credito = \App\Models\Credito::with([
+            'cliente.referencias', // Cargamos las referencias del cliente
+            'grupo', 'asesor', 'sucursal', 'patron'
+        ])->findOrFail($id);
+
+        // 🖼️ Convertir Logo a Base64
+        $logo_base64 = null;
+        if ($credito->patron && $credito->patron->logo_path) {
+            $path = public_path('storage/' . $credito->patron->logo_path);
+            if (file_exists($path)) {
+                $type = pathinfo($path, PATHINFO_EXTENSION);
+                $data = file_get_contents($path);
+                $logo_base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+            }
+        }
+
+        $data = [
+            'credito' => $credito,
+            'cliente' => $credito->cliente,
+            'logo_base64' => $logo_base64,
+        ];
+
+        $pdf = Pdf::loadView('creditos.pdf.solicitud', $data);
+        return $pdf->stream('Solicitud_Credito_' . $credito->folio . '.pdf');
+    }
 }

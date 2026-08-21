@@ -113,6 +113,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/creditos/{id}/acta', [\App\Http\Controllers\CreditoController::class, 'imprimirActa'])->name('creditos.acta');
     Route::get('/creditos/{id}/acuse', [\App\Http\Controllers\CreditoController::class, 'imprimirAcuse'])->name('creditos.acuse');
     Route::get('/creditos/{id}/carta-compromiso', [\App\Http\Controllers\CreditoController::class, 'imprimirCarta'])->name('creditos.carta');
+    Route::get('/creditos/{id}/referencias', [\App\Http\Controllers\CreditoController::class, 'imprimirReferencias'])->name('creditos.referencias');
+    Route::get('/creditos/{id}/solicitud', [\App\Http\Controllers\CreditoController::class, 'imprimirSolicitud'])->name('creditos.solicitud');
 
     // --- RECURSOS HUMANOS ---
     Route::middleware('can:ver-menu-rh')->group(function () {

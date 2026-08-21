@@ -289,17 +289,23 @@
                             <a href="{{ route('creditos.contrato', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm me-1">
                                 <i class="bi bi-file-earmark-pdf-fill"></i> Contrato
                             </a>
-                            <a href="{{ route('creditos.carta', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm me-1">
-                                <i class="bi bi-file-earmark-text-fill"></i> Compromiso
-                            </a>
                             <a href="{{ route('creditos.acta', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm me-1">
-                                <i class="bi bi-file-earmark-check-fill"></i> Acta
+                                <i class="bi bi-file-earmark-check-fill"></i> Acta De Instalacion
+                            </a>
+                            <a href="{{ route('creditos.carta', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm me-1">
+                                <i class="bi bi-file-earmark-text-fill"></i> Carta Compromiso
                             </a>
                             <a href="{{ route('creditos.acuse', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm me-1">
-                                <i class="bi bi-file-earmark-ruled-fill"></i> Acuse
+                                <i class="bi bi-file-earmark-ruled-fill"></i> Acuse De Desembolso
                             </a>
                             <a href="{{ route('creditos.tabla', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm">
                                 <i class="bi bi-table"></i> Control de Pagos
+                            </a>
+                            <a href="{{ route('creditos.referencias', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm me-1" title="Imprimir Referencias">
+                                <i class="bi bi-receipt-cutoff"></i> Referencias
+                            </a>
+                            <a href="{{ route('creditos.solicitud', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm me-1" title="Imprimir Solicitud">
+                                <i class="bi bi-person-vcard"></i> Solicitud
                             </a>
                         </div>
                     </div>
