@@ -100,6 +100,7 @@
                             </a>
                         </li>
                     </ul>
+                    
                     @can('ver-menu-creditos')
                     <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
                         <span>CRÉDITOS Y COBRANZA</span>
@@ -114,8 +115,30 @@
                         @can('registrar-credito')
                             <li class="nav-item"><a class="nav-link {{ request()->routeIs('creditos.create') ? 'active' : '' }}" href="{{ route('creditos.create') }}"><i class="bi bi-plus-circle"></i> Registrar Crédito</a></li>
                         @endcan
+                        
+                        {{-- 🔥 MÓDULOS DEL CORE BANCARIO SEPARADOS 🔥 --}}
                         @can('ver-creditos')
-                            <li class="nav-item"><a class="nav-link {{ request()->routeIs(['creditos.index', 'creditos.show']) ? 'active' : '' }}" href="{{ route('creditos.index') }}"><i class="bi bi-card-list"></i> Lista de Créditos</a></li>
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs(['creditos.index', 'creditos.show']) ? 'active' : '' }}" href="{{ route('creditos.index') }}">
+                                    <i class="bi bi-card-list"></i> Solicitudes de Crédito
+                                </a>
+                            </li>
+                        @endcan
+                            
+                        @can('ver-desembolsos')
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('desembolsos.*') ? 'active' : '' }}" href="{{ route('desembolsos.index') }}">
+                                    <i class="bi bi-safe2-fill text-warning"></i> Fondeos del Día
+                                </a>
+                            </li>
+                        @endcan
+                            
+                        @can('ver-cartera')
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('cartera.*') ? 'active' : '' }}" href="{{ route('cartera.index') }}">
+                                    <i class="bi bi-wallet-fill text-success"></i> Cartera Activa
+                                </a>
+                            </li>
                         @endcan
                     </ul>
                     @endcan

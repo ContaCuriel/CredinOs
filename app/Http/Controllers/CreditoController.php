@@ -16,14 +16,15 @@ use NumberFormatter;
 class CreditoController extends Controller
 {
     public function index()
-    {
-        // Traemos los créditos con sus relaciones para no saturar la base de datos
-        $creditos = Credito::with(['producto', 'asesor', 'cliente', 'grupo', 'integrantes'])
-                            ->orderBy('created_at', 'desc')
-                            ->paginate(15);
-                            
-        return view('creditos.index', compact('creditos'));
-    }
+{
+    // Solo mostramos Solicitudes y Aprobados (pendientes de fondeo)
+    $creditos = Credito::with(['cliente', 'grupo', 'asesor'])
+                ->whereIn('estatus', ['solicitado', 'aprobado'])
+                ->orderBy('created_at', 'desc')
+                ->paginate(15);
+
+    return view('creditos.index', compact('creditos'));
+}
 
     public function show($id)
     {
@@ -657,5 +658,42 @@ class CreditoController extends Controller
 
         $pdf = Pdf::loadView('creditos.pdf.solicitud', $data);
         return $pdf->stream('Solicitud_Credito_' . $credito->folio . '.pdf');
+    }
+
+    // --- MÓDULO DE DESEMBOLSOS ---
+    public function desembolsos()
+    {
+        // Traemos solo los aprobados listos para fondear
+        $creditos = Credito::with(['cliente', 'grupo', 'asesor', 'sucursal', 'integrantes', 'cuentasDesembolso'])
+                    ->where('estatus', 'aprobado')
+                    ->orderBy('fecha_desembolso', 'asc')
+                    ->get();
+
+        // Agrupamos la colección por el nombre de la sucursal (como en tu Excel)
+        $agrupados = $creditos->groupBy(function($credito) {
+            return $credito->sucursal->nombre_sucursal ?? 'SIN SUCURSAL';
+        });
+
+        return view('creditos.desembolsos', compact('agrupados'));
+    }
+
+    // --- ACCIÓN: MARCAR COMO FONDEADO ---
+    public function fondear($id)
+    {
+        $credito = Credito::findOrFail($id);
+        
+        // Cambiamos el estatus para que nazca oficialmente y pase a Cartera Activa / Cajas
+        $credito->estatus = 'desembolsado';
+        $credito->save();
+
+        return redirect()->route('desembolsos.index')->with('success', '¡El crédito ' . $credito->folio . ' ha sido fondeado exitosamente! Ya se encuentra activo en Cajas.');
+    }
+
+    // --- MÓDULO DE CARTERA ACTIVA ---
+    public function carteraActiva()
+    {
+        // Aquí armaremos luego la vista de cobranza
+        $creditos = Credito::where('estatus', 'desembolsado')->orderBy('created_at', 'desc')->paginate(15);
+        return view('creditos.activos', compact('creditos'));
     }
 }

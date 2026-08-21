@@ -7,7 +7,7 @@ use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
-use Spatie\Permission\PermissionRegistrar; // <--- Importante añadir esto
+use Spatie\Permission\PermissionRegistrar;
 
 class PermissionSeeder extends Seeder
 {
@@ -39,6 +39,8 @@ class PermissionSeeder extends Seeder
                 'ver-grupos', 'crear-grupos', 'editar-grupos', 'eliminar-grupos',
                 'ver-creditos', 'registrar-credito', 'editar-credito', 'eliminar-credito',
                 'aprobar-credito', 'desembolsar-credito',
+                // 🔥 NUEVOS PERMISOS DEL CORE BANCARIO 🔥
+                'ver-desembolsos', 'ver-cartera',
             ],
             'Recursos Humanos' => [
                 'ver-empleados', 'crear-empleados', 'editar-empleados', 'eliminar-empleados',
@@ -47,7 +49,6 @@ class PermissionSeeder extends Seeder
                 'ver-vacaciones', 'registrar-vacaciones',
                 'ver-deducciones', 'crear-deducciones', 'editar-deducciones', 'eliminar-deducciones',
                 'ver-lista-raya', 'exportar-lista-raya',
-                // 🔥 NUEVOS PERMISOS PARA NÓMINA FISCAL 🔥
                 'ver-timbrado', 'ejecutar-timbrado', 'configurar-timbrado',
                 'ver-finiquitos', 'calcular-finiquitos', 'exportar-finiquitos',
                 'ver-gestion-imss', 'tramitar-imss',
@@ -76,7 +77,6 @@ class PermissionSeeder extends Seeder
                 'ver-tipos-credito', 'crear-tipos-credito', 'editar-tipos-credito', 'eliminar-tipos-credito',
                 'ver-tasas-interes', 'crear-tasas-interes', 'editar-tasas-interes', 'eliminar-tasas-interes',
                 'ver-productos-credito', 'crear-productos-credito', 'editar-productos-credito', 'eliminar-productos-credito',
-                // 🔥 NUEVOS PERMISOS PARA CUENTAS DE LA EMPRESA 🔥
                 'ver-cuentas-bancarias', 'crear-cuentas-bancarias', 'editar-cuentas-bancarias', 'eliminar-cuentas-bancarias',
             ],
             'Módulo de Prueba' => [

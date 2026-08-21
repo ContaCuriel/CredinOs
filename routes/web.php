@@ -116,6 +116,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/creditos/{id}/referencias', [\App\Http\Controllers\CreditoController::class, 'imprimirReferencias'])->name('creditos.referencias');
     Route::get('/creditos/{id}/solicitud', [\App\Http\Controllers\CreditoController::class, 'imprimirSolicitud'])->name('creditos.solicitud');
 
+    // MÓDULO DE DESEMBOLSOS (TESORERÍA)
+Route::get('/desembolsos', [App\Http\Controllers\CreditoController::class, 'desembolsos'])->name('desembolsos.index');
+Route::post('/creditos/{id}/fondear', [App\Http\Controllers\CreditoController::class, 'fondear'])->name('creditos.fondear');
+
+// MÓDULO DE CARTERA ACTIVA (CAJAS) - La vista la haremos después
+Route::get('/cartera-activa', [App\Http\Controllers\CreditoController::class, 'carteraActiva'])->name('cartera.index');
+
     // --- RECURSOS HUMANOS ---
     Route::middleware('can:ver-menu-rh')->group(function () {
         // Empleados
