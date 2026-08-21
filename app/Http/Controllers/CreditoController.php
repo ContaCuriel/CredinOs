@@ -265,7 +265,6 @@ class CreditoController extends Controller
                 'fecha_primer_pago' => $request->fecha_primer_pago,
                 'fecha_aprobacion' => now(),
                 'estatus' => 'aprobado',
-                // IMPORTANTE: Debes agregar 'descuenta_primer_pago' a tu fillable y migración de la tabla creditos
                 'descuenta_primer_pago' => $descuenta_primer_pago, 
             ]);
 
@@ -406,14 +405,14 @@ class CreditoController extends Controller
             'dia_pago' => ucfirst($dia_pago),
             'sucursal_nombre' => strtoupper($sucursal_nombre),
             'monto_comision_calculado' => $monto_comision_calculado,
-            'monto_mora_calculado' => $monto_mora_calculado, // <-- Pasamos el monto real a la vista
+            'monto_mora_calculado' => $monto_mora_calculado, 
             
             // Usamos la función interna segura
             'letras_monto_aprobado' => $this->convertirALetras($credito->monto_aprobado),
             'letras_comision' => $this->convertirALetras($monto_comision_calculado),
             'letras_cuota' => $this->convertirALetras($cuota_monto),
             'letras_multa' => $this->convertirALetras($credito->producto->multa_valor ?? 500),
-            'letras_mora' => $this->convertirALetras($monto_mora_calculado), // <-- Calculamos las letras del monto real
+            'letras_mora' => $this->convertirALetras($monto_mora_calculado), 
         ];
 
         $pdf = Pdf::loadView('creditos.pdf.contrato', $data);
@@ -443,6 +442,40 @@ class CreditoController extends Controller
         };
 
         return trim($convertir($numero)) . ' PESOS';
+    }
+
+    public function imprimirTabla($id)
+    {
+        $credito = \App\Models\Credito::with(['cliente', 'grupo', 'producto', 'asesor', 'sucursal', 'patron', 'amortizaciones'])->findOrFail($id);
+
+        if ($credito->amortizaciones->isEmpty()) {
+            return back()->with('error', 'El crédito no tiene una tabla de amortización generada.');
+        }
+
+        $primeraCuota = $credito->amortizaciones->first();
+        $ultimaCuota = $credito->amortizaciones->last();
+
+        // 🖼️ Convertir Logo a Base64 para que DomPDF lo lea sin errores (USANDO logo_path)
+        $logo_base64 = null;
+        if ($credito->patron && $credito->patron->logo_path) {
+            $path = public_path('storage/' . $credito->patron->logo_path);
+            
+            if (file_exists($path)) {
+                $type = pathinfo($path, PATHINFO_EXTENSION);
+                $data = file_get_contents($path);
+                $logo_base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+            }
+        }
+
+        $data = [
+            'credito' => $credito,
+            'monto_pago' => $primeraCuota->total_cuota,
+            'fecha_fin' => $ultimaCuota->fecha_pago,
+            'logo_base64' => $logo_base64,
+        ];
+
+        $pdf = Pdf::loadView('creditos.pdf.tabla', $data);
+        return $pdf->stream('Control_Pagos_' . $credito->folio . '.pdf');
     }
 
     public function imprimirActa($id)
@@ -486,54 +519,7 @@ class CreditoController extends Controller
             'monto_credito' => $monto_credito,
             'comision' => $comision,
             'retencion_seguro' => $retencion_seguro,
-            'pago_adelantado' => $pago_adelantado, // <-- Pasamos el pago adelantado a la vista
-            'total_deducciones' => $total_deducciones,
-            'total_fondear' => $total_fondear,
-            'direccion' => $direccion,
-            'telefono' => $telefono,
-        ];
-
-        $pdf = Pdf::loadView('creditos.pdf.acta', $data);
-        return $pdf->stream('Acta_Instalacion_' . $credito->folio . '.pdf');
-    }
-
-    public function imprimirActa($id)
-    {
-        $credito = \App\Models\Credito::with(['cliente', 'asesor', 'patron'])->findOrFail($id);
-
-        // 🖼️ Convertir Logo a Base64
-        $logo_base64 = null;
-        if ($credito->patron && $credito->patron->logo_path) {
-            $path = public_path('storage/' . $credito->patron->logo_path);
-            if (file_exists($path)) {
-                $type = pathinfo($path, PATHINFO_EXTENSION);
-                $data = file_get_contents($path);
-                $logo_base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
-            }
-        }
-
-        // 🧮 Cálculos de Desembolso
-        $monto_credito = $credito->monto_aprobado;
-        $comision = ($monto_credito * $credito->comision_apertura_aplicada) / 100;
-        $retencion_seguro = $credito->retencion_seguro_aplicada ?? 0;
-        
-        $total_deducciones = $comision + $retencion_seguro;
-        $total_fondear = $monto_credito - $total_deducciones;
-
-        // 📍 Construir Dirección y Teléfono exactos de tu modelo Cliente
-        $calle = $credito->cliente->calle ?? '';
-        $numero = $credito->cliente->numero ?? '';
-        $colonia = $credito->cliente->colonia ?? '';
-        $direccion = trim("$calle $numero, Col: $colonia", ', ');
-
-        $telefono = $credito->cliente->telefono_celular ?? ($credito->cliente->telefono_fijo ?? 'N/A');
-
-        $data = [
-            'credito' => $credito,
-            'logo_base64' => $logo_base64,
-            'monto_credito' => $monto_credito,
-            'comision' => $comision,
-            'retencion_seguro' => $retencion_seguro,
+            'pago_adelantado' => $pago_adelantado, 
             'total_deducciones' => $total_deducciones,
             'total_fondear' => $total_fondear,
             'direccion' => $direccion,
