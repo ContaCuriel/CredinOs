@@ -379,8 +379,12 @@ class CreditoController extends Controller
         $dia_pago = \Carbon\Carbon::parse($credito->fecha_primer_pago)->locale('es')->isoFormat('dddd');
         $sucursal_nombre = $credito->sucursalesParaPago->first()->nombre_sucursal ?? 'TEXCOCO';
 
-        // 🔥 CORRECCIÓN: Calculamos el dinero real de la comisión (Monto * Porcentaje / 100)
+        // Calculamos el dinero real de la comisión y la mora
         $monto_comision_calculado = ($credito->monto_aprobado * $credito->comision_apertura_aplicada) / 100;
+        
+        // Sacamos el valor real de la mora basado en el porcentaje del producto (asumiendo 10% si está vacío)
+        $mora_porcentaje = $credito->producto->mora_valor ?? 10; 
+        $monto_mora_calculado = ($credito->monto_aprobado * $mora_porcentaje) / 100;
 
         $data = [
             'credito' => $credito,
@@ -388,13 +392,14 @@ class CreditoController extends Controller
             'dia_pago' => ucfirst($dia_pago),
             'sucursal_nombre' => strtoupper($sucursal_nombre),
             'monto_comision_calculado' => $monto_comision_calculado,
+            'monto_mora_calculado' => $monto_mora_calculado, // <-- Pasamos el monto real a la vista
             
             // Usamos la función interna segura
             'letras_monto_aprobado' => $this->convertirALetras($credito->monto_aprobado),
-            'letras_comision' => $this->convertirALetras($monto_comision_calculado), // <-- Le pasamos el monto en dinero, no el porcentaje
+            'letras_comision' => $this->convertirALetras($monto_comision_calculado),
             'letras_cuota' => $this->convertirALetras($cuota_monto),
             'letras_multa' => $this->convertirALetras($credito->producto->multa_valor ?? 500),
-            'letras_mora' => $this->convertirALetras($credito->producto->mora_valor ?? 1000),
+            'letras_mora' => $this->convertirALetras($monto_mora_calculado), // <-- Calculamos las letras del monto real
         ];
 
         $pdf = Pdf::loadView('creditos.pdf.contrato', $data);
@@ -459,5 +464,113 @@ class CreditoController extends Controller
 
         $pdf = Pdf::loadView('creditos.pdf.tabla', $data);
         return $pdf->stream('Control_Pagos_' . $credito->folio . '.pdf');
+    }
+
+    public function imprimirActa($id)
+    {
+        $credito = \App\Models\Credito::with(['cliente', 'asesor', 'patron'])->findOrFail($id);
+
+        // 🖼️ Convertir Logo a Base64
+        $logo_base64 = null;
+        if ($credito->patron && $credito->patron->logo_path) {
+            $path = public_path('storage/' . $credito->patron->logo_path);
+            if (file_exists($path)) {
+                $type = pathinfo($path, PATHINFO_EXTENSION);
+                $data = file_get_contents($path);
+                $logo_base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+            }
+        }
+
+        // 🧮 Cálculos de Desembolso
+        $monto_credito = $credito->monto_aprobado;
+        $comision = ($monto_credito * $credito->comision_apertura_aplicada) / 100;
+        $retencion_seguro = $credito->retencion_seguro_aplicada ?? 0;
+        
+        $total_deducciones = $comision + $retencion_seguro;
+        $total_fondear = $monto_credito - $total_deducciones;
+
+        // Construir Dirección y Teléfono (Ajusta los campos si en tu BD se llaman distinto)
+        $direccion = ($credito->cliente->calle ?? '') . ' ' . ($credito->cliente->numero_exterior ?? '') . ', Col: ' . ($credito->cliente->colonia ?? '');
+        $telefono = $credito->cliente->telefono ?? ($credito->cliente->celular ?? 'N/A');
+
+        $data = [
+            'credito' => $credito,
+            'logo_base64' => $logo_base64,
+            'monto_credito' => $monto_credito,
+            'comision' => $comision,
+            'retencion_seguro' => $retencion_seguro,
+            'total_deducciones' => $total_deducciones,
+            'total_fondear' => $total_fondear,
+            'direccion' => trim($direccion, ', '),
+            'telefono' => $telefono,
+        ];
+
+        $pdf = Pdf::loadView('creditos.pdf.acta', $data);
+        return $pdf->stream('Acta_Instalacion_' . $credito->folio . '.pdf');
+    }
+
+    public function imprimirAcuse($id)
+    {
+        $credito = \App\Models\Credito::with(['cliente', 'grupo', 'asesor', 'sucursal', 'patron'])->findOrFail($id);
+
+        // 🖼️ Convertir Logo a Base64
+        $logo_base64 = null;
+        if ($credito->patron && $credito->patron->logo_path) {
+            $path = public_path('storage/' . $credito->patron->logo_path);
+            if (file_exists($path)) {
+                $type = pathinfo($path, PATHINFO_EXTENSION);
+                $data = file_get_contents($path);
+                $logo_base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+            }
+        }
+
+        $data = [
+            'credito' => $credito,
+            'logo_base64' => $logo_base64,
+        ];
+
+        $pdf = Pdf::loadView('creditos.pdf.acuse', $data);
+        return $pdf->stream('Acuse_Desembolso_' . $credito->folio . '.pdf');
+    }
+
+    public function imprimirCarta($id)
+    {
+        $credito = \App\Models\Credito::with(['cliente', 'grupo', 'asesor', 'sucursal', 'patron', 'amortizaciones', 'integrantes', 'cuentasDesembolso'])->findOrFail($id);
+
+        if ($credito->amortizaciones->isEmpty()) {
+            return back()->with('error', 'El crédito no tiene una tabla de amortización generada.');
+        }
+
+        // 🖼️ Convertir Logo a Base64
+        $logo_base64 = null;
+        if ($credito->patron && $credito->patron->logo_path) {
+            $path = public_path('storage/' . $credito->patron->logo_path);
+            if (file_exists($path)) {
+                $type = pathinfo($path, PATHINFO_EXTENSION);
+                $data = file_get_contents($path);
+                $logo_base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+            }
+        }
+
+        $primeraCuota = $credito->amortizaciones->first();
+        $cuota_monto = $primeraCuota ? $primeraCuota->total_cuota : 0;
+        
+        $mora_porcentaje = $credito->producto->mora_valor ?? 10; 
+        $monto_mora_calculado = ($credito->monto_aprobado * $mora_porcentaje) / 100;
+
+        $cuenta = $credito->cuentasDesembolso->first(); // Tomamos la primera cuenta registrada (si hay)
+
+        $data = [
+            'credito' => $credito,
+            'logo_base64' => $logo_base64,
+            'cuota_monto' => $cuota_monto,
+            'monto_mora_calculado' => $monto_mora_calculado,
+            'cuenta' => $cuenta,
+            'letras_monto_aprobado' => $this->convertirALetras($credito->monto_aprobado),
+            'letras_multa' => $this->convertirALetras($credito->producto->multa_valor ?? 500),
+        ];
+
+        $pdf = Pdf::loadView('creditos.pdf.carta', $data);
+        return $pdf->stream('Carta_Compromiso_' . $credito->folio . '.pdf');
     }
 }

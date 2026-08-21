@@ -10,7 +10,7 @@
             font-family: 'Arial', sans-serif; 
             font-size: 11pt; 
             text-align: justify; 
-            line-height: 1.5; /* Espaciado ejecutivo intermedio */
+            line-height: 1.5; 
             color: #000; 
         }
         .titulo-central { 
@@ -24,7 +24,6 @@
         .resaltado { font-weight: bold; }
         p { margin-bottom: 15px; }
         
-        /* Contenedor de Firmas que no se corta a la mitad */
         .firmas-container { 
             width: 100%; 
             margin-top: 60px; 
@@ -80,7 +79,7 @@
     @endif
     </p>
 
-    <p><span class="clausula">SEXTA. - INCUMPLIMIENTO.</span> Las partes convienen que en caso de ATRASO sea cual sea el número de parcialidad que corresponda se establece un interés moratorio de <span class="resaltado">${{ number_format($credito->producto->mora_valor ?? 1000, 2) }} ({{ $letras_mora }} 00/100 M.N.)</span> {{ $freq }}, el que se agregara a la deuda haciéndolo pagadero como una sola unidad, en este caso es optativo para el ACREEDOR hacer efectiva la garantía, la cual consiste en incorporar para sí y sin necesidad de declaración judicial los derechos de propiedad que el deudor acepta darle, teniéndose esta operación como una COMPRAVENTA con precio pactado, equivalente al monto del adeudo restante más intereses y gastos de cobranza.</p>
+    <p><span class="clausula">SEXTA. - INCUMPLIMIENTO.</span> Las partes convienen que en caso de ATRASO sea cual sea el número de parcialidad que corresponda se establece un interés moratorio de <span class="resaltado">${{ number_format($monto_mora_calculado, 2) }} ({{ $letras_mora }} 00/100 M.N.)</span> {{ $freq }}, el que se agregara a la deuda haciéndolo pagadero como una sola unidad, en este caso es optativo para el ACREEDOR hacer efectiva la garantía, la cual consiste en incorporar para sí y sin necesidad de declaración judicial los derechos de propiedad que el deudor acepta darle, teniéndose esta operación como una COMPRAVENTA con precio pactado, equivalente al monto del adeudo restante más intereses y gastos de cobranza.</p>
 
     <p><span class="clausula">SEPTIMA. JURISDICCIÓN.</span> Los jueces de Texcoco, Estado de México, serán los únicos competentes para conocer y fallar en todas sus instancias las cuestiones que se susciten con motivo de la interpretación y cumplimiento de este contrato, a cuyo efecto los contratantes renuncian a cualquier fuero por razón de domicilio presente o futuro.</p>
 

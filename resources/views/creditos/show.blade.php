@@ -284,6 +284,15 @@
                         <h6 class="fw-bold text-dark mb-0"><i class="bi bi-calculator-fill me-2 text-success"></i>Tabla de Amortización Generada</h6>
                         
                         <div>
+                            <a href="{{ route('creditos.acta', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm me-1" title="Imprimir Acta de Instalación">
+                                <i class="bi bi-file-earmark-check-fill"></i> Acta de Instalacion
+                            </a>
+                            <a href="{{ route('creditos.acuse', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm me-1" title="Imprimir Acuse de Desembolso">
+                                <i class="bi bi-file-earmark-ruled-fill"></i> Acuse
+                            </a>
+                            <a href="{{ route('creditos.carta', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm me-1" title="Imprimir Carta Compromiso">
+                                <i class="bi bi-file-earmark-text-fill"></i> Compromiso
+                            </a>
                             <a href="{{ route('creditos.contrato', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm me-1" title="Imprimir Contrato">
                                 <i class="bi bi-file-earmark-pdf-fill"></i> Contrato
                             </a>
@@ -291,8 +300,8 @@
                                 <i class="bi bi-file-earmark-pdf-fill"></i> Pagaré
                             </button>
                             <a href="{{ route('creditos.tabla', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm" title="Imprimir Tabla">
-    <i class="bi bi-table"></i> Imprimir Control de Pagos
-</a>
+                                <i class="bi bi-table"></i> Imprimir Control de Pagos
+                            </a>
                         </div>
                     </div>
                     <div class="card-body p-0">
