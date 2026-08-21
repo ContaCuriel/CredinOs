@@ -4,30 +4,30 @@
     <meta charset="UTF-8">
     <title>Contrato de Crédito</title>
     <style>
-        /* Márgenes legales estándar (Superior, Derecho, Inferior, Izquierdo) */
-        @page { margin: 3cm 2.5cm 3cm 3cm; } 
+        /* Ajuste de márgenes para que cuadre exacto en 2 hojas */
+        @page { margin: 2.5cm 2cm 2.5cm 2.5cm; } 
         body { 
             font-family: 'Arial', sans-serif; 
-            font-size: 12pt; 
+            font-size: 11pt; 
             text-align: justify; 
-            line-height: 1.8; /* Doble espacio para formato legal */
+            line-height: 1.5; /* Espaciado ejecutivo intermedio */
             color: #000; 
         }
         .titulo-central { 
             text-align: center; 
             font-weight: bold; 
-            margin: 30px 0; 
-            font-size: 13pt; 
+            margin: 20px 0; 
+            font-size: 12pt; 
             letter-spacing: 2px; 
         }
         .clausula { font-weight: bold; text-transform: uppercase; }
         .resaltado { font-weight: bold; }
-        p { margin-bottom: 20px; }
+        p { margin-bottom: 15px; }
         
         /* Contenedor de Firmas que no se corta a la mitad */
         .firmas-container { 
             width: 100%; 
-            margin-top: 80px; 
+            margin-top: 60px; 
             page-break-inside: avoid; 
         }
         .firma-box { 
@@ -51,10 +51,9 @@
 
     <p><span class="clausula">PRIMERA. - MONTO DEL MUTUO.</span> La "PARTE ACREEDORA" entrega en este acto en calidad de mutuo con interés a la "PARTE DEUDORA" y esta recibe a su más entera satisfacción, la cantidad de <span class="resaltado">${{ number_format($credito->monto_aprobado, 2) }} ({{ $letras_monto_aprobado }} 00/100 M.N.)</span></p>
 
-    <p><span class="clausula">SEGUNDA. - COMISION.</span> La "PARTE DEUDORA" acepta pagar en este acto y en efectivo la cantidad de <span class="resaltado">${{ number_format($credito->comision_apertura_aplicada, 2) }} ({{ $letras_comision }} 00/100 M.N.)</span> por concepto de comisión, mismos que se pagaran el día que se entregue la cantidad mencionada en la cláusula primera del presente contrato.</p>
+    <p><span class="clausula">SEGUNDA. - COMISION.</span> La "PARTE DEUDORA" acepta pagar en este acto y en efectivo la cantidad de <span class="resaltado">${{ number_format($monto_comision_calculado, 2) }} ({{ $letras_comision }} 00/100 M.N.)</span> por concepto de comisión, mismos que se pagaran el día que se entregue la cantidad mencionada en la cláusula primera del presente contrato.</p>
 
     @php
-        // Corrección gramatical de los periodos
         $freq = strtolower($credito->producto->frecuencia_pago);
         $periodos = '';
         if($freq == 'semanal') $periodos = 'semanas';

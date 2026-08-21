@@ -379,15 +379,19 @@ class CreditoController extends Controller
         $dia_pago = \Carbon\Carbon::parse($credito->fecha_primer_pago)->locale('es')->isoFormat('dddd');
         $sucursal_nombre = $credito->sucursalesParaPago->first()->nombre_sucursal ?? 'TEXCOCO';
 
+        // 🔥 CORRECCIÓN: Calculamos el dinero real de la comisión (Monto * Porcentaje / 100)
+        $monto_comision_calculado = ($credito->monto_aprobado * $credito->comision_apertura_aplicada) / 100;
+
         $data = [
             'credito' => $credito,
             'cuota_monto' => $cuota_monto,
             'dia_pago' => ucfirst($dia_pago),
             'sucursal_nombre' => strtoupper($sucursal_nombre),
+            'monto_comision_calculado' => $monto_comision_calculado,
             
             // Usamos la función interna segura
             'letras_monto_aprobado' => $this->convertirALetras($credito->monto_aprobado),
-            'letras_comision' => $this->convertirALetras($credito->comision_apertura_aplicada),
+            'letras_comision' => $this->convertirALetras($monto_comision_calculado), // <-- Le pasamos el monto en dinero, no el porcentaje
             'letras_cuota' => $this->convertirALetras($cuota_monto),
             'letras_multa' => $this->convertirALetras($credito->producto->multa_valor ?? 500),
             'letras_mora' => $this->convertirALetras($credito->producto->mora_valor ?? 1000),
@@ -397,7 +401,6 @@ class CreditoController extends Controller
         return $pdf->stream('Contrato_' . $credito->folio . '.pdf');
     }
 
-    // --- FUNCIÓN NATIVA PARA TRADUCIR NÚMEROS A LETRAS (SIN EXTENSIONES) ---
     // --- FUNCIÓN NATIVA Y SEGURA PARA NÚMEROS A LETRAS ---
     private function convertirALetras($numero)
     {
