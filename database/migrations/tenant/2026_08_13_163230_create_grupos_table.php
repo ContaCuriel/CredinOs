@@ -11,12 +11,8 @@ return new class extends Migration
         $schema = str_contains($dbName, 'credintegra') ? 'credintegra_db' : 
                  (str_contains($dbName, 'crediticia') ? 'facturame_db' : 'public');
 
-        $sql = "CREATE TABLE IF NOT EXISTS \"$schema\".grupos (
-            id SERIAL PRIMARY KEY,
-            nombre_grupo VARCHAR(255) NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )";
+        // Agregamos la columna como booleana
+        $sql = "ALTER TABLE \"$schema\".creditos ADD COLUMN IF NOT EXISTS descuenta_primer_pago BOOLEAN DEFAULT FALSE";
         DB::connection('tenant')->statement($sql);
     }
 
@@ -26,7 +22,8 @@ return new class extends Migration
         $schema = str_contains($dbName, 'credintegra') ? 'credintegra_db' : 
                  (str_contains($dbName, 'crediticia') ? 'facturame_db' : 'public');
 
-        $sql = "DROP TABLE IF EXISTS \"$schema\".grupos";
+        // Revertimos el cambio
+        $sql = "ALTER TABLE \"$schema\".creditos DROP COLUMN IF NOT EXISTS descuenta_primer_pago";
         DB::connection('tenant')->statement($sql);
     }
 };

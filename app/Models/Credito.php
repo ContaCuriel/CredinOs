@@ -28,6 +28,7 @@ class Credito extends Model
         'comision_apertura_aplicada',
         'retencion_seguro_aplicada', // <-- Agregado para guardar el cobro del seguro
         'estatus',
+        'descuenta_primer_pago',
         'fecha_solicitud',
         'fecha_aprobacion',
         'fecha_desembolso',
