@@ -4,27 +4,37 @@
     <meta charset="UTF-8">
     <title>Carta Compromiso</title>
     <style>
-        @page { margin: 2.5cm 2cm 2.5cm 2.5cm; }
-        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 11pt; color: #2d3748; margin: 0; line-height: 1.7; text-align: justify; }
+        /* Márgenes reducidos para maximizar el espacio de la hoja */
+        @page { margin: 1.5cm 2cm; }
         
-        /* Cabecera */
-        .header { width: 100%; margin-bottom: 30px; display: table; border-bottom: 2px solid #003a70; padding-bottom: 15px; }
+        /* Fuente más compacta e interlineado ajustado */
+        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 9.5pt; color: #2d3748; margin: 0; line-height: 1.4; text-align: justify; }
+        
+        /* Cabecera compacta */
+        .header { width: 100%; margin-bottom: 15px; display: table; border-bottom: 2px solid #003a70; padding-bottom: 10px; }
         .logo-cell { display: table-cell; width: 50%; vertical-align: middle; }
-        .logo-cell img { max-width: 220px; max-height: 75px; }
-        .logo-cell h3 { margin: 0; font-size: 18px; color: #003a70; text-transform: uppercase; }
+        .logo-cell img { max-width: 200px; max-height: 65px; }
+        .logo-cell h3 { margin: 0; font-size: 16px; color: #003a70; text-transform: uppercase; }
         
         .title-cell { display: table-cell; width: 50%; text-align: right; vertical-align: bottom; }
-        .doc-title { font-size: 18px; font-weight: bold; color: #003a70; text-transform: uppercase; letter-spacing: 2px; }
-        .doc-folio { font-size: 11pt; font-weight: bold; color: #4a5568; margin-top: 5px; }
-        .doc-date { font-size: 10pt; color: #718096; margin-top: 5px; text-transform: uppercase; }
+        .doc-title { font-size: 16px; font-weight: bold; color: #003a70; text-transform: uppercase; letter-spacing: 2px; }
+        .doc-folio { font-size: 10pt; font-weight: bold; color: #4a5568; margin-top: 4px; }
+        .doc-date { font-size: 9pt; color: #718096; margin-top: 4px; text-transform: uppercase; }
 
         .fw-bold { font-weight: bold; color: #1a202c; }
-        p { margin-bottom: 18px; }
+        
+        /* Párrafos con menos separación */
+        p { margin-bottom: 12px; }
 
-        /* Tabla de Firmas Refinada */
-        .firmas-table { width: 100%; border-collapse: collapse; margin-top: 50px; text-align: center; }
-        .firmas-table th { background-color: #003a70; color: #ffffff; border: 1px solid #003a70; padding: 10px; font-size: 9.5pt; text-transform: uppercase; letter-spacing: 1px; }
-        .firmas-table td { border: 1px solid #cbd5e0; padding: 12px 8px; vertical-align: middle; font-size: 10.5pt; height: 50px; color: #2d3748; }
+        /* Lista de Cuentas más pequeña */
+        .cuentas-list { margin-top: 4px; margin-bottom: 4px; padding-left: 25px; font-size: 9pt; }
+        .cuentas-list li { margin-bottom: 2px; }
+
+        /* Tabla de Firmas Ultra-optimizada */
+        .firmas-table { width: 100%; border-collapse: collapse; margin-top: 20px; text-align: center; }
+        .firmas-table tr { page-break-inside: avoid; } /* Evita que una firma se parta a la mitad si salta de hoja */
+        .firmas-table th { background-color: #003a70; color: #ffffff; border: 1px solid #003a70; padding: 6px; font-size: 8.5pt; text-transform: uppercase; letter-spacing: 1px; }
+        .firmas-table td { border: 1px solid #cbd5e0; padding: 8px 6px; vertical-align: middle; font-size: 9pt; height: 35px; color: #2d3748; }
         .firmas-table tr:nth-child(even) { background-color: #f8fafc; }
     </style>
 </head>
@@ -51,8 +61,6 @@
        <div class="title-cell">
             <div class="doc-title">Carta Compromiso</div>
             <div class="doc-folio">FOLIO: {{ $credito->folio }}</div>
-            
-            <!-- 🔥 AQUÍ SE CAMBIÓ fecha_aprobacion POR fecha_desembolso -->
             <div class="doc-date">{{ $credito->sucursal->nombre_sucursal ?? 'TEXCOCO DE MORA' }} a {{ \Carbon\Carbon::parse($credito->fecha_desembolso)->format('d/m/Y') }}</div>
         </div>
     </div>
@@ -65,13 +73,18 @@
             <span class="fw-bold">Yo</span>, <span class="fw-bold">{{ $credito->cliente->nombre_completo ?? $credito->cliente->nombre }}</span>, he solicitado un préstamo a <span class="fw-bold">{{ strtoupper($empresa) }}</span>, 
         @endif
         
-        por la cantidad de <span class="fw-bold">${{ number_format($credito->monto_aprobado, 2) }} ({{ $letras_monto_aprobado }} 00/100 M.N.)</span> el cual será 
+        por la cantidad de <span class="fw-bold">${{ number_format($credito->monto_aprobado, 2) }} ({{ $letras_monto_aprobado }} 00/100 M.N.)</span> el cual será entregado en efectivo
         
-        {{-- SE AGREGA LA OPCIÓN DE EFECTIVO SIEMPRE, TAL COMO EN EL DOCUMENTO ORIGINAL --}}
-        @if($cuenta)
-            entregado en efectivo, o depositado a la cuenta: <span class="fw-bold">{{ $cuenta->numero_cuenta }}</span> a nombre de <span class="fw-bold">{{ $cuenta->titular }}</span>, del banco <span class="fw-bold">{{ strtoupper($cuenta->banco) }}</span>, 
+        {{-- LISTA DINÁMICA DE CUENTAS BANCARIAS --}}
+        @if($credito->cuentasDesembolso->count() > 0)
+            o depositado en las siguientes cuentas bancarias:
+            <ul class="cuentas-list">
+                @foreach($credito->cuentasDesembolso as $cta)
+                    <li>No. Cuenta/CLABE: <span class="fw-bold">{{ $cta->numero_cuenta }}</span> a nombre de <span class="fw-bold">{{ strtoupper($cta->titular) }}</span>, del banco <span class="fw-bold">{{ strtoupper($cta->banco) }}</span>.</li>
+                @endforeach
+            </ul>
         @else
-            entregado en efectivo, 
+            , 
         @endif
 
         {{ $esGrupal ? 'la cual, nos comprometemos a pagar' : 'el cual, me comprometo a pagar' }} de manera puntual cada {{ $diasFreq }}, a partir del día <span class="fw-bold">{{ \Carbon\Carbon::parse($credito->fecha_primer_pago)->format('d/m/Y') }}</span> durante {{ $credito->plazo_aprobado }} {{ $periodos }} consecutivas y serán pagaderos en efectivo en la sucursal <span class="fw-bold">{{ strtoupper($credito->sucursal->nombre_sucursal ?? 'TEXCOCO') }}</span>, por la cantidad de <span class="fw-bold">${{ number_format($cuota_monto, 2) }}</span>.
@@ -96,17 +109,22 @@
     <table class="firmas-table">
         <thead>
             <tr>
-                <th width="10%">No.</th>
+                <th width="8%">No.</th>
                 <th width="45%">NOMBRE INTEGRANTE</th>
-                <th width="20%">MONTO</th>
-                <th width="25%">FIRMA</th>
+                <th width="17%">MONTO</th>
+                <th width="30%">FIRMA</th>
             </tr>
         </thead>
         <tbody>
             @foreach($credito->integrantes as $index => $integrante)
             <tr>
                 <td class="fw-bold text-muted">{{ $index + 1 }}</td>
-                <td class="fw-bold text-left" style="text-align: left; padding-left: 15px;">{{ $integrante->nombre_completo ?? $integrante->nombre . ' ' . $integrante->apellido_paterno }}</td>
+                <td class="fw-bold text-left" style="text-align: left; padding-left: 10px;">
+                    {{ mb_strtoupper($integrante->nombre_completo ?? $integrante->nombre . ' ' . $integrante->apellido_paterno) }}
+                    @if($integrante->pivot->es_lider)
+                        <br><span style="font-size: 7.5pt; color: #718096; font-weight: normal;">(REPRESENTANTE / LÍDER)</span>
+                    @endif
+                </td>
                 <td class="fw-bold">${{ number_format($integrante->pivot->monto_individual, 2) }}</td>
                 <td></td>
             </tr>

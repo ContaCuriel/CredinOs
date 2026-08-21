@@ -73,19 +73,24 @@
                     <div class="card-body">
                         
                         <div class="mb-3">
-                            <span class="text-muted d-block small fw-bold text-uppercase">Titular</span>
-                            @if($credito->grupo_id)
-                                <span class="fs-5 fw-bold text-purple"><i class="bi bi-people-fill me-1"></i> {{ $credito->grupo->nombre_grupo }}</span>
-                                <span class="badge bg-purple bg-opacity-10 text-purple ms-2">Grupal</span>
-                            @else
-                                <span class="fs-5 fw-bold text-info text-dark"><i class="bi bi-person-fill me-1"></i> {{ $credito->cliente->nombre_completo ?? $credito->cliente->nombre }}</span>
-                                <span class="badge bg-info bg-opacity-10 text-info text-dark ms-2">Individual</span>
-                            @endif
-                            @if($credito->nombre_credito)
-                                <div class="text-muted mt-1 fst-italic">"{{ $credito->nombre_credito }}"</div>
-                            @endif
-                        </div>
+                        <span class="text-muted d-block small fw-bold text-uppercase">Titular / Representante</span>
+                        @php
+                            $lider = $credito->integrantes->where('pivot.es_lider', true)->first();
+                            $nombreTitular = $lider ? ($lider->nombre_completo ?? $lider->nombre . ' ' . $lider->apellido_paterno) : ($credito->cliente->nombre_completo ?? $credito->cliente->nombre ?? 'SIN ASIGNAR');
+                        @endphp
 
+                        @if($credito->producto->tipo_credito == 'grupal')
+                            <span class="fs-5 fw-bold text-purple"><i class="bi bi-people-fill me-1"></i> {{ mb_strtoupper($nombreTitular) }}</span>
+                            <span class="badge bg-purple bg-opacity-10 text-purple ms-2">Grupal</span>
+                        @else
+                            <span class="fs-5 fw-bold text-info text-dark"><i class="bi bi-person-fill me-1"></i> {{ mb_strtoupper($nombreTitular) }}</span>
+                            <span class="badge bg-info bg-opacity-10 text-info text-dark ms-2">Individual</span>
+                        @endif
+
+                        @if($credito->nombre_credito || $credito->grupo_id)
+                            <div class="text-muted mt-1 fst-italic">"{{ $credito->nombre_credito ?? $credito->grupo->nombre_grupo }}"</div>
+                        @endif
+                        </div>
                         <hr>
 
                         <div class="mb-3">
