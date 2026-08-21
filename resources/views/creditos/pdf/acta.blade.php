@@ -4,48 +4,49 @@
     <meta charset="UTF-8">
     <title>Acta de Instalación</title>
     <style>
-        /* 🔥 Forzar hoja tamaño carta en formato Horizontal (Landscape) */
+        /* Forzar hoja tamaño carta en formato Horizontal (Landscape) */
         @page { size: letter landscape; margin: 1.5cm 2cm; }
         
-        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 12pt; color: #1a202c; margin: 0; line-height: 1.4; }
+        /* Fuente general más pequeña y elegante */
+        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 9.5pt; color: #1a202c; margin: 0; line-height: 1.4; }
         
         /* Layout Superior */
-        .top-table { width: 100%; margin-bottom: 20px; border-collapse: collapse; }
+        .top-table { width: 100%; margin-bottom: 25px; border-collapse: collapse; }
         .top-table td { vertical-align: top; }
         
-        /* Títulos */
-        .main-title { font-size: 20pt; font-weight: bold; color: #003a70; text-align: center; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 2px; }
-        .sub-title { font-size: 14pt; font-weight: bold; background-color: #003a70; color: #fff; text-align: center; padding: 6px 0; text-transform: uppercase; margin-bottom: 30px; border-radius: 4px; }
+        /* Títulos refinados */
+        .main-title { font-size: 16pt; font-weight: bold; color: #003a70; text-align: center; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 2px; }
+        .sub-title { font-size: 10.5pt; font-weight: bold; background-color: #003a70; color: #fff; text-align: center; padding: 5px 0; text-transform: uppercase; margin-bottom: 35px; border-radius: 3px; letter-spacing: 1px; }
         
-        /* Información del Cliente */
-        .info-label { font-weight: bold; color: #4a5568; font-size: 11pt; text-transform: uppercase; }
-        .info-value { font-weight: bold; color: #1a202c; font-size: 12pt; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px; }
+        /* Información del Cliente con mejor contraste */
+        .info-label { font-weight: bold; color: #718096; font-size: 8.5pt; text-transform: uppercase; letter-spacing: 0.5px; }
+        .info-value { font-weight: bold; color: #1a202c; font-size: 10pt; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px; }
         
         /* Logo y Fecha */
         .logo-box { text-align: right; }
-        .logo-box img { max-width: 200px; max-height: 80px; }
-        .logo-box h3 { margin: 0; font-size: 18px; color: #003a70; text-transform: uppercase; }
-        .date-text { font-size: 12pt; font-weight: bold; color: #2d3748; margin-top: 10px; }
+        .logo-box img { max-width: 180px; max-height: 60px; }
+        .logo-box h3 { margin: 0; font-size: 14pt; color: #003a70; text-transform: uppercase; }
+        .date-text { font-size: 9pt; font-weight: bold; color: #4a5568; margin-top: 10px; letter-spacing: 0.5px; }
 
-        /* Contabilidad (Tablas divididas) */
+        /* Contabilidad */
         .math-wrapper { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
-        .math-wrapper td.col-spacer { width: 6%; } /* Espacio entre columnas */
+        .math-wrapper td.col-spacer { width: 8%; }
         
-        .math-table { width: 100%; border-collapse: collapse; border: 2px solid #cbd5e0; }
-        .math-table td { padding: 12px 10px; border-bottom: 1px solid #e2e8f0; font-size: 11.5pt; }
+        .math-table { width: 100%; border-collapse: collapse; border: 1px solid #cbd5e0; }
+        .math-table td { padding: 10px 12px; border-bottom: 1px solid #edf2f7; font-size: 9.5pt; color: #2d3748; }
         .math-table tr:nth-child(even) { background-color: #f8fafc; }
         
         .text-right { text-align: right; }
-        .text-danger { color: #e53e3e; }
-        .fw-bold { font-weight: bold; }
+        .text-danger { color: #c53030; }
+        .fw-bold { font-weight: bold; color: #1a202c; }
         
-        .row-total td { font-weight: bold; font-size: 14pt; background-color: #edf2f7; border-top: 2px solid #a0aec0; }
-        .highlight-total { color: #003a70; font-size: 16pt !important; }
+        .row-total td { font-weight: bold; font-size: 10.5pt; background-color: #edf2f7; border-top: 2px solid #cbd5e0; color: #1a202c; }
+        .highlight-total { color: #003a70 !important; font-size: 12.5pt !important; }
 
-        /* Firmas */
-        .signatures { width: 100%; margin-top: 50px; border-collapse: collapse; }
-        .signatures td { text-align: center; vertical-align: bottom; height: 60px; width: 50%; }
-        .sig-line { border-top: 1px solid #1a202c; width: 60%; margin: 0 auto; padding-top: 5px; font-weight: bold; font-size: 12pt; text-transform: uppercase; }
+        /* Firmas (Ajustado a 3 columnas) */
+        .signatures { width: 100%; margin-top: 60px; border-collapse: collapse; }
+        .signatures td { text-align: center; vertical-align: bottom; height: 60px; width: 33.33%; }
+        .sig-line { border-top: 1px solid #4a5568; width: 75%; margin: 0 auto; padding-top: 6px; font-weight: bold; font-size: 9pt; text-transform: uppercase; color: #4a5568; letter-spacing: 1px; }
     </style>
 </head>
 <body>
@@ -85,7 +86,7 @@
     <table class="math-wrapper">
         <tr>
             <!-- Columna Izquierda (Retenciones) -->
-            <td width="47%" valign="top">
+            <td width="46%" valign="top">
                 <table class="math-table">
                     @if($comision > 0)
                     <tr>
@@ -103,7 +104,7 @@
 
                     @if($comision == 0 && $retencion_seguro == 0)
                     <tr>
-                        <td class="text-muted fst-italic">Sin deducciones aplicadas</td>
+                        <td class="text-muted" style="font-style: italic; color: #a0aec0;">Sin deducciones aplicadas</td>
                         <td class="text-right fw-bold">$0.00</td>
                     </tr>
                     @endif
@@ -118,7 +119,7 @@
             <td class="col-spacer"></td>
             
             <!-- Columna Derecha (Fondeo Final) -->
-            <td width="47%" valign="top">
+            <td width="46%" valign="top">
                 <table class="math-table">
                     <tr>
                         <td>Monto del Crédito Autorizado</td>
@@ -133,7 +134,7 @@
                     @endif
                     
                     <tr class="row-total">
-                        <td class="highlight-total">TOTAL A FONDEAR:</td>
+                        <td class="highlight-total fw-bold">TOTAL A FONDEAR:</td>
                         <td class="text-right highlight-total fw-bold">${{ number_format($total_fondear, 2) }}</td>
                     </tr>
                 </table>
@@ -141,14 +142,17 @@
         </tr>
     </table>
 
-    <!-- FIRMAS -->
+    <!-- FIRMAS (3 Columnas) -->
     <table class="signatures">
         <tr>
             <td>
                 <div class="sig-line">FIRMA CLIENTE</div>
             </td>
             <td>
-                <div class="sig-line">AUTORIZADO FIRMA GERENTE</div>
+                <div class="sig-line">AUTORIZADO</div>
+            </td>
+            <td>
+                <div class="sig-line">FIRMA GERENTE</div>
             </td>
         </tr>
     </table>

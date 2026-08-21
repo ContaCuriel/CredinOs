@@ -289,9 +289,6 @@
                             <a href="{{ route('creditos.contrato', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm me-1">
                                 <i class="bi bi-file-earmark-pdf-fill"></i> Contrato
                             </a>
-                            <button class="btn btn-sm btn-outline-danger shadow-sm me-1" title="Imprimir Pagaré">
-                                <i class="bi bi-file-earmark-pdf-fill"></i> Pagaré
-                            </button>
                             <a href="{{ route('creditos.carta', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm me-1">
                                 <i class="bi bi-file-earmark-text-fill"></i> Compromiso
                             </a>
