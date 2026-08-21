@@ -68,10 +68,10 @@
 
     <p><span class="clausula">QUINTA. - GARANTÍA.</span> 
     @if($credito->garantia && $credito->garantia->tipo_garantia == 'vehiculo')
-    Las partes convienen dejar en poder del ACREEDOR el original del documento <span class="resaltado">{{ $credito->garantia->vehiculo_documento }}</span> que ampara los derechos de propiedad del automóvil que a continuación se describe (AUTOMOVIL / {{ $credito->garantia->vehiculo_tipo }} VERSION {{ $credito->garantia->vehiculo_modelo }} / MARCA {{ $credito->garantia->vehiculo_marca }} / MODELO {{ $credito->garantia->vehiculo_anio }} / MOTOR {{ $credito->garantia->vehiculo_motor }} / COLOR {{ $credito->garantia->vehiculo_color }} / No. de SERIE <span class="resaltado">{{ $credito->garantia->vehiculo_serie }}</span>) sirviendo estos mismos derechos como garantía sobre el adeudo adquirido con la figura antes mencionada, quien, en caso de incumplimiento del pago referido y accesorios, podrá ejercer acción por la vía legal correspondiente, teniendo preconstituida la garantía especificada en el presente.<br><br>
+    Las partes convienen dejar en poder del ACREEDOR el original del documento FACTURA <span class="resaltado">{{ strtoupper($credito->garantia->vehiculo_documento) }}</span> que ampara los derechos de propiedad del automóvil que a continuación se describe ({{ strtoupper($credito->garantia->vehiculo_tipo) }} / {{ strtoupper($credito->garantia->vehiculo_modelo) }} / MARCA {{ strtoupper($credito->garantia->vehiculo_marca) }} / MODELO {{ strtoupper($credito->garantia->vehiculo_anio) }} / MOTOR {{ strtoupper($credito->garantia->vehiculo_motor) }} / COLOR {{ strtoupper($credito->garantia->vehiculo_color) }} / No. de SERIE <span class="resaltado">{{ strtoupper($credito->garantia->vehiculo_serie) }}</span>) sirviendo estos mismos derechos como garantía sobre el adeudo adquirido con la figura antes mencionada, quien, en caso de incumplimiento del pago referido y accesorios, podrá ejercer acción por la vía legal correspondiente, teniendo preconstituida la garantía especificada en el presente.<br><br>
     Declaro bajo protesta de decir la verdad que, al momento de adquirir dicho adeudo, el automóvil y los derechos que sobre este ostenta son únicos y exclusivos de su persona, por lo tanto, se encuentra facultada para otorgar garantía sobre él, así mismo adquiere la obligación de no trasmitir, enajenar o alterar la garantía otorgada.
     @elseif($credito->garantia && $credito->garantia->tipo_garantia == 'propiedad')
-    En este acto las partes convienen establecer como garantía en favor del acreedor los derechos de propiedad de <span class="resaltado">{{ $credito->garantia->propiedad_ubicacion }}</span>, CUYAS MEDIDAS Y COLINDANCIAS SON: {{ $credito->garantia->propiedad_superficie }}.<br><br>
+    En este acto las partes convienen establecer como garantía en favor del acreedor los derechos de propiedad de <span class="resaltado">{{ strtoupper($credito->garantia->propiedad_ubicacion) }}</span>, CUYAS MEDIDAS Y COLINDANCIAS SON: {{ strtoupper($credito->garantia->propiedad_superficie) }}.<br><br>
     Documento que se entrega en original al ACREEDOR; declarando bajo protesta de decir verdad EL DEUDOR que es único propietario de dicho inmueble, del cual tiene en posesión y que no ha realizado transacción alguna con el, por lo que se encuentra en total libertad de dejarlo como garantía.<br><br>
     Para los efectos procesales la "PARTE DEUDORA", renuncia desde ahora para el caso de ser exigibles las obligaciones que contrae en este contrato, a la posesión del inmueble, y está conforme en que se entregue la tenencia material del mismo a la "PARTE ACREEDORA".
     @else
@@ -89,12 +89,12 @@
         <div class="firma-box">
             <div class="linea-firma"></div>
             <span class="resaltado">"PARTE ACREEDORA"</span><br>
-            C. {{ $credito->patron->representante_legal ?? 'RENE ALVA RODRIGUEZ' }}
+            C. {{ strtoupper($credito->patron->representante_legal ?? 'RENE ALVA RODRIGUEZ') }}
         </div>
         <div class="firma-box">
             <div class="linea-firma"></div>
             <span class="resaltado">"PARTE DEUDORA"</span><br>
-            C. {{ $credito->cliente->nombre_completo ?? $credito->cliente->nombre }}
+            C. {{ strtoupper($credito->cliente->nombre_completo ?? $credito->cliente->nombre) }}
         </div>
     </div>
 

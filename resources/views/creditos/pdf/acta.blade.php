@@ -4,158 +4,169 @@
     <meta charset="UTF-8">
     <title>Acta de Instalación</title>
     <style>
-        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 11pt; color: #333; margin: 0; }
+        /* 🔥 MAGIA: Forzar hoja tamaño carta en formato Horizontal (Landscape) */
+        @page { size: letter landscape; margin: 1.5cm 2cm; }
         
-        /* Cabecera */
-        .header { width: 100%; margin-bottom: 20px; display: table; }
-        .logo-cell { display: table-cell; width: 50%; vertical-align: middle; }
-        .logo-cell img { max-width: 200px; max-height: 70px; }
-        .logo-cell h3 { margin: 0; font-size: 18px; color: #003a70; text-transform: uppercase; }
-        .title-cell { display: table-cell; width: 50%; text-align: right; vertical-align: middle; }
-        .doc-title { font-size: 18px; font-weight: bold; color: #003a70; text-transform: uppercase; }
-        .doc-date { font-size: 10pt; color: #555; margin-top: 5px; }
-
+        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 12pt; color: #1a202c; margin: 0; line-height: 1.4; }
+        
+        /* Layout Superior */
+        .top-table { width: 100%; margin-bottom: 20px; border-collapse: collapse; }
+        .top-table td { vertical-align: top; }
+        
+        /* Títulos */
+        .main-title { font-size: 20pt; font-weight: bold; color: #003a70; text-align: center; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 2px; }
+        .sub-title { font-size: 14pt; font-weight: bold; background-color: #003a70; color: #fff; text-align: center; padding: 6px 0; text-transform: uppercase; margin-bottom: 25px; border-radius: 4px; }
+        
         /* Información del Cliente */
-        .info-box { width: 100%; border: 1px solid #000; padding: 10px; margin-bottom: 20px; border-radius: 4px; }
-        .info-row { margin-bottom: 8px; font-size: 10.5pt; }
-        .info-label { font-weight: bold; text-transform: uppercase; }
+        .info-label { font-weight: bold; color: #4a5568; font-size: 11pt; text-transform: uppercase; }
+        .info-value { font-weight: bold; color: #1a202c; font-size: 12pt; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 2px; }
+        
+        /* Logo y Fecha */
+        .logo-box { text-align: right; }
+        .logo-box img { max-width: 200px; max-height: 80px; }
+        .logo-box h3 { margin: 0; font-size: 18px; color: #003a70; text-transform: uppercase; }
+        .date-text { font-size: 12pt; font-weight: bold; color: #2d3748; margin-top: 10px; }
 
-        /* Sección Contabilidad */
-        .section-title { background-color: #003a70; color: #fff; padding: 8px; text-align: center; font-weight: bold; font-size: 12pt; text-transform: uppercase; margin-bottom: 15px; }
+        /* Contabilidad (Tablas divididas) */
+        .math-wrapper { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
+        .math-wrapper td.col-spacer { width: 4%; } /* Espacio entre columnas */
         
-        /* Tablas Financieras a dos columnas */
-        .math-container { width: 100%; display: table; }
-        .math-col-left { display: table-cell; width: 48%; padding-right: 2%; }
-        .math-col-right { display: table-cell; width: 48%; padding-left: 2%; }
+        .math-table { width: 100%; border-collapse: collapse; border: 2px solid #cbd5e0; }
+        .math-table td { padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 11.5pt; }
+        .math-table tr:nth-child(even) { background-color: #f8fafc; }
         
-        .math-table { width: 100%; border-collapse: collapse; }
-        .math-table td { padding: 8px 5px; border-bottom: 1px solid #eee; font-size: 10.5pt; }
         .text-right { text-align: right; }
-        .text-danger { color: #dc3545; }
-        .row-total td { font-weight: bold; font-size: 12pt; border-top: 2px solid #000; border-bottom: none; padding-top: 10px; }
-        .highlight-total { color: #003a70; }
+        .text-danger { color: #e53e3e; }
+        .fw-bold { font-weight: bold; }
+        
+        .row-total td { font-weight: bold; font-size: 14pt; background-color: #edf2f7; border-top: 2px solid #a0aec0; }
+        .highlight-total { color: #003a70; font-size: 16pt !important; }
 
         /* Firmas */
-        .signatures { width: 100%; margin-top: 80px; text-align: center; page-break-inside: avoid; }
-        .sig-box { display: inline-block; width: 45%; vertical-align: top; }
-        .sig-line { border-top: 1px solid #000; width: 80%; margin: 0 auto 5px auto; padding-top: 5px; }
-        .sig-title { font-weight: bold; font-size: 11pt; text-transform: uppercase; }
-        .sig-subtitle { font-size: 9pt; color: #666; margin-top: 3px; }
+        .signatures { width: 100%; margin-top: 30px; border-collapse: collapse; }
+        .signatures td { text-align: center; vertical-align: bottom; height: 80px; width: 50%; }
+        .sig-line { border-top: 1px solid #1a202c; width: 60%; margin: 0 auto; padding-top: 5px; font-weight: bold; font-size: 12pt; text-transform: uppercase; }
+        .sig-sub { font-size: 10pt; color: #718096; margin-top: 2px; }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <div class="logo-cell">
-            @if(isset($logo_base64) && $logo_base64)
-                <img src="{{ $logo_base64 }}" alt="Logo">
-            @elseif(isset($credito->patron->nombre_comercial))
-                <h3>{{ $credito->patron->nombre_comercial }}</h3>
-            @else
-                <h3>EMPRESA EMISORA</h3>
-            @endif
-        </div>
-        <div class="title-cell">
-            <div class="doc-title">Acta de Instalación</div>
-            <div class="doc-date">FECHA: {{ \Carbon\Carbon::parse($credito->fecha_aprobacion)->format('d/m/Y') }}</div>
-        </div>
-    </div>
-
-    <div class="info-box">
-        <div class="info-row">
-            <span class="info-label">Nombre del Cliente:</span> 
-            {{ $credito->cliente->nombre_completo ?? $credito->cliente->nombre }}
-        </div>
-        <div class="info-row">
-            <span class="info-label">Dirección:</span> 
-            {{ strtoupper($direccion) }}
-        </div>
-        <div class="info-row" style="margin-bottom: 0;">
-            <span class="info-label">Teléfono:</span> 
-            {{ $telefono }}
-        </div>
-    </div>
-
-    <div class="section-title">Contabilidad del Crédito</div>
-
-    <div class="math-container">
-        <!-- Columna Izquierda: Desgloses y Retenciones -->
-        <div class="math-col-left">
-            <table class="math-table">
-                <tr>
-                    <td>Pagos Pendientes por Realizar</td>
-                    <td class="text-right">$0.00</td>
-                </tr>
-                <tr>
-                    <td>Pago Adelantado 1</td>
-                    <td class="text-right">$0.00</td>
-                </tr>
-                <tr>
-                    <td>Multas y/o Moratorios Generados</td>
-                    <td class="text-right">$0.00</td>
-                </tr>
-                <tr>
-                    <td>Comisión del Nuevo Crédito</td>
-                    <td class="text-right text-danger">${{ number_format($comision, 2) }}</td>
-                </tr>
-                @if($retencion_seguro > 0)
-                <tr>
-                    <td>Retención de Seguro</td>
-                    <td class="text-right text-danger">${{ number_format($retencion_seguro, 2) }}</td>
-                </tr>
+    <!-- SECCIÓN SUPERIOR: Info del Cliente + Logo -->
+    <table class="top-table">
+        <tr>
+            <td width="60%">
+                <div class="info-label">NOMBRE DEL CLIENTE:</div>
+                <div class="info-value">{{ $credito->cliente->nombre_completo ?? $credito->cliente->nombre }}</div>
+                
+                <div class="info-label">DIRECCIÓN:</div>
+                <div class="info-value">{{ strtoupper($direccion) }}</div>
+                
+                <div class="info-label">TELÉFONO:</div>
+                <div class="info-value" style="border: none;">{{ $telefono }}</div>
+            </td>
+            <td width="40%" class="logo-box">
+                @if(isset($logo_base64) && $logo_base64)
+                    <img src="{{ $logo_base64 }}" alt="Logo">
+                @elseif(isset($credito->patron->nombre_comercial))
+                    <h3>{{ $credito->patron->nombre_comercial }}</h3>
+                @else
+                    <h3>EMPRESA EMISORA</h3>
                 @endif
-                <tr class="row-total">
-                    <td>TOTAL:</td>
-                    <td class="text-right text-danger">${{ number_format($total_deducciones, 2) }}</td>
-                </tr>
-            </table>
-        </div>
+                
+                <div class="date-text">FECHA: {{ \Carbon\Carbon::parse($credito->fecha_aprobacion)->format('d/m/Y') }}</div>
+            </td>
+        </tr>
+    </table>
 
-        <!-- Columna Derecha: Fondeo Neto -->
-        <div class="math-col-right">
-            <table class="math-table">
-                <tr>
-                    <td>Monto del Crédito</td>
-                    <td class="text-right fw-bold">${{ number_format($monto_credito, 2) }}</td>
-                </tr>
-                <tr>
-                    <td>Deducciones</td>
-                    <td class="text-right text-danger">-${{ number_format($total_deducciones, 2) }}</td>
-                </tr>
-                <tr>
-                    <td>Devolución Comisión</td>
-                    <td class="text-right">$0.00</td>
-                </tr>
-                <tr>
-                    <td style="border: none;">&nbsp;</td>
-                    <td style="border: none;">&nbsp;</td>
-                </tr>
-                @if($retencion_seguro > 0)
-                <tr>
-                    <td style="border: none;">&nbsp;</td>
-                    <td style="border: none;">&nbsp;</td>
-                </tr>
-                @endif
-                <tr class="row-total">
-                    <td class="highlight-total">TOTAL A FONDEAR:</td>
-                    <td class="text-right highlight-total">${{ number_format($total_fondear, 2) }}</td>
-                </tr>
-            </table>
-        </div>
-    </div>
+    <!-- TÍTULOS CENTRALES -->
+    <div class="main-title">ACTA DE INSTALACIÓN</div>
+    <div class="sub-title">CONTABILIDAD DEL CRÉDITO</div>
 
-    <div class="signatures">
-        <div class="sig-box">
-            <div class="sig-line"></div>
-            <div class="sig-title">CLIENTE</div>
-            <div class="sig-subtitle">Firma de Conformidad</div>
-        </div>
-        <div class="sig-box">
-            <div class="sig-line"></div>
-            <div class="sig-title">GERENTE</div>
-            <div class="sig-subtitle">Autorizado</div>
-        </div>
-    </div>
+    <!-- SECCIÓN MATEMÁTICA: 2 Columnas -->
+    <table class="math-wrapper">
+        <tr>
+            <!-- Columna Izquierda -->
+            <td width="48%" valign="top">
+                <table class="math-table">
+                    <tr>
+                        <td>Pagos Pendientes por Realizar</td>
+                        <td class="text-right fw-bold">$0.00</td>
+                    </tr>
+                    <tr>
+                        <td>Pago Adelantado 1</td>
+                        <td class="text-right fw-bold">$0.00</td>
+                    </tr>
+                    <tr>
+                        <td>Multas y/o Moratorios Generados</td>
+                        <td class="text-right fw-bold">$0.00</td>
+                    </tr>
+                    <tr>
+                        <td>Comisión del Nuevo Crédito</td>
+                        <td class="text-right fw-bold text-danger">${{ number_format($comision, 2) }}</td>
+                    </tr>
+                    @if($retencion_seguro > 0)
+                    <tr>
+                        <td>Retención de Seguro</td>
+                        <td class="text-right fw-bold text-danger">${{ number_format($retencion_seguro, 2) }}</td>
+                    </tr>
+                    @else
+                    <tr>
+                        <td>&nbsp;</td>
+                        <td>&nbsp;</td>
+                    </tr>
+                    @endif
+                    <tr class="row-total">
+                        <td>TOTAL:</td>
+                        <td class="text-right text-danger">${{ number_format($total_deducciones, 2) }}</td>
+                    </tr>
+                </table>
+            </td>
+            
+            <td class="col-spacer"></td>
+            
+            <!-- Columna Derecha -->
+            <td width="48%" valign="top">
+                <table class="math-table">
+                    <tr>
+                        <td>Monto del Crédito</td>
+                        <td class="text-right fw-bold">${{ number_format($monto_credito, 2) }}</td>
+                    </tr>
+                    <tr>
+                        <td>Deducciones</td>
+                        <td class="text-right fw-bold text-danger">-${{ number_format($total_deducciones, 2) }}</td>
+                    </tr>
+                    <tr>
+                        <td>Devolución Comisión</td>
+                        <td class="text-right fw-bold">$0.00</td>
+                    </tr>
+                    <tr>
+                        <td>&nbsp;</td>
+                        <td>&nbsp;</td>
+                    </tr>
+                    <tr>
+                        <td>&nbsp;</td>
+                        <td>&nbsp;</td>
+                    </tr>
+                    <tr class="row-total">
+                        <td class="highlight-total">TOTAL A FONDEAR:</td>
+                        <td class="text-right highlight-total fw-bold">${{ number_format($total_fondear, 2) }}</td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    <!-- FIRMAS -->
+    <table class="signatures">
+        <tr>
+            <td>
+                <div class="sig-line">FIRMA CLIENTE</div>
+            </td>
+            <td>
+                <div class="sig-line">AUTORIZADO FIRMA GERENTE</div>
+            </td>
+        </tr>
+    </table>
 
 </body>
 </html>

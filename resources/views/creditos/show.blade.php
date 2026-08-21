@@ -277,73 +277,37 @@
                 </div>
                 @endif
 
-                {{-- TABLA DE AMORTIZACIÓN Y DOCUMENTOS --}}
+                {{-- EXPEDIENTE LEGAL (DOCUMENTOS PDF) --}}
                 @if($credito->estatus == 'aprobado' || $credito->estatus == 'desembolsado')
-                <div class="card border-0 shadow-sm mb-4 border-start border-success border-4">
-                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                        <h6 class="fw-bold text-dark mb-0"><i class="bi bi-calculator-fill me-2 text-success"></i>Tabla de Amortización Generada</h6>
-                        
+                <div class="card border-0 shadow-sm mb-4 border-start border-primary border-4 bg-light">
+                    <div class="card-body p-4 d-flex justify-content-between align-items-center">
                         <div>
-                            <a href="{{ route('creditos.acta', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm me-1" title="Imprimir Acta de Instalación">
-                                <i class="bi bi-file-earmark-check-fill"></i> Acta de Instalacion
-                            </a>
-                            <a href="{{ route('creditos.acuse', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm me-1" title="Imprimir Acuse de Desembolso">
-                                <i class="bi bi-file-earmark-ruled-fill"></i> Acuse
-                            </a>
-                            <a href="{{ route('creditos.carta', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm me-1" title="Imprimir Carta Compromiso">
-                                <i class="bi bi-file-earmark-text-fill"></i> Compromiso
-                            </a>
-                            <a href="{{ route('creditos.contrato', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm me-1" title="Imprimir Contrato">
+                            <h6 class="fw-bold text-dark mb-1"><i class="bi bi-folder-check me-2 text-primary"></i>Expediente Legal del Crédito</h6>
+                            <small class="text-muted">Descarga o imprime los documentos oficiales para firma.</small>
+                        </div>
+                        <div>
+                            <a href="{{ route('creditos.contrato', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm me-1">
                                 <i class="bi bi-file-earmark-pdf-fill"></i> Contrato
                             </a>
                             <button class="btn btn-sm btn-outline-danger shadow-sm me-1" title="Imprimir Pagaré">
                                 <i class="bi bi-file-earmark-pdf-fill"></i> Pagaré
                             </button>
-                            <a href="{{ route('creditos.tabla', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm" title="Imprimir Tabla">
-                                <i class="bi bi-table"></i> Imprimir Control de Pagos
+                            <a href="{{ route('creditos.carta', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm me-1">
+                                <i class="bi bi-file-earmark-text-fill"></i> Compromiso
                             </a>
-                        </div>
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-                            <table class="table table-hover table-striped align-middle mb-0 text-center small">
-                                <thead class="bg-light sticky-top">
-                                    <tr>
-                                        <th># Cuota</th>
-                                        <th>Fecha de Pago</th>
-                                        <th>Capital</th>
-                                        <th>Interés</th>
-                                        <th>IVA</th>
-                                        <th class="text-success fw-bold">Total a Pagar</th>
-                                        <th>Saldo Restante</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @forelse($credito->amortizaciones as $cuota)
-                                    <tr>
-                                        <td class="fw-bold text-muted">{{ $cuota->numero_cuota }}</td>
-                                        <td class="fw-bold text-dark">{{ \Carbon\Carbon::parse($cuota->fecha_pago)->format('d/m/Y') }}</td>
-                                        <td>${{ number_format($cuota->capital, 2) }}</td>
-                                        <td>${{ number_format($cuota->interes, 2) }}</td>
-                                        <td>${{ number_format($cuota->iva, 2) }}</td>
-                                        <td class="text-success fw-bold bg-success bg-opacity-10">${{ number_format($cuota->total_cuota, 2) }}</td>
-                                        <td class="text-danger">${{ number_format($cuota->saldo_final, 2) }}</td>
-                                    </tr>
-                                    @empty
-                                    <tr>
-                                        <td colspan="7" class="text-center py-4 text-muted">Aún no se ha generado la tabla de amortización.</td>
-                                    </tr>
-                                    @endforelse
-                                </tbody>
-                            </table>
+                            <a href="{{ route('creditos.acta', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm me-1">
+                                <i class="bi bi-file-earmark-check-fill"></i> Acta
+                            </a>
+                            <a href="{{ route('creditos.acuse', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm me-1">
+                                <i class="bi bi-file-earmark-ruled-fill"></i> Acuse
+                            </a>
+                            <a href="{{ route('creditos.tabla', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm">
+                                <i class="bi bi-table"></i> Control de Pagos
+                            </a>
                         </div>
                     </div>
                 </div>
                 @endif
-
-            </div>
-        </div>
-    </div>
 
     {{-- MODAL DE APROBACIÓN DE CRÉDITO --}}
     @if($credito->estatus == 'solicitado')

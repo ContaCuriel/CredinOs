@@ -5,26 +5,27 @@
     <title>Carta Compromiso</title>
     <style>
         @page { margin: 2.5cm 2cm 2.5cm 2.5cm; }
-        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 11pt; color: #333; margin: 0; line-height: 1.6; text-align: justify; }
+        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 11pt; color: #2d3748; margin: 0; line-height: 1.7; text-align: justify; }
         
         /* Cabecera */
-        .header { width: 100%; margin-bottom: 25px; display: table; }
+        .header { width: 100%; margin-bottom: 30px; display: table; border-bottom: 2px solid #003a70; padding-bottom: 15px; }
         .logo-cell { display: table-cell; width: 50%; vertical-align: middle; }
-        .logo-cell img { max-width: 200px; max-height: 70px; }
+        .logo-cell img { max-width: 220px; max-height: 75px; }
         .logo-cell h3 { margin: 0; font-size: 18px; color: #003a70; text-transform: uppercase; }
         
-        .title-cell { display: table-cell; width: 50%; text-align: right; vertical-align: top; }
-        .doc-title { font-size: 16px; font-weight: bold; color: #003a70; text-transform: uppercase; letter-spacing: 1px; }
-        .doc-folio { font-size: 11pt; font-weight: bold; color: #555; margin-top: 5px; }
-        .doc-date { font-size: 10pt; color: #555; margin-top: 5px; text-transform: uppercase; }
+        .title-cell { display: table-cell; width: 50%; text-align: right; vertical-align: bottom; }
+        .doc-title { font-size: 18px; font-weight: bold; color: #003a70; text-transform: uppercase; letter-spacing: 2px; }
+        .doc-folio { font-size: 11pt; font-weight: bold; color: #4a5568; margin-top: 5px; }
+        .doc-date { font-size: 10pt; color: #718096; margin-top: 5px; text-transform: uppercase; }
 
-        .fw-bold { font-weight: bold; }
-        p { margin-bottom: 15px; }
+        .fw-bold { font-weight: bold; color: #1a202c; }
+        p { margin-bottom: 18px; }
 
-        /* Tabla de Firmas */
-        .firmas-table { width: 100%; border-collapse: collapse; margin-top: 40px; text-align: center; }
-        .firmas-table th { background-color: #f2f2f2; border: 1px solid #ddd; padding: 8px; font-size: 10pt; text-transform: uppercase; }
-        .firmas-table td { border: 1px solid #ddd; padding: 15px 5px; vertical-align: middle; font-size: 10.5pt; height: 40px; }
+        /* Tabla de Firmas Refinada */
+        .firmas-table { width: 100%; border-collapse: collapse; margin-top: 50px; text-align: center; }
+        .firmas-table th { background-color: #003a70; color: #ffffff; border: 1px solid #003a70; padding: 10px; font-size: 9.5pt; text-transform: uppercase; letter-spacing: 1px; }
+        .firmas-table td { border: 1px solid #cbd5e0; padding: 12px 8px; vertical-align: middle; font-size: 10.5pt; height: 50px; color: #2d3748; }
+        .firmas-table tr:nth-child(even) { background-color: #f8fafc; }
     </style>
 </head>
 <body>
@@ -57,15 +58,16 @@
     <!-- PÁRRAFO 1: Solicitud y Fondeo -->
     <p>
         @if($esGrupal)
-            <span class="fw-bold">Nosotros</span>, los integrantes del grupo: <span class="fw-bold">{{ $credito->grupo->nombre_grupo }}</span> hemos conformado un grupo "SOLIDARIO", para solicitar un préstamo a <span class="fw-bold">{{ strtoupper($empresa) }}</span>
+            <span class="fw-bold">Nosotros</span>, los integrantes del grupo: <span class="fw-bold">{{ $credito->grupo->nombre_grupo }}</span> hemos conformado un grupo "SOLIDARIO", para solicitar un préstamo a <span class="fw-bold">{{ strtoupper($empresa) }}</span>, 
         @else
-            <span class="fw-bold">Yo</span>, <span class="fw-bold">{{ $credito->cliente->nombre_completo ?? $credito->cliente->nombre }}</span>, he solicitado un préstamo a <span class="fw-bold">{{ strtoupper($empresa) }}</span>
+            <span class="fw-bold">Yo</span>, <span class="fw-bold">{{ $credito->cliente->nombre_completo ?? $credito->cliente->nombre }}</span>, he solicitado un préstamo a <span class="fw-bold">{{ strtoupper($empresa) }}</span>, 
         @endif
         
-        , por la cantidad de <span class="fw-bold">${{ number_format($credito->monto_aprobado, 2) }} ({{ $letras_monto_aprobado }} 00/100 M.N.)</span> el cual será 
+        por la cantidad de <span class="fw-bold">${{ number_format($credito->monto_aprobado, 2) }} ({{ $letras_monto_aprobado }} 00/100 M.N.)</span> el cual será 
         
+        {{-- SE AGREGA LA OPCIÓN DE EFECTIVO SIEMPRE, TAL COMO EN EL DOCUMENTO ORIGINAL --}}
         @if($cuenta)
-            depositado a la cuenta: <span class="fw-bold">{{ $cuenta->numero_cuenta }}</span> a nombre de <span class="fw-bold">{{ $cuenta->titular }}</span>, del banco <span class="fw-bold">{{ strtoupper($cuenta->banco) }}</span>, 
+            entregado en efectivo, o depositado a la cuenta: <span class="fw-bold">{{ $cuenta->numero_cuenta }}</span> a nombre de <span class="fw-bold">{{ $cuenta->titular }}</span>, del banco <span class="fw-bold">{{ strtoupper($cuenta->banco) }}</span>, 
         @else
             entregado en efectivo, 
         @endif
@@ -88,7 +90,7 @@
         {{ $esGrupal ? 'Firmamos este documento por nuestra propia voluntad, y hacemos hincapié en que nadie nos' : 'Firmo este documento por mi propia voluntad, y hago hincapié en que nadie me' }} está obligando a hacerlo, también {{ $esGrupal ? 'aceptamos y entendemos' : 'acepto y entiendo' }}, todas las condiciones que en él se mencionan, dando total autorización que si {{ $esGrupal ? 'incumpliéramos en los pagos se actué de forma legal en nuestra contra' : 'incumpliera en los pagos se actué de forma legal en mi contra' }}.
     </p>
 
-    <!-- TABLA DE FIRMAS DINÁMICA -->
+    <!-- TABLA DE FIRMAS DINÁMICA REFINADA -->
     <table class="firmas-table">
         <thead>
             <tr>
@@ -101,8 +103,8 @@
         <tbody>
             @foreach($credito->integrantes as $index => $integrante)
             <tr>
-                <td class="fw-bold">{{ $index + 1 }}</td>
-                <td class="fw-bold text-left" style="text-align: left; padding-left: 10px;">{{ $integrante->nombre_completo ?? $integrante->nombre . ' ' . $integrante->apellido_paterno }}</td>
+                <td class="fw-bold text-muted">{{ $index + 1 }}</td>
+                <td class="fw-bold text-left" style="text-align: left; padding-left: 15px;">{{ $integrante->nombre_completo ?? $integrante->nombre . ' ' . $integrante->apellido_paterno }}</td>
                 <td class="fw-bold">${{ number_format($integrante->pivot->monto_individual, 2) }}</td>
                 <td></td>
             </tr>
