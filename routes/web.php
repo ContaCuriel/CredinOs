@@ -287,21 +287,19 @@ Route::middleware('auth')->group(function () {
     });
 });
 
-// --- RUTA MÁGICA 4: REINICIAR CRÉDITO PARA RE-CALCULAR ---
-Route::get('/reiniciar-credito/{id}', function ($id) {
+// --- RUTA MÁGICA 5: CREAR COLUMNA EN BASE DE DATOS TENANT ---
+Route::get('/ejecutar-migracion-primer-pago', function () {
     try {
-        $credito = \App\Models\Credito::find($id);
-        if ($credito) {
-            // Borramos la tabla matemática vieja
-            $credito->amortizaciones()->delete();
-            // Lo regresamos a estatus de solicitud
-            $credito->update(['estatus' => 'solicitado']);
-            
-            return "<h1>¡CRÉDITO $id REINICIADO!</h1><p>Regresa a tu sistema. Ahora podrás volver a autorizarlo para que corra la nueva fórmula.</p>";
-        }
-        return "Crédito no encontrado.";
+        $dbName = \Illuminate\Support\Facades\DB::connection('tenant')->getDatabaseName();
+        $schema = str_contains($dbName, 'credintegra') ? 'credintegra_db' : 
+                 (str_contains($dbName, 'crediticia') ? 'facturame_db' : 'public');
+
+        $sql = "ALTER TABLE \"$schema\".creditos ADD COLUMN IF NOT EXISTS descuenta_primer_pago BOOLEAN DEFAULT FALSE";
+        \Illuminate\Support\Facades\DB::connection('tenant')->statement($sql);
+
+        return "<h1 style='color: green;'>¡COLUMNA 'descuenta_primer_pago' CREADA EXITOSAMENTE!</h1><p>Esquema procesado: $schema</p><p>Ya puedes aprobar créditos con o sin descuento del primer pago.</p>";
     } catch (\Exception $e) {
-        return "ERROR: " . $e->getMessage();
+        return "<h1 style='color: red;'>ERROR AL EJECUTAR MIGRACIÓN</h1><p>" . $e->getMessage() . "</p>";
     }
 });
 
