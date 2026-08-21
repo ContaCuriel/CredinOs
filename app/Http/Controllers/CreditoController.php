@@ -489,9 +489,13 @@ class CreditoController extends Controller
         $total_deducciones = $comision + $retencion_seguro;
         $total_fondear = $monto_credito - $total_deducciones;
 
-        // Construir Dirección y Teléfono (Ajusta los campos si en tu BD se llaman distinto)
-        $direccion = ($credito->cliente->calle ?? '') . ' ' . ($credito->cliente->numero_exterior ?? '') . ', Col: ' . ($credito->cliente->colonia ?? '');
-        $telefono = $credito->cliente->telefono ?? ($credito->cliente->celular ?? 'N/A');
+        // 📍 Construir Dirección y Teléfono exactos de tu modelo Cliente
+        $calle = $credito->cliente->calle ?? '';
+        $numero = $credito->cliente->numero ?? '';
+        $colonia = $credito->cliente->colonia ?? '';
+        $direccion = trim("$calle $numero, Col: $colonia", ', ');
+
+        $telefono = $credito->cliente->telefono_celular ?? ($credito->cliente->telefono_fijo ?? 'N/A');
 
         $data = [
             'credito' => $credito,
@@ -501,7 +505,7 @@ class CreditoController extends Controller
             'retencion_seguro' => $retencion_seguro,
             'total_deducciones' => $total_deducciones,
             'total_fondear' => $total_fondear,
-            'direccion' => trim($direccion, ', '),
+            'direccion' => $direccion,
             'telefono' => $telefono,
         ];
 

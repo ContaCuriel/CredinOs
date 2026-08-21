@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>Acta de Instalación</title>
     <style>
-        /* 🔥 MAGIA: Forzar hoja tamaño carta en formato Horizontal (Landscape) */
+        /* 🔥 Forzar hoja tamaño carta en formato Horizontal (Landscape) */
         @page { size: letter landscape; margin: 1.5cm 2cm; }
         
         body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 12pt; color: #1a202c; margin: 0; line-height: 1.4; }
@@ -15,11 +15,11 @@
         
         /* Títulos */
         .main-title { font-size: 20pt; font-weight: bold; color: #003a70; text-align: center; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 2px; }
-        .sub-title { font-size: 14pt; font-weight: bold; background-color: #003a70; color: #fff; text-align: center; padding: 6px 0; text-transform: uppercase; margin-bottom: 25px; border-radius: 4px; }
+        .sub-title { font-size: 14pt; font-weight: bold; background-color: #003a70; color: #fff; text-align: center; padding: 6px 0; text-transform: uppercase; margin-bottom: 30px; border-radius: 4px; }
         
         /* Información del Cliente */
         .info-label { font-weight: bold; color: #4a5568; font-size: 11pt; text-transform: uppercase; }
-        .info-value { font-weight: bold; color: #1a202c; font-size: 12pt; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 2px; }
+        .info-value { font-weight: bold; color: #1a202c; font-size: 12pt; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px; }
         
         /* Logo y Fecha */
         .logo-box { text-align: right; }
@@ -29,10 +29,10 @@
 
         /* Contabilidad (Tablas divididas) */
         .math-wrapper { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
-        .math-wrapper td.col-spacer { width: 4%; } /* Espacio entre columnas */
+        .math-wrapper td.col-spacer { width: 6%; } /* Espacio entre columnas */
         
         .math-table { width: 100%; border-collapse: collapse; border: 2px solid #cbd5e0; }
-        .math-table td { padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 11.5pt; }
+        .math-table td { padding: 12px 10px; border-bottom: 1px solid #e2e8f0; font-size: 11.5pt; }
         .math-table tr:nth-child(even) { background-color: #f8fafc; }
         
         .text-right { text-align: right; }
@@ -43,10 +43,9 @@
         .highlight-total { color: #003a70; font-size: 16pt !important; }
 
         /* Firmas */
-        .signatures { width: 100%; margin-top: 30px; border-collapse: collapse; }
-        .signatures td { text-align: center; vertical-align: bottom; height: 80px; width: 50%; }
+        .signatures { width: 100%; margin-top: 50px; border-collapse: collapse; }
+        .signatures td { text-align: center; vertical-align: bottom; height: 60px; width: 50%; }
         .sig-line { border-top: 1px solid #1a202c; width: 60%; margin: 0 auto; padding-top: 5px; font-weight: bold; font-size: 12pt; text-transform: uppercase; }
-        .sig-sub { font-size: 10pt; color: #718096; margin-top: 2px; }
     </style>
 </head>
 <body>
@@ -82,41 +81,35 @@
     <div class="main-title">ACTA DE INSTALACIÓN</div>
     <div class="sub-title">CONTABILIDAD DEL CRÉDITO</div>
 
-    <!-- SECCIÓN MATEMÁTICA: 2 Columnas -->
+    <!-- SECCIÓN MATEMÁTICA: 2 Columnas Inteligentes -->
     <table class="math-wrapper">
         <tr>
-            <!-- Columna Izquierda -->
-            <td width="48%" valign="top">
+            <!-- Columna Izquierda (Retenciones) -->
+            <td width="47%" valign="top">
                 <table class="math-table">
-                    <tr>
-                        <td>Pagos Pendientes por Realizar</td>
-                        <td class="text-right fw-bold">$0.00</td>
-                    </tr>
-                    <tr>
-                        <td>Pago Adelantado 1</td>
-                        <td class="text-right fw-bold">$0.00</td>
-                    </tr>
-                    <tr>
-                        <td>Multas y/o Moratorios Generados</td>
-                        <td class="text-right fw-bold">$0.00</td>
-                    </tr>
+                    @if($comision > 0)
                     <tr>
                         <td>Comisión del Nuevo Crédito</td>
                         <td class="text-right fw-bold text-danger">${{ number_format($comision, 2) }}</td>
                     </tr>
+                    @endif
+                    
                     @if($retencion_seguro > 0)
                     <tr>
                         <td>Retención de Seguro</td>
                         <td class="text-right fw-bold text-danger">${{ number_format($retencion_seguro, 2) }}</td>
                     </tr>
-                    @else
+                    @endif
+
+                    @if($comision == 0 && $retencion_seguro == 0)
                     <tr>
-                        <td>&nbsp;</td>
-                        <td>&nbsp;</td>
+                        <td class="text-muted fst-italic">Sin deducciones aplicadas</td>
+                        <td class="text-right fw-bold">$0.00</td>
                     </tr>
                     @endif
+
                     <tr class="row-total">
-                        <td>TOTAL:</td>
+                        <td>TOTAL DEDUCCIONES:</td>
                         <td class="text-right text-danger">${{ number_format($total_deducciones, 2) }}</td>
                     </tr>
                 </table>
@@ -124,29 +117,21 @@
             
             <td class="col-spacer"></td>
             
-            <!-- Columna Derecha -->
-            <td width="48%" valign="top">
+            <!-- Columna Derecha (Fondeo Final) -->
+            <td width="47%" valign="top">
                 <table class="math-table">
                     <tr>
-                        <td>Monto del Crédito</td>
+                        <td>Monto del Crédito Autorizado</td>
                         <td class="text-right fw-bold">${{ number_format($monto_credito, 2) }}</td>
                     </tr>
+                    
+                    @if($total_deducciones > 0)
                     <tr>
-                        <td>Deducciones</td>
+                        <td>Menos Deducciones</td>
                         <td class="text-right fw-bold text-danger">-${{ number_format($total_deducciones, 2) }}</td>
                     </tr>
-                    <tr>
-                        <td>Devolución Comisión</td>
-                        <td class="text-right fw-bold">$0.00</td>
-                    </tr>
-                    <tr>
-                        <td>&nbsp;</td>
-                        <td>&nbsp;</td>
-                    </tr>
-                    <tr>
-                        <td>&nbsp;</td>
-                        <td>&nbsp;</td>
-                    </tr>
+                    @endif
+                    
                     <tr class="row-total">
                         <td class="highlight-total">TOTAL A FONDEAR:</td>
                         <td class="text-right highlight-total fw-bold">${{ number_format($total_fondear, 2) }}</td>
