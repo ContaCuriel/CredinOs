@@ -315,18 +315,33 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             
-            // --- 0. FORMATEO DE MONEDA CON COMAS ---
+            // --- 0. FORMATEO DE MONEDA NATIVO (SIN ERRORES) ---
             function formatNumberWithCommas(value) {
                 if (!value) return '';
-                let parts = value.toString().replace(/[^0-9.]/g, '').split('.');
-                parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-                return parts.join('.');
+                // Limpiamos todo lo que no sea número o un punto decimal
+                let rawVal = value.toString().replace(/[^0-9.]/g, '');
+                if (!rawVal) return '';
+                
+                let parts = rawVal.split('.');
+                // Formateamos solo los enteros con el motor nativo del navegador
+                parts[0] = parseInt(parts[0], 10).toLocaleString('en-US');
+                
+                // Si el usuario tecleó decimales, los concatenamos intactos
+                return parts.length > 1 ? parts[0] + '.' + parts[1] : parts[0];
             }
 
             document.addEventListener('input', function(e) {
                 if (e.target.classList.contains('monto-formateado')) {
-                    let rawVal = e.target.value.replace(/,/g, '');
-                    e.target.value = formatNumberWithCommas(rawVal);
+                    // Guardamos la posición del cursor para que no salte al final
+                    let cursorPosition = e.target.selectionStart;
+                    let oldLength = e.target.value.length;
+                    
+                    e.target.value = formatNumberWithCommas(e.target.value);
+                    
+                    // Calculamos el desfase de la nueva coma para mantener el cursor en su lugar
+                    let newLength = e.target.value.length;
+                    cursorPosition = cursorPosition + (newLength - oldLength);
+                    e.target.setSelectionRange(cursorPosition, cursorPosition);
                 }
             });
 
@@ -515,7 +530,7 @@
                     <td>
                         <div class="input-group input-group-sm">
                             <span class="input-group-text bg-white">$</span>
-                            <input type="text" class="form-control border-success monto-individual-input monto-formateado ${customClass}" name="clientes[${indiceCliente}][monto]" required placeholder="0.00" value="${montoValue}" ${readOnlyAtr}>
+                            <input type="text" class="form-control border-success monto-individual-input monto-formateado ${customClass}" name="clientes[${indiceCliente}][monto]" required placeholder="0" value="${montoValue}" ${readOnlyAtr}>
                         </div>
                     </td>
                     <td class="text-center col-lider-body" style="display: ${displayLider};">
@@ -623,7 +638,6 @@
 
             // --- 5. VALIDACIÓN FINAL ANTES DE ENVIAR ---
             document.getElementById('formCredito').addEventListener('submit', function(e) {
-                // Clonar el nombre del crédito al campo oculto de grupo por si el backend lo necesita
                 document.getElementById('nombre_grupo').value = document.getElementById('nombre_credito').value;
 
                 // Limpiar comas de todos los montos formateaados antes de enviarlos a la BD
