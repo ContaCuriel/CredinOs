@@ -5,13 +5,9 @@
     <title>Acta de Instalación</title>
     <style>
         /* ========================================================
-           LÓGICA DE ORIENTACIÓN DINÁMICA (HORIZONTAL VS VERTICAL)
+           ORIENTACIÓN HORIZONTAL PARA TODOS LOS FORMATOS
            ======================================================== */
-        @if($credito->grupo_id)
-            @page { size: letter landscape; margin: 1cm 1.5cm; }
-        @else
-            @page { size: letter portrait; margin: 1.5cm 2cm; }
-        @endif
+        @page { size: letter landscape; margin: 1cm 1.5cm; }
         
         /* Fuente general */
         body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 9.5pt; color: #1a202c; margin: 0; line-height: 1.4; }
@@ -21,7 +17,7 @@
         .top-table td { vertical-align: top; }
         
         /* Títulos refinados */
-        .main-title { font-size: 16pt; font-weight: bold; color: #003a70; text-align: center; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 2px; }
+        .main-title { font-size: 16pt; font-weight: bold; color: #003a70; text-align: center; text-transform: uppercase; margin-bottom: 15px; letter-spacing: 2px; }
         .sub-title { font-size: 10.5pt; font-weight: bold; background-color: #003a70; color: #fff; text-align: center; padding: 5px 0; text-transform: uppercase; margin-bottom: 35px; border-radius: 3px; letter-spacing: 1px; }
         
         /* Información del Cliente Individual */
@@ -51,12 +47,12 @@
         .highlight-total { color: #003a70 !important; font-size: 12.5pt !important; }
 
         /* Firmas Individual */
-        .signatures { width: 100%; margin-top: 60px; border-collapse: collapse; }
+        .signatures { width: 100%; margin-top: 100px; /* Aquí se le dio más espacio (2 o 3 enter visuales) */ border-collapse: collapse; }
         .signatures td { text-align: center; vertical-align: bottom; height: 60px; width: 33.33%; }
         .sig-line { border-top: 1px solid #4a5568; width: 75%; margin: 0 auto; padding-top: 6px; font-weight: bold; font-size: 9pt; text-transform: uppercase; color: #4a5568; letter-spacing: 1px; }
 
         /* ========================================================
-           ESTILOS ESPECÍFICOS PARA GRUPAL (LANDSCAPE)
+           ESTILOS ESPECÍFICOS PARA GRUPAL
            ======================================================== */
         .header-grupal { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 9pt; text-transform: uppercase; }
         .header-grupal td { padding: 3px 5px; border-bottom: 1px solid #edf2f7; }
@@ -71,7 +67,7 @@
         .row-totales-grupal td { background-color: #edf2f7; font-weight: bold; font-size: 9pt; border-top: 2px solid #cbd5e0; }
         
         /* Firmas Grupal */
-        .signatures-grupal { width: 100%; margin-top: 30px; border-collapse: collapse; }
+        .signatures-grupal { width: 100%; margin-top: 40px; border-collapse: collapse; }
         .signatures-grupal td { text-align: center; vertical-align: bottom; height: 50px; width: 33.33%; }
         .sig-line-g { border-top: 1px solid #000; width: 70%; margin: 0 auto; padding-top: 5px; font-weight: bold; font-size: 9pt; text-transform: uppercase; }
     </style>
@@ -98,13 +94,13 @@
         }
     @endphp
 
+    {{-- TÍTULO UNIVERSAL HASTA ARRIBA --}}
+    <div class="main-title">ACTA DE INSTALACIÓN</div>
+
     @if($credito->grupo_id)
         {{-- ========================================================================= --}}
         {{-- FORMATO GRUPAL (HOJA 1: INTEGRANTES) --}}
         {{-- ========================================================================= --}}
-        
-        {{-- TÍTULO HASTA ARRIBA --}}
-        <div class="main-title">ACTA DE INSTALACIÓN</div>
         
         <table style="width: 100%; margin-bottom: 10px;">
             <tr>
@@ -153,7 +149,7 @@
             </tr>
         </table>
 
-        {{-- Tabla de Integrantes Limpia --}}
+        {{-- Tabla de Integrantes Limpia (Sin Renovaciones ni Montos Anteriores) --}}
         <table class="table-integrantes">
             <thead>
                 <tr>
@@ -204,7 +200,7 @@
         {{-- ========================================================================= --}}
         <div class="logo-box" style="text-align: center; margin-bottom: 20px;">
             @if(isset($logo_base64) && $logo_base64)
-                <img src="{{ $logo_base64 }}" alt="Logo">
+                <img src="{{ $logo_base64 }}" alt="Logo" style="max-height: 70px;">
             @else
                 <h3>{{ $credito->patron->nombre_comercial ?? 'EMPRESA EMISORA' }}</h3>
             @endif
@@ -255,7 +251,7 @@
                 <td width="48%" valign="top">
                     <table class="math-table">
                         <tr>
-                            <td>Monto del Crédito</td>
+                            <td>Monto del Crédito Autorizado</td>
                             <td class="text-right fw-bold">${{ number_format($monto_credito, 2) }}</td>
                         </tr>
                         
@@ -285,7 +281,7 @@
 
     @else
         {{-- ========================================================================= --}}
-        {{-- FORMATO INDIVIDUAL (PORTRAIT) --}}
+        {{-- FORMATO INDIVIDUAL (HORIZONTAL) --}}
         {{-- ========================================================================= --}}
         
         <table class="top-table">
@@ -302,11 +298,9 @@
                 </td>
                 <td width="40%" class="logo-box">
                     @if(isset($logo_base64) && $logo_base64)
-                        <img src="{{ $logo_base64 }}" alt="Logo">
-                    @elseif(isset($credito->patron->nombre_comercial))
-                        <h3>{{ $credito->patron->nombre_comercial }}</h3>
+                        <img src="{{ $logo_base64 }}" alt="Logo" style="max-height: 60px;">
                     @else
-                        <h3>EMPRESA EMISORA</h3>
+                        <h3>{{ $credito->patron->nombre_comercial ?? 'EMPRESA EMISORA' }}</h3>
                     @endif
                     
                     <div class="date-text">FECHA: {{ \Carbon\Carbon::parse($credito->fecha_desembolso)->format('d/m/Y') }}</div>
@@ -314,7 +308,6 @@
             </tr>
         </table>
         
-        <div class="main-title">ACTA DE INSTALACIÓN</div>
         <div class="sub-title">CONTABILIDAD DEL CRÉDITO</div>
 
         <table class="math-wrapper">

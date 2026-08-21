@@ -10,46 +10,48 @@
         @if($credito->grupo_id)
             @page { size: letter landscape; margin: 1cm 1.5cm; }
         @else
-            @page { size: letter portrait; margin: 1.5cm 2cm; }
+            /* INDIVIDUAL: Márgenes súper reducidos para que quepa en 1 hoja */
+            @page { size: letter portrait; margin: 0.8cm 1.5cm; } 
         @endif
 
-        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 11px; color: #333; line-height: 1.4; margin: 0; padding: 0; }
+        /* INDIVIDUAL: Letra, padding e interlineado comprimidos al máximo */
+        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 9.5px; color: #333; line-height: 1.15; margin: 0; padding: 0; }
         .container { width: 100%; margin: 0 auto; }
         
         /* Cabecera con Logo */
-        .header { width: 100%; height: 80px; margin-bottom: 15px; border-bottom: 2px solid #003a70; padding-bottom: 10px; display: table; }
+        .header { width: 100%; height: 50px; margin-bottom: 8px; border-bottom: 2px solid #003a70; padding-bottom: 2px; display: table; }
         .logo-cell { display: table-cell; width: 50%; vertical-align: middle; }
-        .logo-cell img { max-width: 220px; max-height: 75px; }
-        .logo-cell h3 { margin: 0; font-size: 18px; color: #003a70; text-transform: uppercase; }
+        .logo-cell img { max-width: 160px; max-height: 45px; }
+        .logo-cell h3 { margin: 0; font-size: 14px; color: #003a70; text-transform: uppercase; }
         
         .title-cell { display: table-cell; width: 50%; vertical-align: middle; text-align: right; }
-        .doc-title { font-size: 16px; font-weight: bold; color: #333; text-transform: uppercase; letter-spacing: 1px; }
-        .doc-date { font-size: 10px; color: #666; margin-top: 5px; }
+        .doc-title { font-size: 14px; font-weight: bold; color: #333; text-transform: uppercase; letter-spacing: 1px; }
+        .doc-date { font-size: 9px; color: #666; margin-top: 2px; }
 
         /* Títulos de sección */
-        .section-title { background-color: #f2f2f2; padding: 6px; text-align: center; font-weight: bold; font-size: 12px; border: 1px solid #ddd; text-transform: uppercase; margin-bottom: 10px; color: #003a70; }
+        .section-title { background-color: #f2f2f2; padding: 3px; text-align: center; font-weight: bold; font-size: 10px; border: 1px solid #ddd; text-transform: uppercase; margin-bottom: 5px; color: #003a70; }
 
         /* Tabla de Información General (Individual) */
-        .info-table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
-        .info-table td { padding: 5px 8px; border-bottom: 1px solid #f0f0f0; }
-        .lbl { font-weight: bold; color: #555; width: 20%; font-size: 10px; text-transform: uppercase; }
-        .val { color: #222; font-size: 11px; width: 30%; }
+        .info-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+        .info-table td { padding: 2px 4px; border-bottom: 1px solid #f0f0f0; }
+        .lbl { font-weight: bold; color: #555; width: 20%; font-size: 8.5px; text-transform: uppercase; }
+        .val { color: #222; font-size: 9.5px; width: 30%; }
         .text-right { text-align: right; }
         .val-highlight { font-weight: bold; color: #003a70; }
 
         /* Tabla de Cuotas (Individual) */
-        .cuotas-table { width: 75%; margin: 0 auto 30px auto; border-collapse: collapse; }
-        .cuotas-table th { background-color: #f9f9f9; color: #333; font-size: 10px; text-transform: uppercase; padding: 8px; border: 1px solid #ddd; text-align: center; }
-        .cuotas-table td { padding: 7px; border: 1px solid #ddd; text-align: center; font-size: 11px; }
+        .cuotas-table { width: 100%; margin: 0 auto 10px auto; border-collapse: collapse; }
+        .cuotas-table th { background-color: #f9f9f9; color: #333; font-size: 8.5px; text-transform: uppercase; padding: 3px; border: 1px solid #ddd; text-align: center; }
+        .cuotas-table td { padding: 3px; border: 1px solid #ddd; text-align: center; font-size: 9px; }
         .cuotas-table tr:nth-child(even) { background-color: #fafafa; }
 
         /* Firma Individual */
-        .signature-section { margin-top: 50px; text-align: center; page-break-inside: avoid; }
-        .signature-line { border-top: 1px solid #333; width: 280px; margin: 0 auto; padding-top: 8px; }
-        .firma-name { font-weight: bold; font-size: 11px; text-transform: uppercase; margin-bottom: 3px; }
+        .signature-section { margin-top: 15px; text-align: center; page-break-inside: avoid; }
+        .signature-line { border-top: 1px solid #333; width: 250px; margin: 0 auto; padding-top: 4px; }
+        .firma-name { font-weight: bold; font-size: 9.5px; text-transform: uppercase; margin-bottom: 2px; }
         
         /* Etiqueta de Copia */
-        .copy-label { text-align: right; font-size: 9px; font-weight: bold; color: #888; text-transform: uppercase; margin-bottom: -10px; }
+        .copy-label { text-align: right; font-size: 8px; font-weight: bold; color: #888; text-transform: uppercase; margin-bottom: -5px; }
 
         /* ========================================================
            ESTILOS ESPECÍFICOS PARA GRUPAL (LANDSCAPE)
@@ -67,16 +69,19 @@
         
         .total-row td { background-color: #e2e8f0; font-weight: bold; font-size: 9.5px; border-top: 2px solid #333; }
 
-        .firmas-grupal { width: 100%; margin-top: 40px; border-collapse: collapse; page-break-inside: avoid; }
-        .firmas-grupal td { text-align: center; vertical-align: bottom; height: 50px; width: 50%; }
-        .sig-line-g { border-top: 1px solid #000; width: 60%; margin: 0 auto; padding-top: 5px; font-weight: bold; font-size: 10px; text-transform: uppercase; }
+        /* Firma Grupal Única (Centrada y con mucho espacio arriba) */
+        .signature-section-grupal { margin-top: 100px; text-align: center; page-break-inside: avoid; }
+        .sig-line-g-center { border-top: 1px solid #000; width: 350px; margin: 0 auto; padding-top: 5px; font-weight: bold; font-size: 11px; text-transform: uppercase; }
     </style>
 </head>
 <body>
 
     @php
         // Extraemos al líder para ambos casos
-        $lider = $credito->integrantes->where('pivot.es_lider', true)->first();
+        $lider = null;
+        if($credito->integrantes) {
+            $lider = $credito->integrantes->where('pivot.es_lider', true)->first();
+        }
         $nombreTitularOLider = $lider ? mb_strtoupper($lider->nombre_completo ?? $lider->nombre . ' ' . $lider->apellido_paterno) : mb_strtoupper($credito->cliente->nombre_completo ?? $credito->cliente->nombre ?? 'SIN ASIGNAR');
         
         $copias = [
@@ -213,16 +218,16 @@
                     </table>
                 @endforeach
 
-                <table class="firmas-grupal">
-                    <tr>
-                        <td><div class="sig-line-g">AUTORIZA</div></td>
-                        <td><div class="sig-line-g">{{ $copia['firma_cliente'] === 'AUTORIZADO' ? 'SELLO DE LA EMPRESA' : $copia['desc_firma'] }}</div></td>
-                    </tr>
-                </table>
+                {{-- Firma Grupal Única y Centrada --}}
+                <div class="signature-section-grupal">
+                    <div class="sig-line-g-center"></div>
+                    <div style="font-weight: bold; font-size: 11px; margin-bottom: 2px;">{{ $copia['firma_cliente'] }}</div>
+                    <div style="font-size: 10px;">{{ $copia['desc_firma'] }}</div>
+                </div>
 
             @else
                 {{-- ========================================================================= --}}
-                {{-- FORMATO INDIVIDUAL (PORTRAIT) --}}
+                {{-- FORMATO INDIVIDUAL (PORTRAIT COMPRIMIDO) --}}
                 {{-- ========================================================================= --}}
                 <div class="section-title">Información del Crédito</div>
                 
@@ -249,7 +254,7 @@
                         <td class="lbl">Periodo:</td>
                         <td class="val">{{ \Carbon\Carbon::parse($credito->fecha_primer_pago)->format('d/m/Y') }} al {{ \Carbon\Carbon::parse($fecha_fin)->format('d/m/Y') }}</td>
                         <td class="lbl text-right">Asesor:</td>
-                        <td class="val text-right">{{ $credito->asesor->nombre_completo ?? 'N/A' }}</td>
+                        <td class="val text-right">{{ mb_strtoupper($credito->asesor->nombre_completo ?? 'N/A') }}</td>
                     </tr>
                 </table>
 
@@ -258,9 +263,9 @@
                 <table class="cuotas-table">
                     <thead>
                         <tr>
-                            <th width="20%">NO. PAGO</th>
-                            <th width="45%">FECHA PROGRAMADA</th>
-                            <th width="35%">MONTO A PAGAR</th>
+                            <th width="15%">NO. PAGO</th>
+                            <th width="40%">FECHA PROGRAMADA</th>
+                            <th width="45%">MONTO A PAGAR</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -271,7 +276,7 @@
                             <td class="val-highlight">
                                 ${{ number_format($cuota->total_cuota, 2) }}
                                 @if($cuota->estatus == 'pagado') 
-                                    <br><span style="font-size: 8px; font-weight: bold; color: #28a745; text-decoration: none !important; display: inline-block; margin-top: 2px;">(RETENIDO EN DESEMBOLSO)</span>
+                                    <span style="font-size: 7.5px; font-weight: bold; color: #28a745; text-decoration: none !important; margin-left: 5px;">(RETENIDO EN DESEMBOLSO)</span>
                                 @endif
                             </td>
                         </tr>
@@ -282,7 +287,7 @@
                 <div class="signature-section">
                     <div class="signature-line"></div>
                     <div class="firma-name">{{ $copia['firma_cliente'] }}</div>
-                    <div>{{ $copia['desc_firma'] }}</div>
+                    <div style="font-size: 9px;">{{ $copia['desc_firma'] }}</div>
                 </div>
             @endif
         </div>

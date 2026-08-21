@@ -72,24 +72,27 @@
                     </div>
                     <div class="card-body">
                         
+                        {{-- 🔥 SECCIÓN MODIFICADA: NOMBRE DEL GRUPO GRANDE, TITULAR PEQUEÑO --}}
                         <div class="mb-3">
-                        <span class="text-muted d-block small fw-bold text-uppercase">Titular / Representante</span>
-                        @php
-                            $lider = $credito->integrantes->where('pivot.es_lider', true)->first();
-                            $nombreTitular = $lider ? ($lider->nombre_completo ?? $lider->nombre . ' ' . $lider->apellido_paterno) : ($credito->cliente->nombre_completo ?? $credito->cliente->nombre ?? 'SIN ASIGNAR');
-                        @endphp
+                            <span class="text-muted d-block small fw-bold text-uppercase">Nombre del Crédito / Grupo</span>
+                            @php
+                                $lider = $credito->integrantes->where('pivot.es_lider', true)->first();
+                                $nombreTitular = $lider ? ($lider->nombre_completo ?? $lider->nombre . ' ' . $lider->apellido_paterno) : ($credito->cliente->nombre_completo ?? $credito->cliente->nombre ?? 'SIN ASIGNAR');
+                                
+                                $nombrePrincipal = $credito->nombre_credito ?? ($credito->grupo->nombre_grupo ?? $nombreTitular);
+                            @endphp
 
-                        @if($credito->producto->tipo_credito == 'grupal')
-                            <span class="fs-5 fw-bold text-purple"><i class="bi bi-people-fill me-1"></i> {{ mb_strtoupper($nombreTitular) }}</span>
-                            <span class="badge bg-purple bg-opacity-10 text-purple ms-2">Grupal</span>
-                        @else
-                            <span class="fs-5 fw-bold text-info text-dark"><i class="bi bi-person-fill me-1"></i> {{ mb_strtoupper($nombreTitular) }}</span>
-                            <span class="badge bg-info bg-opacity-10 text-info text-dark ms-2">Individual</span>
-                        @endif
+                            @if($credito->producto->tipo_credito == 'grupal')
+                                <span class="fs-5 fw-bold text-purple"><i class="bi bi-people-fill me-1"></i> {{ mb_strtoupper($nombrePrincipal) }}</span>
+                                <span class="badge bg-purple bg-opacity-10 text-purple ms-2">Grupal</span>
+                            @else
+                                <span class="fs-5 fw-bold text-info text-dark"><i class="bi bi-tag-fill me-1"></i> {{ mb_strtoupper($nombrePrincipal) }}</span>
+                                <span class="badge bg-info bg-opacity-10 text-info text-dark ms-2">Individual</span>
+                            @endif
 
-                        @if($credito->nombre_credito || $credito->grupo_id)
-                            <div class="text-muted mt-1 fst-italic">"{{ $credito->nombre_credito ?? $credito->grupo->nombre_grupo }}"</div>
-                        @endif
+                            <div class="text-muted mt-1 fst-italic">
+                                <i class="bi {{ $credito->producto->tipo_credito == 'grupal' ? 'bi-star-fill text-warning' : 'bi-person-fill' }} me-1"></i> Titular / Líder: {{ mb_strtoupper($nombreTitular) }}
+                            </div>
                         </div>
                         <hr>
 
@@ -178,16 +181,16 @@
                                 <thead class="bg-light">
                                     <tr>
                                         <th class="ps-4">Banco</th>
-                                        <th>Titular</th>
-                                        <th class="pe-4">Cuenta / CLABE</th>
+                                        <th class="text-center">Titular</th>
+                                        <th class="text-end pe-4">Cuenta / CLABE</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @forelse($credito->cuentasDesembolso as $cuenta)
                                     <tr>
                                         <td class="ps-4 fw-bold">{{ $cuenta->banco }}</td>
-                                        <td>{{ $cuenta->titular }}</td>
-                                        <td class="pe-4 text-primary font-monospace">{{ $cuenta->numero_cuenta }}</td>
+                                        <td class="text-center">{{ $cuenta->titular }}</td>
+                                        <td class="text-end pe-4 text-primary font-monospace">{{ $cuenta->numero_cuenta }}</td>
                                     </tr>
                                     @empty
                                     <tr>
@@ -309,9 +312,6 @@
                             <a href="{{ route('creditos.referencias', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm me-1" title="Imprimir Referencias">
                                 <i class="bi bi-receipt-cutoff"></i> Referencias
                             </a>
-                            <!-- <a href="{{ route('creditos.solicitud', $credito->id) }}" target="_blank" class="btn btn-sm btn-outline-danger shadow-sm me-1" title="Imprimir Solicitud">
-                                <i class="bi bi-person-vcard"></i> Solicitud
-                            </a> -->
                         </div>
                     </div>
                 </div>

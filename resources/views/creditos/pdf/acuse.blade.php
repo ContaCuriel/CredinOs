@@ -45,6 +45,14 @@
 
     @php
         $empresa = $credito->patron->nombre_comercial ?? 'LA EMPRESA';
+        $esGrupal = $credito->grupo_id ? true : false;
+        
+        // Extraer líder o titular
+        $lider = null;
+        if($credito->integrantes) {
+            $lider = $credito->integrantes->where('pivot.es_lider', true)->first();
+        }
+        $nombreTitular = $lider ? mb_strtoupper($lider->nombre_completo ?? $lider->nombre . ' ' . $lider->apellido_paterno) : mb_strtoupper($credito->cliente->nombre_completo ?? $credito->cliente->nombre ?? 'SIN ASIGNAR');
     @endphp
 
     <table class="header-table">
@@ -67,10 +75,10 @@
 
     <div class="info-section">
         <div class="info-row">
-            <span class="fw-bold">Grupo / Crédito:</span> {{ $credito->nombre_credito ?? ($credito->grupo->nombre_grupo ?? 'Individual') }}
+            <span class="fw-bold">Grupo / Crédito:</span> {{ mb_strtoupper($credito->nombre_credito ?? ($credito->grupo->nombre_grupo ?? 'Individual')) }}
         </div>
         <div class="info-row">
-            <span class="fw-bold">Asesor:</span> {{ $credito->asesor->nombre_completo ?? 'SIN ASIGNAR' }}
+            <span class="fw-bold">Asesor:</span> {{ mb_strtoupper($credito->asesor->nombre_completo ?? 'SIN ASIGNAR') }}
         </div>
     </div>
 
@@ -93,7 +101,12 @@
     <div class="signatures">
         <div class="sig-box">
             <div class="sig-line"></div>
-            <div class="sig-title">{{ $credito->cliente->nombre_completo ?? $credito->cliente->nombre }}</div>
+            <div class="sig-title">
+                {{ $nombreTitular }}
+                @if($esGrupal)
+                    <br><span style="font-size: 8.5pt; color: #718096; font-weight: normal;">(REPRESENTANTE / LÍDER)</span>
+                @endif
+            </div>
         </div>
     </div>
 
