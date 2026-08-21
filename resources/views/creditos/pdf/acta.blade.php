@@ -73,7 +73,6 @@
                     <h3>EMPRESA EMISORA</h3>
                 @endif
                 
-                <!-- 🔥 AQUÍ SE CAMBIÓ fecha_aprobacion POR fecha_desembolso -->
                 <div class="date-text">FECHA: {{ \Carbon\Carbon::parse($credito->fecha_desembolso)->format('d/m/Y') }}</div>
             </td>
         </tr>
@@ -89,6 +88,15 @@
             <!-- Columna Izquierda (Retenciones) -->
             <td width="46%" valign="top">
                 <table class="math-table">
+                    
+                    {{-- 🔥 NUEVO BLOQUE: Pago Adelantado --}}
+                    @if(isset($pago_adelantado) && $pago_adelantado > 0)
+                    <tr>
+                        <td>Pago Adelantado 1</td>
+                        <td class="text-right fw-bold text-danger">${{ number_format($pago_adelantado, 2) }}</td>
+                    </tr>
+                    @endif
+
                     @if($comision > 0)
                     <tr>
                         <td>Comisión del Nuevo Crédito</td>
@@ -103,7 +111,8 @@
                     </tr>
                     @endif
 
-                    @if($comision == 0 && $retencion_seguro == 0)
+                    {{-- Ajuste en la condición de "Sin deducciones" --}}
+                    @if($comision == 0 && $retencion_seguro == 0 && (!isset($pago_adelantado) || $pago_adelantado == 0))
                     <tr>
                         <td class="text-muted" style="font-style: italic; color: #a0aec0;">Sin deducciones aplicadas</td>
                         <td class="text-right fw-bold">$0.00</td>

@@ -240,6 +240,7 @@ class CreditoController extends Controller
             'fecha_primer_pago' => 'required|date|after_or_equal:fecha_desembolso',
             'cuentas_pago' => 'nullable|array',
             'sucursales_pago' => 'nullable|array',
+            'descuenta_primer_pago' => 'nullable|boolean', // <-- NUEVO CAMPO
         ]);
 
         try {
@@ -250,6 +251,8 @@ class CreditoController extends Controller
             if ($credito->estatus != 'solicitado') {
                 return back()->with('error', 'El crédito ya no se encuentra en estatus de solicitud.');
             }
+
+            $descuenta_primer_pago = $request->boolean('descuenta_primer_pago');
 
             // 1. Actualizamos el Crédito
             $credito->update([
@@ -262,6 +265,8 @@ class CreditoController extends Controller
                 'fecha_primer_pago' => $request->fecha_primer_pago,
                 'fecha_aprobacion' => now(),
                 'estatus' => 'aprobado',
+                // IMPORTANTE: Debes agregar 'descuenta_primer_pago' a tu fillable y migración de la tabla creditos
+                'descuenta_primer_pago' => $descuenta_primer_pago, 
             ]);
 
             // 2. Guardamos Lugares de Pago autorizados
@@ -285,7 +290,6 @@ class CreditoController extends Controller
             $saldoRestante = $monto;
             $fechaPago = \Carbon\Carbon::parse($request->fecha_primer_pago);
 
-            // A. Calcular cuota base teórica (con decimales)
             $cuotaBaseTeorica = 0;
             $interesPeriodoFijo = 0;
 
@@ -301,7 +305,6 @@ class CreditoController extends Controller
                 $cuotaBaseTeorica = ($monto / $plazo) + $interesPeriodoFijo;
             }
 
-            // B. 🔥 REDONDEO MAESTRO A PESO CERRADO (ej. 1620.31 se vuelve 1620.00)
             $cuotaRedondeada = round($cuotaBaseTeorica, 0);
 
             for ($i = 1; $i <= $plazo; $i++) {
@@ -311,43 +314,35 @@ class CreditoController extends Controller
                 $ivaCuota = 0; 
                 $totalCuota = 0;
 
-                // C. Distribuir el cobro en las cuotas regulares
                 if ($tipoTasa == 'saldos_insolutos') {
                     $capitalBase = $monto / $plazo;
                     $interesBase = $saldoRestante * $tasaPeriodo;
-                    $totalTeorico = $capitalBase + $interesBase;
-                    
-                    $totalCuota = round($totalTeorico, 0); 
+                    $totalCuota = round($capitalBase + $interesBase, 0); 
                     $interesCuota = $interesBase; 
                     $capitalCuota = $totalCuota - $interesCuota; 
                 } 
                 elseif ($tipoTasa == 'francesa' || $tipoTasa == 'pagos_fijos') {
-                    $interesBase = $saldoRestante * $tasaPeriodo;
                     $totalCuota = $cuotaRedondeada; 
-                    $interesCuota = $interesBase;
+                    $interesCuota = $saldoRestante * $tasaPeriodo;
                     $capitalCuota = $totalCuota - $interesCuota;
                 } 
                 else {
-                    // Global (El más común en microfinanzas)
                     $totalCuota = $cuotaRedondeada;
                     $interesCuota = $interesPeriodoFijo;
                     $capitalCuota = $totalCuota - $interesCuota;
                 }
 
-                // D. 🔥 AJUSTE PERFECTO EN LA ÚLTIMA CUOTA
                 if ($i == $plazo) {
-                    // Se cobra exactamente el capital restante para que cuadre a cero
                     $capitalCuota = $saldoRestante; 
-                    
-                    // El total a pagar se fuerza a peso cerrado
                     $totalCuota = round($capitalCuota + $interesCuota + $ivaCuota, 0);
-                    
-                    // El interés absorbe esos "centavitos perdidos" 
                     $interesCuota = $totalCuota - $capitalCuota - $ivaCuota;
                 }
 
                 $capitalCuota = round($capitalCuota, 2);
                 $interesCuota = round($interesCuota, 2);
+
+                // 🔥 MAGIA: Si se marca el checkbox y es la cuota 1, nace "pagada"
+                $estatusCuota = ($i == 1 && $descuenta_primer_pago) ? 'pagado' : 'pendiente';
                 
                 \App\Models\CreditoAmortizacion::create([
                     'credito_id' => $credito->id,
@@ -359,12 +354,11 @@ class CreditoController extends Controller
                     'iva' => $ivaCuota,
                     'total_cuota' => $totalCuota,
                     'saldo_final' => round($saldoRestante - $capitalCuota, 2),
-                    'estatus' => 'pendiente'
+                    'estatus' => $estatusCuota
                 ]);
 
                 $saldoRestante = round($saldoRestante - $capitalCuota, 2);
 
-                // Incremento de fechas
                 if ($frecuencia == 'semanal') {
                     $fechaPago->addWeek();
                 } elseif ($frecuencia == 'catorcenal') {
@@ -377,7 +371,7 @@ class CreditoController extends Controller
             }
 
             \Illuminate\Support\Facades\DB::commit();
-            return redirect()->route('creditos.show', $credito->id)->with('success', '¡Crédito dictaminado y APROBADO exitosamente! Se han generado las cuotas en pesos cerrados.');
+            return redirect()->route('creditos.show', $credito->id)->with('success', '¡Crédito APROBADO! Se han generado las cuotas en pesos cerrados.');
 
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\DB::rollBack();
@@ -451,23 +445,14 @@ class CreditoController extends Controller
         return trim($convertir($numero)) . ' PESOS';
     }
 
-    public function imprimirTabla($id)
+    public function imprimirActa($id)
     {
-        $credito = \App\Models\Credito::with(['cliente', 'grupo', 'producto', 'asesor', 'sucursal', 'patron', 'amortizaciones'])->findOrFail($id);
+        // Traemos también las amortizaciones para leer la primera cuota
+        $credito = \App\Models\Credito::with(['cliente', 'asesor', 'patron', 'amortizaciones'])->findOrFail($id);
 
-        if ($credito->amortizaciones->isEmpty()) {
-            return back()->with('error', 'El crédito no tiene una tabla de amortización generada.');
-        }
-
-        $primeraCuota = $credito->amortizaciones->first();
-        $ultimaCuota = $credito->amortizaciones->last();
-
-        // 🖼️ Convertir Logo a Base64 para que DomPDF lo lea sin errores (USANDO logo_path)
         $logo_base64 = null;
         if ($credito->patron && $credito->patron->logo_path) {
-            // Buscamos la ruta correcta de la imagen
             $path = public_path('storage/' . $credito->patron->logo_path);
-            
             if (file_exists($path)) {
                 $type = pathinfo($path, PATHINFO_EXTENSION);
                 $data = file_get_contents($path);
@@ -475,15 +460,41 @@ class CreditoController extends Controller
             }
         }
 
+        $monto_credito = $credito->monto_aprobado;
+        $comision = ($monto_credito * $credito->comision_apertura_aplicada) / 100;
+        $retencion_seguro = $credito->retencion_seguro_aplicada ?? 0;
+        
+        // 🔥 MAGIA: Extraemos el monto del pago adelantado si el campo es true
+        $pago_adelantado = 0;
+        if ($credito->descuenta_primer_pago && $credito->amortizaciones->isNotEmpty()) {
+            $pago_adelantado = $credito->amortizaciones->first()->total_cuota;
+        }
+
+        // Sumamos todas las deducciones, incluyendo el primer pago si aplica
+        $total_deducciones = $comision + $retencion_seguro + $pago_adelantado;
+        $total_fondear = $monto_credito - $total_deducciones;
+
+        $calle = $credito->cliente->calle ?? '';
+        $numero = $credito->cliente->numero ?? '';
+        $colonia = $credito->cliente->colonia ?? '';
+        $direccion = trim("$calle $numero, Col: $colonia", ', ');
+        $telefono = $credito->cliente->telefono_celular ?? ($credito->cliente->telefono_fijo ?? 'N/A');
+
         $data = [
             'credito' => $credito,
-            'monto_pago' => $primeraCuota->total_cuota,
-            'fecha_fin' => $ultimaCuota->fecha_pago,
             'logo_base64' => $logo_base64,
+            'monto_credito' => $monto_credito,
+            'comision' => $comision,
+            'retencion_seguro' => $retencion_seguro,
+            'pago_adelantado' => $pago_adelantado, // <-- Pasamos el pago adelantado a la vista
+            'total_deducciones' => $total_deducciones,
+            'total_fondear' => $total_fondear,
+            'direccion' => $direccion,
+            'telefono' => $telefono,
         ];
 
-        $pdf = Pdf::loadView('creditos.pdf.tabla', $data);
-        return $pdf->stream('Control_Pagos_' . $credito->folio . '.pdf');
+        $pdf = Pdf::loadView('creditos.pdf.acta', $data);
+        return $pdf->stream('Acta_Instalacion_' . $credito->folio . '.pdf');
     }
 
     public function imprimirActa($id)
