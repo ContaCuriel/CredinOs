@@ -294,17 +294,91 @@ Route::get('/cartera-activa', [App\Http\Controllers\CreditoController::class, 'c
     });
 });
 
-// --- RUTA MÁGICA 5: CREAR COLUMNA EN BASE DE DATOS TENANT ---
-Route::get('/ejecutar-migracion-primer-pago', function () {
+// --- RUTA MÁGICA: CREACIÓN DE MÓDULO DE CAJAS Y AMORTIZACIONES ---
+// --- RUTA MÁGICA: CREACIÓN DE MÓDULO DE CAJAS Y AMORTIZACIONES ---
+Route::get('/ejecutar-migracion-cajas', function () {
     try {
         $dbName = \Illuminate\Support\Facades\DB::connection('tenant')->getDatabaseName();
         $schema = str_contains($dbName, 'credintegra') ? 'credintegra_db' : 
                  (str_contains($dbName, 'crediticia') ? 'facturame_db' : 'public');
 
-        $sql = "ALTER TABLE \"$schema\".creditos ADD COLUMN IF NOT EXISTS descuenta_primer_pago BOOLEAN DEFAULT FALSE";
-        \Illuminate\Support\Facades\DB::connection('tenant')->statement($sql);
+        $queries = [
+            // 1. Tabla cajas (Las cajas físicas por sucursal)
+            "CREATE TABLE IF NOT EXISTS \"$schema\".cajas (
+                id BIGSERIAL PRIMARY KEY,
+                sucursal_id BIGINT NOT NULL,
+                nombre VARCHAR(255) NOT NULL,
+                estatus VARCHAR(50) DEFAULT 'cerrada',
+                saldo_actual DECIMAL(15,2) DEFAULT 0.00,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )",
 
-        return "<h1 style='color: green;'>¡COLUMNA 'descuenta_primer_pago' CREADA EXITOSAMENTE!</h1><p>Esquema procesado: $schema</p><p>Ya puedes aprobar créditos con o sin descuento del primer pago.</p>";
+            // 2. Tabla cortes_caja (Los turnos de los cajeros)
+            "CREATE TABLE IF NOT EXISTS \"$schema\".cortes_caja (
+                id BIGSERIAL PRIMARY KEY,
+                caja_id BIGINT NOT NULL,
+                usuario_id BIGINT NOT NULL,
+                fecha_apertura TIMESTAMP NOT NULL,
+                fecha_cierre TIMESTAMP NULL,
+                saldo_inicial DECIMAL(15,2) DEFAULT 0.00,
+                ingresos DECIMAL(15,2) DEFAULT 0.00,
+                egresos DECIMAL(15,2) DEFAULT 0.00,
+                saldo_teorico DECIMAL(15,2) DEFAULT 0.00,
+                saldo_fisico DECIMAL(15,2) DEFAULT 0.00,
+                estatus VARCHAR(50) DEFAULT 'abierto',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )",
+
+            // 3. Tabla transacciones_caja (Historial de pagos, ingresos y retiros)
+            "CREATE TABLE IF NOT EXISTS \"$schema\".transacciones_caja (
+                id BIGSERIAL PRIMARY KEY,
+                corte_caja_id BIGINT NOT NULL,
+                tipo VARCHAR(50) NOT NULL,
+                concepto VARCHAR(255) NOT NULL, 
+                monto DECIMAL(15,2) NOT NULL,
+                metodo_pago VARCHAR(50) DEFAULT 'efectivo',
+                referencia_id BIGINT NULL, 
+                descripcion TEXT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )",
+
+            // 4. NUEVO: CREAR LA TABLA DE AMORTIZACIONES DESDE CERO
+            "CREATE TABLE IF NOT EXISTS \"$schema\".credito_amortizaciones (
+                id BIGSERIAL PRIMARY KEY,
+                credito_id BIGINT NOT NULL,
+                numero_cuota INTEGER NOT NULL,
+                fecha_pago DATE NOT NULL,
+                monto_capital DECIMAL(15,2) DEFAULT 0.00,
+                monto_interes DECIMAL(15,2) DEFAULT 0.00,
+                total_cuota DECIMAL(15,2) NOT NULL,
+                saldo_restante DECIMAL(15,2) DEFAULT 0.00,
+                estatus VARCHAR(50) DEFAULT 'pendiente',
+                monto_pagado DECIMAL(15,2) DEFAULT 0.00,
+                fecha_pago_real TIMESTAMP NULL,
+                moratorios_cobrados DECIMAL(15,2) DEFAULT 0.00,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )"
+        ];
+
+        // Ejecutamos cada query una por una
+        foreach ($queries as $sql) {
+            \Illuminate\Support\Facades\DB::connection('tenant')->statement($sql);
+        }
+
+        return "<h1 style='color: green;'>¡MÓDULO DE CAJAS Y AMORTIZACIONES CREADOS EXITOSAMENTE!</h1>
+                <p>Esquema procesado: <b>$schema</b></p>
+                <ul>
+                    <li>Tabla <b>cajas</b> creada.</li>
+                    <li>Tabla <b>cortes_caja</b> creada.</li>
+                    <li>Tabla <b>transacciones_caja</b> creada.</li>
+                    <li>Tabla <b>credito_amortizaciones</b> (Tabla de Pagos) creada correctamente con sus columnas de cobro.</li>
+                </ul>
+                <p>Ya podemos empezar con los Modelos y las Pantallas de la Caja.</p>";
+
     } catch (\Exception $e) {
         return "<h1 style='color: red;'>ERROR AL EJECUTAR MIGRACIÓN</h1><p>" . $e->getMessage() . "</p>";
     }
