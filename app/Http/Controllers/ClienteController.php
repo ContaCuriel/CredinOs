@@ -11,14 +11,33 @@ use Carbon\Carbon;
 class ClienteController extends Controller
 {
     /**
-     * Muestra una lista paginada de todos los clientes.
+     * Muestra una lista paginada de todos los clientes con filtros.
      */
-    public function index()
+    public function index(Request $request)
     {
-        // Tuvimos que añadir el trait UsesTenantConnection a Cliente, 
-        // así que esta consulta ya funciona en el contexto del tenant.
-        $clientes = Cliente::with('sucursal')->orderBy('apellido_paterno')->paginate(15);
-        return view('clientes.index', compact('clientes'));
+        // Precargamos relaciones para saber su sucursal, grupo y si tiene créditos activos
+        $query = Cliente::with(['sucursal', 'grupos', 'creditos']);
+
+        // Filtro por Nombre o CURP
+        if ($request->filled('nombre')) {
+            $nombre = $request->nombre;
+            $query->where(function($q) use ($nombre) {
+                $q->where('nombre', 'ILIKE', "%{$nombre}%")
+                  ->orWhere('apellido_paterno', 'ILIKE', "%{$nombre}%")
+                  ->orWhere('apellido_materno', 'ILIKE', "%{$nombre}%")
+                  ->orWhere('curp', 'ILIKE', "%{$nombre}%");
+            });
+        }
+
+        // Filtro por Sucursal
+        if ($request->filled('sucursal_id')) {
+            $query->where('sucursal_id', $request->sucursal_id); // Asegúrate de que la columna se llame así en tu BD
+        }
+
+        $clientes = $query->orderBy('apellido_paterno')->paginate(15);
+        $sucursales = Sucursal::orderBy('nombre_sucursal')->get();
+
+        return view('clientes.index', compact('clientes', 'sucursales'));
     }
 
     /**

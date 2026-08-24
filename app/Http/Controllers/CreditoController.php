@@ -750,9 +750,10 @@ public function desembolsos(Request $request)
     }
 
     // --- MÓDULO DE CARTERA ACTIVA ---
-    public function carteraActiva(Request $request)
+public function carteraActiva(Request $request)
 {
-    $query = Credito::with(['cliente', 'grupo', 'asesor', 'sucursal', 'integrantes'])
+    // Eager load de amortizaciones y producto para obtener la cuota y su frecuencia
+    $query = Credito::with(['cliente', 'grupo', 'asesor', 'sucursal', 'integrantes', 'amortizaciones', 'producto'])
                 ->where('estatus', 'desembolsado');
 
     // Filtro por Nombre (Grupo, Cliente o Titular)
@@ -777,11 +778,6 @@ public function desembolsos(Request $request)
     // Filtro por Sucursal
     if ($request->filled('sucursal_id')) {
         $query->where('sucursal_id', $request->sucursal_id);
-    }
-
-    // Filtro por Fecha de Desembolso/Activación
-    if ($request->filled('fecha')) {
-        $query->whereDate('fecha_desembolso', $request->fecha);
     }
 
     $creditos = $query->orderBy('fecha_desembolso', 'desc')->paginate(15);

@@ -91,13 +91,13 @@ class Cliente extends Model
         return $this->hasMany(ClienteReferencia::class, 'cliente_id', 'id_cliente');
     }
 
-    public function groups()
+    public function grupos()
     {
-        return $this->belongsToMany(Group::class, 'client_group', 'client_id', 'group_id');
+        return $this->belongsToMany(GrupoSolidario::class, 'grupo_cliente', 'cliente_id', 'grupo_id'); // Ajusta los nombres de tus tablas pivote
     }
 
-    public function creditos()
+   public function creditos()
     {
-        return $this->morphMany(Credito::class, 'loanable');
+        return $this->belongsToMany(Credito::class, 'credito_integrantes', 'cliente_id', 'credito_id'); // Ajusta si usas un pivote diferente
     }
 }
