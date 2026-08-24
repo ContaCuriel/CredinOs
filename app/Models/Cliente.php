@@ -91,13 +91,25 @@ class Cliente extends Model
         return $this->hasMany(ClienteReferencia::class, 'cliente_id', 'id_cliente');
     }
 
+    // Relación para saber los grupos a los que pertenece
     public function grupos()
     {
-        return $this->belongsToMany(GrupoSolidario::class, 'grupo_cliente', 'cliente_id', 'grupo_id'); // Ajusta los nombres de tus tablas pivote
+        return $this->belongsToMany(
+            \App\Models\Grupo::class, 
+            'client_group', // Tu tabla pivote exacta según la imagen
+            'cliente_id',   // Llave foránea del cliente en el pivote
+            'grupo_id'      // Llave foránea del grupo en el pivote
+        ); 
     }
 
-   public function creditos()
+    // Relación para saber los créditos en los que participa (y saber si es activo)
+    public function creditos()
     {
-        return $this->belongsToMany(Credito::class, 'credito_integrantes', 'cliente_id', 'credito_id'); // Ajusta si usas un pivote diferente
+        return $this->belongsToMany(
+            \App\Models\Credito::class, 
+            'credito_clientes', // Tu tabla pivote exacta según la imagen
+            'cliente_id',       // Llave foránea del cliente en el pivote
+            'credito_id'        // Llave foránea del crédito en el pivote
+        )->withPivot('es_lider', 'monto_individual'); // Traemos datos extra por si los necesitas
     }
 }

@@ -57,14 +57,20 @@ class CreditoController extends Controller
 
     public function show($id)
     {
-        // Traemos el crédito con todas sus relaciones
-        $credito = Credito::with(['producto', 'asesor', 'cliente', 'grupo', 'integrantes', 'cuentasDesembolso', 'garantia'])->findOrFail($id);
+        // Traemos el crédito con todas sus relaciones (agregamos 'amortizaciones' para el Estado de Cuenta)
+        $credito = Credito::with(['producto', 'asesor', 'cliente', 'grupo', 'integrantes', 'cuentasDesembolso', 'garantia', 'amortizaciones'])->findOrFail($id);
         
-        // Traemos los catálogos para el Modal de Aprobación
+        // 🔥 NUEVA LÓGICA: Si ya se desembolsó (activo), mostramos el Estado de Cuenta
+        if ($credito->estatus === 'desembolsado') {
+            return view('creditos.estado_cuenta', compact('credito'));
+        }
+
+        // Si sigue en solicitud o aprobado, traemos los catálogos para el Modal de Aprobación
         $patrones = \App\Models\Patron::orderBy('nombre_comercial')->get();
         $cuentasEmpresa = \App\Models\CuentaBancaria::where('activa', true)->get();
         $sucursales = \App\Models\Sucursal::orderBy('nombre_sucursal')->get();
         
+        // Retornamos la vista original de revisión/autorización
         return view('creditos.show', compact('credito', 'patrones', 'cuentasEmpresa', 'sucursales'));
     }
 
