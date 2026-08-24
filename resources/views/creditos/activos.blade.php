@@ -1,6 +1,6 @@
 <x-app-layout>
     <div class="container-fluid py-4">
-
+        
         @if (session('success'))
             <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
                 <i class="bi bi-check-circle-fill me-2"></i> {{ session('success') }}
@@ -10,20 +10,15 @@
 
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
-                <h4 class="fw-bold mb-0 text-dark"><i class="bi bi-card-list me-2 text-primary"></i>Solicitudes de Crédito</h4>
-                <p class="text-muted mb-0">Listado de solicitudes pendientes y aprobadas</p>
-            </div>
-            <div>
-                <a href="{{ route('creditos.create') }}" class="btn btn-primary fw-bold shadow-sm">
-                    <i class="bi bi-plus-circle me-1"></i> Nueva Solicitud
-                </a>
+                <h4 class="fw-bold mb-0 text-dark"><i class="bi bi-wallet-fill me-2 text-success"></i>Cartera Activa</h4>
+                <p class="text-muted mb-0">Créditos vigentes y en proceso de cobro</p>
             </div>
         </div>
 
         {{-- BARRA DE BÚSQUEDA Y FILTROS --}}
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-body p-3 bg-white">
-                <form action="{{ route('creditos.index') }}" method="GET" class="row g-2 align-items-end">
+                <form action="{{ route('cartera.index') }}" method="GET" class="row g-2 align-items-end">
                     <div class="col-md-4">
                         <label class="form-label small fw-bold text-muted mb-1"><i class="bi bi-search me-1"></i> Nombre Cliente / Grupo</label>
                         <input type="text" class="form-control form-control-sm" name="nombre" placeholder="Buscar por cliente o grupo..." value="{{ request('nombre') }}">
@@ -42,16 +37,16 @@
                     </div>
 
                     <div class="col-md-3">
-                        <label class="form-label small fw-bold text-muted mb-1"><i class="bi bi-calendar-event me-1"></i> Fecha Solicitud</label>
+                        <label class="form-label small fw-bold text-muted mb-1"><i class="bi bi-calendar-event me-1"></i> Fecha Activación</label>
                         <input type="date" class="form-control form-control-sm" name="fecha" value="{{ request('fecha') }}">
                     </div>
 
                     <div class="col-md-2 d-flex gap-1">
-                        <button type="submit" class="btn btn-sm btn-primary fw-bold w-100 shadow-sm">
+                        <button type="submit" class="btn btn-sm btn-success fw-bold w-100 shadow-sm">
                             <i class="bi bi-filter me-1"></i> Filtrar
                         </button>
                         @if(request()->hasAny(['nombre', 'sucursal_id', 'fecha']))
-                            <a href="{{ route('creditos.index') }}" class="btn btn-sm btn-outline-secondary shadow-sm" title="Limpiar Filtros">
+                            <a href="{{ route('cartera.index') }}" class="btn btn-sm btn-outline-secondary shadow-sm" title="Limpiar Filtros">
                                 <i class="bi bi-x-circle"></i>
                             </a>
                         @endif
@@ -60,7 +55,7 @@
             </div>
         </div>
 
-        {{-- TABLA DE SOLICITUDES --}}
+        {{-- TABLA DE CRÉDITOS ACTIVOS --}}
         <div class="card border-0 shadow-sm">
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -70,9 +65,9 @@
                                 <th class="ps-4">Folio</th>
                                 <th>Grupo / Cliente</th>
                                 <th>Sucursal</th>
-                                <th>Monto Solicitado</th>
+                                <th>Monto Aprobado</th>
                                 <th class="text-center">Tipo</th>
-                                <th>Fecha Solicitud</th>
+                                <th>Fecha Desembolso</th>
                                 <th class="text-center">Estatus</th>
                                 <th class="text-end pe-4">Acciones</th>
                             </tr>
@@ -91,7 +86,7 @@
                                         <div class="small text-muted">Titular: {{ mb_strtoupper($nombreTitular) }}</div>
                                     </td>
                                     <td>{{ $credito->sucursal->nombre_sucursal ?? 'N/A' }}</td>
-                                    <td class="fw-bold text-dark">${{ number_format($credito->monto_solicitado, 2) }}</td>
+                                    <td class="fw-bold text-success">${{ number_format($credito->monto_aprobado, 2) }}</td>
                                     <td class="text-center">
                                         @if($credito->grupo_id)
                                             <span class="badge bg-purple bg-opacity-10 text-purple">Grupal</span>
@@ -99,24 +94,20 @@
                                             <span class="badge bg-info bg-opacity-10 text-info text-dark">Individual</span>
                                         @endif
                                     </td>
-                                    <td>{{ \Carbon\Carbon::parse($credito->fecha_solicitud)->format('d/m/Y') }}</td>
+                                    <td>{{ \Carbon\Carbon::parse($credito->fecha_desembolso)->format('d/m/Y') }}</td>
                                     <td class="text-center">
-                                        @if($credito->estatus == 'solicitado')
-                                            <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split me-1"></i> Solicitado</span>
-                                        @elseif($credito->estatus == 'aprobado')
-                                            <span class="badge bg-info text-dark"><i class="bi bi-check-all me-1"></i> Aprobado</span>
-                                        @endif
+                                        <span class="badge bg-success"><i class="bi bi-check-circle-fill me-1"></i> Activo</span>
                                     </td>
                                     <td class="text-end pe-4">
-                                        <a href="{{ route('creditos.show', $credito->id) }}" class="btn btn-sm btn-outline-primary shadow-sm">
-                                            <i class="bi bi-eye-fill me-1"></i> Ver Solicitud
+                                        <a href="{{ route('creditos.show', $credito->id) }}" class="btn btn-sm btn-outline-primary shadow-sm" title="Ver Expediente">
+                                            <i class="bi bi-eye-fill"></i> Ver Detalle
                                         </a>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
                                     <td colspan="8" class="text-center py-5 text-muted">
-                                        <i class="bi bi-inbox fs-1 d-block mb-2"></i> No se encontraron solicitudes registradas.
+                                        <i class="bi bi-wallet2 fs-1 d-block mb-2"></i> No hay créditos activos registrados en la cartera.
                                     </td>
                                 </tr>
                             @endforelse

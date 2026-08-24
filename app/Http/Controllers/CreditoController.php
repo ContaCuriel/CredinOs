@@ -15,15 +15,44 @@ use NumberFormatter;
 
 class CreditoController extends Controller
 {
-    public function index()
+    public function index(Request $request)
 {
-    // Solo mostramos Solicitudes y Aprobados (pendientes de fondeo)
-    $creditos = Credito::with(['cliente', 'grupo', 'asesor'])
-                ->whereIn('estatus', ['solicitado', 'aprobado'])
-                ->orderBy('created_at', 'desc')
-                ->paginate(15);
+    $query = Credito::with(['cliente', 'grupo', 'asesor', 'sucursal'])
+                ->whereIn('estatus', ['solicitado', 'aprobado']);
 
-    return view('creditos.index', compact('creditos'));
+    // Filtro por Nombre (Grupo, Cliente o Titular)
+    if ($request->filled('nombre')) {
+        $nombre = $request->nombre;
+        $query->where(function($q) use ($nombre) {
+            $q->where('nombre_credito', 'like', "%{$nombre}%")
+              ->orWhereHas('grupo', function($qG) use ($nombre) {
+                  $qG->where('nombre_grupo', 'like', "%{$nombre}%");
+              })
+              ->orWhereHas('cliente', function($qC) use ($nombre) {
+                  $qC->where('nombre', 'like', "%{$nombre}%")
+                     ->orWhere('apellido_paterno', 'like', "%{$nombre}%");
+              })
+              ->orWhereHas('integrantes', function($qI) use ($nombre) {
+                  $qI->where('nombre', 'like', "%{$nombre}%")
+                     ->orWhere('apellido_paterno', 'like', "%{$nombre}%");
+              });
+        });
+    }
+
+    // Filtro por Sucursal
+    if ($request->filled('sucursal_id')) {
+        $query->where('sucursal_id', $request->sucursal_id);
+    }
+
+    // Filtro por Fecha de Solicitud
+    if ($request->filled('fecha')) {
+        $query->whereDate('fecha_solicitud', $request->fecha);
+    }
+
+    $creditos = $query->orderBy('created_at', 'desc')->paginate(15);
+    $sucursales = \App\Models\Sucursal::all();
+
+    return view('creditos.index', compact('creditos', 'sucursales'));
 }
 
     public function show($id)
@@ -660,7 +689,6 @@ class CreditoController extends Controller
         return $pdf->stream('Solicitud_Credito_' . $credito->folio . '.pdf');
     }
 
-    // --- MÓDULO DE DESEMBOLSOS CON FILTROS ---
 // --- MÓDULO DE DESEMBOLSOS CON FILTROS ---
 public function desembolsos(Request $request)
 {
@@ -722,10 +750,43 @@ public function desembolsos(Request $request)
     }
 
     // --- MÓDULO DE CARTERA ACTIVA ---
-    public function carteraActiva()
-    {
-        // Aquí armaremos luego la vista de cobranza
-        $creditos = Credito::where('estatus', 'desembolsado')->orderBy('created_at', 'desc')->paginate(15);
-        return view('creditos.activos', compact('creditos'));
+    public function carteraActiva(Request $request)
+{
+    $query = Credito::with(['cliente', 'grupo', 'asesor', 'sucursal', 'integrantes'])
+                ->where('estatus', 'desembolsado');
+
+    // Filtro por Nombre (Grupo, Cliente o Titular)
+    if ($request->filled('nombre')) {
+        $nombre = $request->nombre;
+        $query->where(function($q) use ($nombre) {
+            $q->where('nombre_credito', 'like', "%{$nombre}%")
+              ->orWhereHas('grupo', function($qG) use ($nombre) {
+                  $qG->where('nombre_grupo', 'like', "%{$nombre}%");
+              })
+              ->orWhereHas('cliente', function($qC) use ($nombre) {
+                  $qC->where('nombre', 'like', "%{$nombre}%")
+                     ->orWhere('apellido_paterno', 'like', "%{$nombre}%");
+              })
+              ->orWhereHas('integrantes', function($qI) use ($nombre) {
+                  $qI->where('nombre', 'like', "%{$nombre}%")
+                     ->orWhere('apellido_paterno', 'like', "%{$nombre}%");
+              });
+        });
     }
+
+    // Filtro por Sucursal
+    if ($request->filled('sucursal_id')) {
+        $query->where('sucursal_id', $request->sucursal_id);
+    }
+
+    // Filtro por Fecha de Desembolso/Activación
+    if ($request->filled('fecha')) {
+        $query->whereDate('fecha_desembolso', $request->fecha);
+    }
+
+    $creditos = $query->orderBy('fecha_desembolso', 'desc')->paginate(15);
+    $sucursales = \App\Models\Sucursal::all();
+
+    return view('creditos.activos', compact('creditos', 'sucursales'));
+}
 }
