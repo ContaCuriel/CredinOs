@@ -660,22 +660,54 @@ class CreditoController extends Controller
         return $pdf->stream('Solicitud_Credito_' . $credito->folio . '.pdf');
     }
 
-    // --- MÓDULO DE DESEMBOLSOS ---
-    public function desembolsos()
-    {
-        // Traemos solo los aprobados listos para fondear
-        $creditos = Credito::with(['cliente', 'grupo', 'asesor', 'sucursal', 'integrantes', 'cuentasDesembolso'])
-                    ->where('estatus', 'aprobado')
-                    ->orderBy('fecha_desembolso', 'asc')
-                    ->get();
+    // --- MÓDULO DE DESEMBOLSOS CON FILTROS ---
+// --- MÓDULO DE DESEMBOLSOS CON FILTROS ---
+public function desembolsos(Request $request)
+{
+    $query = Credito::with(['cliente', 'grupo', 'asesor', 'sucursal', 'integrantes', 'cuentasDesembolso'])
+                ->where('estatus', 'aprobado');
 
-        // Agrupamos la colección por el nombre de la sucursal (como en tu Excel)
-        $agrupados = $creditos->groupBy(function($credito) {
-            return $credito->sucursal->nombre_sucursal ?? 'SIN SUCURSAL';
+    // Filtro por Nombre (Grupo, Cliente o Titular)
+    if ($request->filled('nombre')) {
+        $nombre = $request->nombre;
+        $query->where(function($q) use ($nombre) {
+            $q->where('nombre_credito', 'like', "%{$nombre}%")
+              ->orWhereHas('grupo', function($qG) use ($nombre) {
+                  $qG->where('nombre_grupo', 'like', "%{$nombre}%");
+              })
+              ->orWhereHas('cliente', function($qC) use ($nombre) {
+                  $qC->where('nombre', 'like', "%{$nombre}%")
+                     ->orWhere('apellido_paterno', 'like', "%{$nombre}%");
+              })
+              ->orWhereHas('integrantes', function($qI) use ($nombre) {
+                  $qI->where('nombre', 'like', "%{$nombre}%")
+                     ->orWhere('apellido_paterno', 'like', "%{$nombre}%");
+              });
         });
-
-        return view('creditos.desembolsos', compact('agrupados'));
     }
+
+    // Filtro por Sucursal
+    if ($request->filled('sucursal_id')) {
+        $query->where('sucursal_id', $request->sucursal_id);
+    }
+
+    // Filtro por Fecha de Desembolso
+    if ($request->filled('fecha')) {
+        $query->whereDate('fecha_desembolso', $request->fecha);
+    }
+
+    $creditos = $query->orderBy('fecha_desembolso', 'asc')->get();
+
+    // Agrupamos la colección por el nombre de la sucursal
+    $agrupados = $creditos->groupBy(function($credito) {
+        return $credito->sucursal->nombre_sucursal ?? 'SIN SUCURSAL';
+    });
+
+    // Obtenemos las sucursales para el select del filtro
+    $sucursales = \App\Models\Sucursal::all();
+
+    return view('creditos.desembolsos', compact('agrupados', 'sucursales'));
+}
 
     // --- ACCIÓN: MARCAR COMO FONDEADO ---
     public function fondear($id)
