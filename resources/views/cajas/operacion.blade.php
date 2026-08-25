@@ -325,9 +325,18 @@
                         document.getElementById('alerta_moratorios').classList.add('d-none');
                     }
 
-                    let moratoriosGenerados = parseFloat(proximaCuota.moratorios_generados) || 0;
-                    let moratoriosPagados = parseFloat(proximaCuota.moratorios_pagados) || 0;
-                    let moratoriosPendientes = moratoriosGenerados - moratoriosPagados;
+                    // ====== LÓGICA DE MULTAS ACUMULADAS GLOBALMENTE ======
+                    let totalMoratoriosPendientes = 0;
+                    // Recorremos todas las cuotas de este cliente buscando si dejó multas sin pagar
+                    credito.amortizaciones.forEach(c => {
+                        let gen = parseFloat(c.moratorios_generados) || 0;
+                        let pag = parseFloat(c.moratorios_pagados) || 0;
+                        if (gen > pag) {
+                            totalMoratoriosPendientes += (gen - pag);
+                        }
+                    });
+
+                    let moratoriosPendientes = totalMoratoriosPendientes;
 
                     document.getElementById('txt_cuota_titulo').innerText = 'Próxima Cuota (Pago #' + proximaCuota.numero_cuota + ')';
                     

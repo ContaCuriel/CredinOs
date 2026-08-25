@@ -141,7 +141,6 @@ class CajaController extends Controller
 
             $credito = \App\Models\Credito::with('integrantes')->findOrFail($request->credito_id);
             
-            // 🔥 CORRECCIÓN: Usamos tu modelo CreditoAmortizacion real
             $cuota = \App\Models\CreditoAmortizacion::where('credito_id', $credito->id)
                                              ->where('estatus', '!=', 'pagado')
                                              ->orderBy('numero_cuota', 'asc')
@@ -158,14 +157,21 @@ class CajaController extends Controller
                 return back()->with('error', 'Debes ingresar un monto mayor a cero para cobrar.');
             }
 
-            $tickets_generados = []; // Aquí guardaremos los IDs de los tickets
+            $tickets_generados = []; 
 
-            // 1. TICKET / TRANSACCIÓN 1: PAGO DE LA CUOTA NORMAL
+            $deuda_restante = $cuota->total_cuota - $cuota->monto_pagado;
+            if ($request->monto_cuota >= ($deuda_restante - 0.5)) {
+                $concepto_cuota = 'PAGO SEMANA ' . $cuota->numero_cuota;
+            } else {
+                $concepto_cuota = 'PAGO PARCIAL SEMANA ' . $cuota->numero_cuota;
+            }
+
+            // 1. TICKET / TRANSACCIÓN 1: PAGO DE LA CUOTA BASE
             if ($request->monto_cuota > 0) {
                 $t1 = \App\Models\TransaccionCaja::create([
                     'corte_caja_id' => $turnoActivo->id,
                     'tipo' => 'ingreso',
-                    'concepto' => 'Pago Cuota #' . $cuota->numero_cuota . ' - Folio: ' . $credito->folio,
+                    'concepto' => $concepto_cuota,
                     'monto' => $request->monto_cuota,
                     'metodo_pago' => $request->metodo_pago,
                     'referencia_id' => $cuota->id,
@@ -174,18 +180,41 @@ class CajaController extends Controller
                 $tickets_generados[] = $t1->id;
             }
 
-            // 2. TICKET / TRANSACCIÓN 2: PAGO DE MORATORIOS
+            // 🔥 2. TICKET DE MULTAS: UN SOLO TICKET IMPRESO, PERO DISTRIBUIDO EN BD 🔥
             if ($monto_mora > 0) {
+                // Generamos UN SOLO ticket para el cliente con el total de las multas
                 $t2 = \App\Models\TransaccionCaja::create([
                     'corte_caja_id' => $turnoActivo->id,
                     'tipo' => 'ingreso',
-                    'concepto' => 'Pago Multa/Mora Cuota #' . $cuota->numero_cuota . ' - Folio: ' . $credito->folio,
+                    'concepto' => 'PAGO DE MULTAS / MORATORIOS ACUMULADOS',
                     'monto' => $monto_mora,
                     'metodo_pago' => $request->metodo_pago,
-                    'referencia_id' => $cuota->id,
-                    'descripcion' => 'Penalización por atraso'
+                    'referencia_id' => $cuota->id, // Lo atamos a la cuota actual para el historial
+                    'descripcion' => 'Abono general a penalizaciones'
                 ]);
                 $tickets_generados[] = $t2->id;
+
+                // Repartimos el dinero silenciosamente en la base de datos a las semanas más viejas
+                $monto_mora_restante = $monto_mora;
+                
+                $cuotasConMora = \App\Models\CreditoAmortizacion::where('credito_id', $credito->id)
+                    ->whereRaw('moratorios_generados > moratorios_pagados')
+                    ->orderBy('numero_cuota', 'asc')
+                    ->get();
+
+                foreach ($cuotasConMora as $cMora) {
+                    if ($monto_mora_restante <= 0) break; // Si ya se acabó el dinero, paramos
+
+                    $deudaMora = $cMora->moratorios_generados - $cMora->moratorios_pagados;
+                    $pagoMoraAplicar = min($deudaMora, $monto_mora_restante);
+
+                    // Descontamos la deuda de esta semana específica en la BD
+                    \Illuminate\Support\Facades\DB::table('credito_amortizaciones')
+                        ->where('id', $cMora->id)
+                        ->increment('moratorios_pagados', $pagoMoraAplicar);
+
+                    $monto_mora_restante -= $pagoMoraAplicar;
+                }
             }
 
             // 3. ACTUALIZAR SALDOS DE LA CAJA FÍSICA
@@ -201,10 +230,6 @@ class CajaController extends Controller
             // 4. ACTUALIZAR LA CUOTA
             $cuota->monto_pagado += $request->monto_cuota;
             
-            \Illuminate\Support\Facades\DB::table('credito_amortizaciones')
-                ->where('id', $cuota->id)
-                ->increment('moratorios_pagados', $monto_mora);
-
             if ($cuota->monto_pagado >= ($cuota->total_cuota - 0.5)) { 
                 $cuota->estatus = 'pagado';
             } else {
@@ -213,7 +238,7 @@ class CajaController extends Controller
             $cuota->fecha_pago_real = now();
             $cuota->save();
 
-            // 🔥 CORRECCIÓN: Usamos tu modelo CreditoAmortizacion real
+            // 5. REVISAR SI YA SE LIQUIDÓ EL CRÉDITO...
             $cuotasPendientes = \App\Models\CreditoAmortizacion::where('credito_id', $credito->id)
                                                         ->where('estatus', '!=', 'pagado')
                                                         ->count();

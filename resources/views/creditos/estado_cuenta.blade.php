@@ -138,7 +138,7 @@
                 <div class="tab-content bg-white border border-top-0 rounded-bottom shadow-sm" id="estadoCuentaTabsContent">
                     
                     {{-- ========================================================================= --}}
-                    {{-- PESTAÑA 1: TABLA DE AMORTIZACIÓN (LO QUE YA TENÍAMOS) --}}
+                    {{-- PESTAÑA 1: TABLA DE AMORTIZACIÓN --}}
                     {{-- ========================================================================= --}}
                     <div class="tab-pane fade show active p-0" id="amortizacion" role="tabpanel">
                         <div class="table-responsive">
@@ -151,10 +151,19 @@
                                         <th class="text-end">Moratorios</th>
                                         <th class="text-end">Pagó / Abono</th>
                                         <th class="text-center">Diferencia</th>
+                                        <th class="text-center">Fecha Pago</th>
                                         <th class="text-center pe-3">Estatus</th>
                                     </tr>
                                 </thead>
                                 <tbody>
+                                    @php
+                                        // Variables para los totales al final de la tabla
+                                        $sumaFaltantes = 0;
+                                        $sumaMoratorios = 0;
+                                        $sumaAbonos = 0;
+                                        $sumaDiferencias = 0;
+                                    @endphp
+                                    
                                     @foreach($credito->amortizaciones as $cuota)
                                         @php
                                             $fechaVencimiento = \Carbon\Carbon::parse($cuota->fecha_pago);
@@ -163,8 +172,16 @@
                                             $montoPagado = $cuota->monto_pagado ?? 0;
                                             $moratorios = $cuota->moratorios_generados ?? 0; 
                                             
-                                            $totalEsperado = $cuota->total_cuota + $moratorios;
-                                            $diferencia = $cuota->estatus === 'pendiente' ? 0 : ($montoPagado - $totalEsperado);
+                                            // 🔥 CORRECCIÓN: La diferencia ahora es SOLO sobre la cuota normal
+                                            $diferencia = $cuota->estatus === 'pendiente' ? 0 : ($montoPagado - $cuota->total_cuota);
+
+                                            // Sumatorias
+                                            if ($cuota->estatus != 'pagado') {
+                                                $sumaFaltantes += ($cuota->total_cuota - $montoPagado);
+                                            }
+                                            $sumaMoratorios += $moratorios;
+                                            $sumaAbonos += $montoPagado;
+                                            $sumaDiferencias += $diferencia;
                                         @endphp
                                         <tr class="{{ $estaAtrasada ? 'bg-danger bg-opacity-10' : '' }}">
                                             <td class="ps-3 text-center fw-bold">{{ $cuota->numero_cuota }}</td>
@@ -194,12 +211,27 @@
                                                     -
                                                 @endif
                                             </td>
+                                            
+                                            {{-- 🔥 CORRECCIÓN: Columna de fecha devuelta con hora --}}
+                                            <td class="text-center text-muted small">
+                                                @if($cuota->fecha_pago_real)
+                                                    {{ \Carbon\Carbon::parse($cuota->fecha_pago_real)->format('d/m/y h:i A') }}
+                                                @else
+                                                    --/--
+                                                @endif
+                                            </td>
 
                                             <td class="text-center pe-3">
                                                 @if($cuota->estatus == 'pagado')
-                                                    <span class="badge bg-success w-100">Pagado</span>
+                                                    <span class="badge bg-success w-100 mb-1">Pagado</span>
+                                                    <a href="{{ route('cajas.ticket_cuota', $cuota->id) }}" target="_blank" class="btn btn-sm btn-outline-dark w-100" style="font-size: 0.7rem; padding: 2px;">
+                                                        <i class="bi bi-printer-fill"></i> Ticket
+                                                    </a>
                                                 @elseif($cuota->estatus == 'parcial')
-                                                    <span class="badge bg-warning text-dark w-100">Incompleto</span>
+                                                    <span class="badge bg-warning text-dark w-100 mb-1">Incompleto</span>
+                                                    <a href="{{ route('cajas.ticket_cuota', $cuota->id) }}" target="_blank" class="btn btn-sm btn-outline-dark w-100" style="font-size: 0.7rem; padding: 2px;">
+                                                        <i class="bi bi-printer-fill"></i> Ticket
+                                                    </a>
                                                 @elseif($estaAtrasada)
                                                     <span class="badge bg-danger w-100">Atrasado</span>
                                                 @else
@@ -209,6 +241,34 @@
                                         </tr>
                                     @endforeach
                                 </tbody>
+                                
+                                {{-- 🔥 NUEVO: FILA DE TOTALES --}}
+                                <tfoot class="bg-dark text-white">
+                                    <tr>
+                                        <td colspan="2" class="text-end fw-bold">TOTALES:</td>
+                                        <td class="text-end fw-bold text-warning">
+                                            <span class="d-block small text-white-50" style="font-size: 0.7rem;">Deuda Restante:</span>
+                                            ${{ number_format($sumaFaltantes, 2) }}
+                                        </td>
+                                        <td class="text-end fw-bold text-danger">
+                                            <span class="d-block small text-white-50" style="font-size: 0.7rem;">Suma Multas:</span>
+                                            ${{ number_format($sumaMoratorios, 2) }}
+                                        </td>
+                                        <td class="text-end fw-bold text-success">
+                                            <span class="d-block small text-white-50" style="font-size: 0.7rem;">Suma Abonos:</span>
+                                            ${{ number_format($sumaAbonos, 2) }}
+                                        </td>
+                                        <td class="text-center fw-bold">
+                                            @if($sumaDiferencias < 0)
+                                                <span class="text-danger">-${{ number_format(abs($sumaDiferencias), 2) }}</span>
+                                            @else
+                                                <span class="text-success">+${{ number_format($sumaDiferencias, 2) }}</span>
+                                            @endif
+                                        </td>
+                                        <td colspan="2"></td>
+                                    </tr>
+                                </tfoot>
+                                
                             </table>
                         </div>
                     </div>
