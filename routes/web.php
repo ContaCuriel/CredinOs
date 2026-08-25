@@ -303,93 +303,75 @@ Route::get('/cartera-activa', [App\Http\Controllers\CreditoController::class, 'c
     });
 });
 
-// --- RUTA MÁGICA: CREACIÓN DE MÓDULO DE CAJAS Y AMORTIZACIONES ---
-// --- RUTA MÁGICA: CREACIÓN DE MÓDULO DE CAJAS Y AMORTIZACIONES ---
-Route::get('/ejecutar-migracion-cajas', function () {
+// --- RUTA MÁGICA: REPARAR HISTORIAL DE PAGOS Y MORATORIOS ---
+Route::get('/reparar-historial-pagos', function () {
     try {
-        $dbName = \Illuminate\Support\Facades\DB::connection('tenant')->getDatabaseName();
-        $schema = str_contains($dbName, 'credintegra') ? 'credintegra_db' : 
-                 (str_contains($dbName, 'crediticia') ? 'facturame_db' : 'public');
+        \Illuminate\Support\Facades\DB::beginTransaction();
 
-        $queries = [
-            // 1. Tabla cajas (Las cajas físicas por sucursal)
-            "CREATE TABLE IF NOT EXISTS \"$schema\".cajas (
-                id BIGSERIAL PRIMARY KEY,
-                sucursal_id BIGINT NOT NULL,
-                nombre VARCHAR(255) NOT NULL,
-                estatus VARCHAR(50) DEFAULT 'cerrada',
-                saldo_actual DECIMAL(15,2) DEFAULT 0.00,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )",
-
-            // 2. Tabla cortes_caja (Los turnos de los cajeros)
-            "CREATE TABLE IF NOT EXISTS \"$schema\".cortes_caja (
-                id BIGSERIAL PRIMARY KEY,
-                caja_id BIGINT NOT NULL,
-                usuario_id BIGINT NOT NULL,
-                fecha_apertura TIMESTAMP NOT NULL,
-                fecha_cierre TIMESTAMP NULL,
-                saldo_inicial DECIMAL(15,2) DEFAULT 0.00,
-                ingresos DECIMAL(15,2) DEFAULT 0.00,
-                egresos DECIMAL(15,2) DEFAULT 0.00,
-                saldo_teorico DECIMAL(15,2) DEFAULT 0.00,
-                saldo_fisico DECIMAL(15,2) DEFAULT 0.00,
-                estatus VARCHAR(50) DEFAULT 'abierto',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )",
-
-            // 3. Tabla transacciones_caja (Historial de pagos, ingresos y retiros)
-            "CREATE TABLE IF NOT EXISTS \"$schema\".transacciones_caja (
-                id BIGSERIAL PRIMARY KEY,
-                corte_caja_id BIGINT NOT NULL,
-                tipo VARCHAR(50) NOT NULL,
-                concepto VARCHAR(255) NOT NULL, 
-                monto DECIMAL(15,2) NOT NULL,
-                metodo_pago VARCHAR(50) DEFAULT 'efectivo',
-                referencia_id BIGINT NULL, 
-                descripcion TEXT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )",
-
-            // 4. NUEVO: CREAR LA TABLA DE AMORTIZACIONES DESDE CERO
-            "CREATE TABLE IF NOT EXISTS \"$schema\".credito_amortizaciones (
-                id BIGSERIAL PRIMARY KEY,
-                credito_id BIGINT NOT NULL,
-                numero_cuota INTEGER NOT NULL,
-                fecha_pago DATE NOT NULL,
-                monto_capital DECIMAL(15,2) DEFAULT 0.00,
-                monto_interes DECIMAL(15,2) DEFAULT 0.00,
-                total_cuota DECIMAL(15,2) NOT NULL,
-                saldo_restante DECIMAL(15,2) DEFAULT 0.00,
-                estatus VARCHAR(50) DEFAULT 'pendiente',
-                monto_pagado DECIMAL(15,2) DEFAULT 0.00,
-                fecha_pago_real TIMESTAMP NULL,
-                moratorios_cobrados DECIMAL(15,2) DEFAULT 0.00,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )"
-        ];
-
-        // Ejecutamos cada query una por una
-        foreach ($queries as $sql) {
-            \Illuminate\Support\Facades\DB::connection('tenant')->statement($sql);
+        // 1. ARREGLAR PAGOS HISTÓRICOS (Para que el Total Pagado ya no salga en $0.00)
+        $cuotasPagadas = \App\Models\Amortizacion::where('estatus', 'pagado')
+                                                ->where('monto_pagado', 0)
+                                                ->get();
+        $pagadasCount = 0;
+        
+        foreach($cuotasPagadas as $cuota) {
+            $cuota->monto_pagado = $cuota->total_cuota; 
+            $cuota->fecha_pago_real = $cuota->updated_at ? $cuota->updated_at->format('Y-m-d') : $cuota->fecha_pago;
+            $cuota->save();
+            $pagadasCount++;
         }
 
-        return "<h1 style='color: green;'>¡MÓDULO DE CAJAS Y AMORTIZACIONES CREADOS EXITOSAMENTE!</h1>
-                <p>Esquema procesado: <b>$schema</b></p>
-                <ul>
-                    <li>Tabla <b>cajas</b> creada.</li>
-                    <li>Tabla <b>cortes_caja</b> creada.</li>
-                    <li>Tabla <b>transacciones_caja</b> creada.</li>
-                    <li>Tabla <b>credito_amortizaciones</b> (Tabla de Pagos) creada correctamente con sus columnas de cobro.</li>
-                </ul>
-                <p>Ya podemos empezar con los Modelos y las Pantallas de la Caja.</p>";
+        // 2. REGLA DE MORATORIOS (500 después de las 10 AM, 10% al día siguiente)
+        $hoy = \Carbon\Carbon::now()->toDateString();
+        // Usamos formato 24 hrs. Si te referías a las 10 de la noche, cambia '10:00' por '22:00'
+        $horaActual = \Carbon\Carbon::now()->format('H:i'); 
+
+        // Traemos las cuotas pendientes que venzan HOY o ANTES, junto con los datos de su crédito
+        $cuotasAtrasadas = \App\Models\Amortizacion::with('credito')
+                                                   ->where('estatus', '!=', 'pagado')
+                                                   ->where('fecha_pago', '<=', $hoy)
+                                                   ->get();
+        $moratoriosCount = 0;
+        
+        foreach($cuotasAtrasadas as $cuota) {
+            $multa = 0;
+            $fechaVencimiento = \Carbon\Carbon::parse($cuota->fecha_pago)->toDateString();
+            
+            // Calculamos el "Valor del crédito"
+            $valorCredito = $cuota->credito->monto_aprobado > 0 ? $cuota->credito->monto_aprobado : $cuota->credito->monto_solicitado;
+
+            if ($fechaVencimiento == $hoy) {
+                // Es HOY. Verificamos la hora (Si ya pasaron las 10:00 hrs)
+                if ($horaActual >= '10:00') {
+                    $multa = 500.00;
+                }
+            } elseif ($fechaVencimiento < $hoy) {
+                // Ya pasó el día de pago. 
+                // Se acumulan los 500 de ayer + el 10% del valor total del crédito
+                $multa = 500.00 + ($valorCredito * 0.10); 
+            }
+
+            if ($multa > 0) {
+                $cuota->moratorios_generados = round($multa, 2);
+                $cuota->save();
+                $moratoriosCount++;
+            }
+        }
+
+        \Illuminate\Support\Facades\DB::commit();
+
+        return "<div style='font-family: sans-serif; padding: 40px;'>
+                    <h1 style='color: green;'>¡Historial Reparado con Éxito! 🚀</h1>
+                    <ul style='font-size: 18px; line-height: 1.6;'>
+                        <li><b>$pagadasCount</b> cuotas históricas actualizadas con dinero.</li>
+                        <li><b>$moratoriosCount</b> cuotas sancionadas (con multa de \$500 o 10%).</li>
+                    </ul>
+                    <p style='margin-top: 20px;'>Revisa tus estados de cuenta, ya deben tener los cálculos perfectos.</p>
+                </div>";
 
     } catch (\Exception $e) {
-        return "<h1 style='color: red;'>ERROR AL EJECUTAR MIGRACIÓN</h1><p>" . $e->getMessage() . "</p>";
+        \Illuminate\Support\Facades\DB::rollBack();
+        return "<h1 style='color: red;'>Error del Sistema</h1><p>" . $e->getMessage() . " en la línea " . $e->getLine() . "</p>";
     }
 });
 
