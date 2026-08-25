@@ -303,46 +303,48 @@ Route::get('/cartera-activa', [App\Http\Controllers\CreditoController::class, 'c
     });
 });
 
-// --- RUTA MÁGICA: REPARAR HISTORIAL DE PAGOS Y MORATORIOS ---
+// --- RUTA MÁGICA: REPARAR HISTORIAL DE PAGOS Y MORATORIOS (VERSIÓN BLINDADA) ---
 Route::get('/reparar-historial-pagos', function () {
     try {
         \Illuminate\Support\Facades\DB::beginTransaction();
 
-        // 1. ARREGLAR PAGOS HISTÓRICOS (Para que el Total Pagado ya no salga en $0.00)
-        $cuotasPagadas = \App\Models\Amortizacion::where('estatus', 'pagado')
-                                                ->where('monto_pagado', 0)
-                                                ->get();
-        $pagadasCount = 0;
-        
-        foreach($cuotasPagadas as $cuota) {
-            $cuota->monto_pagado = $cuota->total_cuota; 
-            $cuota->fecha_pago_real = $cuota->updated_at ? $cuota->updated_at->format('Y-m-d') : $cuota->fecha_pago;
-            $cuota->save();
-            $pagadasCount++;
-        }
+        // 1. ARREGLAR PAGOS HISTÓRICOS (Directo a la tabla)
+        // Actualizamos de golpe todas las cuotas pagadas que tengan monto en 0
+        $pagadasCount = \Illuminate\Support\Facades\DB::table('credito_amortizaciones')
+            ->where('estatus', 'pagado')
+            ->where('monto_pagado', 0)
+            ->update([
+                // Copia lo que dice en total_cuota hacia monto_pagado
+                'monto_pagado' => \Illuminate\Support\Facades\DB::raw('total_cuota'),
+                // Si tiene fecha de actualización úsala, si no, usa la fecha de vencimiento
+                'fecha_pago_real' => \Illuminate\Support\Facades\DB::raw('COALESCE(DATE(updated_at), fecha_pago)')
+            ]);
 
         // 2. REGLA DE MORATORIOS (500 después de las 10 AM, 10% al día siguiente)
         $hoy = \Carbon\Carbon::now()->toDateString();
-        // Usamos formato 24 hrs
         $horaActual = \Carbon\Carbon::now()->format('H:i'); 
 
-        // Traemos las cuotas pendientes que venzan HOY o ANTES
-        $cuotasAtrasadas = \App\Models\Amortizacion::where('estatus', '!=', 'pagado')
-                                                   ->where('fecha_pago', '<=', $hoy)
-                                                   ->get();
+        // Traemos las cuotas pendientes uniendo directamente las tablas en SQL
+        $cuotasAtrasadas = \Illuminate\Support\Facades\DB::table('credito_amortizaciones')
+            ->join('creditos', 'credito_amortizaciones.credito_id', '=', 'creditos.id')
+            ->select(
+                'credito_amortizaciones.id', 
+                'credito_amortizaciones.fecha_pago',
+                'creditos.monto_aprobado',
+                'creditos.monto_solicitado'
+            )
+            ->where('credito_amortizaciones.estatus', '!=', 'pagado')
+            ->where('credito_amortizaciones.fecha_pago', '<=', $hoy)
+            ->get();
+
         $moratoriosCount = 0;
         
         foreach($cuotasAtrasadas as $cuota) {
             $multa = 0;
             $fechaVencimiento = \Carbon\Carbon::parse($cuota->fecha_pago)->toDateString();
             
-            // Blindaje: Buscamos el crédito manualmente para evitar errores de relación
-            $credito = \App\Models\Credito::find($cuota->credito_id);
-            $valorCredito = 0;
-            
-            if ($credito) {
-                $valorCredito = $credito->monto_aprobado > 0 ? $credito->monto_aprobado : ($credito->monto_solicitado ?? 0);
-            }
+            // Calculamos el valor del crédito
+            $valorCredito = $cuota->monto_aprobado > 0 ? $cuota->monto_aprobado : ($cuota->monto_solicitado ?? 0);
 
             if ($fechaVencimiento == $hoy) {
                 // Es HOY. Verificamos la hora (Si ya pasaron las 10:00 hrs)
@@ -355,8 +357,9 @@ Route::get('/reparar-historial-pagos', function () {
             }
 
             if ($multa > 0) {
-                $cuota->moratorios_generados = round($multa, 2);
-                $cuota->save();
+                \Illuminate\Support\Facades\DB::table('credito_amortizaciones')
+                    ->where('id', $cuota->id)
+                    ->update(['moratorios_generados' => round($multa, 2)]);
                 $moratoriosCount++;
             }
         }
