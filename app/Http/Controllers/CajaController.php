@@ -126,7 +126,8 @@ class CajaController extends Controller
     {
         $request->validate([
             'credito_id' => 'required|exists:creditos,id',
-            'monto_recibido' => 'required|numeric|min:0',
+            'monto_cuota' => 'required|numeric|min:0',
+            'monto_mora' => 'nullable|numeric|min:0',
             'metodo_pago' => 'required|string',
         ]);
 
@@ -148,57 +149,61 @@ class CajaController extends Controller
                 return back()->with('error', 'Este crédito no tiene cuotas pendientes.');
             }
 
-            // 1. Registro de Transacción a la Caja General
-            if ($request->monto_recibido > 0) {
-                \App\Models\TransaccionCaja::create([
+            $monto_mora = $request->monto_mora ?? 0;
+            $monto_total_ingreso = $request->monto_cuota + $monto_mora;
+
+            if ($monto_total_ingreso <= 0) {
+                return back()->with('error', 'Debes ingresar un monto mayor a cero para cobrar.');
+            }
+
+            $tickets_generados = []; // Aquí guardaremos los IDs de los tickets
+
+            // 1. TICKET / TRANSACCIÓN 1: PAGO DE LA CUOTA NORMAL
+            if ($request->monto_cuota > 0) {
+                $t1 = \App\Models\TransaccionCaja::create([
                     'corte_caja_id' => $turnoActivo->id,
                     'tipo' => 'ingreso',
                     'concepto' => 'Pago Cuota #' . $cuota->numero_cuota . ' - Folio: ' . $credito->folio,
-                    'monto' => $request->monto_recibido,
+                    'monto' => $request->monto_cuota,
                     'metodo_pago' => $request->metodo_pago,
                     'referencia_id' => $cuota->id,
                     'descripcion' => $request->referencia_pago ?? null
                 ]);
-
-                if ($request->metodo_pago === 'efectivo') {
-                    $turnoActivo->ingresos += $request->monto_recibido;
-                    $turnoActivo->saldo_teorico += $request->monto_recibido;
-                    $turnoActivo->save();
-
-                    $turnoActivo->caja->saldo_actual += $request->monto_recibido;
-                    $turnoActivo->caja->save();
-                }
+                $tickets_generados[] = $t1->id;
             }
 
-            // 2. GUARDAR DETALLE INDIVIDUAL (Solo si se activó el Switch de Desglose)
-            if ($request->has('pagos_individuales')) {
-                $totalAprobado = $credito->monto_aprobado > 0 ? $credito->monto_aprobado : ($credito->monto_solicitado ?: 1);
-
-                foreach ($request->pagos_individuales as $cliente_id => $monto_pagado) {
-                    $integrante = $credito->integrantes->where('id_cliente', $cliente_id)->first();
-                    
-                    $montoEsperado = 0;
-                    if ($integrante) {
-                        // Calcula cuánto debió pagar en base a su porcentaje del crédito
-                        $montoEsperado = ($integrante->pivot->monto_individual / $totalAprobado) * $cuota->total_cuota;
-                    }
-
-                    // Lo insertamos en la tabla de amortizacion_detalles que creamos ayer
-                    \Illuminate\Support\Facades\DB::table('amortizacion_detalles')->insert([
-                        'amortizacion_id' => $cuota->id,
-                        'cliente_id' => $cliente_id,
-                        'monto_esperado' => round($montoEsperado, 2),
-                        'monto_pagado' => $monto_pagado,
-                        'estatus' => $monto_pagado >= ($montoEsperado - 0.5) ? 'pagado' : ($monto_pagado > 0 ? 'parcial' : 'atrasado'),
-                        'created_at' => now(),
-                        'updated_at' => now()
-                    ]);
-                }
+            // 2. TICKET / TRANSACCIÓN 2: PAGO DE MORATORIOS
+            if ($monto_mora > 0) {
+                $t2 = \App\Models\TransaccionCaja::create([
+                    'corte_caja_id' => $turnoActivo->id,
+                    'tipo' => 'ingreso',
+                    'concepto' => 'Pago Multa/Mora Cuota #' . $cuota->numero_cuota . ' - Folio: ' . $credito->folio,
+                    'monto' => $monto_mora,
+                    'metodo_pago' => $request->metodo_pago,
+                    'referencia_id' => $cuota->id,
+                    'descripcion' => 'Penalización por atraso'
+                ]);
+                $tickets_generados[] = $t2->id;
             }
 
-            // 3. Actualizar la Cuota Global
-            $cuota->monto_pagado += $request->monto_recibido;
-            if ($cuota->monto_pagado >= ($cuota->total_cuota - 0.5)) { // Tolerancia de 50 centavos
+            // 3. ACTUALIZAR SALDOS DE LA CAJA FÍSICA
+            if ($request->metodo_pago === 'efectivo') {
+                $turnoActivo->ingresos += $monto_total_ingreso;
+                $turnoActivo->saldo_teorico += $monto_total_ingreso;
+                $turnoActivo->save();
+
+                $turnoActivo->caja->saldo_actual += $monto_total_ingreso;
+                $turnoActivo->caja->save();
+            }
+
+            // 4. ACTUALIZAR LA CUOTA
+            $cuota->monto_pagado += $request->monto_cuota;
+            
+            \Illuminate\Support\Facades\DB::table('credito_amortizaciones')
+                ->where('id', $cuota->id)
+                ->increment('moratorios_pagados', $monto_mora);
+
+            if ($cuota->monto_pagado >= ($cuota->total_cuota - 0.5)) { 
                 $cuota->estatus = 'pagado';
             } else {
                 $cuota->estatus = 'parcial';
@@ -206,7 +211,6 @@ class CajaController extends Controller
             $cuota->fecha_pago_real = now();
             $cuota->save();
 
-            // 4. Liquidar el crédito si pagó la última cuota
             $cuotasPendientes = \App\Models\Amortizacion::where('credito_id', $credito->id)
                                                         ->where('estatus', '!=', 'pagado')
                                                         ->count();
@@ -216,7 +220,10 @@ class CajaController extends Controller
             }
 
             \Illuminate\Support\Facades\DB::commit();
-            return back()->with('success', '¡Pago de $' . number_format($request->monto_recibido, 2) . ' aplicado correctamente!');
+            
+            // 🔥 RETORNAMOS CON LOS TICKETS GENERADOS 🔥
+            return back()->with('success', '¡Se registraron los cobros exitosamente! Total recibido: $' . number_format($monto_total_ingreso, 2))
+                         ->with('tickets_generados', $tickets_generados);
 
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\DB::rollBack();
@@ -266,5 +273,67 @@ class CajaController extends Controller
                     ->update(['moratorios_generados' => round($multa, 2)]);
             }
         }
+    }
+
+    public function imprimirTicket($id)
+    {
+        $transaccion = \App\Models\TransaccionCaja::with(['corteCaja.usuario', 'corteCaja.caja.sucursal'])->findOrFail($id);
+        
+        // Buscamos la cuota usando la referencia_id que guardamos al cobrar
+        $cuota = \App\Models\Amortizacion::with(['credito.cliente', 'credito.grupo', 'credito.patron'])->find($transaccion->referencia_id);
+        $credito = $cuota->credito ?? null;
+
+        // 🖼️ Convertir Logo a Base64
+        $logo_base64 = null;
+        if ($credito && $credito->patron && $credito->patron->logo_path) {
+            $path = public_path('storage/' . $credito->patron->logo_path);
+            if (file_exists($path)) {
+                $type = pathinfo($path, PATHINFO_EXTENSION);
+                $data = file_get_contents($path);
+                $logo_base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+            }
+        }
+
+        $letras = $this->convertirALetras($transaccion->monto);
+
+        $data = [
+            'transaccion' => $transaccion,
+            'cuota' => $cuota,
+            'credito' => $credito,
+            'logo_base64' => $logo_base64,
+            'letras' => $letras
+        ];
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('cajas.pdf.ticket', $data);
+        
+        // 🔥 MAGIA: Formato Ticket Térmico 80mm de ancho (alto dinámico)
+        $pdf->setPaper([0, 0, 226.77, 600], 'portrait'); 
+
+        return $pdf->stream('Ticket_' . $transaccion->id . '.pdf');
+    }
+
+    // --- FUNCIÓN PARA CONVERTIR NÚMEROS A LETRAS EN EL TICKET ---
+    private function convertirALetras($numero)
+    {
+        $numero = floor($numero);
+        if ($numero == 0) return 'CERO';
+        
+        $unidades = ['', 'UN ', 'DOS ', 'TRES ', 'CUATRO ', 'CINCO ', 'SEIS ', 'SIETE ', 'OCHO ', 'NUEVE ', 'DIEZ ', 'ONCE ', 'DOCE ', 'TRECE ', 'CATORCE ', 'QUINCE ', 'DIECISEIS ', 'DIECISIETE ', 'DIECIOCHO ', 'DIECINUEVE ', 'VEINTE '];
+        $decenas = ['', 'DIEZ ', 'VEINTI', 'TREINTA ', 'CUARENTA ', 'CINCUENTA ', 'SESENTA ', 'SETENTA ', 'OCHENTA ', 'NOVENTA '];
+        $centenas = ['', 'CIENTO ', 'DOSCIENTOS ', 'TRESCIENTOS ', 'CUATROCIENTOS ', 'QUINIENTOS ', 'SEISCIENTOS ', 'SETECIENTOS ', 'OCHOCIENTOS ', 'NOVECIENTOS '];
+
+        $convertir = function ($n) use (&$convertir, $unidades, $decenas, $centenas) {
+            if ($n <= 20) return $unidades[$n];
+            if ($n < 100) return $decenas[floor($n / 10)] . ($n % 10 != 0 ? ($n < 30 ? '' : 'Y ') . $unidades[$n % 10] : '');
+            if ($n == 100) return 'CIEN ';
+            if ($n < 1000) return $centenas[floor($n / 100)] . $convertir($n % 100);
+            if ($n < 2000) return 'MIL ' . $convertir($n % 1000);
+            if ($n < 1000000) return $convertir(floor($n / 1000)) . 'MIL ' . $convertir($n % 1000);
+            if ($n == 1000000) return 'UN MILLON ' . $convertir($n % 1000000);
+            if ($n < 1000000000) return $convertir(floor($n / 1000000)) . 'MILLONES ' . $convertir($n % 1000000);
+            return '';
+        };
+
+        return trim($convertir($numero)) . ' PESOS 00/100 M.N.';
     }
 }

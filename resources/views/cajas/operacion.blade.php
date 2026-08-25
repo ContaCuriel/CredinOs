@@ -1,9 +1,35 @@
 <x-app-layout>
     <div class="container-fluid py-4">
 
+        {{-- LÓGICA DE ALERTA DE ÉXITO CON APERTURA DE TICKETS --}}
         @if (session('success'))
             <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
                 <i class="bi bi-check-circle-fill me-2"></i> {{ session('success') }}
+                
+                @if(session('tickets_generados'))
+                    <hr>
+                    <p class="mb-2 fw-bold small"><i class="bi bi-printer me-1"></i> Se están abriendo tus tickets de impresión...</p>
+                    <p class="mb-0 small text-muted">Si tu navegador bloqueó las ventanas emergentes (pop-ups), haz clic en los siguientes botones para imprimirlos manualmente:</p>
+                    <div class="mt-2">
+                        @foreach(session('tickets_generados') as $index => $ticketId)
+                            <a href="{{ route('cajas.ticket', $ticketId) }}" target="_blank" class="btn btn-sm btn-dark me-2 mt-1">
+                                <i class="bi bi-printer-fill me-1"></i> Imprimir Ticket {{ $index + 1 }}
+                            </a>
+                        @endforeach
+                    </div>
+
+                    {{-- Script para abrir las pestañas automáticamente --}}
+                    <script>
+                        document.addEventListener("DOMContentLoaded", function() {
+                            setTimeout(function() {
+                                @foreach(session('tickets_generados') as $ticketId)
+                                    window.open("{{ route('cajas.ticket', $ticketId) }}", "_blank");
+                                @endforeach
+                            }, 500); // 500ms de retraso para asegurar que la página cargó
+                        });
+                    </script>
+                @endif
+
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         @endif
@@ -128,10 +154,18 @@
 
                                     <div class="row mb-4 text-start">
                                         <div class="col-md-6 mb-3">
-                                            <label class="form-label small fw-bold">Monto Total a Recibir ($)</label>
-                                            <input type="number" step="0.01" class="form-control form-control-lg text-success fw-bold" name="monto_recibido" id="input_monto_recibido" required>
+                                            <label class="form-label small fw-bold">Pago a Cuota ($)</label>
+                                            <input type="number" step="0.01" class="form-control form-control-lg text-success fw-bold" name="monto_cuota" id="input_monto_cuota" required>
                                         </div>
-                                        <div class="col-md-6 mb-3">
+                                        
+                                        {{-- INPUT DE MULTAS (OCULTO POR DEFECTO) --}}
+                                        <div class="col-md-6 mb-3 d-none" id="div_input_mora">
+                                            <label class="form-label small fw-bold text-danger">Abono a Multas/Mora ($)</label>
+                                            <input type="number" step="0.01" class="form-control form-control-lg text-danger fw-bold border-danger" name="monto_mora" id="input_monto_mora" value="0">
+                                            <div class="form-text text-danger small fw-bold mt-1" id="txt_deuda_mora">Deuda Multa: $0.00</div>
+                                        </div>
+                                        
+                                        <div class="col-md-6 mb-3" id="div_metodo_pago_col">
                                             <label class="form-label small fw-bold">Método de Pago</label>
                                             <select class="form-select form-select-lg" name="metodo_pago" id="select_metodo_pago" onchange="toggleReferenciaTerminal()" required>
                                                 <option value="efectivo" selected>💵 Efectivo (Suma a Caja)</option>
@@ -248,29 +282,18 @@
                 const proximaCuota = credito.amortizaciones[0];
 
                 if(proximaCuota) {
-                    // 1. Mostrar Monto y Número de Semana
-                    document.getElementById('txt_cuota_titulo').innerText = 'Próxima Cuota (Pago #' + proximaCuota.numero_cuota + ')';
-                    document.getElementById('txt_cuota_monto').innerText = '$' + parseFloat(proximaCuota.total_cuota).toLocaleString('en-US', {minimumFractionDigits: 2});
                     
-                    let inputMonto = document.getElementById('input_monto_recibido');
-                    inputMonto.value = proximaCuota.total_cuota;
-                    
-                    // =========================================================
-                    // 2. PARSEO DE FECHA BLINDADO EXTREMO (Adiós Invalid Date)
-                    // =========================================================
                     let fpStr = String(proximaCuota.fecha_pago);
                     let anio, mes, dia;
                     let isAtrasado = false;
                     let textoFecha = '--/--/----';
 
-                    // Intentar formato YYYY-MM-DD
                     let matchYMD = fpStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
-                    // Intentar formato DD/MM/YYYY
                     let matchDMY = fpStr.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
 
                     if (matchYMD) {
                         anio = parseInt(matchYMD[1]);
-                        mes = parseInt(matchYMD[2]) - 1; // JS cuenta meses del 0 al 11
+                        mes = parseInt(matchYMD[2]) - 1; 
                         dia = parseInt(matchYMD[3]);
                     } else if (matchDMY) {
                         dia = parseInt(matchDMY[1]);
@@ -291,7 +314,7 @@
                             isAtrasado = true;
                         }
                     } else {
-                        textoFecha = fpStr; // Por si llega algo ultra raro
+                        textoFecha = fpStr; 
                     }
 
                     document.getElementById('txt_cuota_fecha').innerText = 'Vencimiento: ' + textoFecha;
@@ -301,9 +324,37 @@
                     } else {
                         document.getElementById('alerta_moratorios').classList.add('d-none');
                     }
-                    // =========================================================
 
-                    // 3. LÓGICA DE DESGLOSE INDIVIDUAL (Grupos)
+                    let moratoriosGenerados = parseFloat(proximaCuota.moratorios_generados) || 0;
+                    let moratoriosPagados = parseFloat(proximaCuota.moratorios_pagados) || 0;
+                    let moratoriosPendientes = moratoriosGenerados - moratoriosPagados;
+
+                    document.getElementById('txt_cuota_titulo').innerText = 'Próxima Cuota (Pago #' + proximaCuota.numero_cuota + ')';
+                    
+                    let inputCuota = document.getElementById('input_monto_cuota');
+                    let inputMora = document.getElementById('input_monto_mora');
+                    let divMora = document.getElementById('div_input_mora');
+                    let txtDeudaMora = document.getElementById('txt_deuda_mora');
+                    let divMetodoPagoCol = document.getElementById('div_metodo_pago_col');
+
+                    inputCuota.value = proximaCuota.total_cuota;
+                    
+                    if (moratoriosPendientes > 0) {
+                        divMora.classList.remove('d-none');
+                        divMetodoPagoCol.classList.remove('col-md-12');
+                        divMetodoPagoCol.classList.add('col-md-6');
+                        inputMora.value = moratoriosPendientes.toFixed(2);
+                        txtDeudaMora.innerText = 'Adeudo Restante: $' + moratoriosPendientes.toFixed(2);
+                        
+                        document.getElementById('txt_cuota_monto').innerHTML = '$' + parseFloat(proximaCuota.total_cuota).toLocaleString('en-US', {minimumFractionDigits: 2}) + ' <span class="badge bg-danger ms-2" style="font-size: 0.5em; vertical-align: middle;">+ $' + moratoriosPendientes.toFixed(2) + ' Multa</span>';
+                    } else {
+                        divMora.classList.add('d-none');
+                        divMetodoPagoCol.classList.remove('col-md-6');
+                        divMetodoPagoCol.classList.add('col-md-12');
+                        inputMora.value = '0';
+                        document.getElementById('txt_cuota_monto').innerText = '$' + parseFloat(proximaCuota.total_cuota).toLocaleString('en-US', {minimumFractionDigits: 2});
+                    }
+
                     const chkDesglose = document.getElementById('chk_desglose');
                     const divToggle = document.getElementById('div_toggle_desglose');
                     const divLista = document.getElementById('div_lista_integrantes');
@@ -312,7 +363,7 @@
                     chkDesglose.checked = false;
                     divLista.classList.add('d-none');
                     contenedorIntegrantes.innerHTML = '';
-                    inputMonto.readOnly = false;
+                    inputCuota.readOnly = false;
 
                     if (credito.integrantes && credito.integrantes.length > 1) {
                         divToggle.classList.remove('d-none');
@@ -343,7 +394,7 @@
                             const inputs = document.querySelectorAll('.input-cuota-ind');
                             if (this.checked) {
                                 divLista.classList.remove('d-none');
-                                inputMonto.readOnly = true; 
+                                inputCuota.readOnly = true; 
                                 inputs.forEach(inp => {
                                     inp.disabled = false; 
                                     inp.addEventListener('input', sumarCantidades);
@@ -351,9 +402,9 @@
                                 sumarCantidades();
                             } else {
                                 divLista.classList.add('d-none');
-                                inputMonto.readOnly = false;
+                                inputCuota.readOnly = false;
                                 inputs.forEach(inp => inp.disabled = true); 
-                                inputMonto.value = proximaCuota.total_cuota;
+                                inputCuota.value = proximaCuota.total_cuota;
                             }
                         };
 
@@ -362,7 +413,7 @@
                             document.querySelectorAll('.input-cuota-ind').forEach(i => {
                                 totalAcumulado += parseFloat(i.value) || 0;
                             });
-                            inputMonto.value = totalAcumulado.toFixed(2);
+                            inputCuota.value = totalAcumulado.toFixed(2);
                         }
                     } else {
                         divToggle.classList.add('d-none');

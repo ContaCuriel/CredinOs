@@ -40,7 +40,6 @@
                     <div class="card-body">
                         <div class="text-muted small fw-bold text-uppercase mb-1">Total Pagado</div>
                         @php
-                            // Asumiendo que guardas el monto pagado en la amortizacion
                             $totalPagado = $credito->amortizaciones->sum('monto_pagado') ?? 0;
                             $porcentaje = $credito->monto_aprobado > 0 ? ($totalPagado / ($credito->amortizaciones->sum('total_cuota'))) * 100 : 0;
                         @endphp
@@ -136,7 +135,7 @@
                                         <th class="text-end">Moratorios</th>
                                         <th class="text-end">Pagó / Abono</th>
                                         <th class="text-center">Diferencia</th>
-                                        <th>Fecha Pago Real</th>
+                                        <th class="text-center">Fecha Pago Real</th>
                                         <th class="text-center pe-3">Estatus</th>
                                     </tr>
                                 </thead>
@@ -146,10 +145,12 @@
                                             $fechaVencimiento = \Carbon\Carbon::parse($cuota->fecha_pago);
                                             $estaAtrasada = $fechaVencimiento->isPast() && $cuota->estatus != 'pagado';
                                             
-                                            // Estas variables asumen cómo se llaman en tu BD. Si son diferentes, solo ajústalas.
+                                            // Conectamos a las columnas reales que acabamos de crear en la base de datos
                                             $montoPagado = $cuota->monto_pagado ?? 0;
-                                            $moratorios = $cuota->moratorios_cobrados ?? 0; 
-                                            $diferencia = $montoPagado - $cuota->total_cuota;
+                                            $moratorios = $cuota->moratorios_generados ?? 0; 
+                                            
+                                            $totalEsperado = $cuota->total_cuota + $moratorios;
+                                            $diferencia = $cuota->estatus === 'pendiente' ? 0 : ($montoPagado - $totalEsperado);
                                         @endphp
                                         <tr class="{{ $estaAtrasada ? 'bg-danger bg-opacity-10' : '' }}">
                                             <td class="ps-3 text-center fw-bold">{{ $cuota->numero_cuota }}</td>
@@ -158,13 +159,9 @@
                                             </td>
                                             <td class="text-end text-dark fw-bold">${{ number_format($cuota->total_cuota, 2) }}</td>
                                             
-                                            {{-- Moratorios --}}
-                                            <td class="text-end text-danger">
-                                                @if($estaAtrasada && $moratorios == 0)
-                                                    <span class="small fst-italic">Generando...</span>
-                                                @else
-                                                    ${{ number_format($moratorios, 2) }}
-                                                @endif
+                                            {{-- Moratorios calculados --}}
+                                            <td class="text-end text-danger fw-bold">
+                                                ${{ number_format($moratorios, 2) }}
                                             </td>
 
                                             {{-- Monto que dio el cliente --}}
@@ -174,7 +171,7 @@
 
                                             {{-- Diferencia (Dio de mas o de menos) --}}
                                             <td class="text-center">
-                                                @if($cuota->estatus == 'pagado')
+                                                @if($cuota->estatus == 'pagado' || $cuota->estatus == 'parcial')
                                                     @if($diferencia > 0)
                                                         <span class="text-success small fw-bold">+${{ number_format($diferencia, 2) }}</span>
                                                     @elseif($diferencia < 0)
@@ -188,7 +185,7 @@
                                             </td>
 
                                             {{-- Fecha y Hora en que pagó --}}
-                                            <td class="text-muted small">
+                                            <td class="text-center text-muted small">
                                                 @if($cuota->fecha_pago_real)
                                                     {{ \Carbon\Carbon::parse($cuota->fecha_pago_real)->format('d/m/Y h:i A') }}
                                                 @else
@@ -200,6 +197,8 @@
                                             <td class="text-center pe-3">
                                                 @if($cuota->estatus == 'pagado')
                                                     <span class="badge bg-success w-100">Pagado</span>
+                                                @elseif($cuota->estatus == 'parcial')
+                                                    <span class="badge bg-warning text-dark w-100">Incompleto</span>
                                                 @elseif($estaAtrasada)
                                                     <span class="badge bg-danger w-100">Atrasado</span>
                                                 @else
