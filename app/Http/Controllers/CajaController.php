@@ -15,7 +15,7 @@ class CajaController extends Controller
      */
     public function index()
     {
-        // Revisamos si el admin ya tiene un turno abierto
+        // 1. Revisamos si el admin ya tiene un turno abierto
         $turnoActivo = CorteCaja::where('usuario_id', auth()->id())
                                 ->where('estatus', 'abierto')
                                 ->with('caja')
@@ -25,8 +25,24 @@ class CajaController extends Controller
             return redirect()->route('cajas.operacion');
         }
 
-        // Traemos TODAS las cajas junto con el nombre de su sucursal
-        $cajas = Caja::with('sucursal')->get(); 
+        // 2. 🔥 AUTOMATIZACIÓN: 1 CAJA POR SUCURSAL 🔥
+        // Traemos todas las sucursales (tu Global Scope ya filtra y solo trae las Activas)
+        $sucursalesActivas = \App\Models\Sucursal::all();
+
+        foreach ($sucursalesActivas as $sucursal) {
+            // firstOrCreate busca si la sucursal ya tiene caja. Si no la tiene, la crea al instante.
+            \App\Models\Caja::firstOrCreate(
+                ['sucursal_id' => $sucursal->id_sucursal],
+                [
+                    'nombre' => 'Caja Principal',
+                    'estatus' => 'cerrada',
+                    'saldo_actual' => 0.00
+                ]
+            );
+        }
+
+        // 3. Ahora sí, mandamos a la vista las cajas asegurándonos que su sucursal siga activa
+        $cajas = \App\Models\Caja::whereHas('sucursal')->with('sucursal')->get(); 
 
         return view('cajas.index', compact('cajas'));
     }
