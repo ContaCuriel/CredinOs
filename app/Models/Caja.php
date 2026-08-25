@@ -22,4 +22,10 @@ class Caja extends Model
     {
         return $this->hasMany(CorteCaja::class, 'caja_id');
     }
+
+    public function sucursal()
+    {
+        // Ajusta 'id_sucursal' si tu llave primaria en la tabla sucursales se llama diferente
+        return $this->belongsTo(Sucursal::class, 'sucursal_id', 'id_sucursal');
+    }
 }

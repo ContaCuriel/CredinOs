@@ -25,10 +25,10 @@ class CajaController extends Controller
             return redirect()->route('cajas.operacion');
         }
 
-        // Tomamos la caja principal por defecto (evitamos que el usuario tenga que elegirla)
-        $caja = Caja::first(); 
+        // Traemos TODAS las cajas junto con el nombre de su sucursal
+        $cajas = Caja::with('sucursal')->get(); 
 
-        return view('cajas.index', compact('caja'));
+        return view('cajas.index', compact('cajas'));
     }
 
     /**
@@ -87,6 +87,15 @@ class CajaController extends Controller
                                 ->with('caja')
                                 ->firstOrFail();
 
-        return view('cajas.operacion', compact('turnoActivo'));
+        // Traemos todos los créditos activos y sus cuotas no pagadas para el buscador
+        $creditos = \App\Models\Credito::with([
+            'cliente', 
+            'grupo', 
+            'amortizaciones' => function($q) {
+                $q->where('estatus', '!=', 'pagado')->orderBy('numero_cuota', 'asc');
+            }
+        ])->where('estatus', 'desembolsado')->get();
+
+        return view('cajas.operacion', compact('turnoActivo', 'creditos'));
     }
 }
