@@ -33,14 +33,23 @@ class PermissionSeeder extends Seeder
                 'ver-menu-contabilidad',
                 'ver-menu-administracion',
                 'ver-menu-configuracion',
+                'ver-menu-caja', // 🔥 NUEVO PERMISO PARA EL MENÚ DE CAJAS
             ],
             'Créditos y Cobranza' => [
                 'ver-clientes', 'crear-clientes', 'editar-clientes', 'eliminar-clientes',
                 'ver-grupos', 'crear-grupos', 'editar-grupos', 'eliminar-grupos',
                 'ver-creditos', 'registrar-credito', 'editar-credito', 'eliminar-credito',
                 'aprobar-credito', 'desembolsar-credito',
-                // 🔥 NUEVOS PERMISOS DEL CORE BANCARIO 🔥
                 'ver-desembolsos', 'ver-cartera',
+            ],
+            // 🔥 NUEVO GRUPO DE PERMISOS PARA CAJAS 🔥
+            'Cajas (Operaciones)' => [
+                'ver-caja', 
+                'abrir-caja', 
+                'cobrar-caja', 
+                'registrar-gasto-caja', 
+                'cerrar-caja', 
+                'ver-cortes-caja',
             ],
             'Recursos Humanos' => [
                 'ver-empleados', 'crear-empleados', 'editar-empleados', 'eliminar-empleados',

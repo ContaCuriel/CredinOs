@@ -116,6 +116,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/creditos/{id}/referencias', [\App\Http\Controllers\CreditoController::class, 'imprimirReferencias'])->name('creditos.referencias');
     Route::get('/creditos/{id}/solicitud', [\App\Http\Controllers\CreditoController::class, 'imprimirSolicitud'])->name('creditos.solicitud');
 
+    // Módulo de Cajas
+    Route::get('/cajas', [App\Http\Controllers\CajaController::class, 'index'])->name('cajas.index');
+    Route::post('/cajas/abrir', [App\Http\Controllers\CajaController::class, 'abrirTurno'])->name('cajas.abrir');
+    Route::get('/cajas/operacion', [App\Http\Controllers\CajaController::class, 'operacion'])->name('cajas.operacion');
+
     // MÓDULO DE DESEMBOLSOS (TESORERÍA)
 Route::get('/desembolsos', [App\Http\Controllers\CreditoController::class, 'desembolsos'])->name('desembolsos.index');
 Route::post('/creditos/{id}/fondear', [App\Http\Controllers\CreditoController::class, 'fondear'])->name('creditos.fondear');

@@ -143,6 +143,22 @@
                     </ul>
                     @endcan
 
+                    {{-- 🔥 NUEVO MENÚ DE CAJAS 🔥 --}}
+                    @can('ver-menu-caja')
+                    <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                        <span>OPERACIONES DE CAJA</span>
+                    </h6>
+                    <ul class="nav flex-column mb-2">
+                        @can('ver-caja')
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('cajas.*') ? 'active' : '' }}" href="{{ route('cajas.index') }}">
+                                    <i class="bi bi-cash-coin text-success"></i> Módulo de Caja
+                                </a>
+                            </li>
+                        @endcan
+                    </ul>
+                    @endcan
+
                     @can('ver-menu-rh')
                     <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
                         <span>RECURSOS HUMANOS</span>
