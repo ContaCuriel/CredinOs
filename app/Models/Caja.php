@@ -23,9 +23,12 @@ class Caja extends Model
         return $this->hasMany(CorteCaja::class, 'caja_id');
     }
 
+    // Relación exacta y comprobada con el modelo Sucursal
     public function sucursal()
     {
-        // Ajusta 'id_sucursal' si tu llave primaria en la tabla sucursales se llama diferente
-        return $this->belongsTo(Sucursal::class, 'sucursal_id', 'id_sucursal');
+        return $this->belongsTo(\App\Models\Sucursal::class, 'sucursal_id', 'id_sucursal')
+                    ->withDefault([
+                        'nombre_sucursal' => 'Sucursal Sin Asignar'
+                    ]);
     }
 }
