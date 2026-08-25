@@ -46,7 +46,7 @@
                 @elseif($credito->estatus == 'desembolsado')
                     <span class="badge bg-success fs-6 px-3 py-2"><i class="bi bi-cash me-1"></i> Crédito Activo</span>
                 @endif
-                <div class="d-flex align-items-center ms-3">
+                <div class="d-flex align-items-center ms-3 mt-2">
                     @if($credito->estatus == 'solicitado')
                     <form action="{{ route('creditos.destroy', $credito->id) }}" method="POST" onsubmit="return confirm('¿Estás seguro de eliminar completamente esta solicitud? Esta acción no se puede deshacer.');">
                         @csrf
@@ -63,6 +63,68 @@
             </div>
         </div>
 
+        {{-- 🔥 RECUADROS RÁPIDOS DE ESTADO DE CUENTA 🔥 --}}
+        @if($credito->estatus == 'desembolsado' || $credito->estatus == 'liquidado')
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card bg-white border-0 shadow-sm h-100 border-bottom border-primary border-4">
+                    <div class="card-body">
+                        <span class="text-uppercase fw-bold text-muted small d-block mb-1">Monto Desembolsado</span>
+                        <h2 class="fw-bold mb-0">${{ number_format($credito->monto_aprobado, 2) }}</h2>
+                        <span class="small text-muted">{{ $credito->plazo_aprobado }} Cuotas {{ ucfirst($credito->producto->frecuencia_pago) }}s</span>
+                    </div>
+                </div>
+            </div>
+            
+            {{-- Total Pagado real desde la base de datos --}}
+            <div class="col-md-3">
+                <div class="card bg-white border-0 shadow-sm h-100 border-bottom border-success border-4">
+                    <div class="card-body">
+                        <span class="text-uppercase fw-bold text-muted small d-block mb-1">Total Pagado</span>
+                        <h2 class="fw-bold mb-0 text-success">${{ number_format($credito->amortizaciones->sum('monto_pagado'), 2) }}</h2>
+                    </div>
+                </div>
+            </div>
+
+            @php
+                $proximoPago = $credito->amortizaciones->where('estatus', '!=', 'pagado')->sortBy('numero_cuota')->first();
+            @endphp
+            <div class="col-md-3">
+                <div class="card bg-white border-0 shadow-sm h-100 border-bottom border-info border-4">
+                    <div class="card-body">
+                        <span class="text-uppercase fw-bold text-muted small d-block mb-1">Próximo Vencimiento</span>
+                        @if($proximoPago)
+                            <h2 class="fw-bold mb-0">${{ number_format($proximoPago->total_cuota, 2) }}</h2>
+                            <span class="small text-muted"><i class="bi bi-calendar"></i> {{ \Carbon\Carbon::parse($proximoPago->fecha_pago)->format('d/m/Y') }}</span>
+                        @else
+                            <h4 class="fw-bold mb-0 text-success mt-2"><i class="bi bi-check2-all"></i> Todo Pagado</h4>
+                        @endif
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                @php
+                    $atrasadas = $credito->amortizaciones->where('estatus', '!=', 'pagado')
+                                        ->where('fecha_pago', '<', now()->toDateString())
+                                        ->count();
+                @endphp
+                <div class="card bg-white border-0 shadow-sm h-100 border-bottom {{ $atrasadas > 0 ? 'border-danger' : 'border-warning' }} border-4">
+                    <div class="card-body text-center">
+                        <span class="text-uppercase fw-bold text-muted small d-block mb-1">Estatus del Crédito</span>
+                        @if($atrasadas > 0)
+                            <h4 class="fw-bold mb-0 text-danger mt-2"><i class="bi bi-exclamation-triangle-fill"></i> EN MORA</h4>
+                            <span class="small text-danger fw-bold">{{ $atrasadas }} cuotas vencidas</span>
+                        @else
+                            <h4 class="fw-bold mb-0 text-success mt-2"><i class="bi bi-shield-check"></i> AL CORRIENTE</h4>
+                            <span class="small text-muted">Pagos al día</span>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
+        @endif
+
         <div class="row">
             {{-- COLUMNA IZQUIERDA: DATOS GENERALES --}}
             <div class="col-lg-4 mb-4">
@@ -72,7 +134,6 @@
                     </div>
                     <div class="card-body">
                         
-                        {{-- 🔥 SECCIÓN MODIFICADA: NOMBRE DEL GRUPO GRANDE, TITULAR PEQUEÑO --}}
                         <div class="mb-3">
                             <span class="text-muted d-block small fw-bold text-uppercase">Nombre del Crédito / Grupo</span>
                             @php
@@ -128,9 +189,75 @@
                 </div>
             </div>
 
-            {{-- COLUMNA DERECHA: INTEGRANTES Y CUENTAS --}}
+            {{-- COLUMNA DERECHA: INTEGRANTES Y ESTADO DE CUENTA --}}
             <div class="col-lg-8">
                 
+                {{-- TABLA DE AMORTIZACIÓN (ESTADO DE CUENTA) --}}
+                @if($credito->estatus == 'desembolsado' || $credito->estatus == 'liquidado')
+                <div class="card border-0 shadow-sm mb-4 border-start border-success border-4">
+                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                        <h6 class="fw-bold text-dark mb-0"><i class="bi bi-table me-2 text-success"></i>Detalle de Cuotas e Historial de Pagos</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                            <table class="table table-hover table-striped align-middle mb-0 small">
+                                <thead class="bg-light sticky-top">
+                                    <tr>
+                                        <th class="text-center py-3">No.</th>
+                                        <th class="text-center py-3">Vencimiento</th>
+                                        <th class="text-center py-3">Cuota Fija</th>
+                                        <th class="text-center py-3">Moratorios</th>
+                                        <th class="text-center py-3 text-success">Pagó / Abono</th>
+                                        <th class="text-center py-3">Diferencia</th>
+                                        <th class="text-center py-3">Fecha Pago Real</th>
+                                        <th class="text-center py-3">Estatus</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($credito->amortizaciones as $cuota)
+                                    @php
+                                        // Diferencia matemática (Pagado - Esperado) solo si ya abonó o pagó
+                                        $diferencia = $cuota->estatus === 'pendiente' ? 0 : ($cuota->monto_pagado - $cuota->total_cuota);
+                                    @endphp
+                                    <tr class="align-middle">
+                                        <td class="text-center fw-bold">{{ $cuota->numero_cuota }}</td>
+                                        <td class="text-center fw-bold {{ \Carbon\Carbon::parse($cuota->fecha_pago)->isPast() && $cuota->estatus != 'pagado' ? 'text-danger' : 'text-dark' }}">
+                                            {{ \Carbon\Carbon::parse($cuota->fecha_pago)->format('d/m/Y') }}
+                                        </td>
+                                        <td class="text-center fw-bold">${{ number_format($cuota->total_cuota, 2) }}</td>
+                                        <td class="text-center text-danger">
+                                            ${{ number_format($cuota->moratorios_generados ?? 0, 2) }}
+                                        </td>
+                                        <td class="text-center text-success fw-bold">${{ number_format($cuota->monto_pagado, 2) }}</td>
+                                        
+                                        {{-- Mostrar guión si está pendiente, o el dinero si sobra/falta --}}
+                                        <td class="text-center fw-bold {{ $diferencia < 0 ? 'text-danger' : ($diferencia > 0 ? 'text-primary' : '') }}">
+                                            {{ ($diferencia == 0 && $cuota->estatus == 'pendiente') ? '-' : '$'.number_format($diferencia, 2) }}
+                                        </td>
+                                        
+                                        <td class="text-center text-muted">
+                                            {{ $cuota->fecha_pago_real ? \Carbon\Carbon::parse($cuota->fecha_pago_real)->format('d/m/Y') : '--/--' }}
+                                        </td>
+                                        <td class="text-center">
+                                            @if($cuota->estatus == 'pagado')
+                                                <span class="badge bg-success text-white px-2 py-1 rounded-pill">Pagado</span>
+                                            @elseif($cuota->estatus == 'parcial')
+                                                <span class="badge bg-warning text-dark px-2 py-1 rounded-pill">Incompleto</span>
+                                            @elseif(\Carbon\Carbon::parse($cuota->fecha_pago)->isPast() && $cuota->estatus == 'pendiente')
+                                                <span class="badge bg-danger text-white px-2 py-1 rounded-pill">Atrasado</span>
+                                            @else
+                                                <span class="badge bg-secondary text-white px-2 py-1 rounded-pill">Pendiente</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                @endif
+
                 {{-- TABLA DE INTEGRANTES --}}
                 <div class="card border-0 shadow-sm mb-4">
                     <div class="card-header bg-white py-3">
@@ -316,6 +443,10 @@
                     </div>
                 </div>
                 @endif
+
+            </div>
+        </div>
+    </div>
 
    {{-- MODAL DE APROBACIÓN DE CRÉDITO --}}
     @if($credito->estatus == 'solicitado')

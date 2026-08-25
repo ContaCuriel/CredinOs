@@ -80,7 +80,7 @@
                                     </div>
 
                                     <div class="p-3 bg-light rounded border mb-3">
-                                        <div class="text-muted small fw-bold text-uppercase">Próxima Cuota a Pagar</div>
+                                        <div class="text-muted small fw-bold text-uppercase" id="txt_cuota_titulo">Próxima Cuota a Pagar</div>
                                         <h3 class="fw-bold text-dark mb-0" id="txt_cuota_monto">$0.00</h3>
                                         <p class="mb-0 text-muted small" id="txt_cuota_fecha">Vencimiento: --/--/----</p>
                                     </div>
@@ -105,13 +105,30 @@
 
                             {{-- FORMULARIO DE COBRO (Oculto hasta seleccionar crédito) --}}
                             <div class="card-body d-none" id="panel_cobro_activo">
-                                <form action="#" method="POST" id="form_cobro">
+                                <form action="{{ route('cajas.cobrar') }}" method="POST" id="form_cobro">
                                     @csrf
                                     <input type="hidden" name="credito_id" id="input_credito_id">
 
-                                    <div class="row mb-4">
+                                    {{-- SWITCH Y LISTA DE DESGLOSE (Ocultos por defecto) --}}
+                                    <div id="div_toggle_desglose" class="d-none mb-3 text-start">
+                                        <div class="form-check form-switch p-3 bg-light border border-warning rounded shadow-sm">
+                                            <input class="form-check-input ms-1 me-2" type="checkbox" role="switch" id="chk_desglose" style="transform: scale(1.3);">
+                                            <label class="form-check-label fw-bold ms-2 text-dark" for="chk_desglose">
+                                                Desglosar Pago por Integrante <span class="badge bg-warning text-dark ms-1">Pago Incompleto</span>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div id="div_lista_integrantes" class="d-none mb-4 text-start">
+                                        <label class="form-label small fw-bold text-primary"><i class="bi bi-people-fill me-1"></i>Aportación Individual Esperada</label>
+                                        <div class="border rounded p-2 bg-light shadow-sm" id="contenedor_integrantes" style="max-height: 250px; overflow-y: auto;">
+                                            <!-- Aquí JS inyectará a las señoras -->
+                                        </div>
+                                    </div>
+
+                                    <div class="row mb-4 text-start">
                                         <div class="col-md-6 mb-3">
-                                            <label class="form-label small fw-bold">Monto a Recibir ($)</label>
+                                            <label class="form-label small fw-bold">Monto Total a Recibir ($)</label>
                                             <input type="number" step="0.01" class="form-control form-control-lg text-success fw-bold" name="monto_recibido" id="input_monto_recibido" required>
                                         </div>
                                         <div class="col-md-6 mb-3">
@@ -147,7 +164,7 @@
                         <div class="card border-0 shadow-sm mt-3">
                             <div class="card-body p-4">
                                 <h5 class="fw-bold mb-4 text-danger"><i class="bi bi-box-arrow-up-right me-2"></i>Salida de Efectivo</h5>
-                                <form action="#" method="POST">
+                                <form action="{{ route('cajas.gasto') }}" method="POST">
                                     @csrf
                                     <div class="mb-3">
                                         <label class="form-label small fw-bold">Concepto del Gasto</label>
@@ -178,7 +195,7 @@
                                 
                                 <h1 class="display-5 fw-bold text-success mb-4">${{ number_format($turnoActivo->saldo_teorico, 2) }}</h1>
                                 
-                                <form action="#" method="POST">
+                                <form action="{{ route('cajas.cerrar') }}" method="POST">
                                     @csrf
                                     <div class="mb-4 text-start">
                                         <label class="form-label small fw-bold">Efectivo Físico Real (Cuéntalo)</label>
@@ -236,21 +253,95 @@
                 const proximaCuota = credito.amortizaciones[0]; // Como están ordenadas, la [0] es la más vieja pendiente
 
                 if(proximaCuota) {
+                    // 1. Mostrar Monto y Número de Semana
+                    document.getElementById('txt_cuota_titulo').innerText = 'Próxima Cuota (Pago #' + proximaCuota.numero_cuota + ')';
                     document.getElementById('txt_cuota_monto').innerText = '$' + parseFloat(proximaCuota.total_cuota).toLocaleString('en-US', {minimumFractionDigits: 2});
-                    document.getElementById('input_monto_recibido').value = proximaCuota.total_cuota;
                     
-                    // Formatear fecha
-                    const fechaObj = new Date(proximaCuota.fecha_pago + 'T00:00:00');
+                    let inputMonto = document.getElementById('input_monto_recibido');
+                    inputMonto.value = proximaCuota.total_cuota;
+                    
+                    // 2. Formatear fecha (Limpiamos la hora para que no de Invalid Date)
+                    let fechaLimpia = proximaCuota.fecha_pago.split(' ')[0];
+                    const fechaObj = new Date(fechaLimpia + 'T00:00:00');
                     document.getElementById('txt_cuota_fecha').innerText = 'Vencimiento: ' + fechaObj.toLocaleDateString('es-MX');
 
-                    // Validar si está atrasado (Fecha menor a hoy)
-                    const hoy = new Date();
+                    // 3. Validar si está atrasado
+                    const hoy = new Date(); 
                     hoy.setHours(0,0,0,0);
                     
                     if (fechaObj < hoy) {
                         document.getElementById('alerta_moratorios').classList.remove('d-none');
                     } else {
                         document.getElementById('alerta_moratorios').classList.add('d-none');
+                    }
+
+                    // ====== LÓGICA DE DESGLOSE INDIVIDUAL ======
+                    const chkDesglose = document.getElementById('chk_desglose');
+                    const divToggle = document.getElementById('div_toggle_desglose');
+                    const divLista = document.getElementById('div_lista_integrantes');
+                    const contenedorIntegrantes = document.getElementById('contenedor_integrantes');
+
+                    // Reiniciamos todo por si cambió de crédito
+                    chkDesglose.checked = false;
+                    divLista.classList.add('d-none');
+                    contenedorIntegrantes.innerHTML = '';
+                    inputMonto.readOnly = false;
+
+                    // Si es grupo (tiene más de 1 integrante), activamos el switch
+                    if (credito.integrantes && credito.integrantes.length > 1) {
+                        divToggle.classList.remove('d-none');
+                        
+                        let totalAprobado = parseFloat(credito.monto_aprobado) || parseFloat(credito.monto_solicitado) || 1;
+                        let cuotaGlobal = parseFloat(proximaCuota.total_cuota);
+
+                        credito.integrantes.forEach(integrante => {
+                            let montoInd = parseFloat(integrante.pivot.monto_individual) || 0;
+                            let cuotaInd = (montoInd / totalAprobado) * cuotaGlobal; // Proporcional
+                            let idCliente = integrante.id_cliente || integrante.id;
+
+                            contenedorIntegrantes.innerHTML += `
+                                <div class="d-flex justify-content-between align-items-center mb-2 border-bottom pb-2">
+                                    <div class="pe-2">
+                                        <span class="d-block fw-bold small text-dark">${integrante.nombre} ${integrante.apellido_paterno}</span>
+                                        <span class="text-muted" style="font-size: 0.75em;">Cuota esperada: $${cuotaInd.toFixed(2)}</span>
+                                    </div>
+                                    <div class="input-group input-group-sm" style="width: 130px;">
+                                        <span class="input-group-text bg-white">$</span>
+                                        <input type="number" step="0.01" class="form-control fw-bold text-success input-cuota-ind" name="pagos_individuales[${idCliente}]" value="${cuotaInd.toFixed(2)}" disabled>
+                                    </div>
+                                </div>
+                            `;
+                        });
+
+                        // Activar o desactivar desglose
+                        chkDesglose.onchange = function() {
+                            const inputs = document.querySelectorAll('.input-cuota-ind');
+                            if (this.checked) {
+                                divLista.classList.remove('d-none');
+                                inputMonto.readOnly = true; // El cajero no lo puede teclear, se suma automático
+                                inputs.forEach(inp => {
+                                    inp.disabled = false; // Se habilitan para mandarse al backend
+                                    inp.addEventListener('input', sumarCantidades);
+                                });
+                                sumarCantidades();
+                            } else {
+                                divLista.classList.add('d-none');
+                                inputMonto.readOnly = false;
+                                inputs.forEach(inp => inp.disabled = true); // Se bloquean para ignorarse
+                                inputMonto.value = proximaCuota.total_cuota;
+                            }
+                        };
+
+                        function sumarCantidades() {
+                            let totalAcumulado = 0;
+                            document.querySelectorAll('.input-cuota-ind').forEach(i => {
+                                totalAcumulado += parseFloat(i.value) || 0;
+                            });
+                            inputMonto.value = totalAcumulado.toFixed(2);
+                        }
+                    } else {
+                        // Es individual, no mostrar switch
+                        divToggle.classList.add('d-none');
                     }
                 }
             }

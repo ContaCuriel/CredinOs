@@ -120,6 +120,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/cajas', [App\Http\Controllers\CajaController::class, 'index'])->name('cajas.index');
     Route::post('/cajas/abrir', [App\Http\Controllers\CajaController::class, 'abrirTurno'])->name('cajas.abrir');
     Route::get('/cajas/operacion', [App\Http\Controllers\CajaController::class, 'operacion'])->name('cajas.operacion');
+    // Acciones de la Caja
+    Route::post('/cajas/cobrar', [App\Http\Controllers\CajaController::class, 'cobrar'])->name('cajas.cobrar');
+    Route::post('/cajas/gasto', [App\Http\Controllers\CajaController::class, 'registrarGasto'])->name('cajas.gasto');
+    Route::post('/cajas/cerrar', [App\Http\Controllers\CajaController::class, 'cerrarTurno'])->name('cajas.cerrar');
 
     // MÓDULO DE DESEMBOLSOS (TESORERÍA)
 Route::get('/desembolsos', [App\Http\Controllers\CreditoController::class, 'desembolsos'])->name('desembolsos.index');
