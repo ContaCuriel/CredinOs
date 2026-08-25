@@ -57,11 +57,18 @@ class CreditoController extends Controller
 
     public function show($id)
     {
-        // Traemos el crédito con todas sus relaciones (agregamos 'amortizaciones' para el Estado de Cuenta)
+        // Traemos el crédito con todas sus relaciones
         $credito = Credito::with(['producto', 'asesor', 'cliente', 'grupo', 'integrantes', 'cuentasDesembolso', 'garantia', 'amortizaciones'])->findOrFail($id);
         
-        // 🔥 NUEVA LÓGICA: Si ya se desembolsó (activo), mostramos el Estado de Cuenta
+        // 🔥 NUEVA LÓGICA: Si ya se desembolsó, calculamos si hay nuevas multas ANTES de mostrar la pantalla
         if ($credito->estatus === 'desembolsado') {
+            
+            // 1. Ejecutamos el calculador de moratorios en tiempo real
+            $this->actualizarMoratoriosCredito($credito); 
+            
+            // 2. Refrescamos la memoria del crédito para que traiga las multas recién calculadas
+            $credito->load('amortizaciones');
+
             return view('creditos.estado_cuenta', compact('credito'));
         }
 
@@ -791,4 +798,42 @@ public function carteraActiva(Request $request)
 
     return view('creditos.activos', compact('creditos', 'sucursales'));
 }
+
+// --- MOTOR INTELIGENTE DE MORATORIOS ---
+    private function actualizarMoratoriosCredito($credito)
+    {
+        $hoy = \Carbon\Carbon::now()->toDateString();
+        $horaActual = \Carbon\Carbon::now()->format('H:i'); 
+        
+        // Identificamos el valor del crédito
+        $valorCredito = $credito->monto_aprobado > 0 ? $credito->monto_aprobado : ($credito->monto_solicitado ?? 0);
+
+        foreach ($credito->amortizaciones as $cuota) {
+            // Si ya la pagó o la perdonaron, nos la saltamos
+            if ($cuota->estatus == 'pagado') {
+                continue;
+            }
+
+            $multaCalculada = 0;
+            $fechaVencimiento = \Carbon\Carbon::parse($cuota->fecha_pago)->toDateString();
+
+            if ($fechaVencimiento == $hoy) {
+                // Si es HOY, revisamos si ya pasaron las 10:00 AM
+                if ($horaActual >= '10:00') {
+                    $multaCalculada = 500.00;
+                }
+            } elseif ($fechaVencimiento < $hoy) {
+                // Si ya es un día o más de retraso: $500 + 10% del crédito
+                $multaCalculada = 500.00 + ($valorCredito * 0.10); 
+            }
+
+            // Solo actualizamos la base de datos si la multa generada ahora es DIFERENTE a la que ya tenía guardada
+            // (Así no gastamos recursos de la base de datos a lo tonto)
+            if ($multaCalculada > 0 && round($multaCalculada, 2) != $cuota->moratorios_generados) {
+                \Illuminate\Support\Facades\DB::table('credito_amortizaciones')
+                    ->where('id', $cuota->id)
+                    ->update(['moratorios_generados' => round($multaCalculada, 2)]);
+            }
+        }
+    }
 }
