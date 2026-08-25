@@ -89,7 +89,7 @@
         </div>
 
         <div class="row">
-            {{-- LISTA DE INTEGRANTES Y MONTOS --}}
+            {{-- LISTA DE INTEGRANTES Y MONTOS (Lado Izquierdo) --}}
             <div class="col-lg-4 mb-4">
                 <div class="card border-0 shadow-sm h-100">
                     <div class="card-header bg-white py-3">
@@ -118,13 +118,29 @@
                 </div>
             </div>
 
-            {{-- TABLA DE AMORTIZACIÓN (HISTORIAL DE PAGOS) --}}
+            {{-- SISTEMA DE PESTAÑAS DERECHO --}}
             <div class="col-lg-8">
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                        <h6 class="fw-bold text-dark mb-0"><i class="bi bi-table me-2 text-success"></i>Detalle de Cuotas e Historial de Pagos</h6>
-                    </div>
-                    <div class="card-body p-0">
+                
+                {{-- Navegación de Pestañas --}}
+                <ul class="nav nav-tabs fw-bold mb-3 border-bottom-0" id="estadoCuentaTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active text-primary border border-bottom-0 bg-white" id="amortizacion-tab" data-bs-toggle="tab" data-bs-target="#amortizacion" type="button" role="tab">
+                            <i class="bi bi-calendar3 me-1"></i> Control Semanal (Amortización)
+                        </button>
+                    </li>
+                    <li class="nav-item ms-1" role="presentation">
+                        <button class="nav-link text-success bg-light border border-bottom-0" id="historial-tab" data-bs-toggle="tab" data-bs-target="#historial" type="button" role="tab">
+                            <i class="bi bi-clock-history me-1"></i> Radiografía Forense (Tickets)
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content bg-white border border-top-0 rounded-bottom shadow-sm" id="estadoCuentaTabsContent">
+                    
+                    {{-- ========================================================================= --}}
+                    {{-- PESTAÑA 1: TABLA DE AMORTIZACIÓN (LO QUE YA TENÍAMOS) --}}
+                    {{-- ========================================================================= --}}
+                    <div class="tab-pane fade show active p-0" id="amortizacion" role="tabpanel">
                         <div class="table-responsive">
                             <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
                                 <thead class="bg-light">
@@ -135,7 +151,6 @@
                                         <th class="text-end">Moratorios</th>
                                         <th class="text-end">Pagó / Abono</th>
                                         <th class="text-center">Diferencia</th>
-                                        <th class="text-center">Fecha Pago Real</th>
                                         <th class="text-center pe-3">Estatus</th>
                                     </tr>
                                 </thead>
@@ -145,7 +160,6 @@
                                             $fechaVencimiento = \Carbon\Carbon::parse($cuota->fecha_pago);
                                             $estaAtrasada = $fechaVencimiento->isPast() && $cuota->estatus != 'pagado';
                                             
-                                            // Conectamos a las columnas reales que acabamos de crear en la base de datos
                                             $montoPagado = $cuota->monto_pagado ?? 0;
                                             $moratorios = $cuota->moratorios_generados ?? 0; 
                                             
@@ -159,17 +173,14 @@
                                             </td>
                                             <td class="text-end text-dark fw-bold">${{ number_format($cuota->total_cuota, 2) }}</td>
                                             
-                                            {{-- Moratorios calculados --}}
                                             <td class="text-end text-danger fw-bold">
                                                 ${{ number_format($moratorios, 2) }}
                                             </td>
 
-                                            {{-- Monto que dio el cliente --}}
                                             <td class="text-end fw-bold {{ $montoPagado > 0 ? 'text-success' : 'text-muted' }}">
                                                 ${{ number_format($montoPagado, 2) }}
                                             </td>
 
-                                            {{-- Diferencia (Dio de mas o de menos) --}}
                                             <td class="text-center">
                                                 @if($cuota->estatus == 'pagado' || $cuota->estatus == 'parcial')
                                                     @if($diferencia > 0)
@@ -184,16 +195,6 @@
                                                 @endif
                                             </td>
 
-                                            {{-- Fecha y Hora en que pagó --}}
-                                            <td class="text-center text-muted small">
-                                                @if($cuota->fecha_pago_real)
-                                                    {{ \Carbon\Carbon::parse($cuota->fecha_pago_real)->format('d/m/Y h:i A') }}
-                                                @else
-                                                    -- / --
-                                                @endif
-                                            </td>
-
-                                            {{-- Estatus Final --}}
                                             <td class="text-center pe-3">
                                                 @if($cuota->estatus == 'pagado')
                                                     <span class="badge bg-success w-100">Pagado</span>
@@ -211,9 +212,79 @@
                             </table>
                         </div>
                     </div>
+
+                    {{-- ========================================================================= --}}
+                    {{-- PESTAÑA 2: RADIOGRAFÍA FORENSE (LOS TICKETS FÍSICOS) --}}
+                    {{-- ========================================================================= --}}
+                    <div class="tab-pane fade p-3" id="historial" role="tabpanel">
+                        <div class="alert alert-light border shadow-sm mb-3">
+                            <i class="bi bi-info-circle-fill text-primary me-2"></i> 
+                            Aquí se muestra <strong>cada movimiento o billete ingresado</strong> a la caja asociado a este crédito, con su hora exacta, monto y botón para reimprimir el ticket original entregado al cliente.
+                        </div>
+
+                        @if($transacciones && $transacciones->count() > 0)
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-hover align-middle" style="font-size: 0.85rem;">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th class="text-center">Fecha y Hora Exacta</th>
+                                            <th>Cajero</th>
+                                            <th>Concepto (Semana / Multa)</th>
+                                            <th class="text-center">Método</th>
+                                            <th class="text-end">Monto Real</th>
+                                            <th class="text-center">Acción</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($transacciones as $tx)
+                                            <tr>
+                                                <td class="text-center fw-bold">
+                                                    {{ \Carbon\Carbon::parse($tx->created_at)->format('d/m/Y') }}<br>
+                                                    <span class="text-muted small">{{ \Carbon\Carbon::parse($tx->created_at)->format('h:i:s A') }}</span>
+                                                </td>
+                                                <td class="text-muted small">{{ mb_strtoupper($tx->corteCaja->usuario->name ?? 'CAJERO SISTEMA') }}</td>
+                                                <td class="fw-bold text-dark">{{ mb_strtoupper($tx->concepto) }}</td>
+                                                <td class="text-center"><span class="badge bg-secondary">{{ mb_strtoupper($tx->metodo_pago) }}</span></td>
+                                                <td class="text-end fw-bold text-success">${{ number_format($tx->monto, 2) }}</td>
+                                                <td class="text-center">
+                                                    {{-- Usamos la ruta original del ticket físico que creaste hace rato --}}
+                                                    <a href="{{ route('cajas.ticket', $tx->id) }}" target="_blank" class="btn btn-sm btn-outline-dark fw-bold" style="padding: 2px 8px;">
+                                                        <i class="bi bi-printer-fill me-1"></i> Reimprimir
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @else
+                            <div class="text-center py-5">
+                                <i class="bi bi-inbox fs-1 text-muted"></i>
+                                <h5 class="text-muted mt-3">Aún no hay tickets registrados</h5>
+                                <p class="small text-muted">Cuando el cliente realice su primer pago, los recibos aparecerán aquí.</p>
+                            </div>
+                        @endif
+                    </div>
                 </div>
             </div>
         </div>
 
     </div>
+
+    {{-- SCRIPTS PARA CONTROLAR LOS COLORES DE LAS PESTAÑAS --}}
+    @push('scripts')
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const tabs = document.querySelectorAll('button[data-bs-toggle="tab"]');
+            tabs.forEach(tab => {
+                tab.addEventListener('shown.bs.tab', function (event) {
+                    tabs.forEach(t => t.classList.remove('bg-white'));
+                    tabs.forEach(t => t.classList.add('bg-light'));
+                    event.target.classList.remove('bg-light');
+                    event.target.classList.add('bg-white');
+                });
+            });
+        });
+    </script>
+    @endpush
 </x-app-layout>

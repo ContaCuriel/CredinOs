@@ -310,13 +310,20 @@ class CajaController extends Controller
 
     public function imprimirTicket($id)
     {
-        $transaccion = \App\Models\TransaccionCaja::with(['corteCaja.usuario', 'corteCaja.caja.sucursal'])->findOrFail($id);
+        // 1. Traemos la transacción sencilla (sin forzar relaciones en el modelo)
+        $transaccion = \App\Models\TransaccionCaja::findOrFail($id);
         
-        // Buscamos la cuota usando la referencia_id que guardamos al cobrar
-        $cuota = \App\Models\Amortizacion::with(['credito.cliente', 'credito.grupo', 'credito.patron'])->find($transaccion->referencia_id);
+        // 2. Buscamos el corte de caja manualmente para saber quién cobró y en qué sucursal
+        $corte = \App\Models\CorteCaja::with(['usuario', 'caja.sucursal'])->find($transaccion->corte_caja_id);
+        
+        // Inyectamos el corte a la transacción para que tu vista ticket.blade.php lo lea perfecto
+        $transaccion->setRelation('corteCaja', $corte);
+
+        // 3. Traemos la cuota (Usando tu modelo CORRECTO: CreditoAmortizacion)
+        $cuota = \App\Models\CreditoAmortizacion::with(['credito.cliente', 'credito.grupo', 'credito.patron'])->find($transaccion->referencia_id);
         $credito = $cuota->credito ?? null;
 
-        // 🖼️ Convertir Logo a Base64
+        // 4. Convertir Logo a Base64
         $logo_base64 = null;
         if ($credito && $credito->patron && $credito->patron->logo_path) {
             $path = public_path('storage/' . $credito->patron->logo_path);
@@ -339,7 +346,7 @@ class CajaController extends Controller
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('cajas.pdf.ticket', $data);
         
-        // 🔥 MAGIA: Formato Ticket Térmico 80mm de ancho (alto dinámico)
+        // Formato Ticket Térmico 80mm de ancho (alto dinámico)
         $pdf->setPaper([0, 0, 226.77, 600], 'portrait'); 
 
         return $pdf->stream('Ticket_' . $transaccion->id . '.pdf');

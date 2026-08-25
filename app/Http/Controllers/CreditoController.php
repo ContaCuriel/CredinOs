@@ -60,24 +60,31 @@ class CreditoController extends Controller
         // Traemos el crédito con todas sus relaciones
         $credito = Credito::with(['producto', 'asesor', 'cliente', 'grupo', 'integrantes', 'cuentasDesembolso', 'garantia', 'amortizaciones'])->findOrFail($id);
         
-        // 🔥 NUEVA LÓGICA: Si ya se desembolsó, calculamos si hay nuevas multas ANTES de mostrar la pantalla
         if ($credito->estatus === 'desembolsado') {
             
-            // 1. Ejecutamos el calculador de moratorios en tiempo real
+            // 1. Ejecutamos el calculador de moratorios en tiempo real (Motor Individual)
             $this->actualizarMoratoriosCredito($credito); 
             
-            // 2. Refrescamos la memoria del crédito para que traiga las multas recién calculadas
+            // 2. Refrescamos la memoria del crédito
             $credito->load('amortizaciones');
 
-            return view('creditos.estado_cuenta', compact('credito'));
+            // 3. 🔥 NUEVO: Traemos el historial forense de cada ticket pagado
+            $cuotasIds = $credito->amortizaciones->pluck('id'); // Sacamos los IDs de todas sus semanas
+            $transacciones = \App\Models\TransaccionCaja::with('corteCaja.usuario')
+                                ->whereIn('referencia_id', $cuotasIds) // Buscamos los tickets de estas semanas
+                                ->where('tipo', 'ingreso')
+                                ->orderBy('created_at', 'desc') // Los más recientes primero
+                                ->get();
+
+            // Pasamos ambas cosas a la vista
+            return view('creditos.estado_cuenta', compact('credito', 'transacciones'));
         }
 
-        // Si sigue en solicitud o aprobado, traemos los catálogos para el Modal de Aprobación
+        // Si sigue en solicitud o aprobado...
         $patrones = \App\Models\Patron::orderBy('nombre_comercial')->get();
         $cuentasEmpresa = \App\Models\CuentaBancaria::where('activa', true)->get();
         $sucursales = \App\Models\Sucursal::orderBy('nombre_sucursal')->get();
         
-        // Retornamos la vista original de revisión/autorización
         return view('creditos.show', compact('credito', 'patrones', 'cuentasEmpresa', 'sucursales'));
     }
 
