@@ -233,7 +233,6 @@
 
     @push('scripts')
     <script>
-        // Traemos los créditos desde Laravel en formato JSON
         const creditosActivos = @json($creditos);
 
         document.getElementById('select_credito').addEventListener('change', function() {
@@ -241,16 +240,12 @@
             const credito = creditosActivos.find(c => c.id == creditoId);
             
             if(credito) {
-                // Mostrar paneles
                 document.getElementById('panel_cobro_vacio').classList.add('d-none');
                 document.getElementById('panel_cobro_activo').classList.remove('d-none');
                 document.getElementById('info_credito').classList.remove('d-none');
                 
-                // Llenar ID oculto para el cobro
                 document.getElementById('input_credito_id').value = credito.id;
-
-                // Buscar la próxima cuota pendiente
-                const proximaCuota = credito.amortizaciones[0]; // Como están ordenadas, la [0] es la más vieja pendiente
+                const proximaCuota = credito.amortizaciones[0];
 
                 if(proximaCuota) {
                     // 1. Mostrar Monto y Número de Semana
@@ -260,34 +255,65 @@
                     let inputMonto = document.getElementById('input_monto_recibido');
                     inputMonto.value = proximaCuota.total_cuota;
                     
-                    // 2. Formatear fecha (Limpiamos la hora para que no de Invalid Date)
-                    let fechaLimpia = proximaCuota.fecha_pago.split(' ')[0];
-                    const fechaObj = new Date(fechaLimpia + 'T00:00:00');
-                    document.getElementById('txt_cuota_fecha').innerText = 'Vencimiento: ' + fechaObj.toLocaleDateString('es-MX');
+                    // =========================================================
+                    // 2. PARSEO DE FECHA BLINDADO EXTREMO (Adiós Invalid Date)
+                    // =========================================================
+                    let fpStr = String(proximaCuota.fecha_pago);
+                    let anio, mes, dia;
+                    let isAtrasado = false;
+                    let textoFecha = '--/--/----';
 
-                    // 3. Validar si está atrasado
-                    const hoy = new Date(); 
-                    hoy.setHours(0,0,0,0);
-                    
-                    if (fechaObj < hoy) {
+                    // Intentar formato YYYY-MM-DD
+                    let matchYMD = fpStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                    // Intentar formato DD/MM/YYYY
+                    let matchDMY = fpStr.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+
+                    if (matchYMD) {
+                        anio = parseInt(matchYMD[1]);
+                        mes = parseInt(matchYMD[2]) - 1; // JS cuenta meses del 0 al 11
+                        dia = parseInt(matchYMD[3]);
+                    } else if (matchDMY) {
+                        dia = parseInt(matchDMY[1]);
+                        mes = parseInt(matchDMY[2]) - 1;
+                        anio = parseInt(matchDMY[3]);
+                    }
+
+                    if (anio !== undefined) {
+                        const fechaObj = new Date(anio, mes, dia);
+                        let d = String(fechaObj.getDate()).padStart(2, '0');
+                        let m = String(fechaObj.getMonth() + 1).padStart(2, '0');
+                        let y = fechaObj.getFullYear();
+                        textoFecha = d + '/' + m + '/' + y;
+
+                        const hoy = new Date();
+                        hoy.setHours(0,0,0,0);
+                        if (fechaObj < hoy) {
+                            isAtrasado = true;
+                        }
+                    } else {
+                        textoFecha = fpStr; // Por si llega algo ultra raro
+                    }
+
+                    document.getElementById('txt_cuota_fecha').innerText = 'Vencimiento: ' + textoFecha;
+
+                    if (isAtrasado) {
                         document.getElementById('alerta_moratorios').classList.remove('d-none');
                     } else {
                         document.getElementById('alerta_moratorios').classList.add('d-none');
                     }
+                    // =========================================================
 
-                    // ====== LÓGICA DE DESGLOSE INDIVIDUAL ======
+                    // 3. LÓGICA DE DESGLOSE INDIVIDUAL (Grupos)
                     const chkDesglose = document.getElementById('chk_desglose');
                     const divToggle = document.getElementById('div_toggle_desglose');
                     const divLista = document.getElementById('div_lista_integrantes');
                     const contenedorIntegrantes = document.getElementById('contenedor_integrantes');
 
-                    // Reiniciamos todo por si cambió de crédito
                     chkDesglose.checked = false;
                     divLista.classList.add('d-none');
                     contenedorIntegrantes.innerHTML = '';
                     inputMonto.readOnly = false;
 
-                    // Si es grupo (tiene más de 1 integrante), activamos el switch
                     if (credito.integrantes && credito.integrantes.length > 1) {
                         divToggle.classList.remove('d-none');
                         
@@ -296,7 +322,7 @@
 
                         credito.integrantes.forEach(integrante => {
                             let montoInd = parseFloat(integrante.pivot.monto_individual) || 0;
-                            let cuotaInd = (montoInd / totalAprobado) * cuotaGlobal; // Proporcional
+                            let cuotaInd = (montoInd / totalAprobado) * cuotaGlobal;
                             let idCliente = integrante.id_cliente || integrante.id;
 
                             contenedorIntegrantes.innerHTML += `
@@ -313,21 +339,20 @@
                             `;
                         });
 
-                        // Activar o desactivar desglose
                         chkDesglose.onchange = function() {
                             const inputs = document.querySelectorAll('.input-cuota-ind');
                             if (this.checked) {
                                 divLista.classList.remove('d-none');
-                                inputMonto.readOnly = true; // El cajero no lo puede teclear, se suma automático
+                                inputMonto.readOnly = true; 
                                 inputs.forEach(inp => {
-                                    inp.disabled = false; // Se habilitan para mandarse al backend
+                                    inp.disabled = false; 
                                     inp.addEventListener('input', sumarCantidades);
                                 });
                                 sumarCantidades();
                             } else {
                                 divLista.classList.add('d-none');
                                 inputMonto.readOnly = false;
-                                inputs.forEach(inp => inp.disabled = true); // Se bloquean para ignorarse
+                                inputs.forEach(inp => inp.disabled = true); 
                                 inputMonto.value = proximaCuota.total_cuota;
                             }
                         };
@@ -340,14 +365,12 @@
                             inputMonto.value = totalAcumulado.toFixed(2);
                         }
                     } else {
-                        // Es individual, no mostrar switch
                         divToggle.classList.add('d-none');
                     }
                 }
             }
         });
 
-        // Función para habilitar la referencia si pagan con Tarjeta/Terminal
         function toggleReferenciaTerminal() {
             const metodo = document.getElementById('select_metodo_pago').value;
             const divRef = document.getElementById('div_referencia_terminal');
@@ -361,18 +384,14 @@
             }
         }
 
-        // Función para abrir el Estado de Cuenta en Modal
         function abrirEstadoCuenta() {
             const creditoId = document.getElementById('input_credito_id').value;
             if(!creditoId) return;
 
-            // Construimos la URL al vuelo
             const urlBase = "{{ route('creditos.show', ':id') }}";
             const urlFinal = urlBase.replace(':id', creditoId);
 
-            // Se la inyectamos al Iframe y mostramos el modal
             document.getElementById('iframe_estado_cuenta').src = urlFinal;
-            
             const modal = new bootstrap.Modal(document.getElementById('modalEstadoCuenta'));
             modal.show();
         }
