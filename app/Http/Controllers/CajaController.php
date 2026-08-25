@@ -103,11 +103,14 @@ class CajaController extends Controller
                                 ->with('caja')
                                 ->firstOrFail();
 
-        // Agregamos la relación 'integrantes' para calcular sus cuotas individuales
+        // 🔥 1. MOTOR GLOBAL: Actualizar todas las moras ANTES de cargar los datos al cajero
+        $this->actualizarMoratoriosGlobales();
+
+        // 2. Traer los créditos ya con las multas frescas y reales
         $creditos = \App\Models\Credito::with([
             'cliente', 
             'grupo', 
-            'integrantes', // <-- CRUCIAL PARA EL DESGLOSE
+            'integrantes',
             'amortizaciones' => function($q) {
                 $q->where('estatus', '!=', 'pagado')->orderBy('numero_cuota', 'asc');
             }
@@ -218,6 +221,50 @@ class CajaController extends Controller
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\DB::rollBack();
             return back()->with('error', 'Error al procesar el pago: ' . $e->getMessage());
+        }
+    }
+
+    // --- MOTOR INTELIGENTE DE MORATORIOS GLOBAL ---
+    private function actualizarMoratoriosGlobales()
+    {
+        $hoy = \Carbon\Carbon::now()->toDateString();
+        $horaActual = \Carbon\Carbon::now()->format('H:i'); 
+
+        // Traemos TODAS las cuotas atrasadas o que vencen hoy y no están pagadas de la BD
+        $cuotasAtrasadas = \Illuminate\Support\Facades\DB::table('credito_amortizaciones')
+            ->join('creditos', 'credito_amortizaciones.credito_id', '=', 'creditos.id')
+            ->select(
+                'credito_amortizaciones.id', 
+                'credito_amortizaciones.fecha_pago',
+                'credito_amortizaciones.moratorios_generados',
+                'creditos.monto_aprobado',
+                'creditos.monto_solicitado'
+            )
+            ->where('credito_amortizaciones.estatus', '!=', 'pagado')
+            ->where('credito_amortizaciones.fecha_pago', '<=', $hoy)
+            ->where('creditos.estatus', 'desembolsado') // Solo créditos activos
+            ->get();
+
+        foreach($cuotasAtrasadas as $cuota) {
+            $multa = 0;
+            $fechaVencimiento = \Carbon\Carbon::parse($cuota->fecha_pago)->toDateString();
+            $valorCredito = $cuota->monto_aprobado > 0 ? $cuota->monto_aprobado : ($cuota->monto_solicitado ?? 0);
+
+            if ($fechaVencimiento == $hoy) {
+                if ($horaActual >= '10:00') {
+                    $multa = 500.00;
+                }
+            } elseif ($fechaVencimiento < $hoy) {
+                $multa = 500.00 + ($valorCredito * 0.10); 
+            }
+
+            // Solo hace el UPDATE si la multa es diferente a la que ya estaba guardada.
+            // Esto hace que sea absurdamente rápido (milisegundos) aunque tengas miles de créditos.
+            if ($multa > 0 && round($multa, 2) != $cuota->moratorios_generados) {
+                \Illuminate\Support\Facades\DB::table('credito_amortizaciones')
+                    ->where('id', $cuota->id)
+                    ->update(['moratorios_generados' => round($multa, 2)]);
+            }
         }
     }
 }
