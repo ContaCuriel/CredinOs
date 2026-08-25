@@ -323,12 +323,11 @@ Route::get('/reparar-historial-pagos', function () {
 
         // 2. REGLA DE MORATORIOS (500 después de las 10 AM, 10% al día siguiente)
         $hoy = \Carbon\Carbon::now()->toDateString();
-        // Usamos formato 24 hrs. Si te referías a las 10 de la noche, cambia '10:00' por '22:00'
+        // Usamos formato 24 hrs
         $horaActual = \Carbon\Carbon::now()->format('H:i'); 
 
-        // Traemos las cuotas pendientes que venzan HOY o ANTES, junto con los datos de su crédito
-        $cuotasAtrasadas = \App\Models\Amortizacion::with('credito')
-                                                   ->where('estatus', '!=', 'pagado')
+        // Traemos las cuotas pendientes que venzan HOY o ANTES
+        $cuotasAtrasadas = \App\Models\Amortizacion::where('estatus', '!=', 'pagado')
                                                    ->where('fecha_pago', '<=', $hoy)
                                                    ->get();
         $moratoriosCount = 0;
@@ -337,8 +336,13 @@ Route::get('/reparar-historial-pagos', function () {
             $multa = 0;
             $fechaVencimiento = \Carbon\Carbon::parse($cuota->fecha_pago)->toDateString();
             
-            // Calculamos el "Valor del crédito"
-            $valorCredito = $cuota->credito->monto_aprobado > 0 ? $cuota->credito->monto_aprobado : $cuota->credito->monto_solicitado;
+            // Blindaje: Buscamos el crédito manualmente para evitar errores de relación
+            $credito = \App\Models\Credito::find($cuota->credito_id);
+            $valorCredito = 0;
+            
+            if ($credito) {
+                $valorCredito = $credito->monto_aprobado > 0 ? $credito->monto_aprobado : ($credito->monto_solicitado ?? 0);
+            }
 
             if ($fechaVencimiento == $hoy) {
                 // Es HOY. Verificamos la hora (Si ya pasaron las 10:00 hrs)
@@ -347,7 +351,6 @@ Route::get('/reparar-historial-pagos', function () {
                 }
             } elseif ($fechaVencimiento < $hoy) {
                 // Ya pasó el día de pago. 
-                // Se acumulan los 500 de ayer + el 10% del valor total del crédito
                 $multa = 500.00 + ($valorCredito * 0.10); 
             }
 
@@ -371,7 +374,9 @@ Route::get('/reparar-historial-pagos', function () {
 
     } catch (\Exception $e) {
         \Illuminate\Support\Facades\DB::rollBack();
-        return "<h1 style='color: red;'>Error del Sistema</h1><p>" . $e->getMessage() . " en la línea " . $e->getLine() . "</p>";
+        return "<h1 style='color: red;'>Error del Sistema</h1>
+                <p><b>Mensaje:</b> " . $e->getMessage() . "</p>
+                <p><b>Línea:</b> " . $e->getLine() . "</p>";
     }
 });
 
