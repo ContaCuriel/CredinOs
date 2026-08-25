@@ -242,7 +242,7 @@
                                                     {{ \Carbon\Carbon::parse($tx->created_at)->format('d/m/Y') }}<br>
                                                     <span class="text-muted small">{{ \Carbon\Carbon::parse($tx->created_at)->format('h:i:s A') }}</span>
                                                 </td>
-                                                <td class="text-muted small">{{ mb_strtoupper($tx->corteCaja->usuario->name ?? 'CAJERO SISTEMA') }}</td>
+                                                <td class="text-muted small">{{ mb_strtoupper($tx->nombre_cajero) }}</td>
                                                 <td class="fw-bold text-dark">{{ mb_strtoupper($tx->concepto) }}</td>
                                                 <td class="text-center"><span class="badge bg-secondary">{{ mb_strtoupper($tx->metodo_pago) }}</span></td>
                                                 <td class="text-end fw-bold text-success">${{ number_format($tx->monto, 2) }}</td>

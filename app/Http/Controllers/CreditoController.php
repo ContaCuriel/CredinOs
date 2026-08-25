@@ -68,13 +68,27 @@ class CreditoController extends Controller
             // 2. Refrescamos la memoria del crédito
             $credito->load('amortizaciones');
 
-            // 3. 🔥 NUEVO: Traemos el historial forense de cada ticket pagado
-            $cuotasIds = $credito->amortizaciones->pluck('id'); // Sacamos los IDs de todas sus semanas
-            $transacciones = \App\Models\TransaccionCaja::with('corteCaja.usuario')
-                                ->whereIn('referencia_id', $cuotasIds) // Buscamos los tickets de estas semanas
+            // 3. 🔥 NUEVO: Traemos el historial de cada ticket SIN forzar relaciones
+            $cuotasIds = $credito->amortizaciones->pluck('id'); 
+            
+            $transacciones = \App\Models\TransaccionCaja::whereIn('referencia_id', $cuotasIds)
                                 ->where('tipo', 'ingreso')
-                                ->orderBy('created_at', 'desc') // Los más recientes primero
+                                ->orderBy('created_at', 'desc')
                                 ->get();
+
+            // Buscamos el nombre del cajero manualmente para evitar el error
+            foreach ($transacciones as $tx) {
+                $corte = \App\Models\CorteCaja::find($tx->corte_caja_id);
+                $tx->nombre_cajero = 'CAJERO DESCONOCIDO';
+                
+                if ($corte) {
+                    // Si tu modelo de usuarios no se llama User, cámbialo aquí
+                    $usuario = \App\Models\User::find($corte->usuario_id);
+                    if ($usuario) {
+                        $tx->nombre_cajero = $usuario->name;
+                    }
+                }
+            }
 
             // Pasamos ambas cosas a la vista
             return view('creditos.estado_cuenta', compact('credito', 'transacciones'));
