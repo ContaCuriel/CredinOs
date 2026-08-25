@@ -799,40 +799,76 @@ public function carteraActiva(Request $request)
     return view('creditos.activos', compact('creditos', 'sucursales'));
 }
 
-// --- MOTOR INTELIGENTE DE MORATORIOS ---
-    private function actualizarMoratoriosCredito($credito)
+// --- MOTOR INTELIGENTE DE MORATORIOS (CONECTADO A PRODUCTOS) ---
+    private function actualizarMoratoriosGlobales()
     {
         $hoy = \Carbon\Carbon::now()->toDateString();
         $horaActual = \Carbon\Carbon::now()->format('H:i'); 
-        
-        // Identificamos el valor del crédito
-        $valorCredito = $credito->monto_aprobado > 0 ? $credito->monto_aprobado : ($credito->monto_solicitado ?? 0);
 
-        foreach ($credito->amortizaciones as $cuota) {
-            // Si ya la pagó o la perdonaron, nos la saltamos
-            if ($cuota->estatus == 'pagado') {
-                continue;
-            }
+        // Unimos 3 tablas de golpe (Amortizaciones + Creditos + Productos) para leer las reglas dinámicas
+        $cuotasAtrasadas = \Illuminate\Support\Facades\DB::table('credito_amortizaciones')
+            ->join('creditos', 'credito_amortizaciones.credito_id', '=', 'creditos.id')
+            ->join('productos_credito', 'creditos.producto_id', '=', 'productos_credito.id')
+            ->select(
+                'credito_amortizaciones.id', 
+                'credito_amortizaciones.fecha_pago',
+                'credito_amortizaciones.total_cuota',
+                'credito_amortizaciones.moratorios_generados',
+                'creditos.monto_aprobado',
+                'creditos.monto_solicitado',
+                'productos_credito.hora_maxima_pago',
+                'productos_credito.multa_valor',
+                'productos_credito.mora_valor',
+                'productos_credito.mora_calculo',
+                'productos_credito.politica_acumulacion'
+            )
+            ->where('credito_amortizaciones.estatus', '!=', 'pagado')
+            ->where('credito_amortizaciones.fecha_pago', '<=', $hoy)
+            ->where('creditos.estatus', 'desembolsado') 
+            ->get();
 
-            $multaCalculada = 0;
+        foreach($cuotasAtrasadas as $cuota) {
+            $multa = 0;
             $fechaVencimiento = \Carbon\Carbon::parse($cuota->fecha_pago)->toDateString();
+            $valorCredito = $cuota->monto_aprobado > 0 ? $cuota->monto_aprobado : ($cuota->monto_solicitado ?? 0);
 
+            // 1. Leemos las reglas del producto (Con valores por defecto de seguridad)
+            $horaLimite = $cuota->hora_maxima_pago ? \Carbon\Carbon::parse($cuota->hora_maxima_pago)->format('H:i') : '10:00';
+            $valorMulta = floatval($cuota->multa_valor ?? 500); 
+            $porcentajeMora = floatval($cuota->mora_valor ?? 10) / 100; // Ej. 10 -> 0.10
+
+            // 2. Evaluamos HOY
             if ($fechaVencimiento == $hoy) {
-                // Si es HOY, revisamos si ya pasaron las 10:00 AM
-                if ($horaActual >= '10:00') {
-                    $multaCalculada = 500.00;
+                if ($horaActual >= $horaLimite) {
+                    $multa = $valorMulta; // Aplica la multa fija (Ej. $500)
                 }
-            } elseif ($fechaVencimiento < $hoy) {
-                // Si ya es un día o más de retraso: $500 + 10% del crédito
-                $multaCalculada = 500.00 + ($valorCredito * 0.10); 
+            } 
+            // 3. Evaluamos DÍAS DE ATRASO
+            elseif ($fechaVencimiento < $hoy) {
+                $moraCalculada = 0;
+
+                // ¿La mora es sobre el crédito total o sobre la cuota?
+                if ($cuota->mora_calculo == 'porcentaje_cuota') {
+                    $moraCalculada = $cuota->total_cuota * $porcentajeMora;
+                } else {
+                    // Por defecto: Porcentaje sobre el valor total del crédito
+                    $moraCalculada = $valorCredito * $porcentajeMora;
+                }
+
+                // ¿Se acumula a la multa de $500 o la reemplaza?
+                if ($cuota->politica_acumulacion == 'suma_multa') {
+                    $multa = $valorMulta + $moraCalculada; 
+                } else {
+                    // Reemplaza multa (Solo cobra el 10%)
+                    $multa = $moraCalculada;
+                }
             }
 
-            // Solo actualizamos la base de datos si la multa generada ahora es DIFERENTE a la que ya tenía guardada
-            // (Así no gastamos recursos de la base de datos a lo tonto)
-            if ($multaCalculada > 0 && round($multaCalculada, 2) != $cuota->moratorios_generados) {
+            // 4. Guardamos si hubo cambios
+            if ($multa > 0 && round($multa, 2) != $cuota->moratorios_generados) {
                 \Illuminate\Support\Facades\DB::table('credito_amortizaciones')
                     ->where('id', $cuota->id)
-                    ->update(['moratorios_generados' => round($multaCalculada, 2)]);
+                    ->update(['moratorios_generados' => round($multa, 2)]);
             }
         }
     }
