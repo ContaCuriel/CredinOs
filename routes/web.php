@@ -307,14 +307,13 @@ Route::get('/cartera-activa', [App\Http\Controllers\CreditoController::class, 'c
 
 Route::get('/setup-smars-db-2026', function () {
     try {
-        $tenant = \App\Models\Tenant::find(3);
+        $tenant = \App\Models\Tenant::find(4); // Carga el tenant de Universo
         if (!$tenant) {
-            return "Tenant con ID 3 no encontrado en la base central.";
+            return "Tenant con ID 4 no encontrado en la base central.";
         }
         
         $tenant->makeCurrent();
 
-        // Forzamos la migración incluyendo ambas rutas de migraciones
         \Illuminate\Support\Facades\Artisan::call('migrate:fresh', [
             '--database' => 'tenant',
             '--path' => [
@@ -325,7 +324,7 @@ Route::get('/setup-smars-db-2026', function () {
             '--force' => true,
         ]);
 
-        return " Base de datos de Smars migrada completamente con todas las tablas y seeders.";
+        return " Base de datos de Universo (universo_db) instalada y sembrada con éxito.";
     } catch (\Exception $e) {
         return "Error al migrar: " . $e->getMessage();
     }
