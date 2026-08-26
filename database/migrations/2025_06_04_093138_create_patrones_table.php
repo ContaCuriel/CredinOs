@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('razon_social', 255)->unique()->comment('Nombre o Razón Social fiscal');
             $table->enum('tipo_persona', ['fisica', 'moral'])->comment('Física o Moral');
             $table->string('rfc', 13)->unique();
+            $table->string('curp', 18)->nullable();
             $table->text('direccion_fiscal')->nullable();
             $table->text('actividad_principal')->nullable();
             $table->string('representante_legal', 255)->nullable()->comment('Solo si es Persona Moral o si aplica');

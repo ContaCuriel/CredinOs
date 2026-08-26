@@ -43,6 +43,7 @@ use App\Http\Controllers\PortalEmpleadoController;
 use App\Http\Controllers\RenunciaController;
 use App\Http\Controllers\SaldosInicialesController;
 use App\Http\Controllers\ProductoCreditoController;
+use App\Models\Tenant;
 
 /*
 |--------------------------------------------------------------------------
@@ -305,16 +306,21 @@ Route::get('/cartera-activa', [App\Http\Controllers\CreditoController::class, 'c
     });
 });
 
-Route::get('/setup-smars-db-2026', function () {
+Route::get('/setup-tenant-db', function (Request $request) {
     try {
-        $tenant = \App\Models\Tenant::find(4); // Carga el tenant de Universo
+        // Toma el ID de la URL (ej. /setup-tenant-db?id=4), si no pone nada usa el 4 por defecto
+        $tenantId = $request->query('id', 4);
+
+        $tenant = Tenant::find($tenantId);
         if (!$tenant) {
-            return "Tenant con ID 4 no encontrado en la base central.";
+            return "❌ Error: Tenant con ID {$tenantId} no fue encontrado en la base central.";
         }
-        
+
+        // Conecta únicamente a la base de datos de esa empresa
         $tenant->makeCurrent();
 
-        \Illuminate\Support\Facades\Artisan::call('migrate:fresh', [
+        // Reconstruye todas las tablas desde cero y ejecuta los Seeders
+        Artisan::call('migrate:fresh', [
             '--database' => 'tenant',
             '--path' => [
                 'database/migrations',
@@ -324,9 +330,9 @@ Route::get('/setup-smars-db-2026', function () {
             '--force' => true,
         ]);
 
-        return " Base de datos de Universo (universo_db) instalada y sembrada con éxito.";
+        return " Base de datos de '{$tenant->name}' (ID: {$tenant->id}) recreada desde cero y sembrada con éxito.";
     } catch (\Exception $e) {
-        return "Error al migrar: " . $e->getMessage();
+        return "❌ Error al migrar: " . $e->getMessage();
     }
 });
 
