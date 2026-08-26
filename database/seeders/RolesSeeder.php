@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB; // ¡Importante!
+use Spatie\Permission\Models\Role; // 🔥 ESTA ES LA LÍNEA QUE FALTABA 🔥
 
 class RolesSeeder extends Seeder
 {
@@ -21,6 +22,7 @@ class RolesSeeder extends Seeder
             ['name' => 'Administrador', 'guard_name' => 'web'],
             ['name' => 'Aux. Contable', 'guard_name' => 'web'],
             ['name' => 'RH', 'guard_name' => 'web'],
+            ['name' => 'Admin-RH', 'guard_name' => 'web'], // <-- Agregamos el rol especial para las nuevas empresas
         ];
 
         foreach ($roles as $roleData) {

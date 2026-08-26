@@ -475,4 +475,64 @@ class CajaController extends Controller
 
         return $pdf->stream('Ticket_Cuota_' . $cuota->numero_cuota . '.pdf');
     }
+
+    public function registrarGasto(Request $request)
+    {
+        $request->validate([
+            'concepto' => 'required|string|max:255',
+            'monto' => 'required|numeric|min:0.01',
+        ]);
+
+        try {
+            \Illuminate\Support\Facades\DB::beginTransaction();
+
+            // 1. Buscamos el turno abierto del cajero
+            $turnoActivo = \App\Models\CorteCaja::where('usuario_id', auth()->id())
+                                    ->where('estatus', 'abierto')
+                                    ->with('caja')
+                                    ->firstOrFail();
+
+            // Validación de seguridad: Que no saque más dinero del que tiene
+            if ($turnoActivo->saldo_teorico < $request->monto) {
+                return back()->with('error', 'No hay suficiente saldo en efectivo en la caja para este gasto.');
+            }
+
+            // 2. Registramos el movimiento (Egreso) en el historial de la Caja
+            \App\Models\TransaccionCaja::create([
+                'corte_caja_id' => $turnoActivo->id,
+                'tipo' => 'egreso',
+                'concepto' => 'GASTO: ' . mb_strtoupper($request->concepto),
+                'monto' => $request->monto,
+                'metodo_pago' => 'efectivo',
+                'descripcion' => 'Retiro de efectivo en caja'
+            ]);
+
+            // 🔥 3. CONEXIÓN DIRECTA AL MÓDULO DE GASTOS 🔥
+            \App\Models\Gasto::create([
+                'descripcion' => mb_strtoupper($request->concepto),
+                'monto' => $request->monto,
+                'fecha_gasto' => now()->toDateString(),
+                'sucursal_id' => $turnoActivo->caja->sucursal_id,
+                'usuario_registra_id' => auth()->id(), // Usando la llave de tu modelo
+                'estado' => 'pagado', // Asumimos 'pagado' porque el dinero ya salió físicamente
+                'requiere_aprobacion' => false // Ya salió de la caja, no hay vuelta atrás
+            ]);
+
+            // 4. Actualizamos el dinero del Cajero y de la Caja
+            $turnoActivo->egresos += $request->monto;
+            $turnoActivo->saldo_teorico -= $request->monto;
+            $turnoActivo->save();
+
+            $turnoActivo->caja->saldo_actual -= $request->monto;
+            $turnoActivo->caja->save();
+
+            \Illuminate\Support\Facades\DB::commit();
+
+            return back()->with('success', 'Gasto registrado exitosamente. Se retiraron $' . number_format($request->monto, 2) . ' de la caja y se generó el registro en contabilidad.');
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            return back()->with('error', 'Error al registrar el gasto: ' . $e->getMessage());
+        }
+    }
 }
