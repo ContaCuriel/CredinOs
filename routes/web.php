@@ -306,23 +306,29 @@ Route::get('/cartera-activa', [App\Http\Controllers\CreditoController::class, 'c
 });
 
 Route::get('/setup-smars-db-2026', function () {
-    // 1. Buscamos a Smars por su ID de tenant
-    $tenant = \App\Models\Tenant::find(3);
-    
-    if (!$tenant) {
-        return "Tenant no encontrado.";
+    try {
+        $tenant = \App\Models\Tenant::find(3);
+        if (!$tenant) {
+            return "Tenant con ID 3 no encontrado en la base central.";
+        }
+        
+        $tenant->makeCurrent();
+
+        // Forzamos la migración incluyendo ambas rutas de migraciones
+        \Illuminate\Support\Facades\Artisan::call('migrate:fresh', [
+            '--database' => 'tenant',
+            '--path' => [
+                'database/migrations',
+                'database/migrations/tenant'
+            ],
+            '--seed' => true,
+            '--force' => true,
+        ]);
+
+        return " Base de datos de Smars migrada completamente con todas las tablas y seeders.";
+    } catch (\Exception $e) {
+        return "Error al migrar: " . $e->getMessage();
     }
-
-    // 2. Cambiamos la conexión exclusivamente a Smars
-    $tenant->makeCurrent();
-
-    // 3. Ejecutamos migraciones y seeders SOLO dentro de Smars
-    \Illuminate\Support\Facades\Artisan::call('migrate:fresh', [
-        '--seed' => true,
-        '--force' => true,
-    ]);
-
-    return " Base de datos de Smars instalada y lista con éxito.";
 });
 
 // --- RUTA DE LIMPIEZA TOTAL ---
