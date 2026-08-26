@@ -19,7 +19,7 @@ return new class extends Migration
             numero_cuenta VARCHAR(50) NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            CONSTRAINT fk_ccd_credito FOREIGN KEY (credito_id) REFERENCES \"$schema\".creditos (id) ON DELETE CASCADE
+            CONSTRAINT fk_ccd_credito FOREIGN KEY (credito_id) REFERENCES \"$schema\".creditos (id_credito) ON DELETE CASCADE
         )";
         DB::connection('tenant')->statement($sql);
     }
