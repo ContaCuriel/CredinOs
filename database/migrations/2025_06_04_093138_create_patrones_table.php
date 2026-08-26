@@ -6,29 +6,33 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
-     public function up(): void
+    public function up(): void
     {
         Schema::create('patrones', function (Blueprint $table) {
-            $table->id('id_patron'); // Llave primaria
-            $table->string('nombre_comercial', 255)->comment('Nombre para mostrar en UI, ej: CredinOs - Mi Empresa');
-            $table->string('razon_social', 255)->unique()->comment('Nombre o Razón Social fiscal');
-            $table->enum('tipo_persona', ['fisica', 'moral'])->comment('Física o Moral');
-            $table->string('rfc', 13)->unique();
+            $table->id('id_patron');
+            $table->string('nombre_comercial');
+            $table->string('razon_social');
+            $table->string('tipo_persona');
+            $table->string('rfc');
             $table->string('curp', 18)->nullable();
+            $table->string('registro_patronal', 20)->nullable();
+            $table->string('codigo_postal', 5);
+            $table->string('regimen_fiscal');
             $table->text('direccion_fiscal')->nullable();
             $table->text('actividad_principal')->nullable();
-            $table->string('representante_legal', 255)->nullable()->comment('Solo si es Persona Moral o si aplica');
-            $table->string('logo_path')->nullable()->comment('Ruta al archivo del logo');
+            $table->string('representante_legal')->nullable();
+            $table->string('logo_path')->nullable();
+
+            // Campos para certificados y sellos digitales (CFDI 4.0)
+            $table->text('csd_cer_path')->nullable();
+            $table->text('csd_key_path')->nullable();
+            $table->text('csd_password')->nullable();
+            $table->timestamp('csd_expires_at')->nullable();
+
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('patrones');

@@ -306,36 +306,38 @@ Route::get('/cartera-activa', [App\Http\Controllers\CreditoController::class, 'c
     });
 });
 
-Route::get('/setup-tenant-db', function (Request $request) {
+Route::get('/update-tenant-db', function (\Illuminate\Http\Request $request) {
     try {
-        // Toma el ID de la URL (ej. /setup-tenant-db?id=4), si no pone nada usa el 4 por defecto
-        $tenantId = $request->query('id', 4);
+        // Toma el ID de la URL (ej. ?id=3)
+        $tenantId = $request->query('id');
 
-        $tenant = Tenant::find($tenantId);
+        if (!$tenantId) {
+            return "❌ Por favor, especifica el ID en la URL. Ejemplo: /update-tenant-db?id=3";
+        }
+
+        $tenant = \App\Models\Tenant::find($tenantId);
         if (!$tenant) {
-            return "❌ Error: Tenant con ID {$tenantId} no fue encontrado en la base central.";
+            return "❌ Error: Tenant con ID {$tenantId} no fue encontrado.";
         }
 
         // Conecta únicamente a la base de datos de esa empresa
         $tenant->makeCurrent();
 
-        // Reconstruye todas las tablas desde cero y ejecuta los Seeders
-        Artisan::call('migrate:fresh', [
+        // EJECUTA MIGRACIONES NORMALES (NO BORRA NADA, SOLO AGREGA LO NUEVO)
+        \Illuminate\Support\Facades\Artisan::call('migrate', [
             '--database' => 'tenant',
             '--path' => [
                 'database/migrations',
                 'database/migrations/tenant'
             ],
-            '--seed' => true,
             '--force' => true,
         ]);
 
-        return " Base de datos de '{$tenant->name}' (ID: {$tenant->id}) recreada desde cero y sembrada con éxito.";
+        return "✅ Base de datos de '{$tenant->name}' actualizada con éxito. ¡Tus usuarios y datos están a salvo!";
     } catch (\Exception $e) {
-        return "❌ Error al migrar: " . $e->getMessage();
+        return "❌ Error al actualizar: " . $e->getMessage();
     }
 });
-
 // --- RUTA DE LIMPIEZA TOTAL ---
 Route::get('/super-admin/clear-everything/{secret_key}', function ($secret_key) {
     if ($secret_key !== 'Mexico97') {
