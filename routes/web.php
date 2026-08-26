@@ -305,84 +305,24 @@ Route::get('/cartera-activa', [App\Http\Controllers\CreditoController::class, 'c
     });
 });
 
-// --- RUTA MÁGICA: REPARAR HISTORIAL DE PAGOS Y MORATORIOS (VERSIÓN BLINDADA) ---
-Route::get('/reparar-historial-pagos', function () {
-    try {
-        \Illuminate\Support\Facades\DB::beginTransaction();
-
-        // 1. ARREGLAR PAGOS HISTÓRICOS (Directo a la tabla)
-        // Actualizamos de golpe todas las cuotas pagadas que tengan monto en 0
-        $pagadasCount = \Illuminate\Support\Facades\DB::table('credito_amortizaciones')
-            ->where('estatus', 'pagado')
-            ->where('monto_pagado', 0)
-            ->update([
-                // Copia lo que dice en total_cuota hacia monto_pagado
-                'monto_pagado' => \Illuminate\Support\Facades\DB::raw('total_cuota'),
-                // Si tiene fecha de actualización úsala, si no, usa la fecha de vencimiento
-                'fecha_pago_real' => \Illuminate\Support\Facades\DB::raw('COALESCE(DATE(updated_at), fecha_pago)')
-            ]);
-
-        // 2. REGLA DE MORATORIOS (500 después de las 10 AM, 10% al día siguiente)
-        $hoy = \Carbon\Carbon::now()->toDateString();
-        $horaActual = \Carbon\Carbon::now()->format('H:i'); 
-
-        // Traemos las cuotas pendientes uniendo directamente las tablas en SQL
-        $cuotasAtrasadas = \Illuminate\Support\Facades\DB::table('credito_amortizaciones')
-            ->join('creditos', 'credito_amortizaciones.credito_id', '=', 'creditos.id')
-            ->select(
-                'credito_amortizaciones.id', 
-                'credito_amortizaciones.fecha_pago',
-                'creditos.monto_aprobado',
-                'creditos.monto_solicitado'
-            )
-            ->where('credito_amortizaciones.estatus', '!=', 'pagado')
-            ->where('credito_amortizaciones.fecha_pago', '<=', $hoy)
-            ->get();
-
-        $moratoriosCount = 0;
-        
-        foreach($cuotasAtrasadas as $cuota) {
-            $multa = 0;
-            $fechaVencimiento = \Carbon\Carbon::parse($cuota->fecha_pago)->toDateString();
-            
-            // Calculamos el valor del crédito
-            $valorCredito = $cuota->monto_aprobado > 0 ? $cuota->monto_aprobado : ($cuota->monto_solicitado ?? 0);
-
-            if ($fechaVencimiento == $hoy) {
-                // Es HOY. Verificamos la hora (Si ya pasaron las 10:00 hrs)
-                if ($horaActual >= '10:00') {
-                    $multa = 500.00;
-                }
-            } elseif ($fechaVencimiento < $hoy) {
-                // Ya pasó el día de pago. 
-                $multa = 500.00 + ($valorCredito * 0.10); 
-            }
-
-            if ($multa > 0) {
-                \Illuminate\Support\Facades\DB::table('credito_amortizaciones')
-                    ->where('id', $cuota->id)
-                    ->update(['moratorios_generados' => round($multa, 2)]);
-                $moratoriosCount++;
-            }
-        }
-
-        \Illuminate\Support\Facades\DB::commit();
-
-        return "<div style='font-family: sans-serif; padding: 40px;'>
-                    <h1 style='color: green;'>¡Historial Reparado con Éxito! 🚀</h1>
-                    <ul style='font-size: 18px; line-height: 1.6;'>
-                        <li><b>$pagadasCount</b> cuotas históricas actualizadas con dinero.</li>
-                        <li><b>$moratoriosCount</b> cuotas sancionadas (con multa de \$500 o 10%).</li>
-                    </ul>
-                    <p style='margin-top: 20px;'>Revisa tus estados de cuenta, ya deben tener los cálculos perfectos.</p>
-                </div>";
-
-    } catch (\Exception $e) {
-        \Illuminate\Support\Facades\DB::rollBack();
-        return "<h1 style='color: red;'>Error del Sistema</h1>
-                <p><b>Mensaje:</b> " . $e->getMessage() . "</p>
-                <p><b>Línea:</b> " . $e->getLine() . "</p>";
+Route::get('/setup-smars-db-2026', function () {
+    // 1. Buscamos a Smars por su ID de tenant
+    $tenant = \App\Models\Tenant::find(3);
+    
+    if (!$tenant) {
+        return "Tenant no encontrado.";
     }
+
+    // 2. Cambiamos la conexión exclusivamente a Smars
+    $tenant->makeCurrent();
+
+    // 3. Ejecutamos migraciones y seeders SOLO dentro de Smars
+    \Illuminate\Support\Facades\Artisan::call('migrate:fresh', [
+        '--seed' => true,
+        '--force' => true,
+    ]);
+
+    return " Base de datos de Smars instalada y lista con éxito.";
 });
 
 // --- RUTA DE LIMPIEZA TOTAL ---
