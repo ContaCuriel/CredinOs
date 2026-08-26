@@ -37,9 +37,9 @@
                     </div>
 
                     <div class="row">
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             <label for="tipo_persona" class="form-label fw-bold small">Tipo de Persona <span class="text-danger">*</span></label>
-                            <select class="form-select form-select-sm @error('tipo_persona') is-invalid @enderror" id="tipo_persona" name="tipo_persona" required>
+                            <select class="form-select form-select-sm @error('tipo_persona') is-invalid @enderror" id="tipo_persona" name="tipo_persona" required onchange="toggleCurpField()">
                                 <option value="">Seleccione un tipo...</option>
                                 @foreach (['fisica' => 'Persona Física', 'moral' => 'Persona Moral'] as $valor => $texto)
                                     <option value="{{ $valor }}" {{ old('tipo_persona') == $valor ? 'selected' : '' }}>{{ $texto }}</option>
@@ -47,14 +47,22 @@
                             </select>
                             @error('tipo_persona') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             <label for="rfc" class="form-label fw-bold small">RFC <span class="text-danger">*</span></label>
                             <input type="text" class="form-control form-control-sm @error('rfc') is-invalid @enderror" id="rfc" name="rfc" value="{{ old('rfc') }}" required>
                             @error('rfc') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
+
+                        {{-- 🔥 CAMPO CURP: Visible dinámicamente si es Persona Física 🔥 --}}
+                        <div class="col-md-4 mb-3" id="div_curp" style="display: {{ old('tipo_persona') == 'fisica' ? 'block' : 'none' }};">
+                            <label for="curp" class="form-label fw-bold small text-primary">CURP <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control form-control-sm @error('curp') is-invalid @enderror" id="curp" name="curp" value="{{ old('curp') }}" maxlength="18" placeholder="Requerido para P. Física">
+                            <small class="text-muted" style="font-size: 0.75rem;">Obligatorio para timbrar nómina como Persona Física.</small>
+                            @error('curp') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
                     </div>
 
-                    {{-- 🔥 SECCIÓN NUEVA: DATOS FISCALES CFDI 4.0 🔥 --}}
+                    {{-- DATOS FISCALES CFDI 4.0 --}}
                     <h6 class="fw-bold mt-4 mb-3 text-secondary border-bottom pb-2"><i class="bi bi-bank me-1"></i> Datos Fiscales (CFDI 4.0)</h6>
                     <div class="row bg-light p-3 rounded mb-3 border">
                         <div class="col-md-4 mb-3">
@@ -75,7 +83,6 @@
                                 <option value="601" {{ old('regimen_fiscal') == '601' ? 'selected' : '' }}>601 - General de Ley Personas Morales</option>
                                 <option value="612" {{ old('regimen_fiscal') == '612' ? 'selected' : '' }}>612 - Personas Físicas con Actividades Emp. y Prof.</option>
                                 <option value="626" {{ old('regimen_fiscal') == '626' ? 'selected' : '' }}>626 - Régimen Simplificado de Confianza (RESICO)</option>
-                                {{-- Agrega otros si es necesario --}}
                             </select>
                             @error('regimen_fiscal') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
@@ -117,4 +124,20 @@
             </div>
         </div>
     </div>
+
+    {{-- Script para mostrar/ocultar CURP dinámicamente --}}
+    <script>
+        function toggleCurpField() {
+            const select = document.getElementById('tipo_persona');
+            const divCurp = document.getElementById('div_curp');
+            const inputCurp = document.getElementById('curp');
+
+            if (select.value === 'fisica') {
+                divCurp.style.display = 'block';
+            } else {
+                divCurp.style.display = 'none';
+                inputCurp.value = ''; // Limpiamos el valor si cambian a Moral
+            }
+        }
+    </script>
 </x-app-layout>
