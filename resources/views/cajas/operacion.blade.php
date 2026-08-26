@@ -346,7 +346,9 @@
                     let txtDeudaMora = document.getElementById('txt_deuda_mora');
                     let divMetodoPagoCol = document.getElementById('div_metodo_pago_col');
 
-                    inputCuota.value = proximaCuota.total_cuota;
+                    // Ahora calculamos exactamente la deuda de esa semana, restando lo que ya haya dado antes
+                    let deudaBaseCuota = (parseFloat(proximaCuota.total_cuota) || 0) - (parseFloat(proximaCuota.monto_pagado) || 0);
+                    inputCuota.value = deudaBaseCuota.toFixed(2);
                     
                     if (moratoriosPendientes > 0) {
                         divMora.classList.remove('d-none');

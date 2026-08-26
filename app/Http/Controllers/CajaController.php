@@ -141,17 +141,9 @@ class CajaController extends Controller
 
             $credito = \App\Models\Credito::with('integrantes')->findOrFail($request->credito_id);
             
-            $cuota = \App\Models\CreditoAmortizacion::where('credito_id', $credito->id)
-                                             ->where('estatus', '!=', 'pagado')
-                                             ->orderBy('numero_cuota', 'asc')
-                                             ->first();
-
-            if (!$cuota) {
-                return back()->with('error', 'Este crédito no tiene cuotas pendientes.');
-            }
-
             $monto_mora = $request->monto_mora ?? 0;
-            $monto_total_ingreso = $request->monto_cuota + $monto_mora;
+            $monto_cuota = $request->monto_cuota ?? 0;
+            $monto_total_ingreso = $monto_cuota + $monto_mora;
 
             if ($monto_total_ingreso <= 0) {
                 return back()->with('error', 'Debes ingresar un monto mayor a cero para cobrar.');
@@ -159,42 +151,74 @@ class CajaController extends Controller
 
             $tickets_generados = []; 
 
-            $deuda_restante = $cuota->total_cuota - $cuota->monto_pagado;
-            if ($request->monto_cuota >= ($deuda_restante - 0.5)) {
-                $concepto_cuota = 'PAGO SEMANA ' . $cuota->numero_cuota;
-            } else {
-                $concepto_cuota = 'PAGO PARCIAL SEMANA ' . $cuota->numero_cuota;
+            // 🔥 1. DISTRIBUIR PAGO DE CUOTAS EN CASCADA (WATERFALL) 🔥
+            if ($monto_cuota > 0) {
+                $monto_cuota_restante = $monto_cuota;
+                
+                // Traemos todas las cuotas que aún no estén pagadas al 100%
+                $cuotasPendientes = \App\Models\CreditoAmortizacion::where('credito_id', $credito->id)
+                    ->where('estatus', '!=', 'pagado')
+                    ->orderBy('numero_cuota', 'asc')
+                    ->get();
+
+                foreach ($cuotasPendientes as $c) {
+                    if ($monto_cuota_restante <= 0) break; // Si ya se acabó el dinero, nos detenemos
+
+                    $deudaBase = $c->total_cuota - $c->monto_pagado;
+                    if ($deudaBase <= 0) continue; // Blindaje extra
+
+                    // El monto que aplicaremos será lo que deba de esa semana, o lo que nos quede de dinero (el menor de los dos)
+                    $pagoAplicar = min($deudaBase, $monto_cuota_restante);
+
+                    if ($pagoAplicar >= ($deudaBase - 0.5)) {
+                        $concepto_cuota = 'PAGO SEMANA ' . $c->numero_cuota;
+                    } else {
+                        $concepto_cuota = 'PAGO PARCIAL SEMANA ' . $c->numero_cuota;
+                    }
+
+                    // Se genera el ticket específico de esta semana
+                    $t1 = \App\Models\TransaccionCaja::create([
+                        'corte_caja_id' => $turnoActivo->id,
+                        'tipo' => 'ingreso',
+                        'concepto' => $concepto_cuota,
+                        'monto' => $pagoAplicar,
+                        'metodo_pago' => $request->metodo_pago,
+                        'referencia_id' => $c->id,
+                        'descripcion' => $request->referencia_pago ?? null
+                    ]);
+                    $tickets_generados[] = $t1->id;
+
+                    // Actualizamos la cuota
+                    $c->monto_pagado += $pagoAplicar;
+                    if ($c->monto_pagado >= ($c->total_cuota - 0.5)) { 
+                        $c->estatus = 'pagado';
+                    } else {
+                        $c->estatus = 'parcial';
+                    }
+                    $c->fecha_pago_real = now();
+                    $c->save();
+
+                    // Restamos el dinero que acabamos de usar y el ciclo continúa a la siguiente semana
+                    $monto_cuota_restante -= $pagoAplicar;
+                }
             }
 
-            // 1. TICKET / TRANSACCIÓN 1: PAGO DE LA CUOTA BASE
-            if ($request->monto_cuota > 0) {
-                $t1 = \App\Models\TransaccionCaja::create([
-                    'corte_caja_id' => $turnoActivo->id,
-                    'tipo' => 'ingreso',
-                    'concepto' => $concepto_cuota,
-                    'monto' => $request->monto_cuota,
-                    'metodo_pago' => $request->metodo_pago,
-                    'referencia_id' => $cuota->id,
-                    'descripcion' => $request->referencia_pago ?? null
-                ]);
-                $tickets_generados[] = $t1->id;
-            }
-
-            // 🔥 2. TICKET DE MULTAS: UN SOLO TICKET IMPRESO, PERO DISTRIBUIDO EN BD 🔥
+            // 🔥 2. TICKET DE MULTAS EN CASCADA 🔥
             if ($monto_mora > 0) {
-                // Generamos UN SOLO ticket para el cliente con el total de las multas
+                $cuotaRef = \App\Models\CreditoAmortizacion::where('credito_id', $credito->id)->where('estatus', '!=', 'pagado')->first();
+
+                // Generamos UN SOLO ticket para el cliente
                 $t2 = \App\Models\TransaccionCaja::create([
                     'corte_caja_id' => $turnoActivo->id,
                     'tipo' => 'ingreso',
                     'concepto' => 'PAGO DE MULTAS / MORATORIOS ACUMULADOS',
                     'monto' => $monto_mora,
                     'metodo_pago' => $request->metodo_pago,
-                    'referencia_id' => $cuota->id, // Lo atamos a la cuota actual para el historial
+                    'referencia_id' => $cuotaRef->id ?? 0, 
                     'descripcion' => 'Abono general a penalizaciones'
                 ]);
                 $tickets_generados[] = $t2->id;
 
-                // Repartimos el dinero silenciosamente en la base de datos a las semanas más viejas
                 $monto_mora_restante = $monto_mora;
                 
                 $cuotasConMora = \App\Models\CreditoAmortizacion::where('credito_id', $credito->id)
@@ -203,12 +227,11 @@ class CajaController extends Controller
                     ->get();
 
                 foreach ($cuotasConMora as $cMora) {
-                    if ($monto_mora_restante <= 0) break; // Si ya se acabó el dinero, paramos
+                    if ($monto_mora_restante <= 0) break; 
 
                     $deudaMora = $cMora->moratorios_generados - $cMora->moratorios_pagados;
                     $pagoMoraAplicar = min($deudaMora, $monto_mora_restante);
 
-                    // Descontamos la deuda de esta semana específica en la BD
                     \Illuminate\Support\Facades\DB::table('credito_amortizaciones')
                         ->where('id', $cMora->id)
                         ->increment('moratorios_pagados', $pagoMoraAplicar);
@@ -227,18 +250,7 @@ class CajaController extends Controller
                 $turnoActivo->caja->save();
             }
 
-            // 4. ACTUALIZAR LA CUOTA
-            $cuota->monto_pagado += $request->monto_cuota;
-            
-            if ($cuota->monto_pagado >= ($cuota->total_cuota - 0.5)) { 
-                $cuota->estatus = 'pagado';
-            } else {
-                $cuota->estatus = 'parcial';
-            }
-            $cuota->fecha_pago_real = now();
-            $cuota->save();
-
-            // 5. REVISAR SI YA SE LIQUIDÓ EL CRÉDITO...
+            // 4. REVISAR SI YA SE LIQUIDÓ EL CRÉDITO...
             $cuotasPendientes = \App\Models\CreditoAmortizacion::where('credito_id', $credito->id)
                                                         ->where('estatus', '!=', 'pagado')
                                                         ->count();
@@ -249,7 +261,6 @@ class CajaController extends Controller
 
             \Illuminate\Support\Facades\DB::commit();
             
-            // RETORNAMOS CON LOS TICKETS GENERADOS
             return back()->with('success', '¡Se registraron los cobros exitosamente! Total recibido: $' . number_format($monto_total_ingreso, 2))
                          ->with('tickets_generados', $tickets_generados);
 
@@ -400,5 +411,68 @@ class CajaController extends Controller
         };
 
         return trim($convertir($numero)) . ' PESOS 00/100 M.N.';
+    }
+
+    public function reimprimirTicketCuota($cuota_id)
+    {
+        // 1. Traemos la cuota
+        $cuota = \App\Models\CreditoAmortizacion::with(['credito.cliente', 'credito.grupo', 'credito.patron'])->findOrFail($cuota_id);
+        $credito = $cuota->credito;
+
+        // 2. Buscamos todas las transacciones vinculadas a esta cuota
+        $transacciones = \App\Models\TransaccionCaja::where('referencia_id', $cuota_id)
+                            ->where('tipo', 'ingreso')
+                            ->orderBy('created_at', 'desc')
+                            ->get();
+
+        if ($transacciones->isEmpty()) {
+            // Si es un pago histórico (antes de que existiera este sistema de cajas)
+            $transaccion = new \App\Models\TransaccionCaja();
+            $transaccion->id = date('Ymd') . $cuota->numero_cuota; 
+            $transaccion->monto = $cuota->monto_pagado;
+            $transaccion->concepto = 'Pago Cuota #' . $cuota->numero_cuota . ' (Reimpresión)';
+            $transaccion->metodo_pago = 'Histórico';
+            $transaccion->created_at = $cuota->fecha_pago_real ?? now();
+        } else {
+            // Si es reciente, agarramos la última transacción y sumamos el total de los pagos asociados
+            $transaccion = $transacciones->first();
+            $transaccion->monto = $transacciones->sum('monto');
+            $transaccion->concepto = 'Reimpresión Cuota #' . $cuota->numero_cuota;
+            
+            // Evitamos errores de relación buscando el corte manualmente
+            $corte = \App\Models\CorteCaja::with(['usuario', 'caja.sucursal'])->find($transaccion->corte_caja_id);
+            if ($corte) {
+                $transaccion->setRelation('corteCaja', $corte);
+            }
+        }
+
+        // 3. Convertir Logo a Base64
+        $logo_base64 = null;
+        if ($credito && $credito->patron && $credito->patron->logo_path) {
+            $path = public_path('storage/' . $credito->patron->logo_path);
+            if (file_exists($path)) {
+                $type = pathinfo($path, PATHINFO_EXTENSION);
+                $data = file_get_contents($path);
+                $logo_base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+            }
+        }
+
+        // Usamos la función de números a letras
+        $letras = $this->convertirALetras($transaccion->monto);
+
+        $data = [
+            'transaccion' => $transaccion,
+            'cuota' => $cuota,
+            'credito' => $credito,
+            'logo_base64' => $logo_base64,
+            'letras' => $letras
+        ];
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('cajas.pdf.ticket', $data);
+        
+        // Formato Ticket Térmico 80mm
+        $pdf->setPaper([0, 0, 226.77, 600], 'portrait'); 
+
+        return $pdf->stream('Ticket_Cuota_' . $cuota->numero_cuota . '.pdf');
     }
 }
