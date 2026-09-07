@@ -381,8 +381,13 @@ class FiniquitoController extends Controller
             $empleado = Empleado::with(['ultimoContrato', 'sucursal'])->findOrFail($data['id_empleado']);
             $patron = Patron::findOrFail($data['id_patron']);
 
-            $fechaIngreso = $empleado->fecha_ingreso 
-                ? $empleado->fecha_ingreso->translatedFormat('d \d\e F \d\e Y') 
+            // Se toma la fecha del último contrato. Si no hay contrato, se usa el ingreso histórico.
+            $fechaRealDeInicio = $empleado->ultimoContrato && $empleado->ultimoContrato->fecha_inicio 
+                ? \Carbon\Carbon::parse($empleado->ultimoContrato->fecha_inicio) 
+                : $empleado->fecha_ingreso;
+
+            $fechaIngreso = $fechaRealDeInicio 
+                ? $fechaRealDeInicio->translatedFormat('d \d\e F \d\e Y') 
                 : 'No especificada';
                 
             $fechaBaja = Carbon::parse($data['fecha_final'])->translatedFormat('d \d\e F \d\e Y');
