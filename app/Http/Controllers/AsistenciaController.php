@@ -257,8 +257,15 @@ class AsistenciaController extends Controller
                 $detalles_dias = []; 
 
                 for ($date = $fechaInicio->copy(); $date->lte($fechaFin); $date->addDay()) {
+                    // Si el día es mayor a hoy, no lo evaluamos (el futuro no puede ser falta)
                     if ($date->gt($hoy)) {
                         continue; 
+                    }
+
+                    // 🔥 NUEVO FILTRO: Si el día evaluado es anterior a la fecha en que ingresó el empleado, lo saltamos
+                    $fechaIngresoEmpleado = Carbon::parse($empleado->fecha_ingreso);
+                    if ($date->lt($fechaIngresoEmpleado)) {
+                        continue;
                     }
 
                     $fechaStr = $date->toDateString();
