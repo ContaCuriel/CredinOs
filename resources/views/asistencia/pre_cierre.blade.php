@@ -31,8 +31,8 @@
                 <div class="alert alert-light border border-info border-start-5 mb-4 shadow-sm text-secondary rounded" style="border-left-width: 5px !important;">
                     <strong><i class="bi bi-info-circle text-info me-1"></i> ¿Cómo funciona?</strong> Aquí verás a los empleados que tuvieron incidencias a descontar.
                     <br><i class="bi bi-check2-square text-success me-1"></i> Desmarca la casilla de una incidencia para "perdonarla". <strong>Ésta se ocultará</strong> para limpiar tu vista y recalculará el total.
-                    <br><i class="bi bi-exclamation-circle text-warning me-1"></i> Las <strong>Incidencias manuales</strong> valen 0 días por defecto, pero puedes asignarles una penalización.
-                    <br><i class="bi bi-trash text-danger me-1"></i> Oculta empleados temporalmente (ej. dueños o exentos) para no mandarlos al cierre.
+                    <br><i class="bi bi-pencil-square text-primary me-1"></i> Puedes modificar el <strong>Descuento Final</strong> manualmente en la caja de texto antes de guardar.
+                    <br><i class="bi bi-trash text-danger me-1"></i> Oculta empleados temporalmente (ej. dueños o exentos) para mandarlos en cero al cierre.
                 </div>
 
                 {{-- Formulario de Filtros --}}
@@ -93,12 +93,12 @@
                                     @foreach($empleadosData as $emp)
                                         <tr id="row_{{ $emp['id_empleado'] }}" class="empleado-row">
                                             
-                                            {{-- INPUTS OCULTOS --}}
-                                            <input type="hidden" name="empleados[{{ $emp['id_empleado'] }}][faltas]" id="input_faltas_{{ $emp['id_empleado'] }}" value="{{ $emp['faltas_directas'] + ($emp['medios_dias_crudos'] * 0.5) }}">
+                                            {{-- INPUTS OCULTOS (Nota: El de faltas ya no tiene name, es solo para JS) --}}
+                                            <input type="hidden" id="input_faltas_{{ $emp['id_empleado'] }}" value="{{ $emp['faltas_directas'] + ($emp['medios_dias_crudos'] * 0.5) }}">
                                             <input type="hidden" name="empleados[{{ $emp['id_empleado'] }}][retardos]" id="input_retardos_{{ $emp['id_empleado'] }}" value="{{ $emp['retardos_crudos'] }}">
 
                                             <td class="text-center bg-light">
-                                                <button type="button" class="btn btn-sm btn-outline-danger border-0 shadow-sm rounded-circle" onclick="ocultarFila({{ $emp['id_empleado'] }})" title="Ocultar (No enviar al cierre)">
+                                                <button type="button" class="btn btn-sm btn-outline-danger border-0 shadow-sm rounded-circle" onclick="ocultarFila({{ $emp['id_empleado'] }})" title="Ocultar (Mandar en ceros)">
                                                     <i class="bi bi-trash"></i>
                                                 </button>
                                             </td>
@@ -121,7 +121,6 @@
                                                 <div class="d-flex flex-column gap-2">
                                                     @foreach($emp['detalles'] as $idx => $incidencia)
                                                         @php
-                                                            // Traducción segura de fechas sin depender de locales del servidor
                                                             $nombresDias = ['Sunday' => 'Domingo', 'Monday' => 'Lunes', 'Tuesday' => 'Martes', 'Wednesday' => 'Miércoles', 'Thursday' => 'Jueves', 'Friday' => 'Viernes', 'Saturday' => 'Sábado'];
                                                             $nombresMeses = ['Jan' => 'Ene', 'Feb' => 'Feb', 'Mar' => 'Mar', 'Apr' => 'Abr', 'May' => 'May', 'Jun' => 'Jun', 'Jul' => 'Jul', 'Aug' => 'Ago', 'Sep' => 'Sep', 'Oct' => 'Oct', 'Nov' => 'Nov', 'Dec' => 'Dic'];
                                                             
@@ -182,14 +181,22 @@
                                                     @endforeach
                                                 </div>
                                             </td>
-                                            <td class="text-center align-middle bg-light border-start-0">
-                                                @if($emp['total_dias_descuento_inicial'] > 0)
-                                                    <h3 class="mb-0 fw-bold text-danger"><span id="txt_total_{{ $emp['id_empleado'] }}">{{ $emp['total_dias_descuento_inicial'] }}</span></h3>
-                                                    <span class="text-danger fw-bold text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">Días a Descontar</span>
-                                                @else
-                                                    <h3 class="mb-0 fw-bold text-success"><span id="txt_total_{{ $emp['id_empleado'] }}">0</span></h3>
-                                                    <span class="text-success fw-bold text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">Días a Descontar</span>
-                                                @endif
+                                            
+                                            {{-- 🔥 ESTA ES LA CAJA DE TEXTO EDITABLE QUE MANDA EL RESULTADO --}}
+                                            <td class="text-center align-middle bg-light border-start-0" style="min-width: 120px;">
+                                                <div class="d-flex justify-content-center mb-1">
+                                                    <input type="number" 
+                                                           step="0.5" 
+                                                           min="0"
+                                                           name="empleados[{{ $emp['id_empleado'] }}][faltas]" 
+                                                           id="txt_total_{{ $emp['id_empleado'] }}" 
+                                                           value="{{ $emp['total_dias_descuento_inicial'] }}" 
+                                                           class="form-control text-center fw-bold shadow-sm {{ $emp['total_dias_descuento_inicial'] > 0 ? 'text-danger border-danger' : 'text-success border-success' }}" 
+                                                           style="max-width: 90px; font-size: 1.5rem;">
+                                                </div>
+                                                <span id="label_total_{{ $emp['id_empleado'] }}" class="fw-bold text-uppercase {{ $emp['total_dias_descuento_inicial'] > 0 ? 'text-danger' : 'text-success' }}" style="font-size: 0.7rem; letter-spacing: 0.5px;">
+                                                    Días a Descontar
+                                                </span>
                                             </td>
                                         </tr>
                                     @endforeach
@@ -200,10 +207,15 @@
                         {{-- BARRA FLOTANTE DE BOTÓN DE ACCIÓN --}}
                         <div class="position-sticky bottom-0 bg-white p-3 border-top shadow-lg rounded-top" style="z-index: 1000;">
                             <div class="d-flex justify-content-between align-items-center">
-                                <span class="text-muted small"><i class="bi bi-info-circle"></i> Los empleados e incidencias ocultos no serán enviados.</span>
-                                <button type="submit" class="btn btn-success btn-lg fw-bold shadow" onclick="return confirm('¿Estás seguro de cerrar este periodo? Los datos se guardarán y estarán listos para la Lista de Raya.')">
-                                    <i class="bi bi-check2-all"></i> Guardar Cierre de Asistencias
-                                </button>
+                                <span class="text-muted small"><i class="bi bi-info-circle"></i> Los empleados ocultos se mandarán con CERO faltas al cierre.</span>
+                                <div>
+                                    <button type="button" class="btn btn-outline-primary btn-lg fw-bold shadow-sm me-2" onclick="guardarBorrador()">
+                                        <i class="bi bi-floppy"></i> Guardar Borrador
+                                    </button>
+                                    <button type="submit" class="btn btn-success btn-lg fw-bold shadow" onclick="return confirm('¿Estás seguro de cerrar este periodo? Los datos se guardarán y estarán listos para la Lista de Raya.')">
+                                        <i class="bi bi-check2-all"></i> Guardar Cierre de Asistencias
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </form>
@@ -221,6 +233,7 @@
     @push('scripts')
         <script>
         let incidenciasOcultasCount = 0;
+        let ocultosCount = 0;
 
         function actualizarPenalizacionIncidencia(selectElement, checkboxId) {
             let checkbox = document.getElementById(checkboxId);
@@ -238,65 +251,20 @@
             let reglaRetardos = parseInt(checkboxToggled.getAttribute('data-regla'));
             let container = checkboxToggled.closest('.incidencia-container');
             
-            // Si el usuario desmarca la incidencia, se oculta visualmente
             if (!checkboxToggled.checked) {
                 container.classList.add('d-none');
-                
                 incidenciasOcultasCount++;
                 document.getElementById('contador-incidencias-ocultas').innerText = incidenciasOcultasCount;
                 document.getElementById('btn-restaurar-incidencias').classList.remove('d-none');
             }
 
-            // Seleccionamos solo los checkboxes que siguen marcados (activos)
-            let fila = document.getElementById('row_' + idEmpleado);
-            let checkboxes = fila.querySelectorAll('.check-incidencia:checked'); 
-            
-            let totalFaltas = 0;
-            let conteoRetardosNormales = 0;
-
-            checkboxes.forEach(chk => {
-                let tipo = chk.getAttribute('data-tipo');
-                let penalizacion = parseFloat(chk.getAttribute('data-penalizacion'));
-
-                if (tipo === 'falta' || tipo === 'falta_por_retardo_extremo' || tipo === 'incidencia' || tipo === 'medio_dia') {
-                    totalFaltas += penalizacion;
-                } else if (tipo === 'retardo') {
-                    conteoRetardosNormales++;
-                }
-            });
-
-            document.getElementById('input_faltas_' + idEmpleado).value = totalFaltas;
-            document.getElementById('input_retardos_' + idEmpleado).value = conteoRetardosNormales;
-
-            let faltasPorRetardos = reglaRetardos > 0 ? Math.floor(conteoRetardosNormales / reglaRetardos) : 0;
-            let totalDias = totalFaltas + faltasPorRetardos;
-
-            let txtTotal = document.getElementById('txt_total_' + idEmpleado);
-            txtTotal.innerText = totalDias % 1 === 0 ? totalDias : totalDias.toFixed(1);
-
-            let parentTd = txtTotal.closest('td');
-            let smallLabel = parentTd.querySelector('span');
-            
-            if (totalDias > 0) {
-                txtTotal.parentElement.classList.remove('text-success');
-                txtTotal.parentElement.classList.add('text-danger');
-                smallLabel.classList.remove('text-success');
-                smallLabel.classList.add('text-danger');
-            } else {
-                txtTotal.parentElement.classList.remove('text-danger');
-                txtTotal.parentElement.classList.add('text-success');
-                smallLabel.classList.remove('text-danger');
-                smallLabel.classList.add('text-success');
-            }
+            procesarCalculo(idEmpleado, reglaRetardos);
         }
 
         function restaurarIncidencias() {
-            // Buscamos todas las incidencias desmarcadas (ocultas) y las regresamos
             document.querySelectorAll('.check-incidencia:not(:checked)').forEach(chk => {
                 chk.checked = true;
                 chk.closest('.incidencia-container').classList.remove('d-none');
-                
-                // Forzamos el recalculo matemático sin que vuelva a ocultarse
                 recalcularFilaRestauracion(chk);
             });
             
@@ -305,11 +273,14 @@
             document.getElementById('btn-restaurar-incidencias').classList.add('d-none');
         }
 
-        // Función auxiliar para recalcular sin ocultar visualmente durante la restauración
         function recalcularFilaRestauracion(checkboxToggled) {
             let idEmpleado = checkboxToggled.getAttribute('data-empleado');
             let reglaRetardos = parseInt(checkboxToggled.getAttribute('data-regla'));
-            
+            procesarCalculo(idEmpleado, reglaRetardos);
+        }
+
+        // Función unificada para hacer el cálculo y actualizar la caja editable
+        function procesarCalculo(idEmpleado, reglaRetardos) {
             let fila = document.getElementById('row_' + idEmpleado);
             let checkboxes = fila.querySelectorAll('.check-incidencia:checked'); 
             
@@ -333,22 +304,23 @@
             let faltasPorRetardos = reglaRetardos > 0 ? Math.floor(conteoRetardosNormales / reglaRetardos) : 0;
             let totalDias = totalFaltas + faltasPorRetardos;
 
+            // ACTUALIZAMOS LA CAJA DE TEXTO (Ahora es .value)
             let txtTotal = document.getElementById('txt_total_' + idEmpleado);
-            txtTotal.innerText = totalDias % 1 === 0 ? totalDias : totalDias.toFixed(1);
+            let labelTotal = document.getElementById('label_total_' + idEmpleado);
 
-            let parentTd = txtTotal.closest('td');
-            let smallLabel = parentTd.querySelector('span');
+            txtTotal.value = totalDias % 1 === 0 ? totalDias : totalDias.toFixed(1);
             
+            // Cambiamos clases de color
             if (totalDias > 0) {
-                txtTotal.parentElement.classList.replace('text-success', 'text-danger');
-                smallLabel.classList.replace('text-success', 'text-danger');
+                txtTotal.classList.replace('text-success', 'text-danger');
+                txtTotal.classList.replace('border-success', 'border-danger');
+                labelTotal.classList.replace('text-success', 'text-danger');
             } else {
-                txtTotal.parentElement.classList.replace('text-danger', 'text-success');
-                smallLabel.classList.replace('text-danger', 'text-success');
+                txtTotal.classList.replace('text-danger', 'text-success');
+                txtTotal.classList.replace('border-danger', 'border-success');
+                labelTotal.classList.replace('text-danger', 'text-success');
             }
         }
-
-        let ocultosCount = 0;
 
         function ocultarFila(idEmpleado) {
             let fila = document.getElementById('row_' + idEmpleado);
@@ -357,6 +329,13 @@
             document.getElementById('input_faltas_' + idEmpleado).value = 0;
             document.getElementById('input_retardos_' + idEmpleado).value = 0;
             
+            // Forzamos la caja editable a 0 para que no mande cargos
+            let txtTotal = document.getElementById('txt_total_' + idEmpleado);
+            txtTotal.value = 0;
+            txtTotal.classList.replace('text-danger', 'text-success');
+            txtTotal.classList.replace('border-danger', 'border-success');
+            document.getElementById('label_total_' + idEmpleado).classList.replace('text-danger', 'text-success');
+            
             ocultosCount++;
             document.getElementById('contador-ocultos').innerText = ocultosCount;
             document.getElementById('btn-restaurar-ocultos').classList.remove('d-none');
@@ -364,17 +343,128 @@
 
         function restaurarFilas() {
             document.querySelectorAll('.empleado-row').forEach(row => {
-                row.style.display = '';
-                // Disparamos recalculo para devolverles su valor en base a los checks visibles
-                let checks = row.querySelectorAll('.check-incidencia');
-                if(checks.length > 0) {
-                    recalcularFilaRestauracion(checks[0]); 
+                if(row.style.display === 'none') {
+                    row.style.display = '';
+                    let checks = row.querySelectorAll('.check-incidencia');
+                    if(checks.length > 0) {
+                        recalcularFilaRestauracion(checks[0]); 
+                    }
                 }
             });
             ocultosCount = 0;
             document.getElementById('contador-ocultos').innerText = ocultosCount;
             document.getElementById('btn-restaurar-ocultos').classList.add('d-none');
         }
+
+        // =======================================================
+        // 🔥 LÓGICA DE BORRADOR LOCAL (Sin tocar base de datos)
+        // =======================================================
+        function obtenerClaveBorrador() {
+            const periodo = document.querySelector('input[name="periodo_cierre"]')?.value;
+            const sucursal = document.querySelector('input[name="id_sucursal_cierre"]')?.value;
+            if (!periodo || !sucursal) return null;
+            return `borrador_precierre_${periodo}_${sucursal}`;
+        }
+
+        function guardarBorrador() {
+            const clave = obtenerClaveBorrador();
+            if (!clave) return;
+
+            let borrador = {};
+            document.querySelectorAll('.empleado-row').forEach(row => {
+                let empId = row.id.split('_')[1];
+                let oculto = row.style.display === 'none';
+                let txtTotal = document.getElementById('txt_total_' + empId).value; // Guarda si lo editaste a mano
+                
+                let checks = [];
+                row.querySelectorAll('.check-incidencia').forEach(chk => {
+                    checks.push({
+                        id: chk.id,
+                        checked: chk.checked,
+                        penalizacion: chk.getAttribute('data-penalizacion')
+                    });
+                });
+                
+                borrador[empId] = { oculto: oculto, txtTotal: txtTotal, checks: checks };
+            });
+
+            localStorage.setItem(clave, JSON.stringify(borrador));
+            alert('💾 ¡Borrador guardado con éxito!\nPuedes salir de esta pantalla y cuando regreses a este mismo periodo, tus avances seguirán aquí.');
+        }
+
+        function cargarBorrador() {
+            const clave = obtenerClaveBorrador();
+            if (!clave) return;
+
+            let borradorStr = localStorage.getItem(clave);
+            if (borradorStr) {
+                let borrador = JSON.parse(borradorStr);
+                
+                Object.keys(borrador).forEach(empId => {
+                    let data = borrador[empId];
+                    let row = document.getElementById('row_' + empId);
+                    if (!row) return;
+
+                    // 1. Restaurar switches
+                    data.checks.forEach(cData => {
+                        let chk = document.getElementById(cData.id);
+                        if (chk) {
+                            chk.checked = cData.checked;
+                            chk.setAttribute('data-penalizacion', cData.penalizacion);
+                            
+                            let select = chk.closest('.incidencia-container').querySelector('select');
+                            if (select) select.value = cData.penalizacion;
+
+                            if (!chk.checked) {
+                                chk.closest('.incidencia-container').classList.add('d-none');
+                                incidenciasOcultasCount++;
+                            }
+                        }
+                    });
+
+                    // 2. Ejecutar cálculos básicos para estabilizar la fila
+                    let firstChk = row.querySelector('.check-incidencia');
+                    if (firstChk) recalcularFilaRestauracion(firstChk);
+
+                    // 3. SOBRESCRIBIR EL INPUT con el valor exacto que dejaste (por si editaste a mano)
+                    let txtTotal = document.getElementById('txt_total_' + empId);
+                    txtTotal.value = data.txtTotal;
+                    
+                    let labelTotal = document.getElementById('label_total_' + empId);
+                    if (data.txtTotal > 0) {
+                        txtTotal.classList.replace('text-success', 'text-danger');
+                        txtTotal.classList.replace('border-success', 'border-danger');
+                        labelTotal.classList.replace('text-success', 'text-danger');
+                    } else {
+                        txtTotal.classList.replace('text-danger', 'text-success');
+                        txtTotal.classList.replace('border-danger', 'border-success');
+                        labelTotal.classList.replace('text-danger', 'text-success');
+                    }
+
+                    // 4. Ocultar si el empleado fue mandado al bote de basura
+                    if (data.oculto) {
+                        row.style.display = 'none';
+                        ocultosCount++;
+                    }
+                });
+
+                // Actualizar los globos de los botones de restauración
+                if (incidenciasOcultasCount > 0) {
+                    document.getElementById('contador-incidencias-ocultas').innerText = incidenciasOcultasCount;
+                    document.getElementById('btn-restaurar-incidencias').classList.remove('d-none');
+                }
+                if (ocultosCount > 0) {
+                    document.getElementById('contador-ocultos').innerText = ocultosCount;
+                    document.getElementById('btn-restaurar-ocultos').classList.remove('d-none');
+                }
+                
+                // Limpiar la memoria para que, si envían los datos finales, no se atore el borrador viejo la próxima vez
+                // localStorage.removeItem(clave); // Opcional: Descomentar si quieres que el borrador se autodestruya al cargar
+            }
+        }
+
+        // Cargar el borrador automáticamente cuando cargue la página
+        document.addEventListener('DOMContentLoaded', cargarBorrador);
         </script>
     @endpush
 </x-app-layout>
