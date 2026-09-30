@@ -258,7 +258,7 @@
                         <label class="form-label fw-bold text-secondary">Aplica para Sucursal</label>
                         <select name="id_sucursal" class="form-select" required>
                             <option value="todas">-- TODAS LAS SUCURSALES --</option>
-                            @foreach ($sucursales as$suc)
+                            @foreach ($sucursales as $suc)
                                 <option value="{{ $suc->id_sucursal }}">{{ $suc->nombre_sucursal }}</option>
                             @endforeach
                         </select>
