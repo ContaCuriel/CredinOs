@@ -19,6 +19,12 @@ class AsistenciaController extends Controller
     {
         $sucursales = Sucursal::where('status', 'Activa')->orderBy('nombre_sucursal')->get();
         $asuetos = \App\Models\Asueto::all(); // 🔥 Cargar asuetos
+        $vacaciones = collect();
+        if (isset($empleadosDeSucursal) && $empleadosDeSucursal->isNotEmpty()) {
+            $vacaciones = \App\Models\PeriodoVacacional::whereIn('id_empleado', $empleadosDeSucursal->pluck('id_empleado'))
+                            ->get()
+                            ->groupBy('id_empleado');
+        }
         $id_sucursal_seleccionada = $request->input('id_sucursal_seleccionada');
         $fechaReferenciaNavegacion = $request->input('fecha_ref', Carbon::today()->toDateString());
         $tipoPeriodo = $request->input('tipo_periodo', 'semana');
@@ -85,7 +91,7 @@ class AsistenciaController extends Controller
             }
         }
         
-        return view('asistencia.index', compact('sucursales', 'id_sucursal_seleccionada', 'sucursalSeleccionadaNombre', 'empleadosDeSucursal', 'asistenciaProcesada', 'fechasDelPeriodo', 'tipoPeriodo', 'asuetos', 'fechaReferencia'));
+        return view('asistencia.index', compact('sucursales', 'id_sucursal_seleccionada', 'sucursalSeleccionadaNombre', 'empleadosDeSucursal', 'asistenciaProcesada', 'fechasDelPeriodo', 'tipoPeriodo', 'asuetos', 'vacaciones', 'fechaReferencia'));
     }
 
     /**
@@ -243,8 +249,12 @@ class AsistenciaController extends Controller
 
             $hoy = Carbon::today();
             
-            // 🔥 OBTENEMOS LOS ASUETOS UNA SOLA VEZ ANTES DEL BUCLE
+            // OBTENEMOS LOS ASUETOS Y VACACIONES ANTES DEL BUCLE (Optimizado)
             $asuetos = \App\Models\Asueto::all();
+            
+            // 🔥 OBTENEMOS LAS VACACIONES DE ESTOS EMPLEADOS
+            $empleadosIds = $empleados->pluck('id_empleado');
+            $vacaciones = \App\Models\PeriodoVacacional::whereIn('id_empleado', $empleadosIds)->get()->groupBy('id_empleado');
 
             foreach ($empleados as $empleado) {
                 $horario = $empleado->horario;
@@ -261,31 +271,37 @@ class AsistenciaController extends Controller
                 $detalles_dias = []; 
 
                 for ($date = $fechaInicio->copy(); $date->lte($fechaFin); $date->addDay()) {
-                    // Si el día es mayor a hoy, no lo evaluamos (el futuro no puede ser falta)
                     if ($date->gt($hoy)) {
                         continue; 
                     }
 
-                    // Si el día evaluado es anterior a la fecha en que ingresó el empleado, lo saltamos
                     $fechaIngresoEmpleado = Carbon::parse($empleado->fecha_ingreso);
                     if ($date->lt($fechaIngresoEmpleado)) {
                         continue;
                     }
 
-                    // 🔥 NUEVO FILTRO DE ASUETOS
+                    // FILTRO DE ASUETOS
                     $esAsueto = $asuetos->contains(function ($asueto) use ($date, $empleado) {
-                        // 1. Verificamos si aplica a su sucursal o a todas
                         $aplicaSucursal = is_null($asueto->id_sucursal) || $asueto->id_sucursal == $empleado->id_sucursal;
-                        
-                        // 2. Verificamos si el día actual está dentro del rango del asueto
-                        $inicio = Carbon::parse($asueto->fecha_inicio)->startOfDay();
-                        $fin = Carbon::parse($asueto->fecha_fin)->endOfDay();
-                        
+                        $inicio = \Carbon\Carbon::parse($asueto->fecha_inicio)->startOfDay();
+                        $fin = \Carbon\Carbon::parse($asueto->fecha_fin)->endOfDay();
                         return $aplicaSucursal && $date->between($inicio, $fin);
                     });
 
-                    // Si es un día de asueto válido para este empleado, simplemente saltamos la comprobación
                     if ($esAsueto) {
+                        continue;
+                    }
+
+                    // 🔥 NUEVO FILTRO DE VACACIONES
+                    $vacsEmpleado = $vacaciones->get($empleado->id_empleado, collect());
+                    $esVacacion = $vacsEmpleado->contains(function ($vac) use ($date) {
+                        $inicio = \Carbon\Carbon::parse($vac->fecha_inicio)->startOfDay();
+                        $fin = \Carbon\Carbon::parse($vac->fecha_fin)->endOfDay();
+                        return $date->between($inicio, $fin);
+                    });
+
+                    // Si está de vacaciones, saltamos el descuento de falta
+                    if ($esVacacion) {
                         continue;
                     }
 
@@ -326,18 +342,16 @@ class AsistenciaController extends Controller
                         continue; 
                     }
 
-                    // 🔥 EVALUACIÓN REAL DE LA HORA DE LLEGADA (SIN IMPORTAR EL STATUS 'Presente' O 'Retardo')
+                    // EVALUACIÓN DE RETARDOS Y MEDIOS DÍAS
                     if ($asistencia->hora_llegada) {
                         $horaOficial = Carbon::parse($fechaStr . ' ' . $horario->{$nombreDia.'_entrada'});
                         $horaLlegadaObj = Carbon::parse($fechaStr . ' ' . $asistencia->hora_llegada);
                         $horaLlegadaStr = $horaLlegadaObj->format('H:i');
 
-                        // Si llegó después de la hora oficial, calculamos minutos tarde
                         if ($horaLlegadaObj->gt($horaOficial)) {
                             $minutosTarde = $horaOficial->diffInMinutes($horaLlegadaObj);
                             $tolerancia = $horario->aplicar_reglas_avanzadas ? ($horario->tolerancia_minutos ?? 0) : 0;
 
-                            // 1. Puntual dentro de tolerancia
                             if ($minutosTarde <= $tolerancia) {
                                 continue; 
                             }
@@ -345,7 +359,6 @@ class AsistenciaController extends Controller
                             $limiteRetardo = $horario->minutos_limite_retardo ?? 15;
                             $limiteMedioDia = $horario->minutos_limite_medio_dia ?? 30;
 
-                            // 2. ¿CAE EN MEDIO DÍA? (Llegó entre min_retardo y min_medio_dia)
                             if ($horario->aplica_medio_dia && $minutosTarde > $limiteRetardo && $minutosTarde <= $limiteMedioDia) {
                                 $medios_dias_crudos++;
                                 $detalles_dias[] = [
@@ -356,7 +369,6 @@ class AsistenciaController extends Controller
                                     'perdonado' => false
                                 ];
                             } 
-                            // 3. ¿EXCEDIÓ EL MEDIO DÍA? -> FALTA DIRECTA POR RETARDO EXTREMO
                             elseif ($horario->aplica_medio_dia && $minutosTarde > $limiteMedioDia) {
                                 $faltas_directas_crudas++;
                                 $multiplicador = 1;
@@ -374,7 +386,6 @@ class AsistenciaController extends Controller
                                     'perdonado' => false
                                 ];
                             }
-                            // 4. RETARDO SIMPLE
                             else {
                                 $retardos_crudos++;
                                 $detalles_dias[] = [
@@ -389,12 +400,10 @@ class AsistenciaController extends Controller
                     }
                 }
 
-                // SI NO TIENE DETALLES, TIENE ASISTENCIA PERFECTA Y NO SE MUESTRA EN PANTALLA
                 if (empty($detalles_dias)) {
                     continue; 
                 }
 
-                // 🔥 AHORA SÍ LEEMOS LA REGLA REAL DEL HORARIO ASIGNADO AL EMPLEADO
                 $regla_retardos = $horario->retardos_por_falta ?? 0;
                 $faltas_por_retardos = 0;
                 if ($regla_retardos > 0) {
@@ -408,7 +417,7 @@ class AsistenciaController extends Controller
                     'nombre' => $empleado->nombre_completo,
                     'sucursal' => $empleado->sucursal->nombre_sucursal ?? 'Sin Sucursal',
                     'puesto' => $empleado->puesto->nombre_puesto ?? 'General',
-                    'regla_retardos' => $regla_retardos, // 🔥 REGLA DINÁMICA DEL HORARIO
+                    'regla_retardos' => $regla_retardos, 
                     'retardos_crudos' => $retardos_crudos,
                     'medios_dias_crudos' => $medios_dias_crudos,
                     'faltas_directas' => $faltas_directas_crudas,

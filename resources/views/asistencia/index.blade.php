@@ -139,13 +139,21 @@
                                                     $nombreDia = $mapaDias[$fecha->dayOfWeekIso];
                                                     $esLaborable = $empleado->horario ? $empleado->horario->{$nombreDia} : true;
                                                     
-                                                    // 🔥 EVALUAR SI EL DÍA ES ASUETO (Asumiendo que enviaste $asuetos desde el Controller)
+                                                    // 🔥 EVALUAR ASUETOS
                                                     $asuetoDia = isset($asuetos) ? $asuetos->first(function($a) use ($fecha, $empleado) {
                                                         $aplicaSucursal = is_null($a->id_sucursal) || $a->id_sucursal == $empleado->id_sucursal;
                                                         $inicio = \Carbon\Carbon::parse($a->fecha_inicio)->startOfDay();
                                                         $fin = \Carbon\Carbon::parse($a->fecha_fin)->endOfDay();
                                                         return $aplicaSucursal && $fecha->between($inicio, $fin);
                                                     }) : null;
+
+                                                    // 🔥 EVALUAR VACACIONES
+                                                    $vacsEmpleado = isset($vacaciones) ? $vacaciones->get($empleado->id_empleado, collect()) : collect();
+                                                    $vacacionDia = $vacsEmpleado->first(function($v) use ($fecha) {
+                                                        $inicio = \Carbon\Carbon::parse($v->fecha_inicio)->startOfDay();
+                                                        $fin = \Carbon\Carbon::parse($v->fecha_fin)->endOfDay();
+                                                        return $fecha->between($inicio, $fin);
+                                                    });
 
                                                     $claseFondo = '';
                                                     if ($asistenciaDia) {
@@ -157,6 +165,8 @@
                                                         }
                                                     } elseif ($asuetoDia) {
                                                         $claseFondo = 'bg-primary bg-opacity-10';
+                                                    } elseif ($vacacionDia) {
+                                                        $claseFondo = 'bg-success bg-opacity-10'; // Verde para las vacaciones
                                                     } elseif (!$esLaborable) {
                                                         $claseFondo = 'bg-secondary bg-opacity-10'; 
                                                     }
@@ -189,10 +199,14 @@
                                                                 @endif
                                                             </div>
                                                         @else
-                                                            {{-- 🔥 SI ES ASUETO, LO MUESTRA CON SU BADGE --}}
                                                             @if($asuetoDia)
                                                                 <span class="badge bg-primary text-white fw-bold" style="font-size: 0.65rem; white-space: nowrap;" title="{{ $asuetoDia->nombre }}">
                                                                     <i class="bi bi-calendar-heart"></i> ASUETO
+                                                                </span>
+                                                            {{-- 🔥 CHAPA DE VACACIONES --}}
+                                                            @elseif($vacacionDia)
+                                                                <span class="badge bg-success text-white fw-bold" style="font-size: 0.65rem; white-space: nowrap;" title="Periodo Vacacional">
+                                                                    <i class="bi bi-airplane"></i> VACACIONES
                                                                 </span>
                                                             @elseif(!$esLaborable)
                                                                 <span class="text-secondary fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">DESCANSO</span>
@@ -219,7 +233,7 @@
 
                                                             <input type="text" name="hora_llegada_manual" class="form-control form-control-sm mb-1 text-center input-hora" style="font-size: 0.8rem; padding: 0px;" placeholder="HH:MM" maxlength="5" oninput="formatearHoraAuto(this)" value="{{ $asistenciaDia && $asistenciaDia->hora_llegada ? \Carbon\Carbon::parse($asistenciaDia->hora_llegada)->format('H:i') : '' }}">
 
-                                                            <input type="text" name="notas_incidencia" class="form-control form-control-sm mb-1 input-notas text-center" style="font-size: 0.75rem; padding: 1px;" placeholder="¿Qué pasó? (Ej. Accidente)" value="{{ $asistenciaDia && $asistenciaDia->status_asistencia == 'Incidencia' ?$asistenciaDia->notas_incidencia : '' }}">
+                                                            <input type="text" name="notas_incidencia" class="form-control form-control-sm mb-1 input-notas text-center" style="font-size: 0.75rem; padding: 1px;" placeholder="¿Qué pasó? (Ej. Accidente)" value="{{ $asistenciaDia && $asistenciaDia->status_asistencia == 'Incidencia' ? $asistenciaDia->notas_incidencia : '' }}">
 
                                                             <div class="d-flex gap-1 justify-content-center">
                                                                 <button type="submit" class="btn btn-success btn-sm py-0 px-2" title="Guardar"><i class="bi bi-check-lg" style="font-size: 0.8rem;"></i></button>
@@ -274,8 +288,8 @@
                         <label class="form-label fw-bold text-secondary">Aplica para Sucursal</label>
                         <select name="id_sucursal" class="form-select" required>
                             <option value="todas">-- TODAS LAS SUCURSALES --</option>
-                            @foreach ($sucursales as $suc)
-                                <option value="{{ $suc->id_sucursal }}">{{ $suc->nombre_sucursal }}</option>
+                            @foreach ($sucursales as $sucursal)
+                                <option value="{{ $sucursal->id_sucursal }}">{{ $sucursal->nombre_sucursal }}</option>
                             @endforeach
                         </select>
                     </div>
