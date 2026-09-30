@@ -442,10 +442,15 @@
                     }
 
                     // 4. Ocultar si el empleado fue mandado al bote de basura
-                    if (data.oculto) {
-                        row.style.display = 'none';
-                        ocultosCount++;
-                    }
+if (data.oculto) {
+    row.style.display = 'none';
+    
+    // 🔥 CORRECCIÓN: Forzamos los inputs ocultos a 0 para que no manden basura al guardar
+    document.getElementById('input_retardos_' + empId).value = 0;
+    document.getElementById('input_faltas_' + empId).value = 0;
+    
+    ocultosCount++;
+}
                 });
 
                 // Actualizar los globos de los botones de restauración
