@@ -155,7 +155,7 @@
                                                         return $fecha->between($inicio, $fin);
                                                     });
 
-                                                    // 🔥 EVALUAR CUMPLEAÑOS, ANIVERSARIOS E INGRESO (Línea de tiempo)
+                                                    // 🔥 EVALUAR CUMPLEAÑOS, ANIVERSARIOS E INGRESO
                                                     $esCumple = false;
                                                     $esAniversario = false;
                                                     $esIngreso = false;
@@ -171,23 +171,18 @@
                                                         $ing = \Carbon\Carbon::parse($empleado->fecha_ingreso)->startOfDay();
                                                         $fechaDiaActual = $fecha->copy()->startOfDay();
                                                         
-                                                        // Validar si es antes de entrar a la empresa
                                                         if ($fechaDiaActual->lessThan($ing)) {
                                                             $esAntesDeIngreso = true;
-                                                        } 
-                                                        // Validar si es exactamente el día que entró
-                                                        elseif ($fechaDiaActual->equalTo($ing)) {
+                                                        } elseif ($fechaDiaActual->equalTo($ing)) {
                                                             $esIngreso = true;
                                                         }
                                                         
-                                                        // Validar aniversarios posteriores
                                                         if ($ing->month == $fecha->month && $ing->day == $fecha->day) {
                                                             $aniosAniversario = $fecha->year - $ing->year;
                                                             $esAniversario = ($aniosAniversario > 0);
                                                         }
                                                     }
 
-                                                    // Anular visualmente la falta si hay vacación o asueto
                                                     if ($asistenciaDia && $asistenciaDia->status_asistencia === 'Falta') {
                                                         if ($asuetoDia || $vacacionDia) {
                                                             $asistenciaDia = null; 
@@ -196,7 +191,7 @@
 
                                                     $claseFondo = '';
                                                     if ($esAntesDeIngreso) {
-                                                        $claseFondo = 'bg-secondary bg-opacity-25'; // Sombreado gris oscuro para días no laborados históricamente
+                                                        $claseFondo = 'bg-secondary bg-opacity-25'; 
                                                     } elseif ($asistenciaDia) {
                                                         switch ($asistenciaDia->status_asistencia) {
                                                             case 'Retardo': $claseFondo = 'bg-warning bg-opacity-25'; break;
@@ -217,35 +212,40 @@
                                                 
                                                 <td class="p-2 position-relative {{ $claseFondo }}">
 
-                                                    {{-- ICONO DE NUEVO INGRESO (Pin superior derecho) --}}
+                                                    {{-- INSIGNIA DE NUEVO INGRESO (Pin verde esmeralda) --}}
                                                     @if($esIngreso)
-                                                        <span class="position-absolute top-0 end-0 me-1 mt-1 text-success" style="font-size: 0.8rem; z-index: 5; pointer-events: none;" title="Día de Ingreso">
-                                                            <i class="bi bi-person-check-fill"></i>
-                                                        </span>
+                                                        <div class="position-absolute top-0 end-0 mt-1 me-1" style="z-index: 5; pointer-events: none;" title="Día de Ingreso">
+                                                            <div class="d-flex align-items-center justify-content-center rounded-circle shadow-sm border border-2 border-white" style="width: 24px; height: 24px; background: linear-gradient(135deg, #20c997 0%, #198754 100%);">
+                                                                <i class="bi bi-person-check-fill text-white" style="font-size: 0.8rem;"></i>
+                                                            </div>
+                                                        </div>
                                                     @endif
 
-                                                    {{-- ICONO DE CUMPLEAÑOS (Pin superior izquierdo) --}}
+                                                    {{-- INSIGNIA DE CUMPLEAÑOS (Pin azul moderno) --}}
                                                     @if($esCumple)
-                                                        <span class="position-absolute top-0 start-0 ms-1 mt-1 text-info" style="font-size: 0.8rem; z-index: 5; pointer-events: none;" title="¡Feliz Cumpleaños!">
-                                                            <i class="bi bi-balloon-fill"></i>
-                                                        </span>
+                                                        <div class="position-absolute top-0 start-0 mt-1 ms-1" style="z-index: 5; pointer-events: none;" title="¡Feliz Cumpleaños!">
+                                                            <div class="d-flex align-items-center justify-content-center rounded-circle shadow-sm border border-2 border-white" style="width: 24px; height: 24px; background: linear-gradient(135deg, #0dcaf0 0%, #0d6efd 100%);">
+                                                                <i class="bi bi-balloon-fill text-white" style="font-size: 0.85rem; margin-top: 1px;"></i>
+                                                            </div>
+                                                        </div>
                                                     @endif
                                                     
-                                                    {{-- ICONO DE ANIVERSARIO (Pin inferior izquierdo) --}}
+                                                    {{-- INSIGNIA DE ANIVERSARIO (Pastilla naranja/oro) --}}
                                                     @if($esAniversario)
-                                                        <span class="position-absolute bottom-0 start-0 ms-1 mb-1 text-warning d-flex align-items-center gap-1" style="font-size: 0.70rem; z-index: 5; pointer-events: none; text-shadow: 0px 0px 2px rgba(0,0,0,0.3);" title="¡{{ $aniosAniversario }}º Aniversario!">
-                                                            <span class="fw-bold text-dark" style="font-size: 0.65rem;">{{ $aniosAniversario }}º</span><i class="bi bi-star-fill"></i>
-                                                        </span>
+                                                        <div class="position-absolute bottom-0 start-0 mb-1 ms-1" style="z-index: 5; pointer-events: none;" title="¡{{ $aniosAniversario }}º Aniversario!">
+                                                            <div class="d-flex align-items-center justify-content-center rounded-pill shadow-sm border border-2 border-white px-2" style="height: 24px; background: linear-gradient(135deg, #ffda6a 0%, #fd7e14 100%);">
+                                                                <i class="bi bi-star-fill text-white me-1" style="font-size: 0.7rem; text-shadow: 0 1px 1px rgba(0,0,0,0.2);"></i>
+                                                                <span class="fw-bold text-white" style="font-size: 0.75rem; text-shadow: 0 1px 1px rgba(0,0,0,0.2);">{{ $aniosAniversario }}</span>
+                                                            </div>
+                                                        </div>
                                                     @endif
                                                     
                                                     {{-- MODO VISTA --}}
                                                     <div class="display-mode w-100 h-100 d-flex align-items-center justify-content-center" style="{{ $esAntesDeIngreso ? 'cursor: not-allowed;' : 'cursor: pointer;' }}" {!! !$esAntesDeIngreso ? 'onclick="activarEdicion(this)"' : '' !!}>
                                                         
-                                                        {{-- Si la fecha es de ANTES de que entrara a la empresa --}}
                                                         @if ($esAntesDeIngreso)
                                                             <span class="text-secondary opacity-50 fw-bold" style="font-size: 0.65rem; letter-spacing: 1px;" title="No había ingresado a la empresa">N/A</span>
                                                         
-                                                        {{-- Si tiene asistencia registrada --}}
                                                         @elseif ($asistenciaDia)
                                                             <div class="w-100 fw-bold text-center" style="font-size: 0.9rem;">
                                                                 @if (in_array($asistenciaDia->status_asistencia, ['Presente', 'Retardo']))
@@ -268,8 +268,6 @@
                                                                     </span>
                                                                 @endif
                                                             </div>
-                                                        
-                                                        {{-- Celdas en blanco o con asueto/vacaciones --}}
                                                         @else
                                                             @if($asuetoDia)
                                                                 <span class="badge bg-primary text-white fw-bold" style="font-size: 0.65rem; white-space: nowrap;" title="{{ $asuetoDia->nombre }}">
@@ -282,13 +280,12 @@
                                                             @elseif(!$esLaborable)
                                                                 <span class="text-secondary fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">DESCANSO</span>
                                                             @else
-                                                                {{-- Solo poner el signo de MÁS si el empleado ya trabajaba aquí --}}
                                                                 <span class="text-muted small border border-dashed rounded px-2"><i class="bi bi-plus"></i></span>
                                                             @endif
                                                         @endif
                                                     </div>
 
-                                                    {{-- MODO EDICIÓN DIRECTO EN CELDA (No renderizado en días previos al ingreso) --}}
+                                                    {{-- MODO EDICIÓN DIRECTO EN CELDA --}}
                                                     @if(!$esAntesDeIngreso)
                                                         <div class="edit-mode d-none">
                                                             <form method="POST" action="{{ route('asistencia.registrarEntrada') }}" class="d-flex flex-column" onsubmit="prepararHoraAntesDeEnviar(this)">
