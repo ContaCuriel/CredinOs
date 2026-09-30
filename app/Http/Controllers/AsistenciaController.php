@@ -18,13 +18,8 @@ class AsistenciaController extends Controller
     public function index(Request $request)
     {
         $sucursales = Sucursal::where('status', 'Activa')->orderBy('nombre_sucursal')->get();
-        $asuetos = \App\Models\Asueto::all(); // 🔥 Cargar asuetos
-        $vacaciones = collect();
-        if (isset($empleadosDeSucursal) && $empleadosDeSucursal->isNotEmpty()) {
-            $vacaciones = \App\Models\PeriodoVacacional::whereIn('id_empleado', $empleadosDeSucursal->pluck('id_empleado'))
-                            ->get()
-                            ->groupBy('id_empleado');
-        }
+        $asuetos = \App\Models\Asueto::all(); // Cargar asuetos
+        
         $id_sucursal_seleccionada = $request->input('id_sucursal_seleccionada');
         $fechaReferenciaNavegacion = $request->input('fecha_ref', Carbon::today()->toDateString());
         $tipoPeriodo = $request->input('tipo_periodo', 'semana');
@@ -65,7 +60,6 @@ class AsistenciaController extends Controller
                     ->select('empleados.*')
                     ->join('sucursales', 'empleados.id_sucursal', '=', 'sucursales.id_sucursal')
                     ->where('empleados.status', 'Alta')
-                    // 🔥 FILTRO DE VIAJE EN EL TIEMPO: Solo empleados ingresados hasta el fin del periodo consultado
                     ->whereDate('empleados.fecha_ingreso', '<=', $finPeriodo->toDateString()) 
                     ->orderBy('sucursales.nombre_sucursal', 'asc')
                     ->orderBy('empleados.nombre_completo', 'asc')
@@ -77,7 +71,6 @@ class AsistenciaController extends Controller
                 $empleadosDeSucursal = Empleado::with(['sucursal', 'puesto'])
                     ->where('status', 'Alta')
                     ->where('id_sucursal', $id_sucursal_seleccionada)
-                    // 🔥 FILTRO DE VIAJE EN EL TIEMPO
                     ->whereDate('fecha_ingreso', '<=', $finPeriodo->toDateString())
                     ->orderBy('nombre_completo', 'asc')
                     ->get();
@@ -89,6 +82,14 @@ class AsistenciaController extends Controller
             foreach ($empleadosDeSucursal as $emp) {
                 $asistenciaProcesada[$emp->id_empleado] = $asistencias->where('id_empleado', $emp->id_empleado)->keyBy(fn($i) => Carbon::parse($i->fecha)->toDateString());
             }
+        }
+        
+        // 🔥 CORRECCIÓN: Cargar vacaciones HASTA AQUÍ ABAJO, ya que sabemos qué empleados hay
+        $vacaciones = collect();
+        if ($empleadosDeSucursal->isNotEmpty()) {
+            $vacaciones = \App\Models\PeriodoVacacional::whereIn('id_empleado', $empleadosDeSucursal->pluck('id_empleado'))
+                            ->get()
+                            ->groupBy('id_empleado');
         }
         
         return view('asistencia.index', compact('sucursales', 'id_sucursal_seleccionada', 'sucursalSeleccionadaNombre', 'empleadosDeSucursal', 'asistenciaProcesada', 'fechasDelPeriodo', 'tipoPeriodo', 'asuetos', 'vacaciones', 'fechaReferencia'));
@@ -130,7 +131,6 @@ class AsistenciaController extends Controller
                 $notas = $calculo['notas_incidencia'];
             }
         } elseif ($status === 'Incidencia') {
-            // 🔥 AHORA PERMITE GUARDAR LA HORA MANUAL TAMBIÉN PARA INCIDENCIAS
             $hora = $validatedData['hora_llegada_manual'] ?? null;
         }
 
@@ -196,7 +196,7 @@ class AsistenciaController extends Controller
     }
 
     /**
-     * Panel Interactivo de Pre-Cierre de Asistencias (CORREGIDO)
+     * Panel Interactivo de Pre-Cierre de Asistencias
      */
     public function preCierre(Request $request)
     {
@@ -249,10 +249,8 @@ class AsistenciaController extends Controller
 
             $hoy = Carbon::today();
             
-            // OBTENEMOS LOS ASUETOS Y VACACIONES ANTES DEL BUCLE (Optimizado)
             $asuetos = \App\Models\Asueto::all();
             
-            // 🔥 OBTENEMOS LAS VACACIONES DE ESTOS EMPLEADOS
             $empleadosIds = $empleados->pluck('id_empleado');
             $vacaciones = \App\Models\PeriodoVacacional::whereIn('id_empleado', $empleadosIds)->get()->groupBy('id_empleado');
 
@@ -280,7 +278,6 @@ class AsistenciaController extends Controller
                         continue;
                     }
 
-                    // FILTRO DE ASUETOS
                     $esAsueto = $asuetos->contains(function ($asueto) use ($date, $empleado) {
                         $aplicaSucursal = is_null($asueto->id_sucursal) || $asueto->id_sucursal == $empleado->id_sucursal;
                         $inicio = \Carbon\Carbon::parse($asueto->fecha_inicio)->startOfDay();
@@ -292,7 +289,6 @@ class AsistenciaController extends Controller
                         continue;
                     }
 
-                    // 🔥 NUEVO FILTRO DE VACACIONES
                     $vacsEmpleado = $vacaciones->get($empleado->id_empleado, collect());
                     $esVacacion = $vacsEmpleado->contains(function ($vac) use ($date) {
                         $inicio = \Carbon\Carbon::parse($vac->fecha_inicio)->startOfDay();
@@ -300,7 +296,6 @@ class AsistenciaController extends Controller
                         return $date->between($inicio, $fin);
                     });
 
-                    // Si está de vacaciones, saltamos el descuento de falta
                     if ($esVacacion) {
                         continue;
                     }
@@ -314,7 +309,6 @@ class AsistenciaController extends Controller
 
                     $asistencia = $asistenciasDelEmpleado->get($fechaStr);
 
-                    // Si no vino o se marcó Falta Directa en BD
                     if (!$asistencia || $asistencia->status_asistencia == 'Falta') {
                         $faltas_directas_crudas++;
                         $multiplicador = 1;
@@ -328,7 +322,6 @@ class AsistenciaController extends Controller
                         continue;
                     }
 
-                    // Si hay Permisos/Justificaciones especiales
                     if ($asistencia->status_asistencia == 'Incidencia') {
                         $horaIncidencia = $asistencia->hora_llegada ? Carbon::parse($asistencia->hora_llegada)->format('H:i') : null;
                         $detalles_dias[] = [
@@ -342,7 +335,6 @@ class AsistenciaController extends Controller
                         continue; 
                     }
 
-                    // EVALUACIÓN DE RETARDOS Y MEDIOS DÍAS
                     if ($asistencia->hora_llegada) {
                         $horaOficial = Carbon::parse($fechaStr . ' ' . $horario->{$nombreDia.'_entrada'});
                         $horaLlegadaObj = Carbon::parse($fechaStr . ' ' . $asistencia->hora_llegada);
@@ -473,7 +465,6 @@ class AsistenciaController extends Controller
         \Illuminate\Support\Facades\DB::beginTransaction();
 
         try {
-            // 1. Determinar qué sucursales estamos procesando para limpiar registros viejos (evitar duplicados)
             $sucursalesAProcesar = [];
             if ($idSucursalFiltro === 'todas') {
                 $empleadosIds = array_keys($empleados);
@@ -482,19 +473,17 @@ class AsistenciaController extends Controller
                 $sucursalesAProcesar = [$idSucursalFiltro];
             }
 
-            // 2. Limpiar la tabla puente para este periodo y sucursal (para poder "re-cerrar" si nos equivocamos)
             \App\Models\AsistenciaCierre::where('periodo', $periodo)
                 ->whereIn('id_sucursal', $sucursalesAProcesar)
                 ->delete();
 
-            // 3. Guardar los nuevos valores que vienen de la vista
             foreach ($empleados as $idEmpleado => $datos) {
                 $empleadoBD = Empleado::find($idEmpleado);
                 if(!$empleadoBD) continue;
 
                 \App\Models\AsistenciaCierre::create([
                     'id_empleado' => $idEmpleado,
-                    'id_sucursal' => $empleadoBD->id_sucursal, // Tomamos su sucursal real siempre
+                    'id_sucursal' => $empleadoBD->id_sucursal, 
                     'periodo' => $periodo,
                     'faltas' => $datos['faltas'] ?? 0,
                     'retardos' => $datos['retardos'] ?? 0
@@ -503,7 +492,6 @@ class AsistenciaController extends Controller
 
             \Illuminate\Support\Facades\DB::commit();
 
-            // Regresamos a la vista con un mensaje de éxito
             return redirect()->route('asistencia.pre_cierre', [
                 'periodo' => $periodo, 
                 'id_sucursal' => $idSucursalFiltro
@@ -516,21 +504,21 @@ class AsistenciaController extends Controller
     }
 
     public function guardarAsueto(Request $request)
-{
-    $request->validate([
-        'nombre' => 'required|string|max:255',
-        'fecha_inicio' => 'required|date',
-        'fecha_fin' => 'required|date|after_or_equal:fecha_inicio',
-        'id_sucursal' => 'nullable'
-    ]);
+    {
+        $request->validate([
+            'nombre' => 'required|string|max:255',
+            'fecha_inicio' => 'required|date',
+            'fecha_fin' => 'required|date|after_or_equal:fecha_inicio',
+            'id_sucursal' => 'nullable'
+        ]);
 
-    \App\Models\Asueto::create([
-        'nombre' => $request->nombre,
-        'fecha_inicio' => $request->fecha_inicio,
-        'fecha_fin' => $request->fecha_fin,
-        'id_sucursal' => $request->id_sucursal === 'todas' ? null : $request->id_sucursal,
-    ]);
+        \App\Models\Asueto::create([
+            'nombre' => $request->nombre,
+            'fecha_inicio' => $request->fecha_inicio,
+            'fecha_fin' => $request->fecha_fin,
+            'id_sucursal' => $request->id_sucursal === 'todas' ? null : $request->id_sucursal,
+        ]);
 
-    return back()->with('success', 'Asueto guardado correctamente.');
-}
+        return back()->with('success', 'Asueto guardado correctamente.');
+    }
 }
