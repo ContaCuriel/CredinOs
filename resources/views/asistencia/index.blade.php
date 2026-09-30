@@ -155,8 +155,49 @@
                                                         return $fecha->between($inicio, $fin);
                                                     });
 
+                                                    // 🔥 EVALUAR CUMPLEAÑOS, ANIVERSARIOS E INGRESO (Línea de tiempo)
+                                                    $esCumple = false;
+                                                    $esAniversario = false;
+                                                    $esIngreso = false;
+                                                    $esAntesDeIngreso = false;
+                                                    $aniosAniversario = 0;
+
+                                                    if (!empty($empleado->fecha_nacimiento)) {
+                                                        $nac = \Carbon\Carbon::parse($empleado->fecha_nacimiento);
+                                                        $esCumple = ($nac->month == $fecha->month && $nac->day == $fecha->day);
+                                                    }
+
+                                                    if (!empty($empleado->fecha_ingreso)) {
+                                                        $ing = \Carbon\Carbon::parse($empleado->fecha_ingreso)->startOfDay();
+                                                        $fechaDiaActual = $fecha->copy()->startOfDay();
+                                                        
+                                                        // Validar si es antes de entrar a la empresa
+                                                        if ($fechaDiaActual->lessThan($ing)) {
+                                                            $esAntesDeIngreso = true;
+                                                        } 
+                                                        // Validar si es exactamente el día que entró
+                                                        elseif ($fechaDiaActual->equalTo($ing)) {
+                                                            $esIngreso = true;
+                                                        }
+                                                        
+                                                        // Validar aniversarios posteriores
+                                                        if ($ing->month == $fecha->month && $ing->day == $fecha->day) {
+                                                            $aniosAniversario = $fecha->year - $ing->year;
+                                                            $esAniversario = ($aniosAniversario > 0);
+                                                        }
+                                                    }
+
+                                                    // Anular visualmente la falta si hay vacación o asueto
+                                                    if ($asistenciaDia && $asistenciaDia->status_asistencia === 'Falta') {
+                                                        if ($asuetoDia || $vacacionDia) {
+                                                            $asistenciaDia = null; 
+                                                        }
+                                                    }
+
                                                     $claseFondo = '';
-                                                    if ($asistenciaDia) {
+                                                    if ($esAntesDeIngreso) {
+                                                        $claseFondo = 'bg-secondary bg-opacity-25'; // Sombreado gris oscuro para días no laborados históricamente
+                                                    } elseif ($asistenciaDia) {
                                                         switch ($asistenciaDia->status_asistencia) {
                                                             case 'Retardo': $claseFondo = 'bg-warning bg-opacity-25'; break;
                                                             case 'Falta': $claseFondo = 'bg-danger bg-opacity-25'; break;
@@ -166,17 +207,46 @@
                                                     } elseif ($asuetoDia) {
                                                         $claseFondo = 'bg-primary bg-opacity-10';
                                                     } elseif ($vacacionDia) {
-                                                        $claseFondo = 'bg-success bg-opacity-10'; // Verde para las vacaciones
+                                                        $claseFondo = 'bg-success bg-opacity-10';
                                                     } elseif (!$esLaborable) {
                                                         $claseFondo = 'bg-secondary bg-opacity-10'; 
                                                     }
+                                                    
                                                     $estadoActualForm = $asistenciaDia ? ($asistenciaDia->status_asistencia == 'Retardo' ? 'Presente' : $asistenciaDia->status_asistencia) : 'Presente';
                                                 @endphp
-                                                <td class="p-2 {{ $claseFondo }}">
+                                                
+                                                <td class="p-2 position-relative {{ $claseFondo }}">
+
+                                                    {{-- ICONO DE NUEVO INGRESO (Pin superior derecho) --}}
+                                                    @if($esIngreso)
+                                                        <span class="position-absolute top-0 end-0 me-1 mt-1 text-success" style="font-size: 0.8rem; z-index: 5; pointer-events: none;" title="Día de Ingreso">
+                                                            <i class="bi bi-person-check-fill"></i>
+                                                        </span>
+                                                    @endif
+
+                                                    {{-- ICONO DE CUMPLEAÑOS (Pin superior izquierdo) --}}
+                                                    @if($esCumple)
+                                                        <span class="position-absolute top-0 start-0 ms-1 mt-1 text-info" style="font-size: 0.8rem; z-index: 5; pointer-events: none;" title="¡Feliz Cumpleaños!">
+                                                            <i class="bi bi-balloon-fill"></i>
+                                                        </span>
+                                                    @endif
+                                                    
+                                                    {{-- ICONO DE ANIVERSARIO (Pin inferior izquierdo) --}}
+                                                    @if($esAniversario)
+                                                        <span class="position-absolute bottom-0 start-0 ms-1 mb-1 text-warning d-flex align-items-center gap-1" style="font-size: 0.70rem; z-index: 5; pointer-events: none; text-shadow: 0px 0px 2px rgba(0,0,0,0.3);" title="¡{{ $aniosAniversario }}º Aniversario!">
+                                                            <span class="fw-bold text-dark" style="font-size: 0.65rem;">{{ $aniosAniversario }}º</span><i class="bi bi-star-fill"></i>
+                                                        </span>
+                                                    @endif
                                                     
                                                     {{-- MODO VISTA --}}
-                                                    <div class="display-mode w-100 h-100 d-flex align-items-center justify-content-center" style="cursor: pointer;" onclick="activarEdicion(this)">
-                                                        @if ($asistenciaDia)
+                                                    <div class="display-mode w-100 h-100 d-flex align-items-center justify-content-center" style="{{ $esAntesDeIngreso ? 'cursor: not-allowed;' : 'cursor: pointer;' }}" {!! !$esAntesDeIngreso ? 'onclick="activarEdicion(this)"' : '' !!}>
+                                                        
+                                                        {{-- Si la fecha es de ANTES de que entrara a la empresa --}}
+                                                        @if ($esAntesDeIngreso)
+                                                            <span class="text-secondary opacity-50 fw-bold" style="font-size: 0.65rem; letter-spacing: 1px;" title="No había ingresado a la empresa">N/A</span>
+                                                        
+                                                        {{-- Si tiene asistencia registrada --}}
+                                                        @elseif ($asistenciaDia)
                                                             <div class="w-100 fw-bold text-center" style="font-size: 0.9rem;">
                                                                 @if (in_array($asistenciaDia->status_asistencia, ['Presente', 'Retardo']))
                                                                     <span class="text-{{ $asistenciaDia->status_asistencia == 'Retardo' ? 'warning-emphasis' : 'success' }}">
@@ -198,12 +268,13 @@
                                                                     </span>
                                                                 @endif
                                                             </div>
+                                                        
+                                                        {{-- Celdas en blanco o con asueto/vacaciones --}}
                                                         @else
                                                             @if($asuetoDia)
                                                                 <span class="badge bg-primary text-white fw-bold" style="font-size: 0.65rem; white-space: nowrap;" title="{{ $asuetoDia->nombre }}">
                                                                     <i class="bi bi-calendar-heart"></i> ASUETO
                                                                 </span>
-                                                            {{-- 🔥 CHAPA DE VACACIONES --}}
                                                             @elseif($vacacionDia)
                                                                 <span class="badge bg-success text-white fw-bold" style="font-size: 0.65rem; white-space: nowrap;" title="Periodo Vacacional">
                                                                     <i class="bi bi-airplane"></i> VACACIONES
@@ -211,36 +282,39 @@
                                                             @elseif(!$esLaborable)
                                                                 <span class="text-secondary fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">DESCANSO</span>
                                                             @else
+                                                                {{-- Solo poner el signo de MÁS si el empleado ya trabajaba aquí --}}
                                                                 <span class="text-muted small border border-dashed rounded px-2"><i class="bi bi-plus"></i></span>
                                                             @endif
                                                         @endif
                                                     </div>
 
-                                                    {{-- MODO EDICIÓN DIRECTO EN CELDA --}}
-                                                    <div class="edit-mode d-none">
-                                                        <form method="POST" action="{{ route('asistencia.registrarEntrada') }}" class="d-flex flex-column" onsubmit="prepararHoraAntesDeEnviar(this)">
-                                                            @csrf
-                                                            <input type="hidden" name="id_empleado" value="{{ $empleado->id_empleado }}">
-                                                            <input type="hidden" name="fecha_registro" value="{{ $fechaString }}">
-                                                            <input type="hidden" name="id_sucursal_seleccionada" value="{{ $id_sucursal_seleccionada }}">
+                                                    {{-- MODO EDICIÓN DIRECTO EN CELDA (No renderizado en días previos al ingreso) --}}
+                                                    @if(!$esAntesDeIngreso)
+                                                        <div class="edit-mode d-none">
+                                                            <form method="POST" action="{{ route('asistencia.registrarEntrada') }}" class="d-flex flex-column" onsubmit="prepararHoraAntesDeEnviar(this)">
+                                                                @csrf
+                                                                <input type="hidden" name="id_empleado" value="{{ $empleado->id_empleado }}">
+                                                                <input type="hidden" name="fecha_registro" value="{{ $fechaString }}">
+                                                                <input type="hidden" name="id_sucursal_seleccionada" value="{{ $id_sucursal_seleccionada }}">
 
-                                                            <select name="status_asistencia" class="form-select form-select-sm mb-1 text-center fw-bold bg-white" style="font-size: 0.75rem; padding: 0px 2px;" data-periodo="{{ $tipoPeriodo }}" onchange="manejarCambioEstado(this)">
-                                                                <option value="Presente" {{ $estadoActualForm == 'Presente' ? 'selected' : '' }}>Asistencia</option>
-                                                                <option value="Falta" {{ $estadoActualForm == 'Falta' ? 'selected' : '' }}>Falta</option>
-                                                                <option value="Baja_Dia" {{ $estadoActualForm == 'Baja_Dia' ? 'selected' : '' }}>Baja Día</option>
-                                                                <option value="Incidencia" {{ $estadoActualForm == 'Incidencia' ? 'selected' : '' }}>Incidencia</option>
-                                                            </select>
+                                                                <select name="status_asistencia" class="form-select form-select-sm mb-1 text-center fw-bold bg-white" style="font-size: 0.75rem; padding: 0px 2px;" data-periodo="{{ $tipoPeriodo }}" onchange="manejarCambioEstado(this)">
+                                                                    <option value="Presente" {{ $estadoActualForm == 'Presente' ? 'selected' : '' }}>Asistencia</option>
+                                                                    <option value="Falta" {{ $estadoActualForm == 'Falta' ? 'selected' : '' }}>Falta</option>
+                                                                    <option value="Baja_Dia" {{ $estadoActualForm == 'Baja_Dia' ? 'selected' : '' }}>Baja Día</option>
+                                                                    <option value="Incidencia" {{ $estadoActualForm == 'Incidencia' ? 'selected' : '' }}>Incidencia</option>
+                                                                </select>
 
-                                                            <input type="text" name="hora_llegada_manual" class="form-control form-control-sm mb-1 text-center input-hora" style="font-size: 0.8rem; padding: 0px;" placeholder="HH:MM" maxlength="5" oninput="formatearHoraAuto(this)" value="{{ $asistenciaDia && $asistenciaDia->hora_llegada ? \Carbon\Carbon::parse($asistenciaDia->hora_llegada)->format('H:i') : '' }}">
+                                                                <input type="text" name="hora_llegada_manual" class="form-control form-control-sm mb-1 text-center input-hora" style="font-size: 0.8rem; padding: 0px;" placeholder="HH:MM" maxlength="5" oninput="formatearHoraAuto(this)" value="{{ $asistenciaDia && $asistenciaDia->hora_llegada ? \Carbon\Carbon::parse($asistenciaDia->hora_llegada)->format('H:i') : '' }}">
 
-                                                            <input type="text" name="notas_incidencia" class="form-control form-control-sm mb-1 input-notas text-center" style="font-size: 0.75rem; padding: 1px;" placeholder="¿Qué pasó? (Ej. Accidente)" value="{{ $asistenciaDia && $asistenciaDia->status_asistencia == 'Incidencia' ? $asistenciaDia->notas_incidencia : '' }}">
+                                                                <input type="text" name="notas_incidencia" class="form-control form-control-sm mb-1 input-notas text-center" style="font-size: 0.75rem; padding: 1px;" placeholder="¿Qué pasó? (Ej. Accidente)" value="{{ $asistenciaDia && $asistenciaDia->status_asistencia == 'Incidencia' ? $asistenciaDia->notas_incidencia : '' }}">
 
-                                                            <div class="d-flex gap-1 justify-content-center">
-                                                                <button type="submit" class="btn btn-success btn-sm py-0 px-2" title="Guardar"><i class="bi bi-check-lg" style="font-size: 0.8rem;"></i></button>
-                                                                <button type="button" class="btn btn-secondary btn-sm py-0 px-2" title="Cancelar" onclick="cancelarEdicion(this)"><i class="bi bi-x-lg" style="font-size: 0.8rem;"></i></button>
-                                                            </div>
-                                                        </form>
-                                                    </div>
+                                                                <div class="d-flex gap-1 justify-content-center">
+                                                                    <button type="submit" class="btn btn-success btn-sm py-0 px-2" title="Guardar"><i class="bi bi-check-lg" style="font-size: 0.8rem;"></i></button>
+                                                                    <button type="button" class="btn btn-secondary btn-sm py-0 px-2" title="Cancelar" onclick="cancelarEdicion(this)"><i class="bi bi-x-lg" style="font-size: 0.8rem;"></i></button>
+                                                                </div>
+                                                            </form>
+                                                        </div>
+                                                    @endif
 
                                                 </td>
                                             @endforeach
@@ -311,12 +385,12 @@
             let celda = divVista.closest('td');
             celda.querySelector('.display-mode').classList.add('d-none');
             let editMode = celda.querySelector('.edit-mode');
-            editMode.classList.remove('d-none');
-            
-            let select = editMode.querySelector('select');
-            manejarCambioEstado(select);
-            
-            setTimeout(() => editMode.querySelector('.input-hora').focus(), 50);
+            if (editMode) {
+                editMode.classList.remove('d-none');
+                let select = editMode.querySelector('select');
+                manejarCambioEstado(select);
+                setTimeout(() => editMode.querySelector('.input-hora').focus(), 50);
+            }
         }
 
         function cancelarEdicion(btnCancelar) {
@@ -329,7 +403,6 @@
             let form = selectElement.closest('form');
             let inputHora = form.querySelector('.input-hora');
             let inputNotas = form.querySelector('.input-notas');
-            let periodo = selectElement.getAttribute('data-periodo');
 
             if (selectElement.value === 'Presente') {
                 inputHora.style.setProperty('display', 'block', 'important');
