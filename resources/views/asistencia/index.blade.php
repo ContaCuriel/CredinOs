@@ -4,7 +4,12 @@
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
                 <h5 class="mb-0 text-dark fw-bold">Control de Asistencias</h5>
                 <div>
-                    {{-- NUEVO BOTÓN PARA EL PANEL INTERACTIVO --}}
+                    {{-- NUEVO BOTÓN PARA AGREGAR ASUETO --}}
+                    <button type="button" class="btn btn-outline-primary btn-sm fw-bold me-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalAsueto">
+                        <i class="bi bi-calendar-heart"></i> Agregar Asueto
+                    </button>
+
+                    {{-- BOTÓN PARA EL PANEL INTERACTIVO --}}
                     <a href="{{ route('asistencia.pre_cierre') }}" class="btn btn-primary btn-sm me-2 text-white shadow-sm">
                         <i class="bi bi-shield-check"></i> Panel de Pre-Cierre
                     </a>
@@ -128,13 +133,11 @@
                                             </td>
                                             @foreach ($fechasDelPeriodo as $fecha)
                                                 @php
-                                                    $fechaString = $fecha->toDateString();
-                                                    $asistenciaDia = $asistenciaProcesada->get($empleado->id_empleado, collect())->get($fechaString);
+                                                    $fechaString =$fecha->toDateString();
+                                                    $asistenciaDia =$asistenciaProcesada->get($empleado->id_empleado, collect())->get($fechaString);
                                                     
-                                                    // 🔥 NUEVO: Detectar si el día es laborable según el horario del empleado
-                                                    $mapaDias = [1 => 'lunes', 2 => 'martes', 3 => 'miercoles', 4 => 'jueves', 5 => 'viernes', 6 => 'sabado', 7 => 'domingo'];
-                                                    $nombreDia = $mapaDias[$fecha->dayOfWeekIso];
-                                                    $esLaborable = $empleado->horario ? $empleado->horario->{$nombreDia} : true;
+                                                    $mapaDias = [1 => 'lunes', 2 => 'martes', 3 => 'miercoles', 4 => 'jueves', 5 => 'viernes', 6 => 'sabado', 7 => 'domingo'];$nombreDia = $mapaDias[$fecha->dayOfWeekIso];
+                                                    $esLaborable =$empleado->horario ? $empleado->horario->{$nombreDia} : true;
                                                     
                                                     $claseFondo = '';
                                                     if ($asistenciaDia) {
@@ -144,11 +147,9 @@
                                                             case 'Baja_Dia': $claseFondo = 'bg-dark bg-opacity-10'; break;
                                                             case 'Incidencia': $claseFondo = 'bg-info bg-opacity-25'; break;
                                                         }
-                                                    } elseif (!$esLaborable) {
-                                                        // Fondo gris sutil para los días de descanso
-                                                        $claseFondo = 'bg-secondary bg-opacity-10'; 
+                                                    } elseif (!$esLaborable) {$claseFondo = 'bg-secondary bg-opacity-10'; 
                                                     }
-                                                    $estadoActualForm = $asistenciaDia ? ($asistenciaDia->status_asistencia == 'Retardo' ? 'Presente' : $asistenciaDia->status_asistencia) : 'Presente';
+                                                    $estadoActualForm =$asistenciaDia ? ($asistenciaDia->status_asistencia == 'Retardo' ? 'Presente' :$asistenciaDia->status_asistencia) : 'Presente';
                                                 @endphp
                                                 <td class="p-2 {{ $claseFondo }}">
                                                     
@@ -168,7 +169,6 @@
                                                                 @elseif ($asistenciaDia->status_asistencia == 'Baja_Dia')
                                                                     <span class="text-muted">BAJA</span>
                                                                 @elseif ($asistenciaDia->status_asistencia == 'Incidencia')
-                                                                    {{-- 🔥 INCIDENCIA CLARA Y HORA --}}
                                                                     <span class="text-info-emphasis d-block" style="font-size: 0.75rem; line-height: 1.2;">
                                                                         @if($asistenciaDia->hora_llegada) 
                                                                             <strong>{{ \Carbon\Carbon::parse($asistenciaDia->hora_llegada)->format('H:i') }}</strong> <br>
@@ -178,7 +178,6 @@
                                                                 @endif
                                                             </div>
                                                         @else
-                                                            {{-- 🔥 NUEVO: Si no hay registro, verificamos si es su descanso --}}
                                                             @if(!$esLaborable)
                                                                 <span class="text-secondary fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">DESCANSO</span>
                                                             @else
@@ -204,7 +203,7 @@
 
                                                             <input type="text" name="hora_llegada_manual" class="form-control form-control-sm mb-1 text-center input-hora" style="font-size: 0.8rem; padding: 0px;" placeholder="HH:MM" maxlength="5" oninput="formatearHoraAuto(this)" value="{{ $asistenciaDia && $asistenciaDia->hora_llegada ? \Carbon\Carbon::parse($asistenciaDia->hora_llegada)->format('H:i') : '' }}">
 
-                                                            <input type="text" name="notas_incidencia" class="form-control form-control-sm mb-1 input-notas text-center" style="font-size: 0.75rem; padding: 1px;" placeholder="¿Qué pasó? (Ej. Accidente)" value="{{ $asistenciaDia && $asistenciaDia->status_asistencia == 'Incidencia' ? $asistenciaDia->notas_incidencia : '' }}">
+                                                            <input type="text" name="notas_incidencia" class="form-control form-control-sm mb-1 input-notas text-center" style="font-size: 0.75rem; padding: 1px;" placeholder="¿Qué pasó? (Ej. Accidente)" value="{{ $asistenciaDia && $asistenciaDia->status_asistencia == 'Incidencia' ?$asistenciaDia->notas_incidencia : '' }}">
 
                                                             <div class="d-flex gap-1 justify-content-center">
                                                                 <button type="submit" class="btn btn-success btn-sm py-0 px-2" title="Guardar"><i class="bi bi-check-lg" style="font-size: 0.8rem;"></i></button>
@@ -227,6 +226,49 @@
                     <div class="alert alert-info mt-4 text-center">Por favor, seleccione una sucursal para visualizar el control de asistencia.</div>
                 @endif
             </div>
+        </div>
+    </div>
+
+    <!-- Modal Asueto -->
+    <div class="modal fade" id="modalAsueto" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <form method="POST" action="{{ route('asistencia.guardar_asueto') }}" class="modal-content border-0 shadow">
+                @csrf
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-calendar-heart"></i> Registrar Nuevo Asueto</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body bg-light">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-secondary">Motivo del Asueto</label>
+                        <input type="text" name="nombre" class="form-control" placeholder="Ej. Día de la Independencia, Navidad" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold text-secondary">Fecha Inicio</label>
+                            <input type="date" name="fecha_inicio" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold text-secondary">Fecha Fin</label>
+                            <input type="date" name="fecha_fin" class="form-control" required>
+                            <small class="text-muted" style="font-size: 0.7em;">(Misma fecha si es un solo día)</small>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-secondary">Aplica para Sucursal</label>
+                        <select name="id_sucursal" class="form-select" required>
+                            <option value="todas">-- TODAS LAS SUCURSALES --</option>
+                            @foreach ($sucursales as$suc)
+                                <option value="{{ $suc->id_sucursal }}">{{ $suc->nombre_sucursal }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary fw-bold">Guardar Asueto</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -265,7 +307,6 @@
                 inputNotas.style.setProperty('display', 'none', 'important');
                 inputNotas.required = false;
             } else if (selectElement.value === 'Incidencia') {
-                // 🔥 AHORA SIEMPRE SE MUESTRAN AMBOS PARA INCIDENCIA
                 inputHora.style.setProperty('display', 'block', 'important');
                 inputHora.required = false; 
                 inputNotas.style.setProperty('display', 'block', 'important');

@@ -77,6 +77,7 @@ Route::get('/', function () {
 // Rutas de Asistencia
 Route::get('/asistencia', [AsistenciaController::class, 'index'])->name('asistencia.index');
 Route::post('/asistencia/registrar-entrada', [AsistenciaController::class, 'registrarEntrada'])->name('asistencia.registrarEntrada');
+Route::post('/asistencia/asueto', [App\Http\Controllers\AsistenciaController::class, 'guardarAsueto'])->name('asistencia.guardar_asueto');
 
 // --- PORTAL DEL EMPLEADO (Rutas limpias sin middleware closure) ---
 Route::prefix('mi-portal')->group(function () {

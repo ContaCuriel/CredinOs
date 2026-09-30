@@ -241,6 +241,9 @@ class AsistenciaController extends Controller
             }
 
             $hoy = Carbon::today();
+            
+            // 🔥 OBTENEMOS LOS ASUETOS UNA SOLA VEZ ANTES DEL BUCLE
+            $asuetos = \App\Models\Asueto::all();
 
             foreach ($empleados as $empleado) {
                 $horario = $empleado->horario;
@@ -262,9 +265,26 @@ class AsistenciaController extends Controller
                         continue; 
                     }
 
-                    // 🔥 NUEVO FILTRO: Si el día evaluado es anterior a la fecha en que ingresó el empleado, lo saltamos
+                    // Si el día evaluado es anterior a la fecha en que ingresó el empleado, lo saltamos
                     $fechaIngresoEmpleado = Carbon::parse($empleado->fecha_ingreso);
                     if ($date->lt($fechaIngresoEmpleado)) {
+                        continue;
+                    }
+
+                    // 🔥 NUEVO FILTRO DE ASUETOS
+                    $esAsueto = $asuetos->contains(function ($asueto) use ($date, $empleado) {
+                        // 1. Verificamos si aplica a su sucursal o a todas
+                        $aplicaSucursal = is_null($asueto->id_sucursal) || $asueto->id_sucursal == $empleado->id_sucursal;
+                        
+                        // 2. Verificamos si el día actual está dentro del rango del asueto
+                        $inicio = Carbon::parse($asueto->fecha_inicio)->startOfDay();
+                        $fin = Carbon::parse($asueto->fecha_fin)->endOfDay();
+                        
+                        return $aplicaSucursal && $date->between($inicio, $fin);
+                    });
+
+                    // Si es un día de asueto válido para este empleado, simplemente saltamos la comprobación
+                    if ($esAsueto) {
                         continue;
                     }
 
@@ -484,4 +504,23 @@ class AsistenciaController extends Controller
             return back()->with('error', 'Hubo un error al procesar el cierre: ' . $e->getMessage());
         }
     }
+
+    public function guardarAsueto(Request $request)
+{
+    $request->validate([
+        'nombre' => 'required|string|max:255',
+        'fecha_inicio' => 'required|date',
+        'fecha_fin' => 'required|date|after_or_equal:fecha_inicio',
+        'id_sucursal' => 'nullable'
+    ]);
+
+    \App\Models\Asueto::create([
+        'nombre' => $request->nombre,
+        'fecha_inicio' => $request->fecha_inicio,
+        'fecha_fin' => $request->fecha_fin,
+        'id_sucursal' => $request->id_sucursal === 'todas' ? null : $request->id_sucursal,
+    ]);
+
+    return back()->with('success', 'Asueto guardado correctamente.');
+}
 }
