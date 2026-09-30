@@ -18,6 +18,7 @@ class AsistenciaController extends Controller
     public function index(Request $request)
     {
         $sucursales = Sucursal::where('status', 'Activa')->orderBy('nombre_sucursal')->get();
+        $asuetos = \App\Models\Asueto::all(); // 🔥 Cargar asuetos
         $id_sucursal_seleccionada = $request->input('id_sucursal_seleccionada');
         $fechaReferenciaNavegacion = $request->input('fecha_ref', Carbon::today()->toDateString());
         $tipoPeriodo = $request->input('tipo_periodo', 'semana');
@@ -84,7 +85,7 @@ class AsistenciaController extends Controller
             }
         }
         
-        return view('asistencia.index', compact('sucursales', 'id_sucursal_seleccionada', 'sucursalSeleccionadaNombre', 'empleadosDeSucursal', 'asistenciaProcesada', 'fechasDelPeriodo', 'tipoPeriodo', 'fechaReferencia'));
+        return view('asistencia.index', compact('sucursales', 'id_sucursal_seleccionada', 'sucursalSeleccionadaNombre', 'empleadosDeSucursal', 'asistenciaProcesada', 'fechasDelPeriodo', 'tipoPeriodo', 'asuetos', 'fechaReferencia'));
     }
 
     /**

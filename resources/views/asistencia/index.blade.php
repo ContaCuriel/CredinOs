@@ -4,7 +4,7 @@
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
                 <h5 class="mb-0 text-dark fw-bold">Control de Asistencias</h5>
                 <div>
-                    {{-- NUEVO BOTÓN PARA AGREGAR ASUETO --}}
+                    {{-- BOTÓN PARA AGREGAR ASUETO --}}
                     <button type="button" class="btn btn-outline-primary btn-sm fw-bold me-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalAsueto">
                         <i class="bi bi-calendar-heart"></i> Agregar Asueto
                     </button>
@@ -108,7 +108,6 @@
                                         <tr id="row_emp_{{ $empleado->id_empleado }}" class="empleado-row" data-id="{{ $empleado->id_empleado }}">
                                             <td class="align-middle" style="text-align: left; position: sticky; left: 0; background-color: #f8f9fa; z-index: 1; border-right: 2px solid #dee2e6;">
                                                 <div class="d-flex align-items-center">
-                                                    {{-- EL OJITO HA VUELTO --}}
                                                     <i class="bi bi-eye-slash text-muted me-2" style="cursor: pointer; font-size: 0.9rem;" onclick="ocultarEmpleado({{ $empleado->id_empleado }})" title="Ocultar de esta lista"></i>
                                                     
                                                     <span class="fw-bold text-dark me-2">{{ $empleado->nombre_completo }}</span>
@@ -133,12 +132,21 @@
                                             </td>
                                             @foreach ($fechasDelPeriodo as $fecha)
                                                 @php
-                                                    $fechaString =$fecha->toDateString();
-                                                    $asistenciaDia =$asistenciaProcesada->get($empleado->id_empleado, collect())->get($fechaString);
+                                                    $fechaString = $fecha->toDateString();
+                                                    $asistenciaDia = $asistenciaProcesada->get($empleado->id_empleado, collect())->get($fechaString);
                                                     
-                                                    $mapaDias = [1 => 'lunes', 2 => 'martes', 3 => 'miercoles', 4 => 'jueves', 5 => 'viernes', 6 => 'sabado', 7 => 'domingo'];$nombreDia = $mapaDias[$fecha->dayOfWeekIso];
-                                                    $esLaborable =$empleado->horario ? $empleado->horario->{$nombreDia} : true;
+                                                    $mapaDias = [1 => 'lunes', 2 => 'martes', 3 => 'miercoles', 4 => 'jueves', 5 => 'viernes', 6 => 'sabado', 7 => 'domingo'];
+                                                    $nombreDia = $mapaDias[$fecha->dayOfWeekIso];
+                                                    $esLaborable = $empleado->horario ? $empleado->horario->{$nombreDia} : true;
                                                     
+                                                    // 🔥 EVALUAR SI EL DÍA ES ASUETO
+                                                    $asuetoDia = isset($asuetos) ? $asuetos->first(function($a) use ($fecha, $empleado) {
+                                                        $aplicaSucursal = is_null($a->id_sucursal) || $a->id_sucursal == $empleado->id_sucursal;
+                                                        $inicio = \Carbon\Carbon::parse($a->fecha_inicio)->startOfDay();
+                                                        $fin = \Carbon\Carbon::parse($a->fecha_fin)->endOfDay();
+                                                        return $aplicaSucursal && $fecha->between($inicio, $fin);
+                                                    }) : null;
+
                                                     $claseFondo = '';
                                                     if ($asistenciaDia) {
                                                         switch ($asistenciaDia->status_asistencia) {
@@ -147,9 +155,12 @@
                                                             case 'Baja_Dia': $claseFondo = 'bg-dark bg-opacity-10'; break;
                                                             case 'Incidencia': $claseFondo = 'bg-info bg-opacity-25'; break;
                                                         }
-                                                    } elseif (!$esLaborable) {$claseFondo = 'bg-secondary bg-opacity-10'; 
+                                                    } elseif ($asuetoDia) {
+                                                        $claseFondo = 'bg-primary bg-opacity-10';
+                                                    } elseif (!$esLaborable) {
+                                                        $claseFondo = 'bg-secondary bg-opacity-10'; 
                                                     }
-                                                    $estadoActualForm =$asistenciaDia ? ($asistenciaDia->status_asistencia == 'Retardo' ? 'Presente' :$asistenciaDia->status_asistencia) : 'Presente';
+                                                    $estadoActualForm = $asistenciaDia ? ($asistenciaDia->status_asistencia == 'Retardo' ? 'Presente' : $asistenciaDia->status_asistencia) : 'Presente';
                                                 @endphp
                                                 <td class="p-2 {{ $claseFondo }}">
                                                     
@@ -178,7 +189,12 @@
                                                                 @endif
                                                             </div>
                                                         @else
-                                                            @if(!$esLaborable)
+                                                            {{-- 🔥 SI ES ASUETO, LO MUESTRA CON SU BADGE --}}
+                                                            @if($asuetoDia)
+                                                                <span class="badge bg-primary text-white fw-bold" style="font-size: 0.65rem; white-space: nowrap;" title="{{ $asuetoDia->nombre }}">
+                                                                    <i class="bi bi-calendar-heart"></i> ASUETO
+                                                                </span>
+                                                            @elseif(!$esLaborable)
                                                                 <span class="text-secondary fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">DESCANSO</span>
                                                             @else
                                                                 <span class="text-muted small border border-dashed rounded px-2"><i class="bi bi-plus"></i></span>
@@ -258,7 +274,7 @@
                         <label class="form-label fw-bold text-secondary">Aplica para Sucursal</label>
                         <select name="id_sucursal" class="form-select" required>
                             <option value="todas">-- TODAS LAS SUCURSALES --</option>
-                            @foreach ($sucursales as $suc)
+                            @foreach ($sucursales as$suc)
                                 <option value="{{ $suc->id_sucursal }}">{{ $suc->nombre_sucursal }}</option>
                             @endforeach
                         </select>
