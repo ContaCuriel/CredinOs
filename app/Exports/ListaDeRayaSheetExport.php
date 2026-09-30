@@ -181,9 +181,12 @@ class ListaDeRayaSheetExport implements FromCollection, WithHeadings, WithMappin
             $faltasCrudas = $cierre ? (float)$cierre->faltas : 0; // Para la Columna E
             
             $reglaRetardos = $empleado->horario ? ($empleado->horario->retardos_por_falta ?? 0) : 0;
-            $faltasPorRetardos = $reglaRetardos > 0 ? floor($retardosCrudos / $reglaRetardos) : 0;
-            
-            $diasADescontar = $faltasCrudas + $faltasPorRetardos;
+            // Aún mantenemos la variable en 0 para que la tabla reporte que ya no se cobran aquí,
+            // pues ya vienen incluidos en $faltasCrudas gracias al pre-cierre.
+            $faltasPorRetardos = 0; 
+
+            // Ya NO sumamos los retardos extra, confiamos 100% en el número crudo que mandó el usuario.
+            $diasADescontar = (float)$faltasCrudas;
 
             $deduccionesActivas = DeduccionEmpleado::where('id_empleado', $empleado->id_empleado)
                 ->where('status', 'Activo')
