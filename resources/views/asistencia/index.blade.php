@@ -1,40 +1,169 @@
 <x-app-layout>
-    <div class="container-fluid py-4">
-        <div class="card shadow-sm">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0 text-dark fw-bold">Control de Asistencias</h5>
-                <div>
-                    {{-- BOTÓN PARA AGREGAR ASUETO --}}
-                    <button type="button" class="btn btn-outline-primary btn-sm fw-bold me-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalAsueto">
-                        <i class="bi bi-calendar-heart"></i> Agregar Asueto
-                    </button>
+    <style>
+        /* Estilos Premium tipo iOS */
+        .ios-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(0,0,0,0.05);
+            border-radius: 1.2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.03);
+        }
+        
+        .ios-table-container {
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+            border: 1px solid #f0f0f2;
+        }
 
-                    {{-- BOTÓN PARA EL PANEL INTERACTIVO --}}
-                    <a href="{{ route('asistencia.pre_cierre') }}" class="btn btn-primary btn-sm me-2 text-white shadow-sm">
-                        <i class="bi bi-shield-check"></i> Panel de Pre-Cierre
+        .table-ios {
+            margin-bottom: 0;
+        }
+
+        .table-ios thead th {
+            background-color: #f5f5f7 !important; /* Gris ultra claro de Apple */
+            color: #1d1d1f !important;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #d2d2d7;
+            padding: 1rem 0.5rem;
+        }
+
+        .table-ios tbody td {
+            border-color: #f0f0f2;
+            padding: 0.5rem;
+            transition: background-color 0.2s ease;
+        }
+
+        .table-ios tbody tr:hover td {
+            background-color: #fafafa;
+        }
+
+        /* Insignias Flotantes (Glassmorphism) */
+        .ios-badge-float {
+            width: 24px; 
+            height: 24px; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            border: 1.5px solid rgba(255,255,255,0.8);
+            backdrop-filter: blur(4px);
+        }
+
+        .badge-birthday {
+            background: linear-gradient(135deg, #32d74b 0%, #28cd41 100%); /* Verde iMessage */
+        }
+
+        .badge-anniversary {
+            height: 24px;
+            padding: 0 8px;
+            background: linear-gradient(135deg, #ff9f0a 0%, #ff8c00 100%); /* Naranja iOS */
+        }
+        
+        .badge-newcomer {
+            background: linear-gradient(135deg, #0a84ff 0%, #0066cc 100%); /* Azul iOS */
+        }
+
+        /* Celdas Interactivas */
+        .cell-interactive {
+            border-radius: 0.5rem;
+            margin: 2px;
+            height: calc(100% - 4px);
+            transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        
+        .display-mode:hover .cell-interactive:not(.disabled-cell) {
+            transform: scale(1.03);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            background-color: white;
+        }
+
+        /* Botones estilo iOS */
+        .btn-ios-primary {
+            background-color: #0071e3;
+            color: white;
+            border-radius: 2rem;
+            font-weight: 500;
+            padding: 0.4rem 1.2rem;
+            border: none;
+            transition: all 0.2s;
+        }
+        .btn-ios-primary:hover {
+            background-color: #0077ED;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(0, 113, 227, 0.3);
+            color: white;
+        }
+
+        .btn-ios-outline {
+            background-color: transparent;
+            color: #0071e3;
+            border-radius: 2rem;
+            font-weight: 500;
+            padding: 0.4rem 1.2rem;
+            border: 1.5px solid #0071e3;
+            transition: all 0.2s;
+        }
+        .btn-ios-outline:hover {
+            background-color: rgba(0, 113, 227, 0.05);
+            color: #0071e3;
+        }
+
+        /* Formularios suaves */
+        .form-control-ios, .form-select-ios {
+            border-radius: 0.75rem;
+            border: 1px solid #d2d2d7;
+            background-color: #fbfbfe;
+            padding: 0.5rem 1rem;
+        }
+        .form-control-ios:focus, .form-select-ios:focus {
+            border-color: #0071e3;
+            box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.1);
+        }
+    </style>
+
+    <div class="container-fluid py-4">
+        <div class="card ios-card">
+            <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center pt-4 pb-2 px-4">
+                <h4 class="mb-0 text-dark fw-bold" style="letter-spacing: -0.5px;">Control de Asistencias</h4>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn-ios-outline" data-bs-toggle="modal" data-bs-target="#modalAsueto">
+                        <i class="bi bi-calendar-heart me-1"></i> Asueto
+                    </button>
+                    <a href="{{ route('asistencia.pre_cierre') }}" class="btn-ios-primary text-decoration-none">
+                        <i class="bi bi-shield-check me-1"></i> Pre-Cierre
                     </a>
-                    
-                    <a href="{{ route('asistencia.resumenIncidencias') }}" class="btn btn-info btn-sm text-white shadow-sm">
-                        <i class="bi bi-file-earmark-text"></i> Ver Resumen PDF
+                    <a href="{{ route('asistencia.resumenIncidencias') }}" class="btn-ios-primary text-decoration-none" style="background-color: #5e5ce6;">
+                        <i class="bi bi-file-pdf me-1"></i> PDF
                     </a>
                 </div>
             </div>         
-            <div class="card-body">
+            <div class="card-body px-4 pb-4">
                 @if (session('success'))
-                    <div class="alert alert-success alert-dismissible fade show" role="alert">{{ session('success') }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+                    <div class="alert alert-success alert-dismissible fade show rounded-4 shadow-sm border-0" role="alert" style="background-color: #e5f9e7; color: #198754;">
+                        <i class="bi bi-check-circle-fill me-2"></i>{{ session('success') }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
                 @endif
                 @if (session('error'))
-                    <div class="alert alert-danger alert-dismissible fade show" role="alert">{{ session('error') }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+                    <div class="alert alert-danger alert-dismissible fade show rounded-4 shadow-sm border-0" role="alert" style="background-color: #fce8e6; color: #dc3545;">
+                        <i class="bi bi-exclamation-circle-fill me-2"></i>{{ session('error') }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
                 @endif
 
                 {{-- Formulario de Filtros --}}
-                <form id="filterForm" method="GET" action="{{ route('asistencia.index') }}" class="mb-3">
-                    <div class="row align-items-end g-2 justify-content-center">
+                <form id="filterForm" method="GET" action="{{ route('asistencia.index') }}" class="mb-4 bg-white p-3 rounded-4 shadow-sm border border-light">
+                    <div class="row align-items-end g-3 justify-content-center">
                         <div class="col-md-3">
-                            <label for="id_sucursal_seleccionada" class="form-label mb-1 fw-bold">Sucursal:</label>
-                            <select class="form-select form-select-sm" id="id_sucursal_seleccionada" name="id_sucursal_seleccionada">
-                                <option value="">-- Seleccione Sucursal --</option>
-                                <option value="todas" {{ request('id_sucursal_seleccionada') == 'todas' ? 'selected' : '' }} class="fw-bold text-primary">-- TODAS LAS SUCURSALES --</option>
+                            <label for="id_sucursal_seleccionada" class="form-label text-muted fw-bold mb-1" style="font-size: 0.8rem;">Sucursal</label>
+                            <select class="form-select form-select-ios fw-semibold" id="id_sucursal_seleccionada" name="id_sucursal_seleccionada">
+                                <option value="">-- Seleccione --</option>
+                                <option value="todas" {{ request('id_sucursal_seleccionada') == 'todas' ? 'selected' : '' }} class="fw-bold text-primary">-- TODAS --</option>
                                 @foreach ($sucursales as $sucursal)
                                     <option value="{{ $sucursal->id_sucursal }}" {{ ($id_sucursal_seleccionada ?? '') == $sucursal->id_sucursal ? 'selected' : '' }}>
                                         {{ $sucursal->nombre_sucursal }}
@@ -43,8 +172,8 @@
                             </select>
                         </div>
                         <div class="col-md-2">
-                            <label for="tipo_periodo" class="form-label mb-1 fw-bold">Ver por:</label>
-                            <select class="form-select form-select-sm" name="tipo_periodo" id="tipo_periodo">
+                            <label for="tipo_periodo" class="form-label text-muted fw-bold mb-1" style="font-size: 0.8rem;">Visualización</label>
+                            <select class="form-select form-select-ios fw-semibold" name="tipo_periodo" id="tipo_periodo">
                                 <option value="dia" {{ $tipoPeriodo == 'dia' ? 'selected' : '' }}>Día</option>
                                 <option value="semana" {{ $tipoPeriodo == 'semana' ? 'selected' : '' }}>Semana</option>
                                 <option value="quincena" {{ $tipoPeriodo == 'quincena' ? 'selected' : '' }}>Quincena</option>
@@ -52,11 +181,11 @@
                             </select>
                         </div>
                         <div class="col-md-3">
-                            <label for="fecha_ref" class="form-label mb-1 fw-bold">Fecha de Referencia:</label>
-                            <input type="date" name="fecha_ref" id="fecha_ref" class="form-control form-control-sm" value="{{ $fechaReferencia->toDateString() }}">
+                            <label for="fecha_ref" class="form-label text-muted fw-bold mb-1" style="font-size: 0.8rem;">Fecha Base</label>
+                            <input type="date" name="fecha_ref" id="fecha_ref" class="form-control form-control-ios fw-semibold" value="{{ $fechaReferencia->toDateString() }}">
                         </div>
-                        <div class="col-md-2 d-flex align-items-end gap-1">
-                            <button type="submit" class="btn btn-primary btn-sm flex-fill">Ver</button>
+                        <div class="col-md-2 d-flex align-items-end gap-2">
+                            <button type="submit" class="btn-ios-primary flex-fill border-0 py-2"><i class="bi bi-search"></i> Ver</button>
                             @if(isset($id_sucursal_seleccionada) && $id_sucursal_seleccionada)
                                 @php
                                     $params = ['id_sucursal_seleccionada' => $id_sucursal_seleccionada, 'tipo_periodo' => $tipoPeriodo];
@@ -66,39 +195,49 @@
                                     elseif($tipoPeriodo == 'mes') { $prevDate->subMonthNoOverflow(); $nextDate->addMonthNoOverflow(); }
                                     elseif($tipoPeriodo == 'dia') { $prevDate->subDay(); $nextDate->addDay(); }
                                 @endphp
-                                <a href="{{ route('asistencia.index', array_merge($params, ['fecha_ref' => $prevDate->toDateString()])) }}" class="btn btn-outline-secondary btn-sm" title="Anterior"><i class="bi bi-chevron-left"></i></a>
-                                <a href="{{ route('asistencia.index', array_merge($params, ['fecha_ref' => $nextDate->toDateString()])) }}" class="btn btn-outline-secondary btn-sm" title="Siguiente"><i class="bi bi-chevron-right"></i></a>
+                                <div class="btn-group shadow-sm rounded-pill bg-white border">
+                                    <a href="{{ route('asistencia.index', array_merge($params, ['fecha_ref' => $prevDate->toDateString()])) }}" class="btn btn-sm btn-light border-0 px-3 rounded-start-pill text-secondary hover-bg-light" title="Anterior"><i class="bi bi-chevron-left"></i></a>
+                                    <div class="border-end"></div>
+                                    <a href="{{ route('asistencia.index', array_merge($params, ['fecha_ref' => $nextDate->toDateString()])) }}" class="btn btn-sm btn-light border-0 px-3 rounded-end-pill text-secondary hover-bg-light" title="Siguiente"><i class="bi bi-chevron-right"></i></a>
+                                </div>
                             @endif
                         </div>
                     </div>
                 </form>
-                <hr>
 
                 @if(isset($id_sucursal_seleccionada) && $id_sucursal_seleccionada)
-                    <div class="text-center mb-3">
-                        <h5 class="mb-1">Sucursal: <span class="text-primary fw-bold">{{ $sucursalSeleccionadaNombre ?? '' }}</span></h5>
-                        <span class="badge bg-light text-dark border p-2">
-                            <i class="bi bi-calendar3"></i> Rango: <strong>{{ $fechaReferencia->translatedFormat('d \d\e F') }}</strong>
-                        </span>
+                    <div class="d-flex justify-content-between align-items-center mb-3 px-2">
+                        <div>
+                            <span class="text-muted fw-bold" style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">Sucursal</span><br>
+                            <h5 class="mb-0 fw-bold text-dark">{{ $sucursalSeleccionadaNombre ?? '' }}</h5>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-light text-dark border rounded-pill px-3 py-2 shadow-sm fw-semibold" style="font-size: 0.85rem;">
+                                <i class="bi bi-calendar3 text-primary me-1"></i> {{ $fechaReferencia->translatedFormat('d \d\e F') }}
+                            </span>
+                        </div>
                     </div>
 
                     @if(isset($empleadosDeSucursal) && $empleadosDeSucursal->isNotEmpty() && isset($fechasDelPeriodo) && $fechasDelPeriodo->isNotEmpty())
                         
-                        <div class="table-responsive shadow-sm mx-auto" style="border-radius: 8px; max-width: {{ $tipoPeriodo == 'dia' ? '900px' : '100%' }};">
-                            <table class="table table-bordered table-sm text-center align-middle mb-0 bg-white">
-                                <thead class="table-dark" style="position: sticky; top: 0; z-index: 3;">
+                        <div class="ios-table-container mx-auto" style="max-width: {{ $tipoPeriodo == 'dia' ? '900px' : '100%' }};">
+                            <table class="table table-ios text-center align-middle bg-white">
+                                <thead style="position: sticky; top: 0; z-index: 10;">
                                     <tr>
-                                        <th style="min-width: 200px; text-align: left; position: sticky; left: 0; z-index: 4; background-color: #343a40;">
-                                            <div class="d-flex justify-content-between align-items-center">
+                                        <th style="min-width: 250px; text-align: left; position: sticky; left: 0; z-index: 11; background-color: #f5f5f7;">
+                                            <div class="d-flex justify-content-between align-items-center px-2">
                                                 <span>Empleado</span>
-                                                <button id="btn-mostrar-ocultos" class="btn btn-outline-info btn-sm py-0 d-none" onclick="mostrarOcultos()" title="Restaurar empleados ocultos" style="font-size: 0.7rem;">
-                                                    <i class="bi bi-eye"></i> Mostrar ocultos
+                                                <button id="btn-mostrar-ocultos" class="btn btn-outline-secondary btn-sm py-0 d-none rounded-pill" onclick="mostrarOcultos()" title="Restaurar ocultos" style="font-size: 0.7rem; border-color: #d2d2d7;">
+                                                    <i class="bi bi-eye"></i> <span id="span-contador-ocultos"></span>
                                                 </button>
                                             </div>
                                         </th>
                                         @foreach ($fechasDelPeriodo as $fecha)
-                                            <th class="{{ $fecha->isToday() ? 'bg-primary' : '' }}" style="min-width: 120px;">
-                                                {{ $fecha->translatedFormat('D d') }}
+                                            <th style="min-width: 130px; {{ $fecha->isToday() ? 'background-color: #e5f0ff !important; color: #0071e3 !important;' : '' }}">
+                                                <div class="d-flex flex-column align-items-center">
+                                                    <span style="font-size: 0.7rem; opacity: 0.7;">{{ strtoupper($fecha->translatedFormat('l')) }}</span>
+                                                    <span class="fw-bold" style="font-size: 0.9rem;">{{ $fecha->format('d') }}</span>
+                                                </div>
                                             </th>
                                         @endforeach
                                     </tr>
@@ -106,30 +245,40 @@
                                 <tbody>
                                     @foreach ($empleadosDeSucursal as $empleado)
                                         <tr id="row_emp_{{ $empleado->id_empleado }}" class="empleado-row" data-id="{{ $empleado->id_empleado }}">
-                                            <td class="align-middle" style="text-align: left; position: sticky; left: 0; background-color: #f8f9fa; z-index: 1; border-right: 2px solid #dee2e6;">
-                                                <div class="d-flex align-items-center">
-                                                    <i class="bi bi-eye-slash text-muted me-2" style="cursor: pointer; font-size: 0.9rem;" onclick="ocultarEmpleado({{ $empleado->id_empleado }})" title="Ocultar de esta lista"></i>
+                                            
+                                            {{-- CELDA EMPLEADO --}}
+                                            <td class="align-middle" style="text-align: left; position: sticky; left: 0; background-color: #ffffff; z-index: 1; border-right: 1px solid #f0f0f2;">
+                                                <div class="d-flex align-items-center px-2 py-1">
+                                                    <i class="bi bi-eye-slash text-muted me-3" style="cursor: pointer; font-size: 1rem; opacity: 0.4; transition: opacity 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" onclick="ocultarEmpleado({{ $empleado->id_empleado }})" title="Ocultar empleado"></i>
                                                     
-                                                    <span class="fw-bold text-dark me-2">{{ $empleado->nombre_completo }}</span>
-                                                    
-                                                    @if($tipoPeriodo == 'dia')
-                                                        @if($id_sucursal_seleccionada === 'todas')
-                                                            <span class="badge bg-secondary me-1" style="font-size: 0.65em; white-space: nowrap;">
-                                                                <i class="bi bi-shop"></i> {{ $empleado->sucursal->nombre_sucursal ?? 'Sin Sucursal' }}
+                                                    <div>
+                                                        <span class="fw-bold text-dark d-block" style="font-size: 0.9rem; letter-spacing: -0.2px;">{{ $empleado->nombre_completo }}</span>
+                                                        
+                                                        @if($tipoPeriodo == 'dia')
+                                                            @if($id_sucursal_seleccionada === 'todas')
+                                                                <span class="text-muted me-2" style="font-size: 0.7em; font-weight: 500;">
+                                                                    <i class="bi bi-shop text-secondary"></i> {{ $empleado->sucursal->nombre_sucursal ?? 'S/S' }}
+                                                                </span>
+                                                            @endif
+                                                            <span class="text-secondary fw-semibold" style="font-size: 0.7em;">
+                                                                {{ $empleado->puesto->nombre_puesto ?? 'General' }}
                                                             </span>
+                                                        @else
+                                                            @if($id_sucursal_seleccionada === 'todas')
+                                                                <span class="text-muted" style="font-size: 0.7em; font-weight: 500;">
+                                                                    <i class="bi bi-shop text-secondary"></i> {{ $empleado->sucursal->nombre_sucursal ?? 'S/S' }}
+                                                                </span>
+                                                            @else
+                                                                <span class="text-secondary fw-semibold" style="font-size: 0.7em;">
+                                                                    {{ $empleado->puesto->nombre_puesto ?? 'General' }}
+                                                                </span>
+                                                            @endif
                                                         @endif
-                                                        <span class="badge bg-light text-secondary border" style="font-size: 0.65em; white-space: nowrap;">
-                                                            {{ $empleado->puesto->nombre_puesto ?? 'Sin Puesto' }}
-                                                        </span>
-                                                    @else
-                                                        @if($id_sucursal_seleccionada === 'todas')
-                                                            <span class="badge bg-secondary" style="font-size: 0.65em; white-space: nowrap;">
-                                                                <i class="bi bi-shop"></i> {{ $empleado->sucursal->nombre_sucursal ?? 'Sin Sucursal' }}
-                                                            </span>
-                                                        @endif
-                                                    @endif
+                                                    </div>
                                                 </div>
                                             </td>
+
+                                            {{-- CELDAS DE DÍAS --}}
                                             @foreach ($fechasDelPeriodo as $fecha)
                                                 @php
                                                     $fechaString = $fecha->toDateString();
@@ -139,7 +288,7 @@
                                                     $nombreDia = $mapaDias[$fecha->dayOfWeekIso];
                                                     $esLaborable = $empleado->horario ? $empleado->horario->{$nombreDia} : true;
                                                     
-                                                    // 🔥 EVALUAR ASUETOS
+                                                    // EVALUAR ASUETOS
                                                     $asuetoDia = isset($asuetos) ? $asuetos->first(function($a) use ($fecha, $empleado) {
                                                         $aplicaSucursal = is_null($a->id_sucursal) || $a->id_sucursal == $empleado->id_sucursal;
                                                         $inicio = \Carbon\Carbon::parse($a->fecha_inicio)->startOfDay();
@@ -147,7 +296,7 @@
                                                         return $aplicaSucursal && $fecha->between($inicio, $fin);
                                                     }) : null;
 
-                                                    // 🔥 EVALUAR VACACIONES
+                                                    // EVALUAR VACACIONES
                                                     $vacsEmpleado = isset($vacaciones) ? $vacaciones->get($empleado->id_empleado, collect()) : collect();
                                                     $vacacionDia = $vacsEmpleado->first(function($v) use ($fecha) {
                                                         $inicio = \Carbon\Carbon::parse($v->fecha_inicio)->startOfDay();
@@ -155,12 +304,8 @@
                                                         return $fecha->between($inicio, $fin);
                                                     });
 
-                                                    // 🔥 EVALUAR CUMPLEAÑOS, ANIVERSARIOS E INGRESO
-                                                    $esCumple = false;
-                                                    $esAniversario = false;
-                                                    $esIngreso = false;
-                                                    $esAntesDeIngreso = false;
-                                                    $aniosAniversario = 0;
+                                                    // EVALUAR EVENTOS
+                                                    $esCumple = false; $esAniversario = false; $esIngreso = false; $esAntesDeIngreso = false; $aniosAniversario = 0;
 
                                                     if (!empty($empleado->fecha_nacimiento)) {
                                                         $nac = \Carbon\Carbon::parse($empleado->fecha_nacimiento);
@@ -170,149 +315,142 @@
                                                     if (!empty($empleado->fecha_ingreso)) {
                                                         $ing = \Carbon\Carbon::parse($empleado->fecha_ingreso)->startOfDay();
                                                         $fechaDiaActual = $fecha->copy()->startOfDay();
-                                                        
-                                                        if ($fechaDiaActual->lessThan($ing)) {
-                                                            $esAntesDeIngreso = true;
-                                                        } elseif ($fechaDiaActual->equalTo($ing)) {
-                                                            $esIngreso = true;
-                                                        }
-                                                        
+                                                        if ($fechaDiaActual->lessThan($ing)) $esAntesDeIngreso = true;
+                                                        elseif ($fechaDiaActual->equalTo($ing)) $esIngreso = true;
                                                         if ($ing->month == $fecha->month && $ing->day == $fecha->day) {
                                                             $aniosAniversario = $fecha->year - $ing->year;
                                                             $esAniversario = ($aniosAniversario > 0);
                                                         }
                                                     }
 
-                                                    if ($asistenciaDia && $asistenciaDia->status_asistencia === 'Falta') {
-                                                        if ($asuetoDia || $vacacionDia) {
-                                                            $asistenciaDia = null; 
-                                                        }
+                                                    if ($asistenciaDia && $asistenciaDia->status_asistencia === 'Falta' && ($asuetoDia || $vacacionDia)) {
+                                                        $asistenciaDia = null; 
                                                     }
 
-                                                    $claseFondo = '';
+                                                    // Colores de Fondo Suaves
+                                                    $bgStyle = '';
+                                                    $textClass = 'text-dark';
                                                     if ($esAntesDeIngreso) {
-                                                        $claseFondo = 'bg-secondary bg-opacity-25'; 
+                                                        $bgStyle = 'background-color: #fbfbfc; opacity: 0.6;';
                                                     } elseif ($asistenciaDia) {
                                                         switch ($asistenciaDia->status_asistencia) {
-                                                            case 'Retardo': $claseFondo = 'bg-warning bg-opacity-25'; break;
-                                                            case 'Falta': $claseFondo = 'bg-danger bg-opacity-25'; break;
-                                                            case 'Baja_Dia': $claseFondo = 'bg-dark bg-opacity-10'; break;
-                                                            case 'Incidencia': $claseFondo = 'bg-info bg-opacity-25'; break;
+                                                            case 'Retardo': $bgStyle = 'background-color: #fff8e6;'; $textClass = 'text-warning-emphasis'; break;
+                                                            case 'Falta': $bgStyle = 'background-color: #ffeef0;'; $textClass = 'text-danger'; break;
+                                                            case 'Baja_Dia': $bgStyle = 'background-color: #f2f2f7;'; $textClass = 'text-muted'; break;
+                                                            case 'Incidencia': $bgStyle = 'background-color: #e5f0ff;'; $textClass = 'text-primary'; break;
                                                         }
                                                     } elseif ($asuetoDia) {
-                                                        $claseFondo = 'bg-primary bg-opacity-10';
+                                                        $bgStyle = 'background-color: #f0ebf8;'; $textClass = 'text-purple'; // Morado suave
                                                     } elseif ($vacacionDia) {
-                                                        $claseFondo = 'bg-success bg-opacity-10';
+                                                        $bgStyle = 'background-color: #e6f6eb;'; $textClass = 'text-success';
                                                     } elseif (!$esLaborable) {
-                                                        $claseFondo = 'bg-secondary bg-opacity-10'; 
+                                                        $bgStyle = 'background-color: #f5f5f7;'; $textClass = 'text-secondary';
                                                     }
                                                     
                                                     $estadoActualForm = $asistenciaDia ? ($asistenciaDia->status_asistencia == 'Retardo' ? 'Presente' : $asistenciaDia->status_asistencia) : 'Presente';
                                                 @endphp
                                                 
-                                                <td class="p-2 position-relative {{ $claseFondo }}">
-
-                                                    {{-- INSIGNIA DE NUEVO INGRESO (Pin verde esmeralda) --}}
-                                                    @if($esIngreso)
-                                                        <div class="position-absolute top-0 end-0 mt-1 me-1" style="z-index: 5; pointer-events: none;" title="Día de Ingreso">
-                                                            <div class="d-flex align-items-center justify-content-center rounded-circle shadow-sm border border-2 border-white" style="width: 24px; height: 24px; background: linear-gradient(135deg, #20c997 0%, #198754 100%);">
-                                                                <i class="bi bi-person-check-fill text-white" style="font-size: 0.8rem;"></i>
-                                                            </div>
-                                                        </div>
-                                                    @endif
-
-                                                    {{-- INSIGNIA DE CUMPLEAÑOS (Pin azul moderno) --}}
-                                                    @if($esCumple)
-                                                        <div class="position-absolute top-0 start-0 mt-1 ms-1" style="z-index: 5; pointer-events: none;" title="¡Feliz Cumpleaños!">
-                                                            <div class="d-flex align-items-center justify-content-center rounded-circle shadow-sm border border-2 border-white" style="width: 24px; height: 24px; background: linear-gradient(135deg, #0dcaf0 0%, #0d6efd 100%);">
-                                                                <i class="bi bi-balloon-fill text-white" style="font-size: 0.85rem; margin-top: 1px;"></i>
-                                                            </div>
-                                                        </div>
-                                                    @endif
+                                                <td class="p-1 position-relative" style="height: 50px;">
+                                                    <div class="cell-interactive w-100 h-100 position-relative {{ $esAntesDeIngreso ? 'disabled-cell' : '' }}" style="{{ $bgStyle }}">
                                                     
-                                                    {{-- INSIGNIA DE ANIVERSARIO (Pastilla naranja/oro) --}}
-                                                    @if($esAniversario)
-                                                        <div class="position-absolute bottom-0 start-0 mb-1 ms-1" style="z-index: 5; pointer-events: none;" title="¡{{ $aniosAniversario }}º Aniversario!">
-                                                            <div class="d-flex align-items-center justify-content-center rounded-pill shadow-sm border border-2 border-white px-2" style="height: 24px; background: linear-gradient(135deg, #ffda6a 0%, #fd7e14 100%);">
-                                                                <i class="bi bi-star-fill text-white me-1" style="font-size: 0.7rem; text-shadow: 0 1px 1px rgba(0,0,0,0.2);"></i>
-                                                                <span class="fw-bold text-white" style="font-size: 0.75rem; text-shadow: 0 1px 1px rgba(0,0,0,0.2);">{{ $aniosAniversario }}</span>
+                                                        {{-- PINES FLOTANTES (GLASSMORPHISM) --}}
+                                                        @if($esIngreso)
+                                                            <div class="position-absolute top-0 end-0 mt-1 me-1" style="z-index: 5; pointer-events: none;" title="Día de Ingreso">
+                                                                <div class="ios-badge-float badge-newcomer rounded-circle">
+                                                                    <i class="bi bi-briefcase-fill text-white" style="font-size: 0.75rem;"></i>
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    @endif
-                                                    
-                                                    {{-- MODO VISTA --}}
-                                                    <div class="display-mode w-100 h-100 d-flex align-items-center justify-content-center" style="{{ $esAntesDeIngreso ? 'cursor: not-allowed;' : 'cursor: pointer;' }}" {!! !$esAntesDeIngreso ? 'onclick="activarEdicion(this)"' : '' !!}>
+                                                        @endif
+
+                                                        @if($esCumple)
+                                                            <div class="position-absolute top-0 start-0 mt-1 ms-1" style="z-index: 5; pointer-events: none;" title="¡Feliz Cumpleaños!">
+                                                                <div class="ios-badge-float badge-birthday rounded-circle">
+                                                                    <i class="bi bi-gift-fill text-white" style="font-size: 0.75rem; margin-top: 1px;"></i>
+                                                                </div>
+                                                            </div>
+                                                        @endif
                                                         
-                                                        @if ($esAntesDeIngreso)
-                                                            <span class="text-secondary opacity-50 fw-bold" style="font-size: 0.65rem; letter-spacing: 1px;" title="No había ingresado a la empresa">N/A</span>
+                                                        @if($esAniversario)
+                                                            <div class="position-absolute bottom-0 start-0 mb-1 ms-1" style="z-index: 5; pointer-events: none;" title="¡{{ $aniosAniversario }}º Aniversario!">
+                                                                <div class="ios-badge-float badge-anniversary rounded-pill">
+                                                                    <i class="bi bi-star-fill text-white me-1" style="font-size: 0.65rem;"></i>
+                                                                    <span class="fw-bold text-white" style="font-size: 0.7rem; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">{{ $aniosAniversario }}</span>
+                                                                </div>
+                                                            </div>
+                                                        @endif
                                                         
-                                                        @elseif ($asistenciaDia)
-                                                            <div class="w-100 fw-bold text-center" style="font-size: 0.9rem;">
+                                                        {{-- CONTENIDO CENTRAL --}}
+                                                        <div class="display-mode w-100 h-100 d-flex flex-column align-items-center justify-content-center" style="{{ $esAntesDeIngreso ? 'cursor: not-allowed;' : 'cursor: pointer;' }}" {!! !$esAntesDeIngreso ? 'onclick="activarEdicion(this)"' : '' !!}>
+                                                            
+                                                            @if ($esAntesDeIngreso)
+                                                                <i class="bi bi-dash text-secondary opacity-25" style="font-size: 1.2rem;"></i>
+                                                            
+                                                            @elseif ($asistenciaDia)
                                                                 @if (in_array($asistenciaDia->status_asistencia, ['Presente', 'Retardo']))
-                                                                    <span class="text-{{ $asistenciaDia->status_asistencia == 'Retardo' ? 'warning-emphasis' : 'success' }}">
+                                                                    <span class="fw-bold {{ $textClass }}" style="font-size: 0.9rem; font-family: -apple-system, sans-serif;">
                                                                         {{ \Carbon\Carbon::parse($asistenciaDia->hora_llegada)->format('H:i') }}
                                                                     </span>
                                                                     @if($asistenciaDia->status_asistencia == 'Retardo') 
-                                                                        <span class="text-warning-emphasis">/ Retardo</span> 
+                                                                        <span class="{{ $textClass }}" style="font-size: 0.65rem; font-weight: 600;">Retardo</span> 
                                                                     @endif
                                                                 @elseif ($asistenciaDia->status_asistencia == 'Falta')
-                                                                    <span class="text-danger">FALTA</span>
+                                                                    <span class="fw-bold {{ $textClass }}" style="font-size: 0.85rem; letter-spacing: 0.5px;">FALTA</span>
                                                                 @elseif ($asistenciaDia->status_asistencia == 'Baja_Dia')
-                                                                    <span class="text-muted">BAJA</span>
+                                                                    <span class="fw-semibold {{ $textClass }}" style="font-size: 0.8rem;">BAJA</span>
                                                                 @elseif ($asistenciaDia->status_asistencia == 'Incidencia')
-                                                                    <span class="text-info-emphasis d-block" style="font-size: 0.75rem; line-height: 1.2;">
-                                                                        @if($asistenciaDia->hora_llegada) 
-                                                                            <strong>{{ \Carbon\Carbon::parse($asistenciaDia->hora_llegada)->format('H:i') }}</strong> <br>
-                                                                        @endif 
-                                                                        {{ strtoupper($asistenciaDia->notas_incidencia ?: 'INCIDENCIA') }}
+                                                                    @if($asistenciaDia->hora_llegada) 
+                                                                        <strong class="{{ $textClass }}" style="font-size: 0.85rem;">{{ \Carbon\Carbon::parse($asistenciaDia->hora_llegada)->format('H:i') }}</strong>
+                                                                    @endif 
+                                                                    <span class="{{ $textClass }} fw-semibold text-truncate w-100 px-1 text-center" style="font-size: 0.65rem; max-width: 100px;" title="{{ $asistenciaDia->notas_incidencia }}">
+                                                                        {{ $asistenciaDia->notas_incidencia ?: 'INCID.' }}
                                                                     </span>
                                                                 @endif
-                                                            </div>
-                                                        @else
-                                                            @if($asuetoDia)
-                                                                <span class="badge bg-primary text-white fw-bold" style="font-size: 0.65rem; white-space: nowrap;" title="{{ $asuetoDia->nombre }}">
-                                                                    <i class="bi bi-calendar-heart"></i> ASUETO
-                                                                </span>
-                                                            @elseif($vacacionDia)
-                                                                <span class="badge bg-success text-white fw-bold" style="font-size: 0.65rem; white-space: nowrap;" title="Periodo Vacacional">
-                                                                    <i class="bi bi-airplane"></i> VACACIONES
-                                                                </span>
-                                                            @elseif(!$esLaborable)
-                                                                <span class="text-secondary fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">DESCANSO</span>
+                                                            
                                                             @else
-                                                                <span class="text-muted small border border-dashed rounded px-2"><i class="bi bi-plus"></i></span>
+                                                                @if($asuetoDia)
+                                                                    <span class="badge rounded-pill fw-bold" style="background-color: #ab8ed8; color: white; font-size: 0.65rem; padding: 0.35em 0.6em;" title="{{ $asuetoDia->nombre }}">
+                                                                        <i class="bi bi-cup-hot-fill me-1"></i> ASUETO
+                                                                    </span>
+                                                                @elseif($vacacionDia)
+                                                                    <span class="badge rounded-pill fw-bold" style="background-color: #34c759; color: white; font-size: 0.65rem; padding: 0.35em 0.6em;" title="Periodo Vacacional">
+                                                                        <i class="bi bi-airplane-fill me-1"></i> VACAC.
+                                                                    </span>
+                                                                @elseif(!$esLaborable)
+                                                                    <span class="fw-bold text-secondary opacity-50" style="font-size: 0.7rem; letter-spacing: 0.5px;">DESC</span>
+                                                                @else
+                                                                    <i class="bi bi-plus-circle text-primary opacity-25" style="font-size: 1.1rem; transition: opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=0.25"></i>
+                                                                @endif
                                                             @endif
-                                                        @endif
-                                                    </div>
-
-                                                    {{-- MODO EDICIÓN DIRECTO EN CELDA --}}
-                                                    @if(!$esAntesDeIngreso)
-                                                        <div class="edit-mode d-none">
-                                                            <form method="POST" action="{{ route('asistencia.registrarEntrada') }}" class="d-flex flex-column" onsubmit="prepararHoraAntesDeEnviar(this)">
-                                                                @csrf
-                                                                <input type="hidden" name="id_empleado" value="{{ $empleado->id_empleado }}">
-                                                                <input type="hidden" name="fecha_registro" value="{{ $fechaString }}">
-                                                                <input type="hidden" name="id_sucursal_seleccionada" value="{{ $id_sucursal_seleccionada }}">
-
-                                                                <select name="status_asistencia" class="form-select form-select-sm mb-1 text-center fw-bold bg-white" style="font-size: 0.75rem; padding: 0px 2px;" data-periodo="{{ $tipoPeriodo }}" onchange="manejarCambioEstado(this)">
-                                                                    <option value="Presente" {{ $estadoActualForm == 'Presente' ? 'selected' : '' }}>Asistencia</option>
-                                                                    <option value="Falta" {{ $estadoActualForm == 'Falta' ? 'selected' : '' }}>Falta</option>
-                                                                    <option value="Baja_Dia" {{ $estadoActualForm == 'Baja_Dia' ? 'selected' : '' }}>Baja Día</option>
-                                                                    <option value="Incidencia" {{ $estadoActualForm == 'Incidencia' ? 'selected' : '' }}>Incidencia</option>
-                                                                </select>
-
-                                                                <input type="text" name="hora_llegada_manual" class="form-control form-control-sm mb-1 text-center input-hora" style="font-size: 0.8rem; padding: 0px;" placeholder="HH:MM" maxlength="5" oninput="formatearHoraAuto(this)" value="{{ $asistenciaDia && $asistenciaDia->hora_llegada ? \Carbon\Carbon::parse($asistenciaDia->hora_llegada)->format('H:i') : '' }}">
-
-                                                                <input type="text" name="notas_incidencia" class="form-control form-control-sm mb-1 input-notas text-center" style="font-size: 0.75rem; padding: 1px;" placeholder="¿Qué pasó? (Ej. Accidente)" value="{{ $asistenciaDia && $asistenciaDia->status_asistencia == 'Incidencia' ? $asistenciaDia->notas_incidencia : '' }}">
-
-                                                                <div class="d-flex gap-1 justify-content-center">
-                                                                    <button type="submit" class="btn btn-success btn-sm py-0 px-2" title="Guardar"><i class="bi bi-check-lg" style="font-size: 0.8rem;"></i></button>
-                                                                    <button type="button" class="btn btn-secondary btn-sm py-0 px-2" title="Cancelar" onclick="cancelarEdicion(this)"><i class="bi bi-x-lg" style="font-size: 0.8rem;"></i></button>
-                                                                </div>
-                                                            </form>
                                                         </div>
-                                                    @endif
 
+                                                        {{-- MODO EDICIÓN --}}
+                                                        @if(!$esAntesDeIngreso)
+                                                            <div class="edit-mode d-none position-absolute top-0 start-0 w-100 h-100 bg-white shadow rounded-3 z-3 d-flex align-items-center justify-content-center p-1" style="transform: scale(1.1);">
+                                                                <form method="POST" action="{{ route('asistencia.registrarEntrada') }}" class="w-100 d-flex flex-column align-items-center" onsubmit="prepararHoraAntesDeEnviar(this)">
+                                                                    @csrf
+                                                                    <input type="hidden" name="id_empleado" value="{{ $empleado->id_empleado }}">
+                                                                    <input type="hidden" name="fecha_registro" value="{{ $fechaString }}">
+                                                                    <input type="hidden" name="id_sucursal_seleccionada" value="{{ $id_sucursal_seleccionada }}">
+
+                                                                    <select name="status_asistencia" class="form-select border-0 bg-light fw-bold text-center mb-1" style="font-size: 0.7rem; padding: 2px 10px; height: auto; border-radius: 4px;" data-periodo="{{ $tipoPeriodo }}" onchange="manejarCambioEstado(this)">
+                                                                        <option value="Presente" {{ $estadoActualForm == 'Presente' ? 'selected' : '' }}>ASIST</option>
+                                                                        <option value="Falta" {{ $estadoActualForm == 'Falta' ? 'selected' : '' }}>FALTA</option>
+                                                                        <option value="Incidencia" {{ $estadoActualForm == 'Incidencia' ? 'selected' : '' }}>INCID</option>
+                                                                        <option value="Baja_Dia" {{ $estadoActualForm == 'Baja_Dia' ? 'selected' : '' }}>BAJA</option>
+                                                                    </select>
+
+                                                                    <input type="text" name="hora_llegada_manual" class="form-control border-0 bg-light text-center fw-bold mb-1" style="font-size: 0.8rem; padding: 2px; height: auto; border-radius: 4px;" placeholder="HH:MM" maxlength="5" oninput="formatearHoraAuto(this)" value="{{ $asistenciaDia && $asistenciaDia->hora_llegada ? \Carbon\Carbon::parse($asistenciaDia->hora_llegada)->format('H:i') : '' }}">
+                                                                    <input type="text" name="notas_incidencia" class="form-control border-0 bg-light text-center mb-1" style="font-size: 0.7rem; padding: 2px; height: auto; border-radius: 4px;" placeholder="Nota" value="{{ $asistenciaDia && $asistenciaDia->status_asistencia == 'Incidencia' ? $asistenciaDia->notas_incidencia : '' }}">
+
+                                                                    <div class="d-flex w-100 px-1 gap-1">
+                                                                        <button type="submit" class="btn btn-primary flex-fill rounded-1 py-0" style="height: 20px;"><i class="bi bi-check" style="font-size: 0.8rem; line-height: 0;"></i></button>
+                                                                        <button type="button" class="btn btn-light flex-fill rounded-1 py-0 border" style="height: 20px;" onclick="cancelarEdicion(this)"><i class="bi bi-x" style="font-size: 0.8rem; line-height: 0;"></i></button>
+                                                                    </div>
+                                                                </form>
+                                                            </div>
+                                                        @endif
+
+                                                    </div>
                                                 </td>
                                             @endforeach
                                         </tr>
@@ -321,43 +459,48 @@
                             </table>
                         </div>
                     @else
-                        <div class="alert alert-warning mt-3 text-center">No hay datos de asistencia para mostrar.</div>
+                        <div class="text-center py-5">
+                            <i class="bi bi-inbox text-muted opacity-25" style="font-size: 3rem;"></i>
+                            <p class="text-muted mt-2 fw-semibold">No hay datos de asistencia para mostrar.</p>
+                        </div>
                     @endif
                 @else
-                    <div class="alert alert-info mt-4 text-center">Por favor, seleccione una sucursal para visualizar el control de asistencia.</div>
+                    <div class="text-center py-5">
+                        <i class="bi bi-shop text-primary opacity-25" style="font-size: 3rem;"></i>
+                        <p class="text-muted mt-2 fw-semibold">Seleccione una sucursal para visualizar la asistencia.</p>
+                    </div>
                 @endif
             </div>
         </div>
     </div>
 
-    <!-- Modal Asueto -->
+    <!-- Modal Asueto (Se mantiene igual estructuralmente, solo se redondean bordes por BS5) -->
     <div class="modal fade" id="modalAsueto" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
-            <form method="POST" action="{{ route('asistencia.guardar_asueto') }}" class="modal-content border-0 shadow">
+        <div class="modal-dialog modal-dialog-centered">
+            <form method="POST" action="{{ route('asistencia.guardar_asueto') }}" class="modal-content border-0 shadow-lg" style="border-radius: 1rem; overflow: hidden;">
                 @csrf
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-calendar-heart"></i> Registrar Nuevo Asueto</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="modal-header border-0 bg-light px-4 pt-4 pb-3">
+                    <h5 class="modal-title fw-bold text-dark"><i class="bi bi-calendar-heart text-primary me-2"></i> Registrar Asueto</h5>
+                    <button type="button" class="btn-close bg-white rounded-circle shadow-sm" data-bs-dismiss="modal" aria-label="Close" style="padding: 0.5rem;"></button>
                 </div>
-                <div class="modal-body bg-light">
+                <div class="modal-body bg-white px-4 pb-4">
                     <div class="mb-3">
-                        <label class="form-label fw-bold text-secondary">Motivo del Asueto</label>
-                        <input type="text" name="nombre" class="form-control" placeholder="Ej. Día de la Independencia, Navidad" required>
+                        <label class="form-label text-muted fw-bold mb-1" style="font-size: 0.85rem;">Motivo del Asueto</label>
+                        <input type="text" name="nombre" class="form-control form-control-ios bg-light" placeholder="Ej. Día de la Independencia" required>
                     </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold text-secondary">Fecha Inicio</label>
-                            <input type="date" name="fecha_inicio" class="form-control" required>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label text-muted fw-bold mb-1" style="font-size: 0.85rem;">Fecha Inicio</label>
+                            <input type="date" name="fecha_inicio" class="form-control form-control-ios bg-light" required>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold text-secondary">Fecha Fin</label>
-                            <input type="date" name="fecha_fin" class="form-control" required>
-                            <small class="text-muted" style="font-size: 0.7em;">(Misma fecha si es un solo día)</small>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted fw-bold mb-1" style="font-size: 0.85rem;">Fecha Fin</label>
+                            <input type="date" name="fecha_fin" class="form-control form-control-ios bg-light" required>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold text-secondary">Aplica para Sucursal</label>
-                        <select name="id_sucursal" class="form-select" required>
+                    <div class="mt-3">
+                        <label class="form-label text-muted fw-bold mb-1" style="font-size: 0.85rem;">Aplica para Sucursal</label>
+                        <select name="id_sucursal" class="form-select form-select-ios bg-light" required>
                             <option value="todas">-- TODAS LAS SUCURSALES --</option>
                             @foreach ($sucursales as $sucursal)
                                 <option value="{{ $sucursal->id_sucursal }}">{{ $sucursal->nombre_sucursal }}</option>
@@ -365,9 +508,9 @@
                         </select>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary fw-bold">Guardar Asueto</button>
+                <div class="modal-footer border-0 bg-light px-4 pb-4">
+                    <button type="button" class="btn text-secondary fw-semibold border-0" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn-ios-primary fw-bold px-4">Guardar Asueto</button>
                 </div>
             </form>
         </div>
@@ -481,9 +624,10 @@
 
         function actualizarBotonOcultos(count) {
             let btn = document.getElementById('btn-mostrar-ocultos');
+            let span = document.getElementById('span-contador-ocultos');
             if (count > 0) {
                 btn.classList.remove('d-none');
-                btn.innerHTML = `<i class="bi bi-eye"></i> Mostrar ${count} ocultos`;
+                span.innerText = count;
             } else {
                 btn.classList.add('d-none');
             }
