@@ -139,7 +139,7 @@
                                                     $nombreDia = $mapaDias[$fecha->dayOfWeekIso];
                                                     $esLaborable = $empleado->horario ? $empleado->horario->{$nombreDia} : true;
                                                     
-                                                    // 🔥 EVALUAR SI EL DÍA ES ASUETO
+                                                    // 🔥 EVALUAR SI EL DÍA ES ASUETO (Asumiendo que enviaste $asuetos desde el Controller)
                                                     $asuetoDia = isset($asuetos) ? $asuetos->first(function($a) use ($fecha, $empleado) {
                                                         $aplicaSucursal = is_null($a->id_sucursal) || $a->id_sucursal == $empleado->id_sucursal;
                                                         $inicio = \Carbon\Carbon::parse($a->fecha_inicio)->startOfDay();
