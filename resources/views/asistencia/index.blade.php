@@ -32,7 +32,7 @@
             backdrop-filter: blur(24px);
             -webkit-backdrop-filter: blur(24px);
             border-radius: 1.5rem;
-            overflow: hidden;
+            overflow: visible; /* IMPORTANTE: Permitir que el popup salga de la tabla */
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.03);
             border: 1px solid rgba(255, 255, 255, 0.9);
         }
@@ -98,6 +98,11 @@
             z-index: 10;
         }
 
+        /* CLASE PARA SUPERPONER LA CELDA AL EDITAR */
+        .cell-editing-active {
+            z-index: 9999 !important;
+        }
+
         /* Botones estilo iOS */
         .btn-ios-primary {
             background-color: #0071e3;
@@ -145,6 +150,19 @@
             box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15);
             outline: none;
         }
+
+        /* Tooltip informativo (Popover) */
+        .popover {
+            border-radius: 1rem;
+            border: 1px solid rgba(0,0,0,0.1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .popover-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            font-weight: 700;
+            border-radius: 1rem 1rem 0 0;
+        }
     </style>
 
     <div class="container-fluid pt-4 px-4 bg-system-islands">
@@ -154,16 +172,23 @@
             <h3 class="mb-0 fw-bold" style="color: #1d1d1f; letter-spacing: -0.5px;">Control de Asistencias</h3>
             <div class="d-flex gap-2">
                 
-                {{-- NUEVO BOTÓN PARA CAPTURAR LA TABLA COMO IMAGEN --}}
+                {{-- BOTÓN PARA CAPTURAR LA TABLA COMO IMAGEN --}}
                 @if(isset($empleadosDeSucursal) && $empleadosDeSucursal->isNotEmpty())
                     <button type="button" class="btn-ios-outline shadow-sm text-dark border-secondary" id="btn-capturar" onclick="capturarTabla()">
                         <i class="bi bi-camera me-1"></i> Capturar
                     </button>
                 @endif
 
-                <button type="button" class="btn-ios-outline shadow-sm" data-bs-toggle="modal" data-bs-target="#modalAsueto">
+                {{-- BOTÓN DE VACACIONES --}}
+                <button type="button" class="btn-ios-outline shadow-sm" data-bs-toggle="modal" data-bs-target="#modalVacaciones" style="color: #198754; border-color: rgba(25,135,84,0.3);">
+                    <i class="bi bi-airplane-fill me-1"></i> Vacaciones
+                </button>
+
+                {{-- BOTÓN DE ASUETO --}}
+                <button type="button" class="btn-ios-outline shadow-sm" data-bs-toggle="modal" data-bs-target="#modalAsueto" style="color: #6f42c1; border-color: rgba(111,66,193,0.3);">
                     <i class="bi bi-calendar-heart me-1"></i> Asueto
                 </button>
+                
                 <a href="{{ route('asistencia.pre_cierre') }}" class="btn-ios-primary text-decoration-none shadow-sm">
                     <i class="bi bi-shield-check me-1"></i> Pre-Cierre
                 </a>
@@ -182,6 +207,20 @@
         @if (session('error'))
             <div class="alert alert-danger alert-dismissible fade show ios-island mb-4 py-3 border-0 d-flex align-items-center" role="alert" style="background-color: rgba(252, 232, 230, 0.85); color: #dc3545;">
                 <i class="bi bi-exclamation-circle-fill me-2 fs-5"></i>{{ session('error') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        @endif
+        @if ($errors->any())
+            <div class="alert alert-danger alert-dismissible fade show ios-island mb-4 py-3 border-0" role="alert" style="background-color: rgba(252, 232, 230, 0.85); color: #dc3545;">
+                <div class="d-flex align-items-center mb-2">
+                    <i class="bi bi-exclamation-octagon-fill me-2 fs-5"></i>
+                    <strong>Por favor corrige los siguientes errores:</strong>
+                </div>
+                <ul class="mb-0">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         @endif
@@ -252,7 +291,6 @@
             @if(isset($empleadosDeSucursal) && $empleadosDeSucursal->isNotEmpty() && isset($fechasDelPeriodo) && $fechasDelPeriodo->isNotEmpty())
                 
                 {{-- ISLA 2: TABLA DE ASISTENCIA --}}
-                {{-- Contenedor con ID para ser capturado por la cámara --}}
                 <div id="tabla-captura" class="ios-table-container mx-auto" style="max-width: {{ $tipoPeriodo == 'dia' ? '650px' : '100%' }};">
                     <table class="table table-ios text-center align-middle">
                         <thead style="position: sticky; top: 0; z-index: 10;">
@@ -546,11 +584,214 @@
         </div>
     </div>
 
+    <!-- Modal Vacaciones con Badge Visible -->
+    <div class="modal fade" id="modalVacaciones" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form method="POST" action="{{ route('vacaciones.store') }}" class="modal-content border-0 shadow-lg" style="border-radius: 1.5rem; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);">
+                @csrf
+                <div class="modal-header border-0 px-4 pt-4 pb-3">
+                    <h5 class="modal-title fw-bold" style="color: #1d1d1f;"><i class="bi bi-airplane-fill text-success me-2"></i> Registrar Vacaciones</h5>
+                    <button type="button" class="btn-close bg-light rounded-circle shadow-sm" data-bs-dismiss="modal" aria-label="Close" style="padding: 0.5rem;"></button>
+                </div>
+                <div class="modal-body px-4 pb-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold mb-1" style="font-size: 0.85rem; color: #86868b;">Empleado <span class="text-danger">*</span></label>
+                        <select class="form-select form-select-ios bg-white" id="id_empleado_vac" name="id_empleado" required>
+                            <option value="">Seleccione un empleado...</option>
+                            @php $listaEmpleadosVac = isset($empleados) ? $empleados : (isset($empleadosDeSucursal) ? $empleadosDeSucursal : collect()); @endphp
+                            @if($listaEmpleadosVac->count() > 0)
+                                @foreach ($listaEmpleadosVac as $emp_vac)
+                                    <option value="{{ $emp_vac->id_empleado }}" data-fecha_ingreso="{{ $emp_vac->fecha_ingreso ? \Carbon\Carbon::parse($emp_vac->fecha_ingreso)->toDateString() : '' }}">
+                                        {{ $emp_vac->nombre_completo }}
+                                    </option>
+                                @endforeach
+                            @endif
+                        </select>
+                        
+                        {{-- PANEL INFORMATIVO (Días Totales Visibles + Popover) --}}
+                        <div id="panel_info_vacaciones" class="mt-2 p-2 rounded-3 d-none border" style="background-color: #f8f9fa;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="text-muted fw-semibold" style="font-size: 0.8rem;">Días Restantes Totales:</span>
+                                    <span id="badge_saldo_total" class="badge rounded-pill bg-primary ms-1" style="font-size: 0.85rem;">0 días</span>
+                                </div>
+                                <i class="bi bi-info-circle-fill text-primary fs-5" id="icono_popover_vac" style="cursor: help;" title="Ver desglose por año"></i>
+                            </div>
+                            <div id="alerta_exceso" class="text-danger mt-1 fw-bold d-none text-end" style="font-size: 0.75rem;">
+                                <i class="bi bi-exclamation-triangle-fill"></i> ¡Excede el saldo disponible!
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold mb-1" style="font-size: 0.85rem; color: #86868b;">Año de Servicio Correspondiente <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control form-control-ios bg-white" id="ano_servicio_correspondiente" name="ano_servicio_correspondiente" min="1" placeholder="Ej: 1, 2" required>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold mb-1" style="font-size: 0.85rem; color: #86868b;">Fecha Inicio <span class="text-danger">*</span></label>
+                            <input type="date" name="fecha_inicio" id="fecha_inicio_vac" class="form-control form-control-ios bg-white" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold mb-1" style="font-size: 0.85rem; color: #86868b;">Fecha Fin <span class="text-danger">*</span></label>
+                            <input type="date" name="fecha_fin" id="fecha_fin_vac" class="form-control form-control-ios bg-white" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold mb-1" style="font-size: 0.85rem; color: #86868b;">Días Tomados</label>
+                        <input type="text" class="form-control form-control-ios bg-light text-muted fw-semibold" id="dias_tomados_display" readonly placeholder="Se calculará automáticamente">
+                    </div>
+                    <div class="mb-1">
+                        <label class="form-label fw-bold mb-1" style="font-size: 0.85rem; color: #86868b;">Comentarios (Opcional)</label>
+                        <textarea name="comentarios" class="form-control form-control-ios bg-white" rows="2" placeholder="Nota adicional..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 px-4 pb-4 pt-0">
+                    <button type="button" class="btn fw-semibold border-0" style="color: #86868b;" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" id="btn_guardar_vacaciones" class="btn-ios-primary fw-bold px-4 shadow-sm" style="background-color: #198754;">Guardar Vacaciones</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     @push('scripts')
         {{-- LIBRERÍA HTML2CANVAS PARA CAPTURAR LA TABLA --}}
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
         <script>
+        // LÓGICA PARA VACACIONES Y FETCH AJAX
+        const empleadoSelectVac = document.getElementById('id_empleado_vac');
+        const anoServicioInput = document.getElementById('ano_servicio_correspondiente');
+        const fechaInicioInput = document.getElementById('fecha_inicio_vac');
+        const fechaFinInput = document.getElementById('fecha_fin_vac');
+        const diasTomadosDisplay = document.getElementById('dias_tomados_display');
+        const panelInfoVac = document.getElementById('panel_info_vacaciones');
+        const iconoPopoverVac = document.getElementById('icono_popover_vac');
+        const badgeSaldoTotal = document.getElementById('badge_saldo_total');
+        const alertaExceso = document.getElementById('alerta_exceso');
+
+        let saldoGlobalCalculado = 0;
+
+        function actualizarAnoServicioYPopover() {
+            const selectedOption = empleadoSelectVac.options[empleadoSelectVac.selectedIndex];
+            const fechaIngresoStr = selectedOption.dataset.fecha_ingreso;
+            const empleadoId = empleadoSelectVac.value;
+
+            if (fechaIngresoStr && anoServicioInput) {
+                const fechaIngreso = new Date(fechaIngresoStr + 'T00:00:00');
+                const hoy = new Date();
+                let anosCompletos = hoy.getFullYear() - fechaIngreso.getFullYear();
+                const mesActual = hoy.getMonth();
+                const diaActual = hoy.getDate();
+                const mesIngreso = fechaIngreso.getMonth();
+                const diaIngreso = fechaIngreso.getDate();
+                
+                if (mesActual < mesIngreso || (mesActual === mesIngreso && diaActual < diaIngreso)) {
+                    anosCompletos--;
+                }
+                anosCompletos = Math.max(0, anosCompletos);
+                anoServicioInput.value = (anosCompletos >= 1) ? anosCompletos : 1;
+
+                // Llamada AJAX para obtener la tabla real de la base de datos
+                if (empleadoId) {
+                    panelInfoVac.classList.remove('d-none');
+                    
+                    fetch(`/vacaciones/historial-json/${empleadoId}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        let html = '<div style="font-size: 11px; width: 250px;"><table class="table table-sm mb-0"><thead class="table-dark"><tr><th>Año</th><th>Periodo</th><th>Restantes</th></tr></thead><tbody>';
+                        let saldoAcumulado = 0;
+                        
+                        data.forEach(row => {
+                            html += `<tr><td>${row.ano_servicio}</td><td>${row.periodo}</td><td class="text-end fw-bold ${row.dias_restantes < 0 ? 'text-danger' : ''}">${row.dias_restantes}</td></tr>`;
+                            let restante = parseFloat(String(row.dias_restantes).replace(/,/g, ''));
+                            if(!isNaN(restante)) saldoAcumulado += restante;
+                        });
+                        
+                        html += `</tbody><tfoot class="table-light fw-bold"><tr><td colspan="2">TOTAL:</td><td class="text-end text-primary fs-6">${saldoAcumulado.toFixed(2)}</td></tr></tfoot></table></div>`;
+                        
+                        saldoGlobalCalculado = saldoAcumulado;
+
+                        // Actualizar el Badge visible
+                        if(badgeSaldoTotal) {
+                            badgeSaldoTotal.innerText = saldoAcumulado.toFixed(2) + ' días';
+                            if(saldoAcumulado <= 0) {
+                                badgeSaldoTotal.classList.replace('bg-primary', 'bg-danger');
+                                badgeSaldoTotal.classList.replace('bg-success', 'bg-danger');
+                            } else {
+                                badgeSaldoTotal.classList.replace('bg-danger', 'bg-success');
+                                badgeSaldoTotal.classList.replace('bg-primary', 'bg-success');
+                            }
+                        }
+
+                        // Destruir el popover viejo si existe y crear uno nuevo
+                        const existingPopover = bootstrap.Popover.getInstance(iconoPopoverVac);
+                        if (existingPopover) existingPopover.dispose();
+                        
+                        new bootstrap.Popover(iconoPopoverVac, { 
+                            content: html, 
+                            html: true, 
+                            trigger: 'hover focus', 
+                            container: 'body', 
+                            placement: 'bottom', 
+                            sanitize: false 
+                        });
+                        
+                        calcularDiasTomados(); // Re-validar colores si ya había fechas
+                    })
+                    .catch(error => {
+                        console.error("Error al cargar historial vacacional:", error);
+                        panelInfoVac.classList.add('d-none');
+                    });
+                }
+            } else {
+                anoServicioInput.value = '';
+                panelInfoVac.classList.add('d-none');
+                saldoGlobalCalculado = 0;
+            }
+        }
+
+        function calcularDiasTomados() {
+            if (fechaInicioInput.value && fechaFinInput.value && diasTomadosDisplay) {
+                const inicio = new Date(fechaInicioInput.value + 'T00:00:00');
+                const fin = new Date(fechaFinInput.value + 'T00:00:00');
+
+                if (fin >= inicio) {
+                    const diffTime = Math.abs(fin - inicio);
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                    diasTomadosDisplay.value = diffDays;
+
+                    // Si se pasa del saldo (según la BD), pintarlo de rojo y mostrar alerta
+                    if(diffDays > saldoGlobalCalculado && empleadoSelectVac.value) {
+                        diasTomadosDisplay.classList.add('text-danger', 'border-danger');
+                        diasTomadosDisplay.classList.remove('text-muted');
+                        if(alertaExceso) alertaExceso.classList.remove('d-none');
+                    } else {
+                        diasTomadosDisplay.classList.remove('text-danger', 'border-danger');
+                        diasTomadosDisplay.classList.add('text-muted');
+                        if(alertaExceso) alertaExceso.classList.add('d-none');
+                    }
+                } else {
+                    diasTomadosDisplay.value = '';
+                    if(alertaExceso) alertaExceso.classList.add('d-none');
+                }
+            } else if (diasTomadosDisplay) {
+                diasTomadosDisplay.value = '';
+                if(alertaExceso) alertaExceso.classList.add('d-none');
+            }
+        }
+
+        if (empleadoSelectVac) {
+            empleadoSelectVac.addEventListener('change', actualizarAnoServicioYPopover);
+            if (empleadoSelectVac.value) actualizarAnoServicioYPopover();
+        }
+
+        if (fechaInicioInput && fechaFinInput) {
+            fechaInicioInput.addEventListener('change', calcularDiasTomados);
+            fechaFinInput.addEventListener('change', calcularDiasTomados);
+            if (fechaInicioInput.value && fechaFinInput.value) calcularDiasTomados();
+        }
+
         // Función para Capturar la Tabla
         function capturarTabla() {
             let btn = document.getElementById('btn-capturar');
@@ -558,24 +799,18 @@
             btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Procesando...';
             btn.disabled = true;
 
-            // Seleccionamos el contenedor que queremos capturar
             let elemento = document.getElementById('tabla-captura');
 
             html2canvas(elemento, {
-                scale: 2, // Alta Definición
-                backgroundColor: '#ffffff', // Forzar fondo blanco puro por detrás del glassmorphism
-                useCORS: true // Necesario para que no marque error con recursos externos
+                scale: 2, 
+                backgroundColor: '#ffffff', 
+                useCORS: true 
             }).then(canvas => {
                 let enlace = document.createElement('a');
-                
-                // Generar un nombre de archivo bonito con la fecha seleccionada
                 let fecha = document.getElementById('fecha_ref').value;
                 enlace.download = 'Asistencia_' + fecha + '.png';
-                
                 enlace.href = canvas.toDataURL('image/png');
                 enlace.click();
-
-                // Restaurar botón
                 btn.innerHTML = originalText;
                 btn.disabled = false;
             }).catch(err => {
@@ -589,8 +824,11 @@
         function activarEdicion(divVista) {
             document.querySelectorAll('.edit-mode').forEach(el => el.classList.add('d-none'));
             document.querySelectorAll('.display-mode').forEach(el => el.classList.remove('d-none'));
+            document.querySelectorAll('.cell-editing-active').forEach(el => el.classList.remove('cell-editing-active')); 
 
             let celda = divVista.closest('td');
+            celda.classList.add('cell-editing-active');
+
             celda.querySelector('.display-mode').classList.add('d-none');
             let editMode = celda.querySelector('.edit-mode');
             if (editMode) {
@@ -603,6 +841,7 @@
 
         function cancelarEdicion(btnCancelar) {
             let celda = btnCancelar.closest('td');
+            celda.classList.remove('cell-editing-active'); 
             celda.querySelector('.edit-mode').classList.add('d-none');
             celda.querySelector('.display-mode').classList.remove('d-none');
         }
