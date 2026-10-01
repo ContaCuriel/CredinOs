@@ -153,6 +153,14 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h3 class="mb-0 fw-bold" style="color: #1d1d1f; letter-spacing: -0.5px;">Control de Asistencias</h3>
             <div class="d-flex gap-2">
+                
+                {{-- NUEVO BOTÓN PARA CAPTURAR LA TABLA COMO IMAGEN --}}
+                @if(isset($empleadosDeSucursal) && $empleadosDeSucursal->isNotEmpty())
+                    <button type="button" class="btn-ios-outline shadow-sm text-dark border-secondary" id="btn-capturar" onclick="capturarTabla()">
+                        <i class="bi bi-camera me-1"></i> Capturar
+                    </button>
+                @endif
+
                 <button type="button" class="btn-ios-outline shadow-sm" data-bs-toggle="modal" data-bs-target="#modalAsueto">
                     <i class="bi bi-calendar-heart me-1"></i> Asueto
                 </button>
@@ -244,16 +252,15 @@
             @if(isset($empleadosDeSucursal) && $empleadosDeSucursal->isNotEmpty() && isset($fechasDelPeriodo) && $fechasDelPeriodo->isNotEmpty())
                 
                 {{-- ISLA 2: TABLA DE ASISTENCIA --}}
-                {{-- 🔥 AQUÍ EL AJUSTE PARA COMPACTAR LA VISTA DE DÍA --}}
-                <div class="ios-table-container mx-auto" style="max-width: {{ $tipoPeriodo == 'dia' ? '650px' : '100%' }};">
+                {{-- Contenedor con ID para ser capturado por la cámara --}}
+                <div id="tabla-captura" class="ios-table-container mx-auto" style="max-width: {{ $tipoPeriodo == 'dia' ? '650px' : '100%' }};">
                     <table class="table table-ios text-center align-middle">
                         <thead style="position: sticky; top: 0; z-index: 10;">
                             <tr>
-                                {{-- Ancho dinámico para la primera columna --}}
                                 <th style="min-width: {{ $tipoPeriodo == 'dia' ? '350px' : '250px' }}; text-align: left; position: sticky; left: 0; z-index: 11; background-color: rgba(245, 245, 247, 0.95) !important; backdrop-filter: blur(10px);">
                                     <div class="d-flex justify-content-between align-items-center px-2">
                                         <span>Empleado</span>
-                                        <button id="btn-mostrar-ocultos" class="btn btn-light btn-sm py-0 d-none rounded-pill shadow-sm text-primary fw-bold" onclick="mostrarOcultos()" title="Restaurar ocultos" style="font-size: 0.7rem;">
+                                        <button id="btn-mostrar-ocultos" class="btn btn-light btn-sm py-0 d-none rounded-pill shadow-sm text-primary fw-bold" onclick="mostrarOcultos()" title="Restaurar ocultos" style="font-size: 0.7rem;" data-html2canvas-ignore="true">
                                             <i class="bi bi-eye"></i> <span id="span-contador-ocultos"></span>
                                         </button>
                                     </div>
@@ -275,13 +282,12 @@
                                     {{-- CELDA EMPLEADO --}}
                                     <td class="align-middle" style="text-align: left; position: sticky; left: 0; background-color: rgba(255,255,255,0.9); backdrop-filter: blur(5px); z-index: 1; border-right: 1px solid rgba(0,0,0,0.05);">
                                         <div class="d-flex align-items-center px-2 py-1">
-                                            <i class="bi bi-eye-slash text-muted me-3" style="cursor: pointer; font-size: 1rem; opacity: 0.3; transition: opacity 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.3" onclick="ocultarEmpleado({{ $empleado->id_empleado }})" title="Ocultar empleado"></i>
+                                            <i class="bi bi-eye-slash text-muted me-3" style="cursor: pointer; font-size: 1rem; opacity: 0.3; transition: opacity 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.3" onclick="ocultarEmpleado({{ $empleado->id_empleado }})" title="Ocultar empleado" data-html2canvas-ignore="true"></i>
                                             
                                             <div class="{{ $tipoPeriodo == 'dia' ? 'd-flex align-items-center flex-wrap gap-2' : '' }}">
                                                 <span class="fw-bold {{ $tipoPeriodo != 'dia' ? 'd-block' : '' }}" style="color: #1d1d1f; font-size: 0.9rem; letter-spacing: -0.2px;">{{ $empleado->nombre_completo }}</span>
                                                 
                                                 @if($tipoPeriodo == 'dia')
-                                                    {{-- VISTA COMPACTA HORIZONTAL (DIA) --}}
                                                     @if($id_sucursal_seleccionada === 'todas')
                                                         <span class="badge rounded-pill border fw-medium" style="font-size: 0.65rem; color: #6e6e73; background: #f5f5f7;">
                                                             <i class="bi bi-shop me-1"></i>{{ $empleado->sucursal->nombre_sucursal ?? 'S/S' }}
@@ -291,7 +297,6 @@
                                                         {{ $empleado->puesto->nombre_puesto ?? 'General' }}
                                                     </span>
                                                 @else
-                                                    {{-- VISTA CLÁSICA EN BLOQUE (QUINCENA/SEMANA) --}}
                                                     @if($id_sucursal_seleccionada === 'todas')
                                                         <span class="text-muted d-block" style="font-size: 0.7em; font-weight: 500;">
                                                             <i class="bi bi-shop opacity-50"></i> {{ $empleado->sucursal->nombre_sucursal ?? 'S/S' }}
@@ -351,11 +356,11 @@
                                                 $asistenciaDia = null; 
                                             }
 
-                                            // Colores de Fondo Translucidos para Integrarse a la Isla
+                                            // Colores de Fondo Translucidos
                                             $bgStyle = '';
                                             $textClass = 'text-dark';
                                             if ($esAntesDeIngreso) {
-                                                $bgStyle = 'background-color: rgba(0,0,0,0.03);'; // Muy sutil
+                                                $bgStyle = 'background-color: rgba(0,0,0,0.03);';
                                             } elseif ($asistenciaDia) {
                                                 switch ($asistenciaDia->status_asistencia) {
                                                     case 'Retardo': $bgStyle = 'background-color: rgba(255, 193, 7, 0.15);'; $textClass = 'text-warning-emphasis'; break;
@@ -377,7 +382,7 @@
                                         <td class="p-1 position-relative" style="height: {{ $tipoPeriodo == 'dia' ? '44px' : '54px' }};">
                                             <div class="cell-interactive w-100 h-100 position-relative {{ $esAntesDeIngreso ? 'disabled-cell' : '' }}" style="{{ $bgStyle }}">
                                             
-                                                {{-- PINES FLOTANTES (GLASSMORPHISM) --}}
+                                                {{-- PINES FLOTANTES --}}
                                                 @if($esIngreso)
                                                     <div class="position-absolute top-0 end-0 mt-1 me-1" style="z-index: 5; pointer-events: none;" title="Día de Ingreso">
                                                         <div class="ios-badge-float badge-newcomer rounded-circle">
@@ -442,14 +447,14 @@
                                                         @elseif(!$esLaborable)
                                                             <span class="fw-bold text-secondary opacity-50" style="font-size: 0.7rem; letter-spacing: 0.5px;">DESC</span>
                                                         @else
-                                                            <i class="bi bi-plus text-primary opacity-25" style="font-size: 1.5rem; transition: opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=0.25"></i>
+                                                            <i class="bi bi-plus text-primary opacity-25" style="font-size: 1.5rem; transition: opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=0.25" data-html2canvas-ignore="true"></i>
                                                         @endif
                                                     @endif
                                                 </div>
 
                                                 {{-- MODO EDICIÓN --}}
                                                 @if(!$esAntesDeIngreso)
-                                                    <div class="edit-mode d-none position-absolute top-0 start-0 w-100 h-100 bg-white shadow-lg rounded-3 z-3 d-flex align-items-center justify-content-center p-1" style="transform: scale(1.15); border: 1px solid #0071e3;">
+                                                    <div class="edit-mode d-none position-absolute top-0 start-0 w-100 h-100 bg-white shadow-lg rounded-3 z-3 d-flex align-items-center justify-content-center p-1" style="transform: scale(1.15); border: 1px solid #0071e3;" data-html2canvas-ignore="true">
                                                         <form method="POST" action="{{ route('asistencia.registrarEntrada') }}" class="w-100 d-flex flex-column align-items-center" onsubmit="prepararHoraAntesDeEnviar(this)">
                                                             @csrf
                                                             <input type="hidden" name="id_empleado" value="{{ $empleado->id_empleado }}">
@@ -542,7 +547,45 @@
     </div>
 
     @push('scripts')
+        {{-- LIBRERÍA HTML2CANVAS PARA CAPTURAR LA TABLA --}}
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
         <script>
+        // Función para Capturar la Tabla
+        function capturarTabla() {
+            let btn = document.getElementById('btn-capturar');
+            let originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Procesando...';
+            btn.disabled = true;
+
+            // Seleccionamos el contenedor que queremos capturar
+            let elemento = document.getElementById('tabla-captura');
+
+            html2canvas(elemento, {
+                scale: 2, // Alta Definición
+                backgroundColor: '#ffffff', // Forzar fondo blanco puro por detrás del glassmorphism
+                useCORS: true // Necesario para que no marque error con recursos externos
+            }).then(canvas => {
+                let enlace = document.createElement('a');
+                
+                // Generar un nombre de archivo bonito con la fecha seleccionada
+                let fecha = document.getElementById('fecha_ref').value;
+                enlace.download = 'Asistencia_' + fecha + '.png';
+                
+                enlace.href = canvas.toDataURL('image/png');
+                enlace.click();
+
+                // Restaurar botón
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }).catch(err => {
+                console.error("Error al capturar la tabla: ", err);
+                alert("Ocurrió un error al intentar capturar la tabla. Por favor intenta de nuevo.");
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            });
+        }
+
         function activarEdicion(divVista) {
             document.querySelectorAll('.edit-mode').forEach(el => el.classList.add('d-none'));
             document.querySelectorAll('.display-mode').forEach(el => el.classList.remove('d-none'));
