@@ -20,7 +20,7 @@ class AsistenciaController extends Controller
         $sucursales = Sucursal::where('status', 'Activa')->orderBy('nombre_sucursal')->get();
         $asuetos = \App\Models\Asueto::all(); // Cargar asuetos
         
-        $id_sucursal_seleccionada = $request->input('id_sucursal_seleccionada');
+        $id_sucursal_seleccionada = $request->input('id_sucursal_seleccionada', 'todas');
         $fechaReferenciaNavegacion = $request->input('fecha_ref', Carbon::today()->toDateString());
         $tipoPeriodo = $request->input('tipo_periodo', 'semana');
         $fechaReferencia = Carbon::parse($fechaReferenciaNavegacion);
