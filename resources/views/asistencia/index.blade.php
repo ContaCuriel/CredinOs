@@ -244,11 +244,12 @@
             @if(isset($empleadosDeSucursal) && $empleadosDeSucursal->isNotEmpty() && isset($fechasDelPeriodo) && $fechasDelPeriodo->isNotEmpty())
                 
                 {{-- ISLA 2: TABLA DE ASISTENCIA --}}
-                <div class="ios-table-container mx-auto" style="max-width: {{ $tipoPeriodo == 'dia' ? '900px' : '100%' }};">
+                <div class="ios-table-container mx-auto" style="max-width: {{ $tipoPeriodo == 'dia' ? '1000px' : '100%' }};">
                     <table class="table table-ios text-center align-middle">
                         <thead style="position: sticky; top: 0; z-index: 10;">
                             <tr>
-                                <th style="min-width: 250px; text-align: left; position: sticky; left: 0; z-index: 11; background-color: rgba(245, 245, 247, 0.95) !important; backdrop-filter: blur(10px);">
+                                {{-- Ancho dinámico para la primera columna dependiendo de la vista --}}
+                                <th style="min-width: {{ $tipoPeriodo == 'dia' ? '450px' : '250px' }}; text-align: left; position: sticky; left: 0; z-index: 11; background-color: rgba(245, 245, 247, 0.95) !important; backdrop-filter: blur(10px);">
                                     <div class="d-flex justify-content-between align-items-center px-2">
                                         <span>Empleado</span>
                                         <button id="btn-mostrar-ocultos" class="btn btn-light btn-sm py-0 d-none rounded-pill shadow-sm text-primary fw-bold" onclick="mostrarOcultos()" title="Restaurar ocultos" style="font-size: 0.7rem;">
@@ -275,28 +276,29 @@
                                         <div class="d-flex align-items-center px-2 py-1">
                                             <i class="bi bi-eye-slash text-muted me-3" style="cursor: pointer; font-size: 1rem; opacity: 0.3; transition: opacity 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.3" onclick="ocultarEmpleado({{ $empleado->id_empleado }})" title="Ocultar empleado"></i>
                                             
-                                            <div>
-                                                <span class="fw-bold d-block" style="color: #1d1d1f; font-size: 0.9rem; letter-spacing: -0.2px;">{{ $empleado->nombre_completo }}</span>
+                                            <div class="{{ $tipoPeriodo == 'dia' ? 'd-flex align-items-center flex-wrap gap-2' : '' }}">
+                                                <span class="fw-bold {{ $tipoPeriodo != 'dia' ? 'd-block' : '' }}" style="color: #1d1d1f; font-size: 0.9rem; letter-spacing: -0.2px;">{{ $empleado->nombre_completo }}</span>
                                                 
                                                 @if($tipoPeriodo == 'dia')
+                                                    {{-- VISTA COMPACTA HORIZONTAL (DIA) --}}
                                                     @if($id_sucursal_seleccionada === 'todas')
-                                                        <span class="text-muted me-2" style="font-size: 0.7em; font-weight: 500;">
-                                                            <i class="bi bi-shop opacity-50"></i> {{ $empleado->sucursal->nombre_sucursal ?? 'S/S' }}
+                                                        <span class="badge rounded-pill border fw-medium" style="font-size: 0.65rem; color: #6e6e73; background: #f5f5f7;">
+                                                            <i class="bi bi-shop me-1"></i>{{ $empleado->sucursal->nombre_sucursal ?? 'S/S' }}
                                                         </span>
                                                     @endif
-                                                    <span class="fw-semibold" style="color: #86868b; font-size: 0.7em;">
+                                                    <span class="badge rounded-pill fw-medium" style="font-size: 0.65rem; color: #0071e3; background: rgba(0, 113, 227, 0.1);">
                                                         {{ $empleado->puesto->nombre_puesto ?? 'General' }}
                                                     </span>
                                                 @else
+                                                    {{-- VISTA CLÁSICA EN BLOQUE (QUINCENA/SEMANA) --}}
                                                     @if($id_sucursal_seleccionada === 'todas')
-                                                        <span class="text-muted" style="font-size: 0.7em; font-weight: 500;">
+                                                        <span class="text-muted d-block" style="font-size: 0.7em; font-weight: 500;">
                                                             <i class="bi bi-shop opacity-50"></i> {{ $empleado->sucursal->nombre_sucursal ?? 'S/S' }}
                                                         </span>
-                                                    @else
-                                                        <span class="fw-semibold" style="color: #86868b; font-size: 0.7em;">
-                                                            {{ $empleado->puesto->nombre_puesto ?? 'General' }}
-                                                        </span>
                                                     @endif
+                                                    <span class="fw-semibold d-block" style="color: #86868b; font-size: 0.7em;">
+                                                        {{ $empleado->puesto->nombre_puesto ?? 'General' }}
+                                                    </span>
                                                 @endif
                                             </div>
                                         </div>
@@ -371,7 +373,7 @@
                                             $estadoActualForm = $asistenciaDia ? ($asistenciaDia->status_asistencia == 'Retardo' ? 'Presente' : $asistenciaDia->status_asistencia) : 'Presente';
                                         @endphp
                                         
-                                        <td class="p-1 position-relative" style="height: 54px;">
+                                        <td class="p-1 position-relative" style="height: {{ $tipoPeriodo == 'dia' ? '44px' : '54px' }};">
                                             <div class="cell-interactive w-100 h-100 position-relative {{ $esAntesDeIngreso ? 'disabled-cell' : '' }}" style="{{ $bgStyle }}">
                                             
                                                 {{-- PINES FLOTANTES (GLASSMORPHISM) --}}
@@ -517,6 +519,7 @@
                         <div class="col-md-6">
                             <label class="form-label fw-bold mb-1" style="font-size: 0.85rem; color: #86868b;">Fecha Fin</label>
                             <input type="date" name="fecha_fin" class="form-control form-control-ios bg-white" required>
+                            <small class="text-muted" style="font-size: 0.7em;">(Misma fecha si es un solo día)</small>
                         </div>
                     </div>
                     <div class="mt-3">
