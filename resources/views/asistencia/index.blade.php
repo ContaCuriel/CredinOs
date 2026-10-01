@@ -244,12 +244,13 @@
             @if(isset($empleadosDeSucursal) && $empleadosDeSucursal->isNotEmpty() && isset($fechasDelPeriodo) && $fechasDelPeriodo->isNotEmpty())
                 
                 {{-- ISLA 2: TABLA DE ASISTENCIA --}}
-                <div class="ios-table-container mx-auto" style="max-width: {{ $tipoPeriodo == 'dia' ? '1000px' : '100%' }};">
+                {{-- 🔥 AQUÍ EL AJUSTE PARA COMPACTAR LA VISTA DE DÍA --}}
+                <div class="ios-table-container mx-auto" style="max-width: {{ $tipoPeriodo == 'dia' ? '650px' : '100%' }};">
                     <table class="table table-ios text-center align-middle">
                         <thead style="position: sticky; top: 0; z-index: 10;">
                             <tr>
-                                {{-- Ancho dinámico para la primera columna dependiendo de la vista --}}
-                                <th style="min-width: {{ $tipoPeriodo == 'dia' ? '450px' : '250px' }}; text-align: left; position: sticky; left: 0; z-index: 11; background-color: rgba(245, 245, 247, 0.95) !important; backdrop-filter: blur(10px);">
+                                {{-- Ancho dinámico para la primera columna --}}
+                                <th style="min-width: {{ $tipoPeriodo == 'dia' ? '350px' : '250px' }}; text-align: left; position: sticky; left: 0; z-index: 11; background-color: rgba(245, 245, 247, 0.95) !important; backdrop-filter: blur(10px);">
                                     <div class="d-flex justify-content-between align-items-center px-2">
                                         <span>Empleado</span>
                                         <button id="btn-mostrar-ocultos" class="btn btn-light btn-sm py-0 d-none rounded-pill shadow-sm text-primary fw-bold" onclick="mostrarOcultos()" title="Restaurar ocultos" style="font-size: 0.7rem;">
