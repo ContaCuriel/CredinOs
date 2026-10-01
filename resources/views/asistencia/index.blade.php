@@ -584,10 +584,11 @@
         </div>
     </div>
 
-    <!-- Modal Vacaciones con Badge Visible -->
+    <!-- Modal Vacaciones con Badge Visible y Formulario AJAX -->
     <div class="modal fade" id="modalVacaciones" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <form method="POST" action="{{ route('vacaciones.store') }}" class="modal-content border-0 shadow-lg" style="border-radius: 1.5rem; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);">
+            {{-- 🔥 CAMBIADO: Se agregó el ID form_vacaciones_ajax 🔥 --}}
+            <form id="form_vacaciones_ajax" method="POST" action="{{ route('vacaciones.store') }}" class="modal-content border-0 shadow-lg" style="border-radius: 1.5rem; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);">
                 @csrf
                 <div class="modal-header border-0 px-4 pt-4 pb-3">
                     <h5 class="modal-title fw-bold" style="color: #1d1d1f;"><i class="bi bi-airplane-fill text-success me-2"></i> Registrar Vacaciones</h5>
@@ -659,7 +660,50 @@
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
         <script>
-        // LÓGICA PARA VACACIONES Y FETCH AJAX
+        // LÓGICA PARA ENVÍO DE VACACIONES VÍA AJAX
+        const formVacacionesAjax = document.getElementById('form_vacaciones_ajax');
+        if (formVacacionesAjax) {
+            formVacacionesAjax.addEventListener('submit', function(e) {
+                e.preventDefault(); // Evitamos que cambie a la pantalla de crear vacaciones
+                
+                let btn = document.getElementById('btn_guardar_vacaciones');
+                let originalText = btn.innerHTML;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Guardando...';
+                btn.disabled = true;
+
+                fetch(this.action, {
+                    method: 'POST',
+                    body: new FormData(this),
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(async response => {
+                    if (response.ok || response.redirected) {
+                        // Todo salió bien, recargamos la tabla de asistencias actual
+                        window.location.reload();
+                    } else if (response.status === 422) {
+                        // Error de validación del formulario (ej. faltó un dato)
+                        let data = await response.json();
+                        let errores = Object.values(data.errors).flat().join('\n');
+                        alert("Por favor corrige los siguientes errores:\n" + errores);
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                    } else {
+                        // Otro error
+                        alert("Ocurrió un error inesperado al intentar guardar las vacaciones.");
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                    }
+                })
+                .catch(err => {
+                    console.error("Error Fetch:", err);
+                    window.location.reload(); // Fallback en caso de que todo falle
+                });
+            });
+        }
+
+        // LÓGICA PARA VACACIONES Y FETCH AJAX DEL POPOVER
         const empleadoSelectVac = document.getElementById('id_empleado_vac');
         const anoServicioInput = document.getElementById('ano_servicio_correspondiente');
         const fechaInicioInput = document.getElementById('fecha_inicio_vac');
