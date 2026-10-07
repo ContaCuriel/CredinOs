@@ -275,7 +275,7 @@ class EmpleadoController extends Controller
 
 
     /**
-     * Exporta la lista de empleados filtrada a formato Excel (CSV).
+     * Exporta la lista de empleados filtrada a formato Excel (CSV), incluyendo el sueldo.
      */
     public function exportarExcel(Request $request)
     {
@@ -319,8 +319,9 @@ class EmpleadoController extends Controller
             "Expires"             => "0"
         );
 
+        // AQUÍ AGREGAMOS LA COLUMNA DE SUELDO MENSUAL
         $columns = [
-            'ID', 'Nombre Completo', 'Estatus', 'Sucursal', 'Puesto', 
+            'ID', 'Nombre Completo', 'Estatus', 'Sucursal', 'Puesto', 'Sueldo Mensual ($)',
             'Fecha Ingreso', 'Fecha Nacimiento', 'CURP', 'RFC', 'NSS', 
             'Teléfono', 'Dirección', 'Banco', 'Cuenta Bancaria', 
             'Contacto Emergencia', 'Teléfono Emergencia', 'Fecha Baja', 'Motivo Baja'
@@ -340,6 +341,8 @@ class EmpleadoController extends Controller
                     $emp->status,
                     $emp->sucursal ? $emp->sucursal->nombre_sucursal : 'S/S',
                     $emp->puesto ? $emp->puesto->nombre_puesto : 'N/A',
+                    // AQUÍ EXTRAEMOS EL SALARIO MENSUAL DEL PUESTO
+                    $emp->puesto ? number_format($emp->puesto->salario_mensual, 2, '.', '') : '0.00',
                     $emp->fecha_ingreso ? Carbon::parse($emp->fecha_ingreso)->format('d/m/Y') : '',
                     $emp->fecha_nacimiento ? Carbon::parse($emp->fecha_nacimiento)->format('d/m/Y') : '',
                     $emp->curp,

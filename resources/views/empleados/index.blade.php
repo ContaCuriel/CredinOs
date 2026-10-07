@@ -140,7 +140,7 @@
                 </p>
             </div>
             <div class="d-flex gap-2">
-                {{-- NUEVO BOTÓN: EXPORTAR A EXCEL --}}
+                {{-- BOTÓN: EXPORTAR A EXCEL --}}
                 <a href="{{ route('empleados.exportar.excel', request()->all()) }}" class="btn-ios-success text-decoration-none shadow-sm">
                     <i class="bi bi-file-earmark-excel-fill me-1"></i> Exportar a Excel
                 </a>
@@ -216,6 +216,7 @@
                         <tr>
                             <th>Nombre Completo</th>
                             <th>Puesto</th>
+                            <th>Sueldo</th>
                             <th>Sucursal</th>
                             <th>Ingreso</th>
                             <th>RFC</th>
@@ -237,6 +238,9 @@
                                     <span class="badge rounded-pill fw-medium" style="font-size: 0.75rem; color: #0071e3; background: rgba(0, 113, 227, 0.1);">
                                         {{ $empleado->puesto ? $empleado->puesto->nombre_puesto : 'N/A' }}
                                     </span>
+                                </td>
+                                <td class="fw-semibold" style="font-size: 0.9rem; color: #155724;">
+                                    ${{ number_format($empleado->puesto->salario_mensual ?? 0, 2) }}
                                 </td>
                                 <td>
                                     <span class="text-muted fw-medium" style="font-size: 0.85rem;">
@@ -296,7 +300,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="{{ ($status_filter == 'baja' || $status_filter == 'todos') ? '9' : '7' }}" class="text-center py-5">
+                                <td colspan="{{ ($status_filter == 'baja' || $status_filter == 'todos') ? '10' : '8' }}" class="text-center py-5">
                                     <i class="bi bi-inbox text-muted opacity-25" style="font-size: 3rem;"></i>
                                     <h5 class="fw-bold mt-3 text-dark">Sin registros</h5>
                                     <p class="text-muted mb-0">
