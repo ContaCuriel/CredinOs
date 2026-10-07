@@ -272,4 +272,98 @@ class EmpleadoController extends Controller
             'empleado' => $empleado
         ]);
     }
+
+
+    /**
+     * Exporta la lista de empleados filtrada a formato Excel (CSV).
+     */
+    public function exportarExcel(Request $request)
+    {
+        $status_filter = $request->input('status_filter', 'alta');
+        $id_sucursal_filter = $request->input('id_sucursal_filter');
+        $search_term = $request->input('search_term');
+
+        $query = Empleado::with(['puesto', 'sucursal']);
+
+        if ($status_filter == 'baja') {
+            $query->where('status', 'Baja');
+        } elseif ($status_filter == 'todos') {
+            $query->whereIn('status', ['Alta', 'Baja']);
+        } else { 
+            $query->where('status', 'Alta');
+        }
+
+        if (!empty($id_sucursal_filter)) {
+            $query->where('id_sucursal', $id_sucursal_filter);
+        }
+
+        if (!empty($search_term)) {
+            $query->where(function ($q) use ($search_term) {
+                $q->where('nombre_completo', 'like', '%' . $search_term . '%')
+                  ->orWhere('curp', 'like', '%' . $search_term . '%')
+                  ->orWhere('rfc', 'like', '%' . $search_term . '%');
+            });
+        }
+
+        $empleados = $query->orderBy('nombre_completo')->get();
+
+        // Nombre del archivo a descargar
+        $filename = "base_de_datos_empleados_" . date('Y-m-d_H-i') . ".csv";
+        
+        // Cabeceras para forzar la descarga en el navegador
+        $headers = array(
+            "Content-type"        => "text/csv; charset=UTF-8",
+            "Content-Disposition" => "attachment; filename=$filename",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        );
+
+        $columns = [
+            'ID', 'Nombre Completo', 'Estatus', 'Sucursal', 'Puesto', 
+            'Fecha Ingreso', 'Fecha Nacimiento', 'CURP', 'RFC', 'NSS', 
+            'Teléfono', 'Dirección', 'Banco', 'Cuenta Bancaria', 
+            'Contacto Emergencia', 'Teléfono Emergencia', 'Fecha Baja', 'Motivo Baja'
+        ];
+
+        $callback = function() use($empleados, $columns) {
+            $file = fopen('php://output', 'w');
+            
+            // Añadir el BOM para que Excel detecte correctamente el UTF-8 (Acentos y Ñ)
+            fputs($file, "\xEF\xBB\xBF");
+            fputcsv($file, $columns);
+
+            foreach ($empleados as $emp) {
+                $row = [
+                    $emp->id_empleado,
+                    $emp->nombre_completo,
+                    $emp->status,
+                    $emp->sucursal ? $emp->sucursal->nombre_sucursal : 'S/S',
+                    $emp->puesto ? $emp->puesto->nombre_puesto : 'N/A',
+                    $emp->fecha_ingreso ? Carbon::parse($emp->fecha_ingreso)->format('d/m/Y') : '',
+                    $emp->fecha_nacimiento ? Carbon::parse($emp->fecha_nacimiento)->format('d/m/Y') : '',
+                    $emp->curp,
+                    $emp->rfc,
+                    $emp->nss,
+                    $emp->telefono,
+                    $emp->direccion,
+                    $emp->banco,
+                    $emp->cuenta_bancaria,
+                    $emp->contacto_emerg_nombre,
+                    $emp->contacto_emerg_telefono,
+                    $emp->fecha_baja ? Carbon::parse($emp->fecha_baja)->format('d/m/Y') : '',
+                    $emp->motivo_baja
+                ];
+                fputcsv($file, $row);
+            }
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
 }
+
+
+
+
+

@@ -142,6 +142,7 @@ Route::get('/cartera-activa', [App\Http\Controllers\CreditoController::class, 'c
         Route::resource('empleados', EmpleadoController::class)->middleware('can:ver-empleados');
         Route::get('/empleados/{empleado}/historial-contratos', [EmpleadoController::class, 'historialContratos'])->name('empleados.contratos.historial')->middleware('can:ver-contratos');
         Route::put('/empleados/{empleado}/reactivar', [EmpleadoController::class, 'reactivar'])->name('empleados.reactivar')->middleware('can:editar-empleados');
+        Route::get('/empleados/exportar/excel', [App\Http\Controllers\EmpleadoController::class, 'exportarExcel'])->name('empleados.exportar.excel');
         Route::post('/empleados/{empleado}/datos-fiscales', [EmpleadoController::class, 'updateDatosFiscales'])->name('empleados.datosFiscales');
 
         // Contratos
