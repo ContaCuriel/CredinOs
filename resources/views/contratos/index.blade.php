@@ -247,13 +247,21 @@
                                 <td>
                                     @php
                                         $tipoContrato = $empleado->ultimoContrato ? $empleado->ultimoContrato->tipo_contrato : 'N/A';
-                                        $badgeClass = 'bg-secondary text-secondary border-secondary'; // Default
-                                        if($tipoContrato == 'Indeterminado') $badgeClass = 'bg-success text-success border-success';
-                                        elseif($tipoContrato == 'Determinado') $badgeClass = 'bg-primary text-primary border-primary';
-                                        elseif($tipoContrato == 'Honorarios') $badgeClass = 'bg-purple text-purple border-purple'; // Purple
-                                        elseif($tipoContrato == 'Sueldo Variable') $badgeClass = 'bg-warning text-dark border-warning';
+                                        
+                                        // Estilos seguros en línea en lugar de depender de clases de Bootstrap conflictivas
+                                        $iosStyle = 'color: #6e6e73; background: rgba(110, 110, 115, 0.1); border: 1px solid rgba(110, 110, 115, 0.2);'; // Por defecto (N/A)
+                                        
+                                        if($tipoContrato == 'Indeterminado') {
+                                            $iosStyle = 'color: #198754; background: rgba(25, 135, 84, 0.1); border: 1px solid rgba(25, 135, 84, 0.2);';
+                                        } elseif($tipoContrato == 'Determinado') {
+                                            $iosStyle = 'color: #0071e3; background: rgba(0, 113, 227, 0.1); border: 1px solid rgba(0, 113, 227, 0.2);';
+                                        } elseif($tipoContrato == 'Honorarios') {
+                                            $iosStyle = 'color: #6f42c1; background: rgba(111, 66, 193, 0.1); border: 1px solid rgba(111, 66, 193, 0.2);';
+                                        } elseif($tipoContrato == 'Sueldo Variable') {
+                                            $iosStyle = 'color: #d97706; background: rgba(217, 119, 6, 0.1); border: 1px solid rgba(217, 119, 6, 0.2);';
+                                        }
                                     @endphp
-                                    <span class="badge {{ $badgeClass }} bg-opacity-10 border border-opacity-25 rounded-pill px-2 py-1">
+                                    <span class="badge rounded-pill fw-bold px-3 py-1 shadow-sm" style="font-size: 0.75rem; {{ $iosStyle }}">
                                         {{ $tipoContrato }}
                                     </span>
                                 </td>
