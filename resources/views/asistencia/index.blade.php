@@ -7,6 +7,9 @@
             animation: subtleMesh 20s ease infinite;
             min-height: calc(100vh - 60px);
             padding-bottom: 3rem;
+            /* 🔥 CORRECCIÓN DEL FONDO BLANCO AL HACER SCROLL 🔥 */
+            display: inline-block; 
+            min-width: 100%;
         }
 
         @keyframes subtleMesh {
@@ -316,7 +319,12 @@
                                 {{-- CELDA EMPLEADO --}}
                                 <td class="align-middle" style="text-align: left; position: sticky; left: 0; background-color: rgba(255,255,255,0.9); backdrop-filter: blur(5px); z-index: 1; border-right: 1px solid rgba(0,0,0,0.05);">
                                     <div class="d-flex align-items-center px-2 py-1">
-                                        <i class="bi bi-eye-slash text-muted me-3" style="cursor: pointer; font-size: 1rem; opacity: 0.3; transition: opacity 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.3" onclick="ocultarEmpleado({{ $empleado->id_empleado }})" title="Ocultar empleado" data-html2canvas-ignore="true"></i>
+                                        <i class="bi bi-eye-slash text-muted me-2" style="cursor: pointer; font-size: 1rem; opacity: 0.3; transition: opacity 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.3" onclick="ocultarEmpleado({{ $empleado->id_empleado }})" title="Ocultar empleado de la vista" data-html2canvas-ignore="true"></i>
+                                        
+                                        {{-- 🔥 BOTÓN DE BAJA DIRECTA PARA USUARIOS LOGUEADOS 🔥 --}}
+                                        @auth
+                                            <i class="bi bi-person-x-fill text-danger me-3" style="cursor: pointer; font-size: 1.1rem; opacity: 0.3; transition: opacity 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.3" data-bs-toggle="modal" data-bs-target="#modalDarBajaAsistencia" data-id_empleado="{{ $empleado->id_empleado }}" data-nombre_empleado="{{ $empleado->nombre_completo }}" title="Dar de Baja Permanentemente" data-html2canvas-ignore="true"></i>
+                                        @endauth
                                         
                                         <div class="{{ $tipoPeriodo == 'dia' ? 'd-flex align-items-center flex-wrap gap-2' : '' }}">
                                             <span class="fw-bold {{ $tipoPeriodo != 'dia' ? 'd-block' : '' }}" style="color: #1d1d1f; font-size: 0.9rem; letter-spacing: -0.2px;">{{ $empleado->nombre_completo }}</span>
@@ -597,7 +605,6 @@
                             @endif
                         </select>
                         
-                        {{-- PANEL INFORMATIVO (Días Totales Visibles + Popover) --}}
                         <div id="panel_info_vacaciones" class="mt-2 p-2 rounded-3 d-none border" style="background-color: #f8f9fa;">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
@@ -643,11 +650,84 @@
         </div>
     </div>
 
+    <!-- 🔥 NUEVO MODAL PARA DAR DE BAJA DESDE ASISTENCIA 🔥 -->
+    <div class="modal fade" id="modalDarBajaAsistencia" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form id="form_baja_ajax" method="POST" action="" class="modal-content border-0 shadow-lg" style="border-radius: 1.5rem; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);">
+                @csrf
+                @method('DELETE')
+                <div class="modal-header border-0 px-4 pt-4 pb-2">
+                    <h5 class="modal-title fw-bold text-danger"><i class="bi bi-person-x-fill me-2"></i> Confirmar Baja</h5>
+                    <button type="button" class="btn-close bg-light rounded-circle shadow-sm" data-bs-dismiss="modal" aria-label="Close" style="padding: 0.5rem;"></button>
+                </div>
+                <div class="modal-body px-4">
+                    <p class="text-muted mb-4">Vas a dar de baja permanentemente a: <strong id="nombreEmpleadoBaja" class="text-dark fs-5 d-block mt-1"></strong></p>
+                    
+                    <div class="mb-3">
+                        <label for="fecha_baja" class="form-label fw-bold mb-1" style="font-size: 0.85rem; color: #86868b;">Fecha de Baja <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control form-control-ios bg-light" id="fecha_baja" name="fecha_baja" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="motivo_baja" class="form-label fw-bold mb-1" style="font-size: 0.85rem; color: #86868b;">Motivo de Baja (Opcional)</label>
+                        <textarea class="form-control form-control-ios bg-light" id="motivo_baja" name="motivo_baja" rows="3" placeholder="Razón de salida..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 px-4 pb-4 pt-0">
+                    <button type="button" class="btn fw-semibold border-0" style="color: #86868b;" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" id="btn_confirmar_baja" class="btn-ios-primary fw-bold px-4 shadow-sm" style="background-color: #dc3545;">Confirmar Baja</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     @push('scripts')
         {{-- LIBRERÍA HTML2CANVAS PARA CAPTURAR LA TABLA --}}
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
         <script>
+        // 🔥 LÓGICA PARA MODAL DAR DE BAJA 🔥
+        const modalDarBajaAsistencia = document.getElementById('modalDarBajaAsistencia');
+        if (modalDarBajaAsistencia) {
+            const formBajaAjax = document.getElementById('form_baja_ajax');
+            const nombreEmpleadoBaja = document.getElementById('nombreEmpleadoBaja');
+            const fechaBajaInput = document.getElementById('fecha_baja');
+
+            modalDarBajaAsistencia.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const idEmpleado = button.getAttribute('data-id_empleado');
+                const nombreEmpleado = button.getAttribute('data-nombre_empleado');
+                
+                if (nombreEmpleadoBaja) nombreEmpleadoBaja.textContent = nombreEmpleado;
+                if (formBajaAjax && idEmpleado) {
+                    let baseActionUrl = "{{ route('empleados.destroy', ['empleado' => 'ID_PLACEHOLDER']) }}";
+                    formBajaAjax.action = baseActionUrl.replace('ID_PLACEHOLDER', idEmpleado);
+                }
+                if (fechaBajaInput) fechaBajaInput.value = new Date().toISOString().slice(0, 10);
+            });
+
+            formBajaAjax.addEventListener('submit', function(e) {
+                e.preventDefault(); 
+                let btn = document.getElementById('btn_confirmar_baja');
+                let originalText = btn.innerHTML;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Procesando...';
+                btn.disabled = true;
+
+                fetch(this.action, {
+                    method: 'POST',
+                    body: new FormData(this),
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(async response => {
+                    // El servidor responderá con redirección, forzamos recarga de esta vista:
+                    window.location.reload();
+                })
+                .catch(err => {
+                    console.error("Error Fetch:", err);
+                    window.location.reload();
+                });
+            });
+        }
+
         // LÓGICA PARA ENVÍO DE VACACIONES VÍA AJAX
         const formVacacionesAjax = document.getElementById('form_vacaciones_ajax');
         if (formVacacionesAjax) {
